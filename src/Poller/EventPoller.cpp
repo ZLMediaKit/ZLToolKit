@@ -6,12 +6,14 @@
 //  Copyright © 2016年 boyo. All rights reserved.
 //
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <list>
 #include "Util/util.h"
 #include "Util/logger.h"
 #include "EventPoller.hpp"
+#include "Network/sockutil.h"
 #ifdef HAS_EPOLL
 #include <sys/epoll.h>
 
@@ -25,7 +27,7 @@
 							| (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #endif //HAS_EPOLL
 using namespace ZL::Util;
-
+using namespace ZL::Network;
 namespace ZL {
 namespace Poller {
 
@@ -33,6 +35,8 @@ EventPoller::EventPoller(bool enableSelfRun) {
 	if (pipe(pipe_fd)) {
 		throw runtime_error(StrPrinter << "创建管道失败：" << errno << endl);
 	}
+	SockUtil::setNoBlocked(pipe_fd[0]);
+	SockUtil::setNoBlocked(pipe_fd[1]);
 #ifdef HAS_EPOLL
 	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (epoll_fd == -1) {
@@ -174,7 +178,7 @@ void EventPoller::sendAsync(PollAsyncCB &&asyncCb) {
 }
 
 bool EventPoller::isMainThread() {
-	return mainThreadId==this_thread::get_id();
+	return mainThreadId == this_thread::get_id();
 }
 
 inline Sigal_Type EventPoller::_handlePipeEvent(const uint64_t *ptr) {

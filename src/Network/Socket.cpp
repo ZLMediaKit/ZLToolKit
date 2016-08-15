@@ -74,6 +74,7 @@ void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
 		}
 		SockException err(Err_timeout,strerror(ETIMEDOUT));
 		strongSelf->emitErr(err);
+		strongSelf->closeSock();
 		connectCB(err);
 		return false;
 	}));
@@ -97,6 +98,7 @@ inline void Socket::onConnected(const onErrCB &connectCB) {
 		return;
 	}
 	emitErr(err);
+	closeSock();
 	connectCB(err);
 }
 
@@ -148,16 +150,18 @@ inline void Socket::onRead() {
 	ioctl(sock, FIONREAD, &nread);
 	if (nread < 1) {
 		emitErr(SockException(Err_eof, "end of file"));
+		closeSock();
 		return;
 	}
 	char buf[nread];
 	struct sockaddr peerAddr;
 	socklen_t len = sizeof(struct sockaddr);
 	nread = recvfrom(sock, buf, nread, 0, &peerAddr, &len);
-	readCB(buf, nread,&peerAddr);
+	readCB(buf, nread, &peerAddr);
 }
 inline void Socket::onError() {
 	emitErr(getSockErr(sock));
+	closeSock();
 }
 void Socket::emitErr(const SockException& err) {
 	weak_ptr<Socket> weakSelf = this->shared_from_this();
@@ -166,7 +170,6 @@ void Socket::emitErr(const SockException& err) {
 		if (!strongSelf) {
 			return;
 		}
-		strongSelf->closeSock();
 		strongSelf->errCB(err);
 	});
 
@@ -183,6 +186,18 @@ void Socket::send(const char *buf, int size) {
 }
 void Socket::send(const string &buf) {
 	lock_guard<recursive_mutex> lck(mtx_writeBuf);
+	if (sock == -1) {
+		WarnL << "socket is closed yet";
+		emitErr(SockException(Err_other, "socket is closed yet"));
+		return;
+	}
+	if (writeBuf.size() > 32 * 1024) {
+		canWrite = false;
+		WarnL << "socket send buffer is too large";
+		emitErr(SockException(Err_other, "socket send buffer is too large"));
+		closeSock();
+		return;
+	}
 	writeBuf.append(buf);
 	if (canWrite) {
 #ifndef HAS_EPOLL
@@ -232,7 +247,7 @@ inline void Socket::onWrite() {
 		return;
 	}
 //部分发送成功
-//InfoL << "send some success...";
+	InfoL << "send some success...";
 	writeBuf.erase(0, n);
 	canWrite = false;
 }

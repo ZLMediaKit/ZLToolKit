@@ -6,13 +6,17 @@
 //  Copyright © 2016年 boyo. All rights reserved.
 //
 
+#include <fcntl.h>
 #include "Pipe.hpp"
 #include <sys/ioctl.h>
 #include "Util/logger.h"
 #include "Util/util.h"
 #include <unistd.h>
+#include "Network/sockutil.h"
+
 using namespace std;
 using namespace ZL::Util;
+using ZL::Network::SockUtil;
 
 namespace ZL {
 namespace Poller {
@@ -20,6 +24,8 @@ Pipe::Pipe(function<void(int size, const char *buf)> &&onRead) {
 	if (pipe(pipe_fd)) {
 		throw runtime_error(StrPrinter << "创建管道失败：" << errno << endl);
 	}
+	SockUtil::setNoBlocked(pipe_fd[0]);
+	SockUtil::setNoBlocked(pipe_fd[1]);
 	if (!onRead) {
 		onRead = [](int size,const char *buf) {
 			TraceL<<"收到["<<size<<"]:"<<buf;
