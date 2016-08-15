@@ -90,6 +90,8 @@ private:
 		//收到客户端数据
 		auto it = sessionMap.find(sender);
 		if (it == sessionMap.end()) {
+			sender->setOnRead(nullptr);
+			WarnL<<"未处理的套接字事件";
 			return;
 		}
 		string buf(data, size);
@@ -106,6 +108,8 @@ private:
 		//DebugL<<EventPoller::Instance().isMainThread();
 		auto it = sessionMap.find(sender);
 		if (it == sessionMap.end()) {
+			sender->setOnErr(nullptr);
+			WarnL<<"未处理的套接字事件";
 			return;
 		}
 		auto session = it->second;

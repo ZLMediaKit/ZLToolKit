@@ -27,7 +27,6 @@ namespace ZL {
 namespace Network {
 
 Socket::Socket() {
-	canWrite = true;
 	readCB = [](const char *buf,int size,struct sockaddr *) {};
 	errCB = [](const SockException &err) {};
 	acceptCB = [](Socket_ptr &sock) {};
@@ -192,28 +191,21 @@ void Socket::send(const string &buf) {
 		return;
 	}
 	if (writeBuf.size() > 32 * 1024) {
-		canWrite = false;
-		WarnL << "socket send buffer is too large";
-		emitErr(SockException(Err_other, "socket send buffer is too large"));
-		closeSock();
-		return;
+		WarnL<< "Socket send buffer overflow,previous data has been discarded.";
+		writeBuf.clear();
 	}
 	writeBuf.append(buf);
-	if (canWrite) {
 #ifndef HAS_EPOLL
-		EventPoller::Instance().modifyEvent(sock,
-				Event_Read | Event_Error | Event_Write);
+	EventPoller::Instance().modifyEvent(sock,
+			Event_Read | Event_Error | Event_Write);
 #endif //HAS_EPOLL
-		onWrite();
-	}
+	onWrite();
 }
 
 inline void Socket::onWrite() {
 	lock_guard<recursive_mutex> lck(mtx_writeBuf);
 	int totalSize = writeBuf.size();
 	if (!totalSize) {
-		//InfoL << "null";
-		canWrite = true;
 #ifndef HAS_EPOLL
 		EventPoller::Instance().modifyEvent(sock, Event_Read | Event_Error);
 #endif //HAS_EPOLL
@@ -228,7 +220,6 @@ inline void Socket::onWrite() {
 
 	if (n >= totalSize) {
 		//全部发送成功
-		//InfoL << "send all success!";
 		writeBuf.clear();
 		return;
 	}
@@ -236,20 +227,17 @@ inline void Socket::onWrite() {
 		//一个都没发送成功
 		int err = errno;
 		if (err == EAGAIN || err == EWOULDBLOCK) {
-			canWrite = false;
-			InfoL << "send wait...";
+			//InfoL << "send wait...";
 			return;
 		}
 		//发生异常
 		ErrorL << "send err:" << strerror(err);
-		canWrite = false;
 		onError();
 		return;
 	}
 //部分发送成功
-	InfoL << "send some success...";
+	//InfoL << "send some success...";
 	writeBuf.erase(0, n);
-	canWrite = false;
 }
 void Socket::closeSock() {
 	if (sock != -1) {
@@ -267,7 +255,6 @@ void Socket::closeSock() {
 		});
 		sem.wait();
 		sock = -1;
-		canWrite = false;
 	}
 }
 
@@ -345,11 +332,17 @@ uint16_t Socket::get_peer_port() {
 	return SockUtil::get_peer_port(sock);
 }
 void Socket::sendTo(const char* buf, int size, struct sockaddr* peerAddr) {
-	int flags = 0;
+	if (sock == -1) {
+		WarnL << "socket is closed yet";
+		emitErr(SockException(Err_other, "socket is closed yet"));
+		return;
+	}
 #ifdef __linux__
-	flags = MSG_NOSIGNAL;
+	::sendto(sock, buf, size, MSG_NOSIGNAL, peerAddr, sizeof(struct sockaddr));
+#else
+	::sendto(sock, buf, size, 0, peerAddr, sizeof(struct sockaddr));
 #endif //__linux__
-	::sendto(sock, buf, size, flags, peerAddr, sizeof(struct sockaddr));
+
 }
 
 }  // namespace Network

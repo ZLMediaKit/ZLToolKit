@@ -78,7 +78,6 @@ public:
 	uint16_t get_peer_port();
 private:
 	int sock = -1;
-	bool canWrite;
 	string writeBuf;
 	recursive_mutex mtx_writeBuf;
 	shared_ptr<Timer> timedConnector;
