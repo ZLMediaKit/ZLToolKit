@@ -38,13 +38,13 @@ public:
 	void postTask_front(const Task &task) {
 		th->post_first(task);
 	}
+protected:
 	const string& getLocalIp() const {
 		return localIp;
 	}
 	const string& getPeerIp() const {
 		return peerIp;
 	}
-protected:
 	virtual void shutdown() {
 		sock->emitErr(SockException(Err_other, "self shutdown"));
 	}
