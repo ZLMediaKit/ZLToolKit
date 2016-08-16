@@ -52,8 +52,8 @@ public:
 	EventPoller(bool enableSelfRun=false);
 	virtual ~EventPoller();
 	static EventPoller &Instance() {
-		static EventPoller instance;
-		return instance;
+		static EventPoller *instance(new EventPoller());
+		return *instance;
 	}
 
 	int addEvent(int fd, int event, PollEventCB &&eventCb);
