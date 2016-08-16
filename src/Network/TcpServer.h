@@ -34,16 +34,15 @@ public:
 
 	~TcpServer() {
 		TraceL << "start clean...";
-		semaphore sem;
-		EventPoller::Instance().sendAsync([&]() {
-			timer.reset();
-			socket.reset();
-			while (sessionMap.size() != 0) {
-				sessionMap.begin()->second->shutdown();
-			}
-			sem.post();
-		});
-		sem.wait();
+		timer.reset();
+		socket.reset();
+		for (auto it = sessionMap.begin(); it != sessionMap.end(); ++it) {
+			auto session = it->second;
+			it->second->postTask_front( [session]() {
+				session->onError(SockException(Err_other,"Tcp server shutdown!"));
+			});
+			it = sessionMap.erase(it);
+		}
 		threadPool.wait();
 		TraceL << "clean completed!";
 	}
@@ -65,7 +64,6 @@ public:
 	}
 
 private:
-
 	Socket_ptr socket;
 	shared_ptr<Timer> timer;
 	std::unordered_map<Socket *, shared_ptr<Session> > sessionMap;
@@ -91,7 +89,7 @@ private:
 		auto it = sessionMap.find(sender);
 		if (it == sessionMap.end()) {
 			sender->setOnRead(nullptr);
-			WarnL<<"未处理的套接字事件";
+			WarnL << "未处理的套接字事件";
 			return;
 		}
 		string buf(data, size);
@@ -109,7 +107,7 @@ private:
 		auto it = sessionMap.find(sender);
 		if (it == sessionMap.end()) {
 			sender->setOnErr(nullptr);
-			WarnL<<"未处理的套接字事件";
+			WarnL << "未处理的套接字事件";
 			return;
 		}
 		auto session = it->second;
