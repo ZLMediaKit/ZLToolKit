@@ -15,7 +15,7 @@ namespace Util {
 
 class _TimeTicker {
 public:
-	_TimeTicker(uint64_t _minMs = 0, const char *_where = "",
+	_TimeTicker(int64_t _minMs = 0, const char *_where = "",
 			LogInfoMaker && _stream = WarnL) :
 			stream(_stream) {
 		begin = getNowTime();
@@ -23,7 +23,7 @@ public:
 		where = _where;
 	}
 	virtual ~_TimeTicker() {
-		uint64_t tm = getNowTime() - begin;
+		int64_t tm = getNowTime() - begin;
 		if (tm > minMs) {
 			stream << where << "执行时间:" << tm << endl;
 		}else{
@@ -39,7 +39,7 @@ private:
 	uint64_t begin;
 	LogInfoMaker stream;
 	const char *where;
-	uint64_t minMs;
+	int64_t minMs;
 
 };
 #define TimeTicker() _TimeTicker __ticker(5,"",WarnL)
