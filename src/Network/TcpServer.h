@@ -57,7 +57,7 @@ public:
 		}
 		socket->setOnAccept(
 				bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
-		timer.reset(new Timer(5, [this]()->bool {
+		timer.reset(new Timer(2, [this]()->bool {
 			this->onManagerSession();
 			return true;
 		}));
