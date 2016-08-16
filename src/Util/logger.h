@@ -104,8 +104,8 @@ public:
 	friend class LogWriter;
 	friend class AsyncLogWriter;
 	static Logger& instance() {
-		static Logger logger;
-		return logger;
+		static Logger *logger(new Logger());
+		return *logger;
 	}
 	void add(const shared_ptr<LogChannel> &&channel) {
 		channels[channel->name()]=channel;
