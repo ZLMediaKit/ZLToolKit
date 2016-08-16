@@ -45,30 +45,13 @@ public:
 		return peerIp;
 	}
 protected:
-	virtual void shutdown(int delay_sec = 0) {
-		//DebugL<<EventPoller::Instance().isMainThread();
-		if (delay_sec > 0) {
-			weak_ptr<Session> weakSelf = shared_from_this();
-			AsyncTaskThread::Instance().DoTaskDelay(
-					reinterpret_cast<uint64_t>(this), delay_sec * 1000,
-					[weakSelf]() {
-						shared_ptr<Session> strongSelf=weakSelf.lock();
-						if(!strongSelf) {
-							return false;
-						}
-						strongSelf->sock->emitErr(SockException(Err_other, "self shutdown"));
-						return false;
-					});
-		} else {
-			sock->emitErr(SockException(Err_other, "self shutdown"));
-		}
+	virtual void shutdown() {
+		sock->emitErr(SockException(Err_other, "self shutdown"));
 	}
 	virtual void send(const string &buf) {
-		//DebugL<<EventPoller::Instance().isMainThread();
 		sock->send(buf);
 	}
 	virtual void send(const char *buf, int size) {
-		//DebugL<<EventPoller::Instance().isMainThread();
 		sock->send(buf, size);
 	}
 	Socket_ptr sock;
