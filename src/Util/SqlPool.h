@@ -16,7 +16,7 @@
 #include <mutex>
 #include <functional>
 #include <sstream>
-
+#include <deque>
 using namespace std;
 using namespace ZL::Thread;
 namespace ZL {
@@ -114,7 +114,7 @@ private:
 		}
 	}
 	void flushError() {
-		shared_ptr<list<string> > query_new(new list<string>());
+		shared_ptr<deque<string> > query_new(new deque<string>());
 		error_query_mutex.lock();
 		query_new->swap(error_query);
 		error_query_mutex.unlock();
@@ -131,7 +131,7 @@ private:
 	}
 	shared_ptr<ThreadPool> threadPool;
 	mutex error_query_mutex;
-	list<string> error_query;
+	deque<string> error_query;
 
 	shared_ptr<PoolType> pool;
 	AsyncTaskThread asyncTaskThread;
