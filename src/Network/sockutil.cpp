@@ -43,6 +43,21 @@ int SockUtil::setNoBlocked(int sock, bool noblock) {
 	return result;
 }
 
+int SockUtil::setRecvBuf(int sock, int size) {
+	int ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+	if (ret == -1) {
+		TraceL << "设置接收缓冲区失败！";
+	}
+	return ret;
+}
+int SockUtil::setSendBuf(int sock, int size) {
+	int ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+	if (ret == -1) {
+		TraceL << "设置发送缓冲区失败！";
+	}
+	return ret;
+}
+
 int SockUtil::connect(const std::string &host, uint16_t port) {
 	struct addrinfo *answer = nullptr;
 	int ret = getaddrinfo(host.c_str(), NULL, NULL, &answer);
@@ -59,6 +74,8 @@ int SockUtil::connect(const std::string &host, uint16_t port) {
 	setNoSigpipe(sock);
 	setNoBlocked(sock);
 	setNoDelay(sock, true);
+	setSendBuf(sock);
+	setRecvBuf(sock);
 
 	int16_t n_port = htons(port);
 	memcpy(answer->ai_addr->sa_data, &n_port, 2);
@@ -183,6 +200,8 @@ int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
 	}
 	setReuseable(sockfd, true);
 	setNoBlocked(sockfd);
+	setSendBuf(sockfd);
+	setRecvBuf(sockfd);
 //设置监听参数
 	struct sockaddr_in servaddr;
 	servaddr.sin_family = AF_INET;

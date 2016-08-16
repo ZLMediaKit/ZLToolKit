@@ -13,10 +13,13 @@ public:
 	static int connect(const std::string &host, uint16_t port);
 	static int listen(const uint16_t port, const char *localIp = "0.0.0.0",
 			int backLog = 1024);
-	static int bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0");
+	static int bindUdpSock(const uint16_t port,
+			const char *localIp = "0.0.0.0");
 	static int setNoDelay(int sockFd, bool on);
 	static int setNoSigpipe(int sock);
 	static int setNoBlocked(int sock, bool noblock = true);
+	static int setRecvBuf(int sock, int size = 32 * 1024);
+	static int setSendBuf(int sock, int size = 32 * 1024);
 
 	static int setReuseable(int sockFd, bool on);
 	static int setKeepAlive(int sockFd, bool on);
