@@ -78,12 +78,8 @@ void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
 		return false;
 	}));
 	EventPoller::Instance().addEvent(sock, Event_Write,
-			[weakSelf,connectCB](int event) {
-				auto strongSelf=weakSelf.lock();
-				if (!strongSelf) {
-					return;
-				}
-				strongSelf->onConnected(connectCB);
+			[this,connectCB](int event) {
+				onConnected(connectCB);
 			});
 }
 
@@ -123,26 +119,19 @@ void Socket::attachEvent() {
 #if defined (__APPLE__)
 	setSocketOfIOS(sock);
 #endif
-	auto strongSelf = this->shared_from_this();
-	weak_ptr<Socket> weakSelf = this->shared_from_this();
 	EventPoller::Instance().addEvent(sock,
-			Event_Read | Event_Error | Event_Write, [weakSelf](int event) {
-				//WarnL<<event;
-			auto strongSelf=weakSelf.lock();
-			if (!strongSelf) {
-				return;
-			}
-			if (event & Event_Error) {
-				strongSelf->onError();
-				return;
-			}
-			if (event & Event_Read) {
-				strongSelf->onRead();
-			}
-			if (event & Event_Write) {
-				strongSelf->onWrite();
-			}
-		});
+			Event_Read | Event_Error | Event_Write, [this](int event) {
+				if (event & Event_Error) {
+					onError();
+					return;
+				}
+				if (event & Event_Read) {
+					onRead();
+				}
+				if (event & Event_Write) {
+					onWrite();
+				}
+			});
 }
 inline void Socket::onRead() {
 	int nread;
@@ -307,6 +296,7 @@ void Socket::onAccept(int event) {
 
 	if (event & Event_Error) {
 		ErrorL << "tcp服务器监听异常!";
+		onError();
 	}
 }
 inline void Socket::setPeerSock(int fd, struct sockaddr *addr) {
