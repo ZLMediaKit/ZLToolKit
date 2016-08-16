@@ -36,12 +36,15 @@ public:
 		TraceL << "start clean...";
 		timer.reset();
 		socket.reset();
-		for (auto it = sessionMap.begin(); it != sessionMap.end(); ++it) {
+
+		std::unordered_map<Socket *, shared_ptr<Session> > copyMap;
+		sessionMap.swap(copyMap);
+		for (auto it = copyMap.begin(); it != copyMap.end(); ++it) {
 			auto session = it->second;
-			it->second->postTask_front( [session]() {
-				session->onError(SockException(Err_other,"Tcp server shutdown!"));
-			});
-			it = sessionMap.erase(it);
+			it->second->postTask_front(
+					[session]() {
+						session->onError(SockException(Err_other,"Tcp server shutdown!"));
+					});
 		}
 		threadPool.wait();
 		TraceL << "clean completed!";
