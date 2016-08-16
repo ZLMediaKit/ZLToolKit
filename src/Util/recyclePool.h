@@ -8,10 +8,10 @@
 #ifndef UTIL_RECYCLEPOOL_H_
 #define UTIL_RECYCLEPOOL_H_
 #include <functional>
-#include <list>
 #include <mutex>
 #include <memory>
 #include <atomic>
+#include <deque>
 namespace ZL {
 namespace Util {
 using namespace std;
@@ -133,7 +133,7 @@ private:
 		}
 		objs.push_back(obj);
 	}
-	list<C*> objs;
+	deque<C*> objs;
 	function<C*(void)> cteator;
 	shared_ptr<bool> flag;
 	std::mutex _mutex;
