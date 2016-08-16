@@ -113,12 +113,15 @@ public:
 		return ret;
 	}
 	//写环形缓冲，非线程安全的
-	void write(const T &in, bool isKey = true) {
+	void write(const T &in, bool isKey = true,bool writeRing=false) {
 		{
 			lock_guard<mutex> lck(mtx_reader);
 			for (auto reader : readerSet) {
 				reader->onRead(in);
 			}
+		}
+		if(!writeRing){
+			return;
 		}
 		dataRing[ringPos] = in;
 		if (isKey) {
