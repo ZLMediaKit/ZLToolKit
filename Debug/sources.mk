@@ -27,6 +27,4 @@ src/Network \
 src/Poller \
 src/Thread \
 src/Util \
-src \
-src/redox \
 

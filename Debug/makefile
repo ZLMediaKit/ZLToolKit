@@ -8,12 +8,10 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
--include src/redox/subdir.mk
 -include src/Util/subdir.mk
 -include src/Thread/subdir.mk
 -include src/Poller/subdir.mk
 -include src/Network/subdir.mk
--include src/subdir.mk
 -include subdir.mk
 -include objects.mk
 
