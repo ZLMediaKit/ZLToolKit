@@ -1,9 +1,8 @@
 //
 //  AsyncTaskThread.cpp
-//  quhuwai
+//  xzl
 //
-//  Created by wzkj on 15/6/8.
-//  Copyright (c) 2015年 wzkj. All rights reserved.
+//  Created by xzl on 15/6/8.
 //
 
 #include "AsyncTaskThread.h"

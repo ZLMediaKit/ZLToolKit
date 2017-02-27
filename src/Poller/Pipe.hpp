@@ -1,9 +1,8 @@
 //
 //  Pipe.hpp
-//  G平台
+//  xzl
 //
-//  Created by boyo on 16/4/13.
-//  Copyright © 2016年 boyo. All rights reserved.
+//  Created by xzl on 16/4/13.
 //
 
 #ifndef Pipe_hpp

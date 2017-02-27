@@ -1,9 +1,8 @@
 //
 //  Poller.hpp
-//  G平台
+//  xzl
 //
-//  Created by boyo on 16/4/12.
-//  Copyright © 2016年 boyo. All rights reserved.
+//  Created by xzl on 16/4/12.
 //
 
 #ifndef Poller_hpp
