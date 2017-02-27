@@ -23,17 +23,19 @@ class WorkThreadPool {
 public:
 	WorkThreadPool(int threadnum = thread::hardware_concurrency());
 	virtual ~WorkThreadPool();
-	void post(int &pos, const Task &task);
-	shared_ptr<ThreadPool> &getWorkThread();
+	std::shared_ptr<ThreadPool> &getWorkThread();
 	static WorkThreadPool &Instance() {
-		static WorkThreadPool intance;
-		return intance;
+		static WorkThreadPool *intance(new WorkThreadPool());
+		return *intance;
 	}
-	void wait();
+	static void Destory(){
+		delete &(WorkThreadPool::Instance());
+	}
 private:
 	int threadnum;
 	atomic<int> threadPos;
-	vector<shared_ptr<ThreadPool> > threads;
+	vector <std::shared_ptr<ThreadPool> > threads;
+	void wait();
 };
 
 } /* namespace Thread */

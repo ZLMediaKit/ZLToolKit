@@ -8,7 +8,9 @@
 
 #include "AsyncTaskThread.h"
 #include <iostream>
+#include "Util/logger.h"
 using namespace std;
+using namespace ZL::Util;
 
 namespace ZL {
 namespace Thread {
@@ -21,18 +23,17 @@ AsyncTaskThread::~AsyncTaskThread() {
 	if (taskThread != NULL) {
 		threadExit = true;
 		cond.notify_one();
-		if (taskThread->joinable()) {
-			taskThread->join();
-		}
+		taskThread->join();
 		delete taskThread;
 		taskThread = NULL;
 	}
+	InfoL;
 }
 
 void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,
 		const function<bool()> & func) {
-	lock_guard<mutex> lck(_mtx);
-	shared_ptr<TaskInfo> info(new TaskInfo);
+	lock_guard<recursive_mutex> lck(_mtx);
+	std::shared_ptr<TaskInfo> info(new TaskInfo);
 	info->type = type;
 	info->timeLine = millisecond + getNowTime();
 	info->task = func;
@@ -44,7 +45,7 @@ void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,
 	}
 }
 void AsyncTaskThread::CancelTask(uint64_t type) {
-	lock_guard<mutex> lck(_mtx);
+	lock_guard<recursive_mutex> lck(_mtx);
 	taskMap.erase(type);
 	needCancel.emplace(type);
 }
@@ -54,9 +55,9 @@ inline uint64_t AsyncTaskThread::getNowTime() {
 	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 void AsyncTaskThread::DoTask() {
-	deque<shared_ptr<TaskInfo> > TaskNeedDo;
+	deque <std::shared_ptr<TaskInfo> > TaskNeedDo;
 	while (!threadExit) {
-		unique_lock<mutex> lck(_mtx);
+		unique_lock<recursive_mutex> lck(_mtx);
 		if (taskMap.size() != 0) {
 			cond.wait_for(lck, chrono::milliseconds(millisecond_sleep));
 		} else {
@@ -78,7 +79,13 @@ void AsyncTaskThread::DoTask() {
 		//执行任务
 		for (auto it = TaskNeedDo.begin(); it != TaskNeedDo.end();) {
 			auto &info = *it;
-			if (!info->task()) {
+			bool flag = false;
+			try {
+				flag = info->task();
+			} catch (std::exception &ex) {
+				FatalL << ex.what();
+			}
+			if (!flag) {
 				it = TaskNeedDo.erase(it);
 				continue;
 			}

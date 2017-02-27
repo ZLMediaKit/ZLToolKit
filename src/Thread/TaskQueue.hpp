@@ -13,7 +13,7 @@
 #ifndef TASKQUEUE_H_
 #define TASKQUEUE_H_
 
-#include <Thread/semaphore.hpp>
+#include "semaphore.hpp"
 #include <deque>
 #include <atomic>
 #include <functional>
@@ -34,13 +34,17 @@ public:
 	}
 	//打入任务至列队
 	void push_task(const Task & task_func) {
-		lock_guard<mutex> lock(my_mutex);
-		my_queue.push_back(task_func);
+		{
+			lock_guard<mutex> lock(my_mutex);
+			my_queue.push_back(task_func);
+		}
 		sem.post();
 	}
 	void push_task_first(const Task & task_func) {
-		lock_guard<mutex> lock(my_mutex);
-		my_queue.push_front(task_func);
+		{
+			lock_guard<mutex> lock(my_mutex);
+			my_queue.push_front(task_func);
+		}
 		sem.post();
 	}
 	//清空任务列队
@@ -58,9 +62,13 @@ public:
 		my_queue.pop_front();
 		return true;
 	}
+    uint64_t size() const{
+        lock_guard<mutex> lock(my_mutex);
+        return my_queue.size();
+    }
 private:
 	deque<Task> my_queue;
-	mutex my_mutex;
+	mutable mutex my_mutex;
 	semaphore sem;
 };
 

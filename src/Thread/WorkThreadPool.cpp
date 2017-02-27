@@ -5,9 +5,13 @@
  *      Author: root
  */
 
+#include "Util/logger.h"
 #include "WorkThreadPool.h"
 #include <vector>
 #include <iostream>
+using namespace ZL::Util;
+
+
 namespace ZL {
 namespace Thread {
 
@@ -19,24 +23,14 @@ WorkThreadPool::WorkThreadPool(int _threadnum) :
 }
 
 WorkThreadPool::~WorkThreadPool() {
-
+	wait();
+	InfoL;
 }
 void WorkThreadPool::wait() {
 	for (auto &th : threads) {
 		th->wait();
 	}
 }
-
-void WorkThreadPool::post(int &pos, const Task &task) {
-	if (pos < 0 || pos >= threadnum) {
-		if (++threadPos >= threadnum) {
-			threadPos = 0;
-		}
-		pos = threadPos.load();
-	}
-	threads[pos]->post(task);
-}
-
 shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
 	if (++threadPos >= threadnum) {
 		threadPos = 0;

@@ -8,7 +8,7 @@
 
 #ifndef Timer_hpp
 #define Timer_hpp
-#include <Poller/EventPoller.hpp>
+#include "EventPoller.hpp"
 #include "Thread/AsyncTaskThread.h"
 #include <stdio.h>
 #include <functional>
@@ -22,8 +22,6 @@ class Timer{
 public:
     Timer(int second,function<bool()> &&cb);
     virtual ~Timer();
-private:
-    static AsyncTaskThread asyncThread;
 };
 
 }  // namespace Poller

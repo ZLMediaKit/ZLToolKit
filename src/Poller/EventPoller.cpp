@@ -5,6 +5,21 @@
 //  Created by boyo on 16/4/12.
 //  Copyright © 2016年 boyo. All rights reserved.
 //
+#include "Util/onceToken.h"
+#include <iostream>
+using namespace std;
+using namespace ZL::Util;
+
+#ifdef __WIN32__
+#include <winsock.h>
+static onceToken token([]() {
+			WSADATA wsa= {0};
+			WSAStartup(MAKEWORD(2,2),&wsa);
+		},[]() {
+
+		});
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -14,6 +29,9 @@
 #include "Util/logger.h"
 #include "EventPoller.hpp"
 #include "Network/sockutil.h"
+#include "Util/TimeTicker.h"
+#include "Thread/ThreadPool.hpp"
+#include <unistd.h>
 #ifdef HAS_EPOLL
 #include <sys/epoll.h>
 
@@ -27,6 +45,7 @@
 							| (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #endif //HAS_EPOLL
 using namespace ZL::Util;
+using namespace ZL::Thread;
 using namespace ZL::Network;
 namespace ZL {
 namespace Poller {
@@ -38,7 +57,13 @@ EventPoller::EventPoller(bool enableSelfRun) {
 	SockUtil::setNoBlocked(pipe_fd[0]);
 	SockUtil::setNoBlocked(pipe_fd[1]);
 #ifdef HAS_EPOLL
+
+#ifndef __ARM_ARCH
 	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+#else
+	epoll_fd = epoll_create(1024);
+#endif
+
 	if (epoll_fd == -1) {
 		close(pipe_fd[0]);
 		close(pipe_fd[1]);
@@ -65,6 +90,14 @@ void EventPoller::shutdown() {
 		loopThread->join();
 		delete loopThread;
 	}
+
+	/*mtx_event_map.lock();
+	 auto newMap = event_map;
+	 mtx_event_map.unlock();
+	 for (auto &pr : newMap) {
+	 pr.second(Event_Error);
+	 }*/
+
 #ifdef HAS_EPOLL
 	if (epoll_fd != -1) {
 		close(epoll_fd);
@@ -79,11 +112,10 @@ void EventPoller::shutdown() {
 		close(pipe_fd[1]);
 		pipe_fd[1] = -1;
 	}
-
 }
 EventPoller::~EventPoller() {
 	shutdown();
-	InfoL << endl;
+	InfoL;
 }
 
 int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
@@ -102,21 +134,23 @@ int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
 	}
 	return ret;
 #else
-	if (mainThreadId == this_thread::get_id()) {
+	if (isMainThread()) {
+		lock_guard<mutex> lck(mtx_event_map);
 		Poll_Record record;
 		record.event = (Poll_Event) event;
 		record.callBack = cb;
 		event_map.emplace(fd, record);
 		return 0;
 	}
-	sendAsync([this,fd,event,cb]() {
-				this->addEvent(fd,event,const_cast<PollEventCB &&>(cb));
+	async([this,fd,event,cb]() {
+				addEvent(fd,event,const_cast<PollEventCB &&>(cb));
 			});
 	return 0;
 #endif //HAS_EPOLL
 }
 
 int EventPoller::delEvent(int fd, PollDelCB &&delCb) {
+	//TraceL<<fd;
 	if (!delCb) {
 		delCb = [](bool success) {};
 	}
@@ -131,7 +165,8 @@ int EventPoller::delEvent(int fd, PollDelCB &&delCb) {
 	delCb(success);
 	return success;
 #else
-	if (mainThreadId == this_thread::get_id()) {
+	if (isMainThread()) {
+		lock_guard<mutex> lck(mtx_event_map);
 		if (event_map.erase(fd)) {
 			delCb(true);
 		} else {
@@ -139,33 +174,47 @@ int EventPoller::delEvent(int fd, PollDelCB &&delCb) {
 		}
 		return 0;
 	}
-	sendAsync([this,fd,delCb]() {
-				this->delEvent(fd, const_cast<PollDelCB &&>(delCb));
+	async([this,fd,delCb]() {
+				delEvent(fd,const_cast<PollDelCB &&>(delCb));
 			});
 	return 0;
 #endif //HAS_EPOLL
 }
 int EventPoller::modifyEvent(int fd, int event) {
+	//TraceL<<fd<<" "<<event;
 #ifdef HAS_EPOLL
 	struct epoll_event ev = { 0 };
 	ev.events = toEpoll(event);
 	ev.data.fd = fd;
 	return epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 #else
-	if (mainThreadId == this_thread::get_id()) {
+
+	if (isMainThread()) {
+		lock_guard<mutex> lck(mtx_event_map);
 		auto it = event_map.find(fd);
 		if (it != event_map.end()) {
 			it->second.event = (Poll_Event) event;
 		}
 		return 0;
 	}
-	sendAsync([this,fd,event]() {
-				this->modifyEvent(fd,event);
+	async([this,fd,event]() {
+				modifyEvent(fd,event);
 			});
 	return 0;
 #endif //HAS_EPOLL
 }
-void EventPoller::sendAsync(PollAsyncCB &&asyncCb) {
+void EventPoller::sync(PollAsyncCB &&syncCb) {
+	if (!syncCb) {
+		return;
+	}
+	semaphore sem;
+	async([&](){
+		syncCb();
+		sem.post();
+	});
+	sem.wait();
+}
+void EventPoller::async(PollAsyncCB &&asyncCb) {
 	if (!asyncCb) {
 		return;
 	}
@@ -181,11 +230,10 @@ bool EventPoller::isMainThread() {
 	return mainThreadId == this_thread::get_id();
 }
 
-inline Sigal_Type EventPoller::_handlePipeEvent(const uint64_t *ptr) {
-	Sigal_Type type = (Sigal_Type) ptr[0];
+inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf) {
 	switch (type) {
 	case Sig_Async: {
-		PollAsyncCB **cb = (PollAsyncCB **) &ptr[2];
+		PollAsyncCB **cb = (PollAsyncCB **) buf;
 		(*cb)->operator()();
 		delete *cb;
 	}
@@ -193,26 +241,31 @@ inline Sigal_Type EventPoller::_handlePipeEvent(const uint64_t *ptr) {
 	default:
 		break;
 	}
-	return type;
+	return (Sigal_Type)type;
 }
 inline bool EventPoller::handlePipeEvent() {
-	uint64_t buf[256];
-	uint64_t nread = (uint64_t) read(pipe_fd[0], buf, sizeof(buf));
-	nread /= sizeof(uint64_t);
-	if (nread < 2) {
-		WarnL << "Poller异常退出！";
-		return false;
-	}
-	uint64_t pos = 0;
-	uint64_t slinceSize;
-	bool ret = true;
-	while (nread) {
-		if (_handlePipeEvent(&buf[pos]) == Sig_Exit) {
-			ret = false;
+	while(true){
+		char buf[1024];
+		auto nread = read(pipe_fd[0], buf, sizeof(buf));
+		if(nread > 0){
+			pipeBuffer.append(buf, nread);
+			continue;
 		}
-		slinceSize = 2 + buf[pos + 1];
-		pos += slinceSize;
-		nread -= slinceSize;
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			break;
+		}
+	}
+	bool ret = true;
+	while (pipeBuffer.size() >= 2 * sizeof(uint64_t)) {
+		uint64_t type = *((uint64_t *) pipeBuffer.data());
+		uint64_t slinceSize = *((uint64_t *) (pipeBuffer.data()) + 1);
+		uint64_t *ptr = (uint64_t *) (pipeBuffer.data()) + 2;
+		uint64_t slinceByte = (2 + slinceSize) * sizeof(uint64_t);
+		if (slinceByte > pipeBuffer.size()) {
+			break;
+		}
+		_handlePipeEvent(type, slinceSize, ptr);
+		pipeBuffer.erase(0, slinceByte);
 	}
 	return ret;
 }
@@ -228,6 +281,7 @@ void EventPoller::initPoll() {
 }
 void EventPoller::runLoop() {
 	mainThreadId = this_thread::get_id();
+    ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
 #ifdef HAS_EPOLL
 	struct epoll_event events[1024];
 	int nfds = 0;
@@ -257,7 +311,6 @@ void EventPoller::runLoop() {
 				}
 				continue;
 			}
-
 			// other event
 			PollEventCB eventCb;
 			{
@@ -282,22 +335,24 @@ void EventPoller::runLoop() {
 		FD_ZERO(&Set_read);
 		FD_ZERO(&Set_write);
 		FD_ZERO(&Set_err);
-
 		FD_SET(pipe_fd[0], &Set_read); //监听管道可读事件
 		maxFd = pipe_fd[0];
 
-		for (auto &pr : event_map) {
-			if (pr.first > maxFd) {
-				maxFd = pr.first;
-			}
-			if (pr.second.event & Event_Read) {
-				FD_SET(pr.first, &Set_read); //监听管道可读事件
-			}
-			if (pr.second.event & Event_Write) {
-				FD_SET(pr.first, &Set_write); //监听管道可写事件
-			}
-			if (pr.second.event & Event_Error) {
-				FD_SET(pr.first, &Set_err); //监听管道错误事件
+		{
+			lock_guard<mutex> lck(mtx_event_map);
+			for (auto &pr : event_map) {
+				if (pr.first > maxFd) {
+					maxFd = pr.first;
+				}
+				if (pr.second.event & Event_Read) {
+					FD_SET(pr.first, &Set_read); //监听管道可读事件
+				}
+				if (pr.second.event & Event_Write) {
+					FD_SET(pr.first, &Set_write); //监听管道可写事件
+				}
+				if (pr.second.event & Event_Error) {
+					FD_SET(pr.first, &Set_err); //监听管道错误事件
+				}
 			}
 		}
 		ret = select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
@@ -305,7 +360,7 @@ void EventPoller::runLoop() {
 			if (pipe_fd[0] == -1 || pipe_fd[1] == -1) {
 				break;
 			}
-			WarnL << "select() interrupted!";
+			WarnL << "select() interrupted:" << strerror(errno);
 			continue;
 		}
 
@@ -321,24 +376,27 @@ void EventPoller::runLoop() {
 			}
 		}
 
-		for (auto &pr : event_map) {
-			int event = 0;
-			if (FD_ISSET(pr.first, &Set_read)) {
-				event |= Event_Read;
-			}
-			if (FD_ISSET(pr.first, &Set_write)) {
-				event |= Event_Write;
-			}
-			if (FD_ISSET(pr.first, &Set_err)) {
-				event |= Event_Error;
-			}
-			if (event != 0) {
-				pr.second.attach = event;
-				listCB.push_back(pr);
+		{
+			lock_guard<mutex> lck(mtx_event_map);
+			for (auto &pr : event_map) {
+				int event = 0;
+				if (FD_ISSET(pr.first, &Set_read)) {
+					event |= Event_Read;
+				}
+				if (FD_ISSET(pr.first, &Set_write)) {
+					event |= Event_Write;
+				}
+				if (FD_ISSET(pr.first, &Set_err)) {
+					event |= Event_Error;
+				}
+				if (event != 0) {
+					pr.second.attach = event;
+					listCB.push_back(pr);
+				}
 			}
 		}
 		for (auto &pr : listCB) {
-			pr.second.callBack(pr.second.attach);
+			pr.second();
 		}
 		listCB.clear();
 	}

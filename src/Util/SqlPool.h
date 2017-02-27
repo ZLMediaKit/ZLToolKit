@@ -7,9 +7,9 @@
 
 #ifndef SQL_SQLPOOL_H_
 #define SQL_SQLPOOL_H_
-#include <Util/logger.h>
-#include <Util/recyclePool.h>
-#include <Util/SqlConnection.h>
+#include <Util/ResourcePool.h>
+#include "logger.h"
+#include "SqlConnection.h"
 #include "Thread/AsyncTaskThread.h"
 #include "Thread/ThreadPool.hpp"
 #include <memory>
@@ -24,18 +24,21 @@ namespace Util {
 template<int poolSize = 10>
 class _SqlPool {
 public:
-	typedef recyclePool<SqlConnection, poolSize> PoolType;
+	typedef ResourcePool<SqlConnection, poolSize> PoolType;
 	typedef vector<vector<string> > SqlRetType;
 	static _SqlPool &Instance() {
-		static _SqlPool pool;
-		return pool;
+		static _SqlPool *pool(new _SqlPool());
+		return *pool;
 	}
-	void setPoolSize(int size) {
+	static void Destory(){
+		delete &Instance();
+	}
+	void reSize(int size) {
 		if (size < 0) {
 			return;
 		}
 		poolsize = size;
-		pool->setPoolSize(size);
+		pool->reSize(size);
 		threadPool.reset(new ThreadPool(poolsize));
 	}
 	template<typename ...Args>
@@ -56,13 +59,13 @@ public:
 	}
 
 	template<typename ...Args>
-	int64_t query(vector<vector<string>> &ret, const char *fmt,
+	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const char *fmt,
 			Args && ...arg) {
-		return _query(ret, fmt, arg...);
+		return _query(rowID,ret, fmt, arg...);
 	}
 
-	int64_t query(vector<vector<string>> &ret, const string &sql) {
-		return _query(ret, sql.c_str());
+	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const string &sql) {
+		return _query(rowID,ret, sql.c_str());
 	}
 	static const string &escape(const string &str) {
 		try {
@@ -88,23 +91,24 @@ private:
 	}
 	inline void doQuery(const string &str) {
 		auto lam = [this,str]() {
-			if(_query(str.c_str())==-1) {
+			int64_t rowID;
+			if(_query(rowID,str.c_str())==-1) {
 				lock_guard<mutex> lk(error_query_mutex);
 				error_query.push_back(str);
 			}
 		};
-		threadPool->post(lam);
+		threadPool->async(lam);
 	}
 	template<typename ...ARGS>
-	inline int64_t _query(ARGS &&...args) {
+	inline int64_t _query(int64_t &rowID,ARGS &&...args) {
 		try {
 			//捕获创建对象异常
 			auto mysql = pool->obtain();
 			try {
 				//捕获执行异常
-				return mysql->query(args...);
+				return mysql->query(rowID,args...);
 			} catch (exception &e) {
-				mysql.quit();
+				pool->quit(mysql);
 				WarnL << e.what() << endl;
 				return -1;
 			}
@@ -114,7 +118,7 @@ private:
 		}
 	}
 	void flushError() {
-		shared_ptr<deque<string> > query_new(new deque<string>());
+		std::shared_ptr<deque<string> > query_new(new deque<string>());
 		error_query_mutex.lock();
 		query_new->swap(error_query);
 		error_query_mutex.unlock();
@@ -128,12 +132,15 @@ private:
 	virtual ~_SqlPool() {
 		asyncTaskThread.CancelTask(reinterpret_cast<uint64_t>(this));
 		flushError();
+		threadPool.reset();
+		pool.reset();
+		InfoL;
 	}
-	shared_ptr<ThreadPool> threadPool;
+	std::shared_ptr<ThreadPool> threadPool;
 	mutex error_query_mutex;
 	deque<string> error_query;
 
-	shared_ptr<PoolType> pool;
+	std::shared_ptr<PoolType> pool;
 	AsyncTaskThread asyncTaskThread;
 	unsigned int poolsize;
 }
@@ -190,10 +197,15 @@ public:
 		SqlPool::Instance().query(sqlstream << endl);
 	}
 	int64_t operator <<(vector<vector<string>> &ret) {
-		return SqlPool::Instance().query(ret, sqlstream << endl);
+		return SqlPool::Instance().query(rowId,ret, sqlstream << endl);
 	}
+	int64_t getRowID() const {
+		return rowId;
+	}
+
 private:
 	_SqlStream sqlstream;
+	int64_t rowId;
 };
 
 #define SqlWriter  _SqlWriter

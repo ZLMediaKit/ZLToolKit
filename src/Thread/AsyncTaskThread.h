@@ -20,7 +20,7 @@
 #include <memory>
 #include <atomic>
 using namespace std;
-#define TASK_INTERVAL 100
+#define TASK_INTERVAL 50
 
 namespace ZL {
 namespace Thread {
@@ -34,17 +34,20 @@ typedef struct {
 class AsyncTaskThread {
 public:
 	//the timer default 30s
-	AsyncTaskThread(uint64_t millisecond_sleep = 1000 * 30);
+	AsyncTaskThread(uint64_t millisecond_sleep);
 	~AsyncTaskThread();
 	void DoTaskDelay(uint64_t type, uint64_t millisecond, const function<bool()> &func);
 	void CancelTask(uint64_t type);
-	static AsyncTaskThread &Instance() {
-		static AsyncTaskThread instance(TASK_INTERVAL);
-		return instance;
+	static AsyncTaskThread &Instance(uint32_t millisecond_sleep = TASK_INTERVAL) {
+		static AsyncTaskThread *instance(new AsyncTaskThread(millisecond_sleep));
+		return *instance;
+	}
+	static void Destory(){
+		delete &AsyncTaskThread::Instance();
 	}
 private:
-	mutex _mtx;
-	unordered_multimap<uint64_t, shared_ptr<TaskInfo> > taskMap;
+	recursive_mutex _mtx;
+	unordered_multimap<uint64_t, std::shared_ptr<TaskInfo> > taskMap;
 	unordered_set<uint64_t> needCancel;
 	inline uint64_t getNowTime();
 	thread *taskThread;

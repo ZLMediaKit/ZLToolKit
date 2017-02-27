@@ -14,10 +14,13 @@
 //*************************************************************************
 
 #include <assert.h>
-#include <Thread/threadgroup.hpp>
-#include <Thread/TaskQueue.hpp>
-#include <Thread/TaskQueue.hpp>
+#include "threadgroup.hpp"
+#include "TaskQueue.hpp"
+#include "TaskQueue.hpp"
 #include <vector>
+#include "Util/logger.h"
+using namespace ZL::Util;
+
 
 namespace ZL {
 namespace Thread {
@@ -41,31 +44,64 @@ public:
 	}
 
 	//把任务打入线程池并异步执行
-	void post(const Task & task) {
-		if (!avaible.load() || !task) {
-			return;
+	bool async(const Task & task) {
+		if (!avaible || !task) {
+			return false;
 		}
 		if (my_thread_group.is_this_thread_in()) {
 			task();
 		} else {
 			my_queue.push_task(task);
 		}
+		return true;
 	}
-	void post_first(const Task & task) {
-		if (!avaible.load() || !task) {
-			return;
+	bool async_first(const Task & task) {
+		if (!avaible || !task) {
+			return false;
 		}
 		if (my_thread_group.is_this_thread_in()) {
 			task();
 		} else {
 			my_queue.push_task_first(task);
 		}
+		return true;
+	}
+	bool sync(const Task & task){
+		if(!task){
+			return false;
+		}
+		semaphore sem;
+		bool flag = async([&](){
+			task();
+			sem.post();
+		});
+		if(flag){
+			sem.wait();
+		}
+		return flag;
+	}
+	bool sync_first(const Task & task) {
+		if (!task) {
+			return false;
+		}
+		semaphore sem;
+		bool flag = async_first([&]() {
+			task();
+			sem.post();
+		});
+		if (flag) {
+			sem.wait();
+		}
+		return flag;
 	}
 	//同步等待线程池执行完所有任务并退出
 	void wait() {
 		exit();
 		my_thread_group.join_all();
 	}
+    uint64_t size() const{
+        return my_queue.size();
+    }
 	static ThreadPool &Instance() {
 		//单例模式
 		static ThreadPool instance(thread::hardware_concurrency());
@@ -95,7 +131,7 @@ private:
 	TaskQueue my_queue;
 	thread_group my_thread_group;
 	int thread_num;
-	atomic_bool avaible;
+	volatile bool avaible;
 	Priority priority;
 	//发送空任务至任务列队，通知线程主动退出
 	void exit() {
@@ -114,8 +150,12 @@ private:
 		Task task;
 		while (true) {
 			if (my_queue.get_task(task)) {
-				task();
-				task=nullptr;
+				try {
+					task();
+				} catch (std::exception &ex) {
+					FatalL << ex.what();
+				}
+				task = nullptr;
 			} else {
 				//空任务，退出线程
 				break;

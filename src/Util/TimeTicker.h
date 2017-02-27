@@ -13,23 +13,40 @@
 namespace ZL {
 namespace Util {
 
-class _TimeTicker {
+class Ticker {
 public:
-	_TimeTicker(int64_t _minMs = 0, const char *_where = "",
-			LogInfoMaker && _stream = WarnL) :
+	Ticker(int64_t _minMs = 0, const char *_where = "",
+			LogInfoMaker && _stream = WarnL,bool printLog=false) :
 			stream(_stream) {
+		if(!printLog){
+			stream.clear();
+		}
 		begin = getNowTime();
+		created = begin;
 		minMs = _minMs;
 		where = _where;
 	}
-	virtual ~_TimeTicker() {
+	virtual ~Ticker() {
 		int64_t tm = getNowTime() - begin;
 		if (tm > minMs) {
 			stream << where << "执行时间:" << tm << endl;
-		}else{
+		} else {
 			stream.clear();
 		}
 	}
+	uint64_t elapsedTime() {
+		stream.clear();
+		return getNowTime() - begin;
+	}
+	uint64_t createdTime() {
+		stream.clear();
+		return getNowTime() - created;
+	}
+	void resetTime() {
+		stream.clear();
+		begin = getNowTime();
+	}
+
 private:
 	inline static uint64_t getNowTime() {
 		struct timeval tv;
@@ -37,15 +54,54 @@ private:
 		return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	}
 	uint64_t begin;
+	uint64_t created;
 	LogInfoMaker stream;
 	const char *where;
 	int64_t minMs;
 
 };
-#define TimeTicker() _TimeTicker __ticker(5,"",WarnL)
-#define TimeTicker1(tm) _TimeTicker __ticker1(tm,"",WarnL)
-#define TimeTicker2(tm,where) _TimeTicker __ticker2(tm,where,WarnL)
-#define TimeTicker3(tm,where,log) _TimeTicker __ticker3(tm,where,log)
+class SmoothTicker {
+public:
+	SmoothTicker(uint64_t _resetMs = 10000) {
+		resetMs = _resetMs;
+		ticker.resetTime();
+	}
+	virtual ~SmoothTicker() {
+	}
+	uint64_t elapsedTime() {
+		auto nowTime = ticker.elapsedTime();
+		if (firstTime == 0) {
+			firstTime = nowTime;
+			lastTime = nowTime;
+			pktCount = 0;
+			return nowTime;
+		}
+		uint64_t elapseTime = (nowTime - firstTime);
+		uint64_t retTime = lastTime + elapseTime / ++pktCount;
+		lastTime = retTime;
+		if (elapseTime > 10000) {
+			firstTime = 0;
+		}
+		return retTime;
+	}
+    void resetTime(){
+        firstTime = 0;
+        pktCount = 0;
+        lastTime = 0;
+        ticker.resetTime();
+    }
+private:
+	uint64_t firstTime = 0;
+	uint64_t pktCount = 0;
+	uint64_t lastTime = 0;
+	uint64_t resetMs;
+	Ticker ticker;
+};
+
+#define TimeTicker() Ticker ticker(5,"",WarnL,true)
+#define TimeTicker1(tm) Ticker ticker1(tm,"",WarnL,true)
+#define TimeTicker2(tm,where) Ticker ticker2(tm,where,WarnL,true)
+#define TimeTicker3(tm,where,log) Ticker ticke3(tm,where,log,true)
 } /* namespace Util */
 } /* namespace ZL */
 

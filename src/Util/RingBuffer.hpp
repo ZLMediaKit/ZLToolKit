@@ -11,7 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
-#include <unordered_set>
+#include <unordered_map>
 using namespace std;
 
 namespace ZL {
@@ -21,15 +21,15 @@ namespace Util {
 template<typename T> class RingBuffer: public enable_shared_from_this<
 		RingBuffer<T> > {
 public:
-	typedef shared_ptr<RingBuffer> Ptr;
+	typedef std::shared_ptr<RingBuffer> Ptr;
 
 	class RingReader {
 	public:
 		friend class RingBuffer;
-		typedef shared_ptr<RingReader> Ptr;
-		RingReader(const shared_ptr<RingBuffer> &_buffer) {
+		typedef std::shared_ptr<RingReader> Ptr;
+		RingReader(const std::shared_ptr<RingBuffer> &_buffer) {
 			buffer = _buffer;
-			curpos = _buffer->ringKeyPos.load();
+			curpos = _buffer->ringKeyPos;
 		}
 		virtual ~RingReader() {
 			auto strongBuffer = buffer.lock();
@@ -37,30 +37,15 @@ public:
 				strongBuffer->release(this);
 			}
 		}
-		//读环形缓冲
-		bool read(T &data, bool block = true) {
-			auto strongBuffer = buffer.lock();
-			if (!strongBuffer) {
-				return false;
-			}
-			while (curpos == strongBuffer->ringPos) {
-				if (!block) {
-					return false;
-				}
-				strongBuffer->wait();
-			}
-			data = strongBuffer->dataRing[curpos]; //返回包
-			curpos = strongBuffer->next(curpos); //更新位置
-			return true;
-		}
 		//重新定位读取器至最新的数据位置
 		void reset() {
 			auto strongBuffer = buffer.lock();
 			if (strongBuffer) {
-				curpos = strongBuffer->ringPos.load(); //定位读取器
+				curpos = strongBuffer->ringPos; //定位读取器
 			}
 		}
 		void setReadCB(const function<void(const T &)> &cb) {
+			lock_guard<recursive_mutex> lck(mtxCB);
 			if (!cb) {
 				readCB = [](const T &) {};
 			} else {
@@ -68,22 +53,51 @@ public:
 			}
 		}
 		void setDetachCB(const function<void()> &cb) {
+			lock_guard<recursive_mutex> lck(mtxCB);
 			if (!cb) {
 				detachCB = []() {};
 			} else {
 				detachCB = cb;
 			}
 		}
+        const T *read(){
+            auto strongBuffer=buffer.lock();
+            if(!strongBuffer){
+                return nullptr;
+            }
+            return read(strongBuffer.get());
+        }
 	private:
-		void onRead(const T &data) {
-			readCB(data);
+		void onRead(const T &data) const {
+			decltype(readCB) cb;
+			{
+				lock_guard<recursive_mutex> lck(mtxCB);
+				cb = readCB;
+			}
+			cb(data);
 		}
-		void onDetach() {
-			detachCB();
+		void onDetach() const {
+			decltype(detachCB) cb;
+			{
+				lock_guard<recursive_mutex> lck(mtxCB);
+				cb = detachCB;
+			}
+			cb();
 		}
+		//读环形缓冲
+		const T *read(RingBuffer *ring) {
+			if (curpos == ring->ringPos) {
+				return nullptr;
+			}
+			const T *data = &(ring->dataRing[curpos]); //返回包
+			curpos = ring->next(curpos); //更新位置
+			return data;
+		}
+        
 		function<void(const T &)> readCB = [](const T &) {};
 		function<void(void)> detachCB = []() {};
 		weak_ptr<RingBuffer> buffer;
+		mutable recursive_mutex mtxCB;
 		int curpos;
 	};
 
@@ -95,54 +109,57 @@ public:
 		ringKeyPos = 0;
 	}
 	virtual ~RingBuffer() {
+		decltype(readerMap) mapCopy;
 		{
-			unique_lock<mutex> lock(mtx_cond);
-			cond.notify_all();
+			lock_guard<recursive_mutex> lck(mtx_reader);
+			mapCopy.swap(readerMap);
 		}
-		lock_guard<mutex> lck(mtx_reader);
-		for (auto reader : readerSet) {
-			reader->onDetach();
+		for (auto &pr : mapCopy) {
+			auto reader = pr.second.lock();
+			if(reader){
+				reader->onDetach();
+			}
 		}
 		delete[] dataRing;
 	}
 
-	shared_ptr<RingReader> attach() {
-		shared_ptr<RingReader> ret(new RingReader(this->shared_from_this()));
-		lock_guard<mutex> lck(mtx_reader);
-		readerSet.emplace(ret.get());
-		return ret;
+	std::shared_ptr<RingReader> attach() {
+		std::shared_ptr<RingReader> ptr(new RingReader(this->shared_from_this()));
+		std::weak_ptr<RingReader> weakPtr = ptr;
+		lock_guard<recursive_mutex> lck(mtx_reader);
+		readerMap.emplace(ptr.get(),weakPtr);
+		return ptr;
 	}
 	//写环形缓冲，非线程安全的
-	void write(const T &in, bool isKey = true,bool writeRing=false) {
-		{
-			lock_guard<mutex> lck(mtx_reader);
-			for (auto reader : readerSet) {
+	void write(const T &in,bool isKey=true) {
+        dataRing[ringPos] = in;
+        if (isKey) {
+            ringKeyPos = ringPos; //设置读取器可以定位的点
+        }
+        ringPos = next(ringPos);
+        decltype(readerMap) mapCopy;
+        {
+        	lock_guard<recursive_mutex> lck(mtx_reader);
+        	mapCopy = readerMap;
+        }
+		for (auto &pr : mapCopy) {
+			auto reader = pr.second.lock();
+			if(reader){
 				reader->onRead(in);
 			}
 		}
-		if(!writeRing){
-			return;
-		}
-		dataRing[ringPos] = in;
-		if (isKey) {
-			ringKeyPos = ringPos.load(); //设置读取器可以定位的点
-		}
-		ringPos = next(ringPos);
-		unique_lock<mutex> lock(mtx_cond);
-		cond.notify_all();
 	}
-
+	int readerCount(){
+		lock_guard<recursive_mutex> lck(mtx_reader);
+		return readerMap.size();
+	}
 private:
 	T *dataRing;
-	atomic_long ringPos;
-	atomic_long ringKeyPos;
+	long ringPos;
+	long ringKeyPos;
 	int ringSize;
-
-	mutex mtx_reader;
-	unordered_set<RingReader *> readerSet;
-
-	mutex mtx_cond;
-	condition_variable cond;
+	recursive_mutex mtx_reader;
+	unordered_map<void *,std::weak_ptr<RingReader> > readerMap;
 
 	inline long next(long pos) {
 		//读取器下一位置
@@ -154,14 +171,9 @@ private:
 	}
 
 	void release(RingReader *reader) {
-		lock_guard<mutex> lck(mtx_reader);
-		readerSet.erase(reader);
+		lock_guard<recursive_mutex> lck(mtx_reader);
+		readerMap.erase(reader);
 	}
-	void wait() {
-		unique_lock<mutex> lock(mtx_cond);
-		cond.wait(lock);
-	}
-
 };
 
 } /* namespace Util */

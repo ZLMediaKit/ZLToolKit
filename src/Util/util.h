@@ -7,6 +7,7 @@
 
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
+#include <string.h>
 #include <string>
 #include <sstream>
 using namespace std;
@@ -32,7 +33,18 @@ private:
 
 #define StrPrinter _StrPrinter()
 
-string makeRandStr(int sz);
+string makeRandStr(int sz, bool printable = true);
+string hexdump(const void *buf, size_t len);
+string exePath();
+void setExePath(const string &path);
+
+
+int compareNoCase(const char *strA,const char *strB);
+
+#ifndef strcasecmp
+#define strcasecmp compareNoCase
+#endif //strcasecmp
+
 }  // namespace Util
 }  // namespace ZL
 

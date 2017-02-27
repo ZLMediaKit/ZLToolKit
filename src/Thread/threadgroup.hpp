@@ -32,7 +32,7 @@ public:
 	}
 
 	bool is_this_thread_in() {
-		auto it = threads.find(__gthread_self());
+		auto it = threads.find(pthread_self());
 		return it != threads.end();
 	}
 

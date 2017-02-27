@@ -17,7 +17,7 @@
 #include <iostream>
 #include <stdarg.h>
 #include <sys/time.h>
-#include <Util/logger.h>
+#include "Util/logger.h"
 using namespace std;
 namespace ZL {
 namespace Util {
@@ -29,36 +29,39 @@ public:
 	virtual ~SqlConnection();
 
 	template<typename ...Args>
-	int64_t query(const char *fmt, Args && ...arg) {
+	int64_t query(int64_t &rowId, const char *fmt, Args && ...arg) {
 		check();
 		string tmp = queryString(fmt, arg...);
 		if (mysql_query(&sql, tmp.c_str())) {
-			WarnL << mysql_error(&sql) << endl;
+			WarnL << mysql_error(&sql) << ":" << tmp << endl;
 			return 0;
 		}
+		rowId=mysql_insert_id(&sql);
 		return mysql_affected_rows(&sql);
 	}
 
-	int64_t query(const char *str) {
+	int64_t query(int64_t &rowId,const char *str) {
 		check();
 		if (mysql_query(&sql, str)) {
-			WarnL << mysql_error(&sql) << endl;
+			WarnL << mysql_error(&sql) << ":" << str << endl;
 			return 0;
 		}
+		rowId=mysql_insert_id(&sql);
 		return mysql_affected_rows(&sql);
 	}
 	template<typename ...Args>
-	int64_t query(vector<vector<string>> &ret, const char *fmt,
+	int64_t query(int64_t &rowId,vector<vector<string>> &ret, const char *fmt,
 			Args && ...arg) {
 		check();
 		string tmp = queryString(fmt, arg...);
 		if (mysql_query(&sql, tmp.c_str())) {
-			WarnL << mysql_error(&sql) << endl;
+			WarnL << mysql_error(&sql)  << ":" << tmp << endl;
 			return 0;
 		}
 		ret.clear();
 		MYSQL_RES *res = mysql_store_result(&sql);
 		if (!res) {
+			rowId=mysql_insert_id(&sql);
 			return mysql_affected_rows(&sql);
 		}
 		MYSQL_ROW row;
@@ -71,17 +74,19 @@ public:
 			}
 		}
 		mysql_free_result(res);
+		rowId=mysql_insert_id(&sql);
 		return mysql_affected_rows(&sql);
 	}
-	int64_t query(vector<vector<string>> &ret, const char *str) {
+	int64_t query(int64_t &rowId,vector<vector<string>> &ret, const char *str) {
 		check();
 		if (mysql_query(&sql, str)) {
-			WarnL << mysql_error(&sql) << endl;
+			WarnL << mysql_error(&sql)  << ":" << str << endl;
 			return 0;
 		}
 		ret.clear();
 		MYSQL_RES *res = mysql_store_result(&sql);
 		if (!res) {
+			rowId=mysql_insert_id(&sql);
 			return mysql_affected_rows(&sql);
 		}
 		MYSQL_ROW row;
@@ -94,6 +99,7 @@ public:
 			}
 		}
 		mysql_free_result(res);
+		rowId=mysql_insert_id(&sql);
 		return mysql_affected_rows(&sql);
 	}
 	template<typename ...Args>

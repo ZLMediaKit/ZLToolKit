@@ -10,20 +10,19 @@
 
 namespace ZL {
 namespace Poller {
-AsyncTaskThread Timer::asyncThread(1*1000);
 
-Timer::Timer(int second,function<bool()> &&cb){
-    asyncThread.DoTaskDelay(reinterpret_cast<uint64_t>(this), second*1000, [this,cb]()->bool{
-        EventPoller::Instance().sendAsync([this,cb](){
-            if(!cb()){
-                asyncThread.CancelTask(reinterpret_cast<uint64_t>(this));
-            }
-        });
-        return true;
-    });
+Timer::Timer(int second, function<bool()> &&cb) {
+	AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this), second * 1000, [this,cb]()->bool {
+		EventPoller::Instance().async([this,cb]() {
+			if(!cb()) {
+				AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
+			}
+		});
+		return true;
+	});
 }
-Timer::~Timer(){
-    asyncThread.CancelTask(reinterpret_cast<uint64_t>(this));
+Timer::~Timer() {
+	AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
 }
 
 }  // namespace Poller

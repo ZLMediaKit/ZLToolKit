@@ -21,37 +21,25 @@
 #include <memory>
 #include <mutex>
 #include <time.h>
+#include "Thread/semaphore.hpp"
 using namespace std;
-
+using namespace ZL::Thread;
 namespace ZL {
 namespace Util {
 
 enum LogLevel {
-	LTrace = 0,
-	LDebug ,
-	LInfo ,
-	LWarn ,
-	LError ,
-	LFatal ,
+	LTrace = 0, LDebug, LInfo, LWarn, LError, LFatal,
 };
-static const char
-*LogLevelStr[]=	{"trace",
-				"debug",
-				"info",
-				"warn",
-				"error",
-				"fatal"};
+static const char *LogLevelStr[] = { "trace", "debug", "info", "warn", "error",
+		"fatal" };
 
 #define CLEAR_COLOR "\033[0m"
 #define UNDERLINE "\033[4m"
 
-static const char
-*COLOR[6][2] = {{ "\033[44;37m", "\033[34m" },
-				{"\033[42;37m", "\033[32m" },
-				{ "\033[46;37m", "\033[36m" },
-				{"\033[43;37m", "\033[33m" },
-				{ "\033[45;37m", "\033[35m" },
-				{"\033[41;37m", "\033[31m" } };
+static const char *COLOR[6][2] = { { "\033[44;37m", "\033[34m" }, {
+		"\033[42;37m", "\033[32m" }, { "\033[46;37m", "\033[36m" }, {
+		"\033[43;37m", "\033[33m" }, { "\033[45;37m", "\033[35m" }, {
+		"\033[41;37m", "\033[31m" } };
 
 class Logger;
 class LogWriter;
@@ -59,17 +47,15 @@ class LogChannel;
 class LogInfo;
 class LogInfoMaker;
 
-typedef shared_ptr<LogInfo> LogInfo_ptr;
+typedef std::shared_ptr<LogInfo> LogInfo_ptr;
 class LogChannel {
 public:
-	LogChannel(const string& name,
-			LogLevel level = LDebug,
+	LogChannel(const string& name, LogLevel level = LDebug,
 			const char* timeFormat = "%Y-%m-%d %H:%M:%S") :
-			_name(name),
-			_level(level),
-			_timeFormat(timeFormat) {
+			_name(name), _level(level), _timeFormat(timeFormat) {
 	}
-	virtual ~LogChannel() {}
+	virtual ~LogChannel() {
+	}
 	virtual void write(const LogInfo_ptr & stream)=0;
 	const string &name() const {
 		return _name;
@@ -94,8 +80,10 @@ protected:
 
 class LogWriter {
 public:
-	LogWriter() {}
-	virtual ~LogWriter() {}
+	LogWriter() {
+	}
+	virtual ~LogWriter() {
+	}
 	virtual void write(const LogInfo_ptr &stream) =0;
 };
 
@@ -103,53 +91,72 @@ class Logger {
 public:
 	friend class LogWriter;
 	friend class AsyncLogWriter;
-	static Logger& instance() {
+	static Logger& Instance() {
 		static Logger *logger(new Logger());
 		return *logger;
 	}
-	void add(const shared_ptr<LogChannel> &&channel) {
-		channels[channel->name()]=channel;
+	static void Destory() {
+		delete &Logger::Instance();
 	}
-	void remove(const string& name) {
+	void add(const std::shared_ptr<LogChannel> &&channel) {
+		channels[channel->name()] = channel;
+	}
+	void del(const string& name) {
 		auto it = channels.find(name);
 		if (it != channels.end()) {
 			channels.erase(it);
 		}
 	}
-	void setWriter(const shared_ptr<LogWriter> &&_writer) {
+	std::shared_ptr<LogChannel> get(const string& name){
+		auto it = channels.find(name);
+		if(it == channels.end()){
+			return nullptr;
+		}
+		return it->second;
+	}
+
+	void setWriter(const std::shared_ptr<LogWriter> &&_writer) {
 		if (_writer) {
 			this->writer = _writer;
 		}
 	}
 	void write(const LogInfo_ptr &stream) {
-		if (!writer) {
-			for (auto &chn : Logger::instance().channels) {
-				chn.second->write(stream);
-			}
+		lock_guard<recursive_mutex> lock(mtx);
+		if (writer) {
+			writer->write(stream);
 			return;
 		}
-		writer->write(stream);
+		for (auto &chn : channels) {
+			chn.second->write(stream);
+		}
+	}
+	void setLevel(LogLevel level) {
+		for (auto &chn : channels) {
+			chn.second->setLevel(level);
+		}
 	}
 protected:
-	Logger(){}
-	~Logger(){}
+	Logger() {
+	}
+	~Logger() {
+	}
 	// Non-copyable and non-movable
 	Logger(const Logger&); // = delete;
 	Logger(Logger&&); // = delete;
 	Logger& operator=(const Logger&); // = delete;
 	Logger& operator=(Logger&&); // = delete;
 
-	map<string, shared_ptr<LogChannel> > channels;
-	shared_ptr<LogWriter> writer;
+	map<string, std::shared_ptr<LogChannel> > channels;
+	std::shared_ptr<LogWriter> writer;
+	recursive_mutex mtx;
 };
 
 class LogInfo {
 public:
 	friend class LogInfoMaker;
-	void format(ostream& ost,
-			const char *timeFormat = "%Y-%m-%d %H:%M:%S",
+	void format(ostream& ost, const char *timeFormat = "%Y-%m-%d %H:%M:%S",
 			bool enableColor = true) {
-		ost << file << " " << line << "\r\n ";
+        ost << file << " " << line << "\r\n ";
 		if (enableColor) {
 			ost << COLOR[level][1];
 		}
@@ -170,18 +177,14 @@ public:
 	}
 
 private:
-	LogInfo(LogLevel _level,
-			const char* _file,
-			const char* _function,
+	LogInfo(LogLevel _level, const char* _file, const char* _function,
 			int _line) :
-			level(_level),
-			line(_line),
-			file(_file),
-			function(_function),
-			ts(::time(NULL)) {
+			level(_level), line(_line), file(_file), function(_function), ts(
+					::time(NULL)) {
 	}
 	std::string print(const std::tm& dt, const char* fmt) {
-#if defined(WIN32)
+/*
+#if defined(__WIN32__)
 		// BOGUS hack done for VS2012: C++11 non-conformant since it SHOULD take a "const struct tm* "
 		// ref. C++11 standard: ISO/IEC 14882:2011, � 27.7.1,
 		std::ostringstream oss;
@@ -189,22 +192,25 @@ private:
 		return oss.str();
 
 #else    // LINUX
+*/
 		const size_t size = 1024;
 		char buffer[size];
 		auto success = std::strftime(buffer, size, fmt, &dt);
 		if (0 == success)
 			return string(fmt);
 		return buffer;
-#endif
+//#endif
 	}
 
 	std::tm toLocal(const std::time_t& time) {
 		std::tm tm_snapshot;
-#if defined(WIN32)
+/*
+#if defined(__WIN32__)
 		localtime_s(&tm_snapshot, &time); // thread-safe?
 #else
+*/
 		localtime_r(&time, &tm_snapshot); // POSIX
-#endif
+//#endif
 		return tm_snapshot;
 	}
 	LogLevel level;
@@ -217,9 +223,7 @@ private:
 
 class LogInfoMaker {
 public:
-	LogInfoMaker(LogLevel level,
-			const char* file,
-			const char* function,
+	LogInfoMaker(LogLevel level, const char* file, const char* function,
 			int line) :
 			logInfo(new LogInfo(level, file, function, line)) {
 	}
@@ -247,11 +251,11 @@ public:
 			return *this;
 		}
 		logInfo->message << f;
-		Logger::instance().write(logInfo);
+		Logger::Instance().write(logInfo);
 		logInfo.reset();
 		return *this;
 	}
-	void clear(){
+	void clear() {
 		logInfo.reset();
 	}
 private:
@@ -260,51 +264,56 @@ private:
 
 class AsyncLogWriter: public LogWriter {
 public:
-	AsyncLogWriter() :exit_flag(false), _thread([this]() {this->run();}) {}
+	AsyncLogWriter() :
+			exit_flag(false), _thread([this]() {this->run();}) {
+	}
 	virtual ~AsyncLogWriter() {
 		exit_flag = true;
-		cond.notify_one();
+		sem.post();
 		_thread.join();
-		flush();
-	}
-	virtual void write(const LogInfo_ptr &stream) {
-		unique_lock<recursive_mutex> lock(_mutex);
-		_pending.push_back(stream);
-		cond.notify_one();
-	}
-protected:
-	void run() {
-		while (!exit_flag) {
-			unique_lock<recursive_mutex> lock(_mutex);
-			cond.wait(lock);
-			flush();
-		}
-	}
-	inline void flush() {
-		while (!_pending.empty()) {
+		while (_pending.size()) {
 			auto &next = _pending.front();
 			realWrite(next);
 			_pending.pop_front();
 		}
+
+	}
+	virtual void write(const LogInfo_ptr &stream) {
+		{
+			lock_guard<recursive_mutex> lock(_mutex);
+			_pending.push_back(stream);
+		}
+		sem.post();
+	}
+protected:
+	void run() {
+		while (!exit_flag) {
+			sem.wait();
+			lock_guard<recursive_mutex> lock(_mutex);
+			if (_pending.size()) {
+				auto &next = _pending.front();
+				realWrite(next);
+				_pending.pop_front();
+			}
+		}
 	}
 	inline void realWrite(const LogInfo_ptr &stream) {
-		for (auto &chn : Logger::instance().channels) {
+		for (auto &chn : Logger::Instance().channels) {
 			chn.second->write(stream);
 		}
 	}
 	bool exit_flag;
 	thread _thread;
-	deque<LogInfo_ptr > _pending;
-	condition_variable_any cond;
+	deque<LogInfo_ptr> _pending;
+	semaphore sem;
 	recursive_mutex _mutex;
 };
 
 class ConsoleChannel: public LogChannel {
 public:
-	ConsoleChannel(const string& name,
-			LogLevel level = LDebug,
-			const char* timeFormat = "%Y-%m-%d %H:%M:%S"):
-			LogChannel(name, level, timeFormat){
+	ConsoleChannel(const string& name, LogLevel level = LDebug,
+			const char* timeFormat = "%Y-%m-%d %H:%M:%S") :
+			LogChannel(name, level, timeFormat) {
 	}
 	virtual ~ConsoleChannel() {
 	}
@@ -318,17 +327,14 @@ public:
 
 class FileChannel: public LogChannel {
 public:
-	FileChannel(const string& name,
-			const string& path,
-			LogLevel level = LDebug,
+	FileChannel(const string& name, const string& path, LogLevel level = LDebug,
 			const char* timeFormat = "%Y-%m-%d %H:%M:%S") :
-			LogChannel(name, level, timeFormat),
-			_path(path) {
+			LogChannel(name, level, timeFormat), _path(path) {
 	}
 	virtual ~FileChannel() {
 		close();
 	}
-	virtual void write(const shared_ptr<LogInfo> &stream) {
+	virtual void write(const std::shared_ptr<LogInfo> &stream) {
 		if (level() > stream->getLevel()) {
 			return;
 		}
@@ -365,14 +371,12 @@ protected:
 	string _path;
 };
 
-
 #define TraceL LogInfoMaker(LTrace, __FILE__,__FUNCTION__, __LINE__)
 #define DebugL LogInfoMaker(LDebug, __FILE__,__FUNCTION__, __LINE__)
 #define InfoL LogInfoMaker(LInfo, __FILE__,__FUNCTION__, __LINE__)
 #define WarnL LogInfoMaker(LWarn,__FILE__, __FUNCTION__, __LINE__)
 #define ErrorL LogInfoMaker(LError,__FILE__, __FUNCTION__, __LINE__)
 #define FatalL LogInfoMaker(LFatal,__FILE__, __FUNCTION__, __LINE__)
-
 
 } /* namespace util */
 } /* namespace ZL */

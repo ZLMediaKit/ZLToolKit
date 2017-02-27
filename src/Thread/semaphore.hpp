@@ -9,17 +9,16 @@
 #define THREADPOOL_SEMAPHORE_HPP_
 
 
-#ifdef  __linux
-#define HAVE_SEM
-#endif
-#ifdef  HAVE_SEM
+#ifdef  __linux__
 #include <semaphore.h>
+#define HAVE_SEM
 #else
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
 using namespace std;
-#endif
+#endif //HAVE_SEM
+
 
 namespace ZL {
 namespace Thread {

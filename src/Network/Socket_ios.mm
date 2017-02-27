@@ -10,7 +10,7 @@
 
 #if defined (__APPLE__)
 #import <Foundation/Foundation.h>
-#endif
+#endif //__APPLE__
 
 using namespace ZL::Util;
 
@@ -20,9 +20,9 @@ namespace Network {
 
 
 #if defined (__APPLE__)
-bool Socket::setSocketOfIOS(int m_socket){
+bool SockFD::setSocketOfIOS(int sock){
     
-    CFStreamCreatePairWithSocket(NULL, (CFSocketNativeHandle)m_socket, (CFReadStreamRef *)(&readStream), (CFWriteStreamRef*)(&writeStream));
+    CFStreamCreatePairWithSocket(NULL, (CFSocketNativeHandle)sock, (CFReadStreamRef *)(&readStream), (CFWriteStreamRef*)(&writeStream));
     if (readStream)
         CFReadStreamSetProperty((CFReadStreamRef)readStream, kCFStreamPropertyShouldCloseNativeSocket, kCFBooleanFalse);
     if (writeStream)
@@ -68,11 +68,11 @@ bool Socket::setSocketOfIOS(int m_socket){
             return false;
         }
     }
-    //NSLog(@"setSocketOfIOS:%d",m_socket);
+    //NSLog(@"setSocketOfIOS:%d",sock);
     return true;
 }
-void Socket::unsetSocketOfIOS(int m_socket){
-    //NSLog(@"unsetSocketOfIOS:%d",m_socket);
+void SockFD::unsetSocketOfIOS(int sock){
+    //NSLog(@"unsetSocketOfIOS:%d",sock);
     if (readStream) {
         CFReadStreamClose((CFReadStreamRef)readStream);
         readStream=NULL;
@@ -82,7 +82,7 @@ void Socket::unsetSocketOfIOS(int m_socket){
         writeStream=NULL;
     }
 }
-#endif
+#endif //__APPLE__
 
 
 

@@ -38,49 +38,60 @@ typedef enum {
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 typedef function<void(void)> PollAsyncCB;
+typedef PollAsyncCB PollSyncCB;
 
 #ifndef  HAS_EPOLL
 typedef struct {
 	Poll_Event event;
 	PollEventCB callBack;
 	int attach;
+	void operator()(int _event) const{
+		callBack(_event);
+	}
+	void operator()() const{
+		callBack(attach);
+	}
 } Poll_Record;
 #endif //HAS_EPOLL
 
 class EventPoller {
 public:
-	EventPoller(bool enableSelfRun=false);
+	EventPoller(bool enableSelfRun = false);
 	virtual ~EventPoller();
-	static EventPoller &Instance() {
-		static EventPoller *instance(new EventPoller());
+	static EventPoller &Instance(bool enableSelfRun = false) {
+        static EventPoller *instance(new EventPoller(enableSelfRun));
 		return *instance;
 	}
-
+	static void Destory() {
+		delete &EventPoller::Instance();
+	}
 	int addEvent(int fd, int event, PollEventCB &&eventCb);
 	int delEvent(int fd, PollDelCB &&delCb = nullptr);
 	int modifyEvent(int fd, int event);
-	void sendAsync(PollAsyncCB &&asyncCb);
+
+	void async(PollAsyncCB &&asyncCb);
+	void sync(PollSyncCB &&syncCb);
+
 	void runLoop();
 	void shutdown();
 	bool isMainThread();
 private:
 	void initPoll();
-
-	inline int sigalPipe(uint64_t type, uint64_t i64_size = 0, uint64_t *buf =
-	NULL);
+	inline int sigalPipe(uint64_t type, uint64_t i64_size = 0, uint64_t *buf = NULL);
 	inline bool handlePipeEvent();
-	inline Sigal_Type _handlePipeEvent(const uint64_t *ptr);
+	inline Sigal_Type _handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf);
 
 	int pipe_fd[2] = { -1, -1 };
 	thread *loopThread = nullptr;
 	thread::id mainThreadId;
-#ifdef HAS_EPOLL
 	mutex mtx_event_map;
+#ifdef HAS_EPOLL
 	int epoll_fd = -1;
-	unordered_map<int,PollEventCB> event_map;
+	unordered_map<int, PollEventCB> event_map;
 #else
 	unordered_map<int, Poll_Record> event_map;
 #endif //HAS_EPOLL
+	string pipeBuffer;
 };
 
 }  // namespace Poller

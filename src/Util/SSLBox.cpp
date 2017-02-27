@@ -4,14 +4,14 @@
  *  Created on: 2016年1月11日
  *      Author: root
  */
-
+#ifdef ENABLE_OPENSSL
 #include <unistd.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
-#include <Util/SSLBox.h>
+#include "SSLBox.h"
 #define SSL_BUF_SIZE 1024*4
 
 namespace ZL {
@@ -215,3 +215,4 @@ void SSL_Box::flush() {
 
 } /* namespace Util */
 } /* namespace ZL */
+#endif //ENABLE_OPENSSL
