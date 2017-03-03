@@ -169,7 +169,7 @@ public:
 	int send(const string &buf,int flags = TCP_DEFAULE_FLAGS);
 	int sendTo(const char *buf, int size, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
 	int sendTo(const string &buf, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
-	void emitErr(const SockException &err);
+	bool emitErr(const SockException &err);
 
 	string get_local_ip();
 	uint16_t get_local_port();

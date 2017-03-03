@@ -121,7 +121,6 @@ public:
 		}
 	}
 	void write(const LogInfo_ptr &stream) {
-		lock_guard<recursive_mutex> lock(mtx);
 		if (writer) {
 			writer->write(stream);
 			return;
@@ -148,7 +147,6 @@ protected:
 
 	map<string, std::shared_ptr<LogChannel> > channels;
 	std::shared_ptr<LogWriter> writer;
-	recursive_mutex mtx;
 };
 
 class LogInfo {
@@ -265,12 +263,14 @@ private:
 class AsyncLogWriter: public LogWriter {
 public:
 	AsyncLogWriter() :
-			exit_flag(false), _thread([this]() {this->run();}) {
+			exit_flag(false) {
+		_thread.reset(new thread([this]() {this->run();}));
+
 	}
 	virtual ~AsyncLogWriter() {
 		exit_flag = true;
 		sem.post();
-		_thread.join();
+		_thread->join();
 		while (_pending.size()) {
 			auto &next = _pending.front();
 			realWrite(next);
@@ -280,7 +280,7 @@ public:
 	}
 	virtual void write(const LogInfo_ptr &stream) {
 		{
-			lock_guard<recursive_mutex> lock(_mutex);
+			lock_guard<mutex> lock(_mutex);
 			_pending.push_back(stream);
 		}
 		sem.post();
@@ -289,11 +289,13 @@ protected:
 	void run() {
 		while (!exit_flag) {
 			sem.wait();
-			lock_guard<recursive_mutex> lock(_mutex);
-			if (_pending.size()) {
-				auto &next = _pending.front();
-				realWrite(next);
-				_pending.pop_front();
+			{
+				lock_guard<mutex> lock(_mutex);
+				if (_pending.size()) {
+					auto &next = _pending.front();
+					realWrite(next);
+					_pending.pop_front();
+				}
 			}
 		}
 	}
@@ -303,10 +305,10 @@ protected:
 		}
 	}
 	bool exit_flag;
-	thread _thread;
+	std::shared_ptr<thread> _thread;
 	deque<LogInfo_ptr> _pending;
 	semaphore sem;
-	recursive_mutex _mutex;
+	mutex _mutex;
 };
 
 class ConsoleChannel: public LogChannel {

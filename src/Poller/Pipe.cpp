@@ -6,11 +6,12 @@
 //
 
 #include <fcntl.h>
-#include "Pipe.hpp"
 #include <sys/ioctl.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include "Pipe.hpp"
 #include "Util/logger.h"
 #include "Util/util.h"
-#include <unistd.h>
 #include "Network/sockutil.h"
 
 using namespace std;
@@ -33,10 +34,8 @@ Pipe::Pipe(function<void(int size, const char *buf)> &&onRead) {
 	int fd = pipe_fd[0];
 	EventPoller::Instance().addEvent(pipe_fd[0], Event_Read,
 			[onRead,fd](int event) {
-				int nread = 1023;
-#ifndef __WIN32__
+				int nread;
 				ioctl(fd, FIONREAD, &nread);
-#endif
 				char buf[nread+1];
 				buf[nread]='\0';
 

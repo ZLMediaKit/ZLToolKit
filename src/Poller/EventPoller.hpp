@@ -8,13 +8,13 @@
 #ifndef Poller_hpp
 #define Poller_hpp
 
-#include <stdio.h>
 #include <functional>
 #include <thread>
 #include <unistd.h>
 #include <unordered_map>
 #include <string>
 #include <mutex>
+
 using namespace std;
 
 #ifdef __linux__

@@ -8,7 +8,6 @@
 #include "Socket.hpp"
 #include <netdb.h>
 #include <arpa/inet.h>
-
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -217,7 +216,6 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		if (nread == -1) {
 			if (errno != EAGAIN && errno != EWOULDBLOCK) {
 				emitErr(getSockErr(pSock));
-				closeSock();
 			}
 			return ret;
 		}
@@ -235,8 +233,10 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 void Socket::onError(const SockFD::Ptr &pSock) {
 	emitErr(getSockErr(pSock));
 }
-void Socket::emitErr(const SockException& err) {
-	closeSock();
+bool Socket::emitErr(const SockException& err) {
+	if(!_sockFd){
+		return false;
+	}
 	weak_ptr<Socket> weakSelf = this->shared_from_this();
 	EventPoller::Instance().async([weakSelf,err]() {
 		auto strongSelf=weakSelf.lock();
@@ -250,6 +250,8 @@ void Socket::emitErr(const SockException& err) {
 		}
 		cb(err);
 	});
+	closeSock();
+	return true;
 }
 
 int Socket::send(const char *buf, int size,int flags) {
@@ -261,8 +263,6 @@ int Socket::send(const char *buf, int size,int flags) {
 	}
 	auto sock = _sockFd;
 	if (!sock) {
-		WarnL << "Tcp socket is closed yet";
-		emitErr(SockException(Err_other, "Tcp socket is closed yet"));
 		return -1;
 	}
 	std::size_t sz;
@@ -506,8 +506,6 @@ int Socket::sendTo(const char* buf, int size, struct sockaddr* peerAddr,int flag
 	}
 	auto sock = _sockFd;
 	if (!sock) {
-		WarnL << "Udp socket is closed yet";
-		emitErr(SockException(Err_other, "Udp socket is closed yet"));
 		return -1;
 	}
 	std::size_t sz;

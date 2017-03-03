@@ -4,33 +4,19 @@
 //
 //  Created by xzl on 16/4/12.
 //
-#include "Util/onceToken.h"
-#include <iostream>
-using namespace std;
-using namespace ZL::Util;
-
-#ifdef __WIN32__
-#include <winsock.h>
-static onceToken token([]() {
-			WSADATA wsa= {0};
-			WSAStartup(MAKEWORD(2,2),&wsa);
-		},[]() {
-
-		});
-#endif
-
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
 #include <list>
+#include "SelectWrap.h"
 #include "Util/util.h"
 #include "Util/logger.h"
 #include "EventPoller.hpp"
 #include "Network/sockutil.h"
 #include "Util/TimeTicker.h"
 #include "Thread/ThreadPool.hpp"
-#include <unistd.h>
 #ifdef HAS_EPOLL
 #include <sys/epoll.h>
 
@@ -50,11 +36,11 @@ namespace ZL {
 namespace Poller {
 
 EventPoller::EventPoller(bool enableSelfRun) {
-	if (pipe(pipe_fd)) {
+	if (pipe(pipe_fd) == -1) {
 		throw runtime_error(StrPrinter << "创建管道失败：" << errno << endl);
 	}
 	SockUtil::setNoBlocked(pipe_fd[0]);
-	SockUtil::setNoBlocked(pipe_fd[1]);
+	SockUtil::setNoBlocked(pipe_fd[1],false);
 #ifdef HAS_EPOLL
 
 #ifndef __ARM_ARCH
@@ -221,7 +207,12 @@ void EventPoller::async(PollAsyncCB &&asyncCb) {
 		asyncCb();
 		return;
 	}
-	uint64_t buf[1] = { (uint64_t) (new PollAsyncCB(asyncCb)) };
+	std::shared_ptr<Ticker> pTicker(new Ticker(5,"唤醒主线程",FatalL,true));
+	auto lam = [asyncCb,pTicker](){
+		const_cast<std::shared_ptr<Ticker> &>(pTicker).reset();
+		asyncCb();
+	};
+	uint64_t buf[1] = { (uint64_t) (new PollAsyncCB(lam)) };
 	sigalPipe(Sig_Async, 1, buf);
 }
 
@@ -263,7 +254,9 @@ inline bool EventPoller::handlePipeEvent() {
 		if (slinceByte > pipeBuffer.size()) {
 			break;
 		}
-		_handlePipeEvent(type, slinceSize, ptr);
+		if(Sig_Exit == _handlePipeEvent(type, slinceSize, ptr)){
+			ret = false;
+		}
 		pipeBuffer.erase(0, slinceByte);
 	}
 	return ret;
@@ -328,15 +321,14 @@ void EventPoller::runLoop() {
 
 #else
 	int ret, maxFd;
-	fd_set Set_read, Set_write, Set_err;
+	FdSet Set_read, Set_write, Set_err;
 	list<unordered_map<int, Poll_Record>::value_type> listCB;
 	while (true) {
-		FD_ZERO(&Set_read);
-		FD_ZERO(&Set_write);
-		FD_ZERO(&Set_err);
-		FD_SET(pipe_fd[0], &Set_read); //监听管道可读事件
+		Set_read.fdZero();
+		Set_write.fdZero();
+		Set_err.fdZero();
+		Set_read.fdSet(pipe_fd[0]); //监听管道可读事件
 		maxFd = pipe_fd[0];
-
 		{
 			lock_guard<mutex> lck(mtx_event_map);
 			for (auto &pr : event_map) {
@@ -344,17 +336,17 @@ void EventPoller::runLoop() {
 					maxFd = pr.first;
 				}
 				if (pr.second.event & Event_Read) {
-					FD_SET(pr.first, &Set_read); //监听管道可读事件
+					Set_read.fdSet(pr.first);//监听管道可读事件
 				}
 				if (pr.second.event & Event_Write) {
-					FD_SET(pr.first, &Set_write); //监听管道可写事件
+					Set_write.fdSet(pr.first);//监听管道可写事件
 				}
 				if (pr.second.event & Event_Error) {
-					FD_SET(pr.first, &Set_err); //监听管道错误事件
+					Set_err.fdSet(pr.first);//监听管道错误事件
 				}
 			}
 		}
-		ret = select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
+		ret = fd_select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
 		if (ret < 1) {
 			if (pipe_fd[0] == -1 || pipe_fd[1] == -1) {
 				break;
@@ -363,7 +355,7 @@ void EventPoller::runLoop() {
 			continue;
 		}
 
-		if (FD_ISSET(pipe_fd[0], &Set_read)) {
+		if (Set_read.isSet(pipe_fd[0])) {
 			//判断有否监听操作
 			if (!handlePipeEvent()) {
 				InfoL << "Poller 退出监听。";
@@ -379,13 +371,13 @@ void EventPoller::runLoop() {
 			lock_guard<mutex> lck(mtx_event_map);
 			for (auto &pr : event_map) {
 				int event = 0;
-				if (FD_ISSET(pr.first, &Set_read)) {
+				if (Set_read.isSet(pr.first)) {
 					event |= Event_Read;
 				}
-				if (FD_ISSET(pr.first, &Set_write)) {
+				if (Set_write.isSet(pr.first)) {
 					event |= Event_Write;
 				}
-				if (FD_ISSET(pr.first, &Set_err)) {
+				if (Set_err.isSet(pr.first)) {
 					event |= Event_Error;
 				}
 				if (event != 0) {
