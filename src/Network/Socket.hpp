@@ -183,6 +183,7 @@ public:
 		_iUdpMaxPktSize = iPktSize;
 	}
 private:
+	recursive_mutex _mtx_sockFd;
 	SockFD::Ptr _sockFd;
 	//send buffer
 	recursive_mutex _mtx_sendBuf;
