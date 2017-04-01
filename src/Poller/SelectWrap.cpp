@@ -54,7 +54,7 @@ bool FdSet::isSet(int fd) {
 } /* namespace Poller */
 } /* namespace ZL */
 
-int fd_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv){
+int zl_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv){
 	void *rd,*wt,*er;
 	rd = read?read->ptr:NULL;
 	wt = write?write->ptr:NULL;

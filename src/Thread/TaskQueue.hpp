@@ -18,14 +18,14 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+#include "spin_mutex.h"
 
 using namespace std;
 
 namespace ZL {
 namespace Thread {
 
-//定义任务
-typedef function<void(void)> Task;
+
 
 //实现了一个基于函数对象的任务列队，该列队是线程安全的，任务列队任务数由信号量控制
 class TaskQueue {
@@ -33,17 +33,19 @@ public:
 	TaskQueue() {
 	}
 	//打入任务至列队
-	void push_task(const Task & task_func) {
+	template <typename T>
+	void push_task(T &&task_func) {
 		{
-			lock_guard<mutex> lock(my_mutex);
-			my_queue.push_back(task_func);
+			lock_guard<spin_mutex> lock(my_mutex);
+			my_queue.emplace_back(std::forward<T>(task_func));
 		}
 		sem.post();
 	}
-	void push_task_first(const Task & task_func) {
+	template <typename T>
+	void push_task_first(T &&task_func) {
 		{
-			lock_guard<mutex> lock(my_mutex);
-			my_queue.push_front(task_func);
+			lock_guard<spin_mutex> lock(my_mutex);
+			my_queue.emplace_front(std::forward<T>(task_func));
 		}
 		sem.post();
 	}
@@ -52,9 +54,9 @@ public:
 		sem.post(n);
 	}
 	//从列队获取一个任务，由执行线程执行
-	bool get_task(Task &tsk) {
+	bool get_task(function<void(void)> &tsk) {
 		sem.wait();
-		lock_guard<mutex> lock(my_mutex);
+		lock_guard<spin_mutex> lock(my_mutex);
 		if (my_queue.size() == 0) {
 			return false;
 		}
@@ -63,12 +65,12 @@ public:
 		return true;
 	}
     uint64_t size() const{
-        lock_guard<mutex> lock(my_mutex);
+        lock_guard<spin_mutex> lock(my_mutex);
         return my_queue.size();
     }
 private:
-	deque<Task> my_queue;
-	mutable mutex my_mutex;
+	deque<function<void(void)>> my_queue;
+	mutable spin_mutex my_mutex;
 	semaphore sem;
 };
 

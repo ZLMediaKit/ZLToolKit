@@ -36,6 +36,8 @@ private:
 string makeRandStr(int sz, bool printable = true);
 string hexdump(const void *buf, size_t len);
 string exePath();
+string exeDir();
+string exeName();
 void setExePath(const string &path);
 
 

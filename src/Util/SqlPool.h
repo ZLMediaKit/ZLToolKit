@@ -43,13 +43,13 @@ public:
 	}
 	template<typename ...Args>
 	void Init(Args && ...arg) {
-		pool.reset(new PoolType(arg...));
+		pool.reset(new PoolType(std::forward<Args>(arg)...));
 		pool->obtain();
 	}
 
 	template<typename ...Args>
 	int64_t query(const char *fmt, Args && ...arg) {
-		string sql = SqlConnection::queryString(fmt, arg...);
+		string sql = SqlConnection::queryString(fmt, std::forward<Args>(arg)...);
 		doQuery(sql);
 		return 0;
 	}
@@ -61,7 +61,7 @@ public:
 	template<typename ...Args>
 	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const char *fmt,
 			Args && ...arg) {
-		return _query(rowID,ret, fmt, arg...);
+		return _query(rowID,ret, fmt, std::forward<Args>(arg)...);
 	}
 
 	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const string &sql) {
@@ -99,14 +99,14 @@ private:
 		};
 		threadPool->async(lam);
 	}
-	template<typename ...ARGS>
-	inline int64_t _query(int64_t &rowID,ARGS &&...args) {
+	template<typename ...Args>
+	inline int64_t _query(int64_t &rowID,Args &&...arg) {
 		try {
 			//捕获创建对象异常
 			auto mysql = pool->obtain();
 			try {
 				//捕获执行异常
-				return mysql->query(rowID,args...);
+				return mysql->query(rowID,std::forward<Args>(arg)...);
 			} catch (exception &e) {
 				pool->quit(mysql);
 				WarnL << e.what() << endl;

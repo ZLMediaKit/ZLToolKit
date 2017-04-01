@@ -13,13 +13,16 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include "Poller/Timer.hpp"
 #include <deque>
 #include <mutex>
+#include "Thread/spin_mutex.h"
+#include "Poller/Timer.hpp"
 #include "Util/TimeTicker.h"
+
 using namespace std;
 using namespace ZL::Poller;
 using namespace ZL::Util;
+using namespace ZL::Thread;
 
 namespace ZL {
 namespace Network {
@@ -183,7 +186,7 @@ public:
 		_iUdpMaxPktSize = iPktSize;
 	}
 private:
-	recursive_mutex _mtx_sockFd;
+	spin_mutex _mtx_sockFd;
 	SockFD::Ptr _sockFd;
 	//send buffer
 	recursive_mutex _mtx_sendBuf;

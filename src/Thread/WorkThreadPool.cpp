@@ -31,7 +31,7 @@ void WorkThreadPool::wait() {
 		th->wait();
 	}
 }
-shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
+std::shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
 	if (++threadPos >= threadnum) {
 		threadPos = 0;
 	}

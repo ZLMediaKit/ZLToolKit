@@ -13,16 +13,15 @@
 #include <functional>
 #include <mutex>
 #include <memory>
+#include "function_traits.h"
 using namespace std;
-
 
 namespace ZL {
 namespace Util {
 
 class NoticeCenter {
 public:
-	NoticeCenter();
-	virtual ~NoticeCenter();
+	virtual ~NoticeCenter(){}
 	static NoticeCenter &Instance(){
 		static NoticeCenter instance;
 		return instance;
@@ -35,17 +34,17 @@ public:
 			return;
 		}
 		for(auto &pr : it0->second){
-			typedef function<void(ArgsType...)> funType;
+			typedef function<void(ArgsType &&...)> funType;
 			funType *obj = (funType *)(pr.second.get());
-			(*obj)(args...);
+			(*obj)(std::forward<ArgsType>(args)...);
 		}
 	}
 
 
-	template<typename ...ArgsType>
-	void addListener(void *tag, const char *strEvent, const function<void(ArgsType...)> &fun) {
-		typedef function<void(ArgsType...)> funType;
-		shared_ptr<void> pListener(new funType(fun), [](void *ptr) {
+	template<typename FUN>
+	void addListener(void *tag, const char *strEvent, const FUN &fun) {
+		typedef typename function_traits<FUN>::stl_function_type funType;
+		std::shared_ptr<void> pListener(new funType(fun), [](void *ptr) {
 			funType *obj = (funType *)ptr;
 			delete obj;
 		});
@@ -78,8 +77,9 @@ public:
 	}
 
 private:
+	NoticeCenter(){}
 	recursive_mutex _mtxListener;
-	unordered_map<string,unordered_map<void *,shared_ptr<void> > > _mapListener;
+	unordered_map<string,unordered_map<void *,std::shared_ptr<void> > > _mapListener;
 
 };
 

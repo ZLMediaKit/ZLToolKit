@@ -44,32 +44,32 @@ public:
 	}
 
 	//把任务打入线程池并异步执行
-	bool async(const Task & task) {
-		if (!avaible || !task) {
+	template <typename T>
+	bool async(T &&task) {
+		if (!avaible) {
 			return false;
 		}
 		if (my_thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			my_queue.push_task(task);
+			my_queue.push_task(std::forward<T>(task));
 		}
 		return true;
 	}
-	bool async_first(const Task & task) {
-		if (!avaible || !task) {
+	template <typename T>
+	bool async_first(T &&task) {
+		if (!avaible) {
 			return false;
 		}
 		if (my_thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			my_queue.push_task_first(task);
+			my_queue.push_task_first(std::forward<T>(task));
 		}
 		return true;
 	}
-	bool sync(const Task & task){
-		if(!task){
-			return false;
-		}
+	template <typename T>
+	bool sync(T &&task){
 		semaphore sem;
 		bool flag = async([&](){
 			task();
@@ -80,10 +80,8 @@ public:
 		}
 		return flag;
 	}
-	bool sync_first(const Task & task) {
-		if (!task) {
-			return false;
-		}
+	template <typename T>
+	bool sync_first(T &&task) {
 		semaphore sem;
 		bool flag = async_first([&]() {
 			task();
@@ -147,7 +145,7 @@ private:
 	}
 	void run() {
 		ThreadPool::setPriority(priority);
-		Task task;
+		function<void(void)> task;
 		while (true) {
 			if (my_queue.get_task(task)) {
 				try {

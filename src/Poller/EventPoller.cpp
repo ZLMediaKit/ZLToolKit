@@ -346,7 +346,7 @@ void EventPoller::runLoop() {
 				}
 			}
 		}
-		ret = fd_select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
+		ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
 		if (ret < 1) {
 			if (pipe_fd[0] == -1 || pipe_fd[1] == -1) {
 				break;

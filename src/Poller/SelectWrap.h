@@ -28,7 +28,7 @@ private:
 } /* namespace Poller */
 } /* namespace ZL */
 using namespace ZL::Poller;
-int fd_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv);
+int zl_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv);
 
 
 

@@ -29,8 +29,7 @@ AsyncTaskThread::~AsyncTaskThread() {
 	InfoL;
 }
 
-void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,
-		const function<bool()> & func) {
+void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,const function<bool()> &func) {
 	lock_guard<recursive_mutex> lck(_mtx);
 	std::shared_ptr<TaskInfo> info(new TaskInfo);
 	info->type = type;

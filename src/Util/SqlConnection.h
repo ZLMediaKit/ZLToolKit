@@ -31,7 +31,7 @@ public:
 	template<typename ...Args>
 	int64_t query(int64_t &rowId, const char *fmt, Args && ...arg) {
 		check();
-		string tmp = queryString(fmt, arg...);
+		string tmp = queryString(fmt, std::forward<Args>(arg)...);
 		if (mysql_query(&sql, tmp.c_str())) {
 			WarnL << mysql_error(&sql) << ":" << tmp << endl;
 			return 0;
@@ -53,7 +53,7 @@ public:
 	int64_t query(int64_t &rowId,vector<vector<string>> &ret, const char *fmt,
 			Args && ...arg) {
 		check();
-		string tmp = queryString(fmt, arg...);
+		string tmp = queryString(fmt, std::forward<Args>(arg)...);
 		if (mysql_query(&sql, tmp.c_str())) {
 			WarnL << mysql_error(&sql)  << ":" << tmp << endl;
 			return 0;

@@ -23,7 +23,7 @@ public:
 	typedef std::shared_ptr<C> ValuePtr;
 	template<typename ...ArgTypes>
 	ResourcePool(ArgTypes &&...args) {
-		pool.reset(new _ResourcePool(args...));
+		pool.reset(new _ResourcePool(std::forward<ArgTypes>(args)...));
 	}
 	void reSize(int size) {
 		pool->setSize(size);
