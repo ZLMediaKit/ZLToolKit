@@ -22,8 +22,11 @@
 #include <mutex>
 #include <time.h>
 #include "Thread/semaphore.hpp"
+#include "Util/util.h"
+
 using namespace std;
 using namespace ZL::Thread;
+
 namespace ZL {
 namespace Util {
 
@@ -154,7 +157,8 @@ public:
 	friend class LogInfoMaker;
 	void format(ostream& ost, const char *timeFormat = "%Y-%m-%d %H:%M:%S",
 			bool enableColor = true) {
-        ost << file << " " << line << "\r\n ";
+		static string appName = exeName();
+        ost << appName << " "<< file << " " << line << "\r\n ";
 		if (enableColor) {
 			ost << COLOR[level][1];
 		}

@@ -13,31 +13,45 @@
 #include <functional>
 #include <mutex>
 #include <memory>
+#include <exception>
 #include "function_traits.h"
 using namespace std;
 
 namespace ZL {
 namespace Util {
 
+
 class NoticeCenter {
 public:
+	class InterruptException : public std::runtime_error
+	{
+	public:
+		InterruptException():std::runtime_error("InterruptException"){}
+		virtual ~InterruptException(){}
+	};
+
 	virtual ~NoticeCenter(){}
 	static NoticeCenter &Instance(){
 		static NoticeCenter instance;
 		return instance;
 	}
 	template<typename ...ArgsType>
-	void emitEvent(const char *strEvent,ArgsType &&...args){
+	bool emitEvent(const char *strEvent,ArgsType &&...args){
 		lock_guard<recursive_mutex> lck(_mtxListener);
 		auto it0 = _mapListener.find(strEvent);
 		if (it0 == _mapListener.end()) {
-			return;
+			return false;
 		}
 		for(auto &pr : it0->second){
 			typedef function<void(ArgsType &&...)> funType;
 			funType *obj = (funType *)(pr.second.get());
-			(*obj)(std::forward<ArgsType>(args)...);
+			try{
+				(*obj)(std::forward<ArgsType>(args)...);
+			}catch(InterruptException &ex){
+				break;
+			}
 		}
+		return it0->second.size();
 	}
 
 
