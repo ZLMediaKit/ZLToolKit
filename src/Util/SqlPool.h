@@ -101,18 +101,13 @@ private:
 	}
 	template<typename ...Args>
 	inline int64_t _query(int64_t &rowID,Args &&...arg) {
+		typename PoolType::ValuePtr mysql;
 		try {
-			//捕获创建对象异常
-			auto mysql = pool->obtain();
-			try {
-				//捕获执行异常
-				return mysql->query(rowID,std::forward<Args>(arg)...);
-			} catch (exception &e) {
-				pool->quit(mysql);
-				WarnL << e.what() << endl;
-				return -1;
-			}
+			//捕获执行异常
+			mysql = pool->obtain();
+			return mysql->query(rowID,std::forward<Args>(arg)...);
 		} catch (exception &e) {
+			pool->quit(mysql);
 			WarnL << e.what() << endl;
 			return -1;
 		}
@@ -181,8 +176,8 @@ private:
 
 class _SqlWriter {
 public:
-	_SqlWriter(const char *_sql) :
-			sqlstream(_sql) {
+	_SqlWriter(const char *_sql,bool _throwAble = true) :
+			sqlstream(_sql),throwAble(_throwAble) {
 	}
 	~_SqlWriter() {
 
@@ -197,15 +192,25 @@ public:
 		SqlPool::Instance().query(sqlstream << endl);
 	}
 	int64_t operator <<(vector<vector<string>> &ret) {
-		return SqlPool::Instance().query(rowId,ret, sqlstream << endl);
+		affectedRows = SqlPool::Instance().query(rowId,ret, sqlstream << endl);
+		if(affectedRows == -1 && throwAble){
+			throw std::runtime_error("操作数据库失败");
+		}
+		return affectedRows;
 	}
 	int64_t getRowID() const {
 		return rowId;
 	}
 
+	int64_t getAffectedRows() const {
+		return affectedRows;
+	}
+
 private:
 	_SqlStream sqlstream;
-	int64_t rowId;
+	int64_t rowId = 0;
+	int64_t affectedRows = -1;
+	bool throwAble = true;
 };
 
 #define SqlWriter  _SqlWriter
