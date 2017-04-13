@@ -248,6 +248,17 @@ public:
 		logInfo->message << data;
 		return *this;
 	}
+
+	LogInfoMaker& operator <<(const char *data) {
+		if (!logInfo) {
+			return *this;
+		}
+		if(data){
+			logInfo->message << data;
+		}
+		return *this;
+	}
+
 	LogInfoMaker& operator <<(ostream&(*f)(ostream&)) {
 		if (!logInfo) {
 			return *this;
