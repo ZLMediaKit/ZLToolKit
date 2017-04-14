@@ -11,7 +11,7 @@ namespace ZL {
 namespace Util {
 
 SqlConnection::SqlConnection(const string& url, unsigned short port,
-		const string& dbname, const string& username, const string& password) {
+		const string& dbname, const string& username, const string& password,const string &character) {
 	mysql_init(&sql);
 	unsigned int timeout = 3;
 	mysql_options(&sql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
@@ -22,7 +22,7 @@ SqlConnection::SqlConnection(const string& url, unsigned short port,
 	}
 	my_bool reconnect = 1;
 	mysql_options(&sql, MYSQL_OPT_RECONNECT, &reconnect);
-	mysql_set_character_set(&sql, "utf8");
+	mysql_set_character_set(&sql, character.data());
 }
 
 SqlConnection::~SqlConnection() {

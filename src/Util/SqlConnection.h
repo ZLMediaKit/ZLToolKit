@@ -25,7 +25,7 @@ namespace Util {
 class SqlConnection {
 public:
 	SqlConnection(const string &url, unsigned short port, const string &dbname,
-			const string &user, const string &password);
+			const string &user, const string &password,const string &character = "utf8mb4");
 	virtual ~SqlConnection();
 
 	template<typename ...Args>
