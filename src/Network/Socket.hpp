@@ -153,7 +153,11 @@ public:
 	Socket();
 	virtual ~Socket();
 	int rawFD() const{
-		auto sock = _sockFd;
+		SockFD::Ptr sock;
+		{
+			lock_guard<spin_mutex> lck(_mtx_sockFd);
+			sock = _sockFd;
+		}
 		if(!sock){
 			return -1;
 		}
@@ -186,7 +190,7 @@ public:
 		_iUdpMaxPktSize = iPktSize;
 	}
 private:
-	spin_mutex _mtx_sockFd;
+ 	mutable spin_mutex _mtx_sockFd;
 	SockFD::Ptr _sockFd;
 	//send buffer
 	recursive_mutex _mtx_sendBuf;
@@ -196,10 +200,10 @@ private:
 	/////////////////////
 	std::shared_ptr<Timer> _conTimer;
 	struct sockaddr _peerAddr;
-	recursive_mutex _mtx_read;
-    recursive_mutex _mtx_err;
-    recursive_mutex _mtx_accept;
-    recursive_mutex _mtx_flush;
+	spin_mutex _mtx_read;
+	spin_mutex _mtx_err;
+	spin_mutex _mtx_accept;
+	spin_mutex _mtx_flush;
 	onReadCB _readCB;
 	onErrCB _errCB;
 	onAcceptCB _acceptCB;

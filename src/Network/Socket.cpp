@@ -46,7 +46,7 @@ Socket::~Socket() {
 }
 
 void Socket::setOnRead(const onReadCB &cb) {
-	lock_guard<recursive_mutex> lck(_mtx_read);
+	lock_guard<spin_mutex> lck(_mtx_read);
 	if (cb) {
 		_readCB = cb;
 	} else {
@@ -56,7 +56,7 @@ void Socket::setOnRead(const onReadCB &cb) {
 	}
 }
 void Socket::setOnErr(const onErrCB &cb) {
-	lock_guard<recursive_mutex> lck(_mtx_err);
+	lock_guard<spin_mutex> lck(_mtx_err);
 	if (cb) {
 		_errCB = cb;
 	} else {
@@ -66,7 +66,7 @@ void Socket::setOnErr(const onErrCB &cb) {
 	}
 }
 void Socket::setOnAccept(const onAcceptCB &cb) {
-	lock_guard<recursive_mutex> lck(_mtx_accept);
+	lock_guard<spin_mutex> lck(_mtx_accept);
 	if (cb) {
 		_acceptCB = cb;
 	} else {
@@ -76,7 +76,7 @@ void Socket::setOnAccept(const onAcceptCB &cb) {
 	}
 }
 void Socket::setOnFlush(const onFlush &cb) {
-	lock_guard<recursive_mutex> lck(_mtx_flush);
+	lock_guard<spin_mutex> lck(_mtx_flush);
 	if (cb) {
 		_flushCB = cb;
 	} else {
@@ -225,7 +225,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		buf->_size = nread;
 		onReadCB cb;
 		{
-			lock_guard<recursive_mutex> lck(_mtx_read);
+			lock_guard<spin_mutex> lck(_mtx_read);
 			cb = _readCB;
 		}
 		cb(buf, &peerAddr);
@@ -249,7 +249,7 @@ bool Socket::emitErr(const SockException& err) {
 		}
 		onErrCB cb;
 		{
-			lock_guard<recursive_mutex> lck(strongSelf->_mtx_err);
+			lock_guard<spin_mutex> lck(strongSelf->_mtx_err);
 			cb = strongSelf->_errCB;
 		}
 		cb(err);
@@ -305,7 +305,7 @@ int Socket::send(const string &buf, int flags) {
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
 	onFlush cb;
 	{
-		lock_guard<recursive_mutex> lck(_mtx_flush);
+		lock_guard<spin_mutex> lck(_mtx_flush);
 		cb = _flushCB;
 	}
 	if (!cb()) {
@@ -443,7 +443,7 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			if(peerSock->setPeerSock(peerfd, &addr)){
 				onAcceptCB cb;
 				{
-					lock_guard<recursive_mutex> lck(_mtx_accept);
+					lock_guard<spin_mutex> lck(_mtx_accept);
 					cb = _acceptCB;
 				}
 				cb(peerSock);
