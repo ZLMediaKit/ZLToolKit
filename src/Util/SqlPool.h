@@ -142,18 +142,18 @@ private:
 ;
 typedef _SqlPool<1> SqlPool;
 
-class _SqlStream {
+class SqlStream {
 public:
-	_SqlStream(const char *_sql) :
+	SqlStream(const char *_sql) :
 			sql(_sql) {
 		startPos = 0;
 	}
-	~_SqlStream() {
+	~SqlStream() {
 
 	}
 
 	template<typename T>
-	_SqlStream& operator <<(const T& data) {
+	SqlStream& operator <<(const T& data) {
 		auto pos = sql.find_first_of('?', startPos);
 		if (pos == string::npos) {
 			return *this;
@@ -174,16 +174,16 @@ private:
 	string::size_type startPos;
 };
 
-class _SqlWriter {
+class SqlWriter {
 public:
-	_SqlWriter(const char *_sql,bool _throwAble = true) :
+	SqlWriter(const char *_sql,bool _throwAble = true) :
 			sqlstream(_sql),throwAble(_throwAble) {
 	}
-	~_SqlWriter() {
+	~SqlWriter() {
 
 	}
 	template<typename T>
-	_SqlWriter& operator <<(const T& data) {
+	SqlWriter& operator <<(const T& data) {
 		sqlstream << data;
 		return *this;
 	}
@@ -207,14 +207,12 @@ public:
 	}
 
 private:
-	_SqlStream sqlstream;
+	SqlStream sqlstream;
 	int64_t rowId = 0;
 	int64_t affectedRows = -1;
 	bool throwAble = true;
 };
 
-#define SqlWriter  _SqlWriter
-#define SqlStream  _SqlStream
 } /* namespace mysql */
 } /* namespace im */
 
