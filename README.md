@@ -4,26 +4,26 @@
 
 ## 特性
 - 网络库
- - tcp/udp客户端，接口简单易用并且是线程安全的，用户不必关心具体的socket api操作。
- - tcp服务器，使用非常简单，只要实现具体的tcp会话（TcpSession类）逻辑,使用模板的方式可以快速的构建高性能的服务器。
- - 对套接字多种操作的封装。
+  - tcp/udp客户端，接口简单易用并且是线程安全的，用户不必关心具体的socket api操作。
+  - tcp服务器，使用非常简单，只要实现具体的tcp会话（TcpSession类）逻辑,使用模板的方式可以快速的构建高性能的服务器。
+  - 对套接字多种操作的封装。
 - 线程库
- - 使用线程实现的简单易用的定时器（AsyncTaskThread）。
- - 读写锁。
- - 信号量的封装（ios下用条件变量实现）。
- - 自旋锁。
- - 线程组。
- - 简单易用的线程池，可以异步或同步执行任务，支持functional 和 lambad表达式。
+  - 使用线程实现的简单易用的定时器（AsyncTaskThread）。
+  - 读写锁。
+  - 信号量的封装（ios下用条件变量实现）。
+  - 自旋锁。
+  - 线程组。
+  - 简单易用的线程池，可以异步或同步执行任务，支持functional 和 lambad表达式。
 - 工具库
- - 文件操作。
- - std::cout风格的日志库，支持颜色高亮、代码定位、异步打印。
- - INI配置文件的读写。
- - 监听者模式的消息广播器。
- - 基于智能指针的循环池，不需要显式手动释放。
- - 环形缓冲，支持主动读取和读取事件两种模式。
- - mysql链接池，使用占位符（？）方式生成sql语句，支持同步异步操作。
- - 简单易用的ssl加解密黑盒，支持多线程。
- - 其他一些有用的工具。
+  - 文件操作。
+  - std::cout风格的日志库，支持颜色高亮、代码定位、异步打印。
+  - INI配置文件的读写。
+  - 监听者模式的消息广播器。
+  - 基于智能指针的循环池，不需要显式手动释放。
+  - 环形缓冲，支持主动读取和读取事件两种模式。
+  - mysql链接池，使用占位符（？）方式生成sql语句，支持同步异步操作。
+  - 简单易用的ssl加解密黑盒，支持多线程。
+  - 其他一些有用的工具。
  
 ## 后续任务
 - 提供cmake编译方式
@@ -32,16 +32,16 @@
 
 ## 编译
 - 我的编译环境
- - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
- - [eclipse for c++](https://www.eclipse.org/downloads/download.php?file=/oomph/epp/neon/R3/eclipse-inst-mac64.tar.gz)
- - 如果需要使用mysql连接池（使能ENABLE_MYSQL宏），需要先安装mysql开发套件:
+  - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
+  - [eclipse for c++](https://www.eclipse.org/downloads/download.php?file=/oomph/epp/neon/R3/eclipse-inst-mac64.tar.gz)
+  - 如果需要使用mysql连接池（使能ENABLE_MYSQL宏），需要先安装mysql开发套件:
 
     ```
         # 安装mysql客户端开发套件
         sudo apt-get install libmysqlclient-dev
     ```
 
- - 如果需要使用ssl加解密（使能ENABLE_OPENSSL宏），需要先安装openssl开发套件:
+  - 如果需要使用ssl加解密（使能ENABLE_OPENSSL宏），需要先安装openssl开发套件:
 
     ```
         # 安装openssl开发套件
