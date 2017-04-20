@@ -50,11 +50,11 @@
     ```
 
 - 使用eclipse编译(Linux)
- - 1、点击菜单：File->Import->Git(Projects from git)-> Clone URI 
- - 2、输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
- - 3、选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
- - 4、在ZLToolKit项目右键菜单中点击 Clean Project 清理项目。
- - 5、在ZLToolKit项目右键菜单中点击 Build Project 编译项目。
+  - 1、点击菜单：File->Import->Git(Projects from git)-> Clone URI 
+  - 2、输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
+  - 3、选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
+  - 4、在ZLToolKit项目右键菜单中点击 Clean Project 清理项目。
+  - 5、在ZLToolKit项目右键菜单中点击 Build Project 编译项目。
  
 - 使用make编译
 
