@@ -30,18 +30,19 @@
 - 提供更多的示例代码
 - 提供ios工程
 
-## 编译
+## 编译(Linux)
 - 我的编译环境
   - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
   - [eclipse for c++](https://www.eclipse.org/downloads/download.php?file=/oomph/epp/neon/R3/eclipse-inst-mac64.tar.gz)
-  - 如果需要使用mysql连接池（使能ENABLE_MYSQL宏），需要先安装mysql开发套件:
+- 依赖
+  - libmysqlclient（使能ENABLE_MYSQL宏）
 
     ```
         # 安装mysql客户端开发套件
         sudo apt-get install libmysqlclient-dev
     ```
 
-  - 如果需要使用ssl加解密（使能ENABLE_OPENSSL宏），需要先安装openssl开发套件:
+  - libssl（使能ENABLE_OPENSSL宏）
 
     ```
         # 安装openssl开发套件
@@ -49,7 +50,7 @@
         sudo apt-get install libssl-dev
     ```
 
-- 使用eclipse编译(Linux)
+- 使用eclipse编译
   - 1、点击菜单：File->Import->Git(Projects from git)-> Clone URI 
   - 2、输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
   - 3、选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
