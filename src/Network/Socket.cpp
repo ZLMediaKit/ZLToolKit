@@ -578,7 +578,7 @@ int Socket::onWriteUDP(const SockFD::Ptr &pSock,bool bMainThread,int flags) {
 		udpSendPeer_copy.swap(_udpSendPeer);
 	}
 	int byteSent = 0;
-	do {
+	while (udpSendBuf_copy.size()) {
 		auto &buf = udpSendBuf_copy.front();
 		auto &peer = udpSendPeer_copy.front();
 		ssize_t n ;
@@ -619,7 +619,7 @@ int Socket::onWriteUDP(const SockFD::Ptr &pSock,bool bMainThread,int flags) {
 		}
 		buf.erase(0, n);
 		break;
-	} while (udpSendBuf_copy.size());
+	} ;
 
 	if (udpSendBuf_copy.empty()) {
 		return byteSent + onWriteUDP(pSock,bMainThread,flags);
