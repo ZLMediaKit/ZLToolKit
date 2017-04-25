@@ -145,5 +145,5 @@ using mINI = mINI_basic<string, variant>;
 }  // namespace Util
 }  // namespace ZL
 
-#endif //UTIL_MINI_HPP
+#endif //UTIL_MINI_H
 

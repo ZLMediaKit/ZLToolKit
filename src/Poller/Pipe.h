@@ -1,5 +1,5 @@
 //
-//  Pipe.hpp
+//  Pipe.h
 //  xzl
 //
 //  Created by xzl on 16/4/13.
@@ -35,4 +35,4 @@ private:
 }  // namespace ZL
 
 
-#endif /* Pipe_hpp */
+#endif /* Pipe_h */

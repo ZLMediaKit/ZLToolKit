@@ -1,5 +1,5 @@
 //
-//  Poller.hpp
+//  EventPoller.h
 //  xzl
 //
 //  Created by xzl on 16/4/12.

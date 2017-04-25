@@ -5,8 +5,8 @@
  *      Author: root
  */
 
-#ifndef SEMAPHORE_HPP_
-#define SEMAPHORE_HPP_
+#ifndef SEMAPHORE_H_
+#define SEMAPHORE_H_
 
 #ifdef  __linux__
 #include <semaphore.h>
@@ -72,4 +72,4 @@ private:
 };
 } /* namespace Thread */
 } /* namespace ZL */
-#endif /* SEMAPHORE_HPP_ */
+#endif /* SEMAPHORE_H_ */
