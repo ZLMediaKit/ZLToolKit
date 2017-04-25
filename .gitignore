@@ -3,6 +3,7 @@
 *.lo
 *.o
 *.obj
+*.d
 
 # Precompiled Headers
 *.gch
@@ -28,3 +29,5 @@
 *.out
 *.app
 /MAC/
+
+
