@@ -7,18 +7,21 @@
 
 #ifndef SQL_SQLCONNECTION_H_
 #define SQL_SQLCONNECTION_H_
-#include <string>
-#include <mysql/mysql.h>
+
 #include <stdio.h>
-#include <string.h>
-#include <sstream>
-#include <stdexcept>
-#include <vector>
-#include <iostream>
 #include <stdarg.h>
+#include <string.h>
 #include <sys/time.h>
+#include <mysql/mysql.h>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <iostream>
+#include <stdexcept>
 #include "Util/logger.h"
+
 using namespace std;
+
 namespace ZL {
 namespace Util {
 

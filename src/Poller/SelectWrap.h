@@ -11,8 +11,6 @@
 namespace ZL {
 namespace Poller {
 
-
-
 class FdSet
 {
 public:

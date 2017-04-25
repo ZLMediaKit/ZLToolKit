@@ -9,13 +9,14 @@
 #define CRYPTO_SSLBOX_H_
 
 #include <fcntl.h>
-#include <openssl/ossl_typ.h>
 #include <openssl/bio.h>
-#include "logger.h"
-#include <atomic>
+#include <openssl/ossl_typ.h>
 #include <mutex>
-#include <functional>
 #include <string>
+#include <atomic>
+#include <functional>
+#include "logger.h"
+
 using namespace std;
 
 namespace ZL {

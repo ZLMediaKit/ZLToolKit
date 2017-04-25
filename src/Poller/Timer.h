@@ -1,16 +1,18 @@
 //
-//  Timer.hpp
+//  Timer.h
 //  xzl
 //
 //  Created by xzl on 16/4/13.
 //
 
-#ifndef Timer_hpp
-#define Timer_hpp
-#include "EventPoller.hpp"
-#include "Thread/AsyncTaskThread.h"
+#ifndef Timer_h
+#define Timer_h
+
 #include <stdio.h>
 #include <functional>
+#include "EventPoller.h"
+#include "Thread/AsyncTaskThread.h"
+
 using namespace std;
 using namespace ZL::Thread;
 
@@ -25,4 +27,4 @@ public:
 
 }  // namespace Poller
 }  // namespace ZL
-#endif /* Timer_hpp */
+#endif /* Timer_h */

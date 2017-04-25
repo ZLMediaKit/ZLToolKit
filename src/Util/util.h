@@ -7,9 +7,11 @@
 
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
+
 #include <string.h>
 #include <string>
 #include <sstream>
+
 using namespace std;
 
 namespace ZL {

@@ -7,6 +7,7 @@
 
 #ifndef UTIL_TIMETICKER_H_
 #define UTIL_TIMETICKER_H_
+
 #include <sys/time.h>
 #include "logger.h"
 

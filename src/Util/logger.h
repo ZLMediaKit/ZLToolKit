@@ -15,14 +15,14 @@
 #include <map>
 #include <ctime>
 #include <string.h>
-#include <condition_variable>
 #include <cstdlib>
 #include <thread>
 #include <memory>
 #include <mutex>
 #include <time.h>
-#include "Thread/semaphore.hpp"
+#include <condition_variable>
 #include "Util/util.h"
+#include "Thread/semaphore.h"
 
 using namespace std;
 using namespace ZL::Thread;

@@ -10,16 +10,20 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <list>
+#include "EventPoller.h"
 #include "SelectWrap.h"
 #include "Util/util.h"
 #include "Util/logger.h"
-#include "EventPoller.hpp"
 #include "Network/sockutil.h"
 #include "Util/TimeTicker.h"
-#include "Thread/ThreadPool.hpp"
+#include "Thread/ThreadPool.h"
+
+using namespace ZL::Util;
+using namespace ZL::Thread;
+using namespace ZL::Network;
+
 #ifdef HAS_EPOLL
 #include <sys/epoll.h>
-
 #define toEpoll(event)	(((event) & Event_Read) ? EPOLLIN : 0) \
 						| (((event) & Event_Write) ? EPOLLOUT : 0) \
 						| (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) | EPOLLET
@@ -29,9 +33,7 @@
 							| (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
 							| (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #endif //HAS_EPOLL
-using namespace ZL::Util;
-using namespace ZL::Thread;
-using namespace ZL::Network;
+
 namespace ZL {
 namespace Poller {
 
@@ -76,12 +78,6 @@ void EventPoller::shutdown() {
 		delete loopThread;
 	}
 
-	/*mtx_event_map.lock();
-	 auto newMap = event_map;
-	 mtx_event_map.unlock();
-	 for (auto &pr : newMap) {
-	 pr.second(Event_Error);
-	 }*/
 
 #ifdef HAS_EPOLL
 	if (epoll_fd != -1) {

@@ -5,11 +5,13 @@
 //  Created by xzl on 16/4/13.
 //
 
-#ifndef Pipe_hpp
-#define Pipe_hpp
-#include <functional>
+#ifndef Pipe_h
+#define Pipe_h
+
 #include <stdio.h>
-#include "EventPoller.hpp"
+#include <functional>
+#include "EventPoller.h"
+
 using namespace std;
 
 namespace ZL {

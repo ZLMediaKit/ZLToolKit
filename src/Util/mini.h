@@ -1,17 +1,18 @@
 
 
-#ifndef UTIL_MINI_HPP
-#define UTIL_MINI_HPP
+#ifndef UTIL_MINI_H
+#define UTIL_MINI_H
 
-#include <cstring>
-#include <string>
 #include <map>
+#include <string>
 #include <vector>
-#include <iostream>
-#include <cassert>
-#include <exception>
 #include <fstream>
+#include <cstring>
+#include <cassert>
+#include <iostream>
+#include <exception>
 #include "Util/util.h"
+
 using namespace std;
 
 namespace ZL {

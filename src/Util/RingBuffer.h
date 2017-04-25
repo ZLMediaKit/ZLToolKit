@@ -5,13 +5,15 @@
  *      Author: xzl
  */
 
-#ifndef UTIL_RINGBUFFER_HPP_
-#define UTIL_RINGBUFFER_HPP_
+#ifndef UTIL_RINGBUFFER_H_
+#define UTIL_RINGBUFFER_H_
+
 #include <atomic>
 #include <memory>
 #include <mutex>
-#include <condition_variable>
 #include <unordered_map>
+#include <condition_variable>
+
 using namespace std;
 
 namespace ZL {
@@ -60,7 +62,7 @@ public:
 				detachCB = cb;
 			}
 		}
-        const T *read(){
+        const T* read(){
             auto strongBuffer=buffer.lock();
             if(!strongBuffer){
                 return nullptr;
@@ -179,4 +181,4 @@ private:
 } /* namespace Util */
 } /* namespace ZL */
 
-#endif /* UTIL_RINGBUFFER_HPP_ */
+#endif /* UTIL_RINGBUFFER_H_ */

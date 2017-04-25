@@ -7,7 +7,9 @@
 
 #ifndef SRC_THREAD_SPIN_MUTEX_H_
 #define SRC_THREAD_SPIN_MUTEX_H_
+
 #include <atomic>
+
 using namespace std;
 
 namespace ZL {

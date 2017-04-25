@@ -7,20 +7,15 @@
 
 #ifndef THREADPOOL_H_
 #define THREADPOOL_H_
-//************************************************************************
-//Remarks:
-//线程池使用boost中的thread_group来管理和创建工作线程，使其阻塞在任队列中
-//
-//*************************************************************************
 
 #include <assert.h>
-#include "threadgroup.hpp"
-#include "TaskQueue.hpp"
-#include "TaskQueue.hpp"
 #include <vector>
+#include "threadgroup.h"
+#include "TaskQueue.h"
+#include "TaskQueue.h"
 #include "Util/logger.h"
-using namespace ZL::Util;
 
+using namespace ZL::Util;
 
 namespace ZL {
 namespace Thread {

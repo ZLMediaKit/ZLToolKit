@@ -5,21 +5,22 @@
 //  Created by xzl on 16/4/12.
 //
 
-#ifndef Poller_hpp
-#define Poller_hpp
+#ifndef EventPoller_h
+#define EventPoller_h
 
-#include <functional>
-#include <thread>
 #include <unistd.h>
-#include <unordered_map>
-#include <string>
 #include <mutex>
+#include <thread>
+#include <string>
+#include <functional>
+#include <unordered_map>
 
 using namespace std;
 
 #ifdef __linux__
 #define HAS_EPOLL
 #endif //__linux__
+
 namespace ZL {
 namespace Poller {
 
@@ -95,4 +96,4 @@ private:
 
 }  // namespace Poller
 }  // namespace ZL
-#endif /* Poller_hpp */
+#endif /* EventPoller_h */

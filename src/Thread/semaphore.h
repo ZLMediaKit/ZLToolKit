@@ -5,17 +5,16 @@
  *      Author: root
  */
 
-#ifndef THREADPOOL_SEMAPHORE_HPP_
-#define THREADPOOL_SEMAPHORE_HPP_
-
+#ifndef SEMAPHORE_HPP_
+#define SEMAPHORE_HPP_
 
 #ifdef  __linux__
 #include <semaphore.h>
 #define HAVE_SEM
 #else
 #include <mutex>
-#include <condition_variable>
 #include <atomic>
+#include <condition_variable>
 using namespace std;
 #endif //HAVE_SEM
 
@@ -73,4 +72,4 @@ private:
 };
 } /* namespace Thread */
 } /* namespace ZL */
-#endif /* THREADPOOL_SEMAPHORE_HPP_ */
+#endif /* SEMAPHORE_HPP_ */

@@ -116,12 +116,12 @@ int SockUtil::setSendBuf(int sock, int size) {
 	return ret;
 }
 
-int SockUtil::connect(const std::string &host, uint16_t port) {
+int SockUtil::connect(const char *host, uint16_t port) {
     
 #if defined (__APPLE__)
 	
     struct addrinfo *answer=nullptr;
-    int ret = getaddrinfo(host.c_str(), NULL, NULL, &answer);
+    int ret = getaddrinfo(host, NULL, NULL, &answer);
     if (ret < 0 || !answer) {
         WarnL << "域名解析失败：" << host;
         return -1;
@@ -151,7 +151,7 @@ int SockUtil::connect(const std::string &host, uint16_t port) {
     
 #else
     
-    struct hostent *hp = gethostbyname(host.c_str());
+    struct hostent *hp = gethostbyname(host);
     if (hp == NULL) {
         WarnL << "域名解析失败：" << host;
         return false;

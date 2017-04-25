@@ -4,11 +4,11 @@
  *  Created on: 2016年8月4日
  *      Author: xzl
  */
-#include "util.h"
 #include <stdlib.h>
 #include <unistd.h>
-#include <algorithm>
 #include <string>
+#include <algorithm>
+#include "util.h"
 
 using namespace std;
 

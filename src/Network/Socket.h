@@ -5,8 +5,8 @@
 //  Created by xzl on 16/4/13.
 //
 
-#ifndef Socket_hpp
-#define Socket_hpp
+#ifndef Socket_h
+#define Socket_h
 
 #include <stdio.h>
 #include <sys/socket.h>
@@ -15,8 +15,8 @@
 #include <string>
 #include <deque>
 #include <mutex>
+#include "Poller/Timer.h"
 #include "Thread/spin_mutex.h"
-#include "Poller/Timer.hpp"
 #include "Util/TimeTicker.h"
 
 using namespace std;
@@ -239,4 +239,4 @@ private:
 }  // namespace Network
 }  // namespace ZL
 
-#endif /* Socket_hpp */
+#endif /* Socket_h */

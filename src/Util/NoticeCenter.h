@@ -8,13 +8,14 @@
 #ifndef SRC_UTIL_NOTICECENTER_H_
 #define SRC_UTIL_NOTICECENTER_H_
 
-#include <string>
-#include <unordered_map>
-#include <functional>
 #include <mutex>
 #include <memory>
+#include <string>
 #include <exception>
+#include <functional>
+#include <unordered_map>
 #include "function_traits.h"
+
 using namespace std;
 
 namespace ZL {

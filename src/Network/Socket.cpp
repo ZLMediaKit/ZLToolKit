@@ -5,25 +5,21 @@
 //  Created by xzl on 16/4/13.
 //
 
-#include "Socket.hpp"
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include "Thread/semaphore.hpp"
 #include "sockutil.h"
+#include "Socket.h"
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
-#include "Poller/EventPoller.hpp"
-#include "Network/sockutil.h"
-#include <unistd.h>
-using namespace ZL::Thread;
+#include "Thread/semaphore.h"
+#include "Poller/EventPoller.h"
+
 using namespace ZL::Util;
+using namespace ZL::Thread;
 using namespace ZL::Poller;
-using namespace ZL::Network;
-
-
 
 namespace ZL {
 namespace Network {
@@ -86,7 +82,7 @@ void Socket::setOnFlush(const onFlush &cb) {
 void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
 		int timeoutSec) {
 	closeSock();
-	int sock = SockUtil::connect(url, port);
+	int sock = SockUtil::connect(url.data(), port);
 	if (sock < 0) {
 		connectCB(SockException(Err_other, strerror(errno)));
 		return;

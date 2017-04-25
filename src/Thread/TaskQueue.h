@@ -4,28 +4,21 @@
  *  Created on: 2013-10-11
  *      Author: root
  */
-//*************************************************************************
-//Remarks:
-//任务队列用来管理一系列的任务，多个工作线程阻塞在队列的条件变量上，当有任务
-//加入时，则唤醒工作线程，工作完毕后继续阻塞
-//
-//*************************************************************************
+
 #ifndef TASKQUEUE_H_
 #define TASKQUEUE_H_
 
-#include "semaphore.hpp"
 #include <deque>
 #include <atomic>
-#include <functional>
 #include <mutex>
+#include <functional>
 #include "spin_mutex.h"
+#include "semaphore.h"
 
 using namespace std;
 
 namespace ZL {
 namespace Thread {
-
-
 
 //实现了一个基于函数对象的任务列队，该列队是线程安全的，任务列队任务数由信号量控制
 class TaskQueue {

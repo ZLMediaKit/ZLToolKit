@@ -16,7 +16,7 @@ namespace Network {
 
 class SockUtil {
 public:
-	static int connect(const std::string &host, uint16_t port);
+	static int connect(const char *host, uint16_t port);
 	static int listen(const uint16_t port, const char *localIp = "0.0.0.0",
 			int backLog = 1024);
 	static int bindUdpSock(const uint16_t port,

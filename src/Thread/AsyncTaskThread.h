@@ -5,19 +5,20 @@
 //  Created by xzl on 15/6/8.
 //
 
-#ifndef __quhuwai__AsyncTaskThread__
-#define __quhuwai__AsyncTaskThread__
+#ifndef AsyncTaskThread_h
+#define AsyncTaskThread_h
 
 #include <stdio.h>
 #include <sys/time.h>
 #include <deque>
-#include <unordered_map>
-#include <unordered_set>
 #include <mutex>
-#include <condition_variable>
+#include <atomic>
 #include <thread>
 #include <memory>
-#include <atomic>
+#include <unordered_map>
+#include <unordered_set>
+#include <condition_variable>
+
 using namespace std;
 #define TASK_INTERVAL 50
 
@@ -59,4 +60,4 @@ private:
 } /* namespace Thread */
 } /* namespace ZL */
 
-#endif /* defined(__quhuwai__AsyncTaskThread__) */
+#endif /* defined(AsyncTaskThread_h) */

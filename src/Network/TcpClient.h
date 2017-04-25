@@ -10,7 +10,7 @@
 
 #include <memory>
 #include <functional>
-#include "Socket.hpp"
+#include "Socket.h"
 #include "Util/TimeTicker.h"
 
 using namespace std;

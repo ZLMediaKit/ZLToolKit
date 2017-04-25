@@ -7,12 +7,14 @@
 
 #ifndef UTIL_RECYCLEPOOL_H_
 #define UTIL_RECYCLEPOOL_H_
-#include <functional>
+
 #include <mutex>
+#include <deque>
 #include <memory>
 #include <atomic>
-#include <deque>
+#include <functional>
 #include <unordered_set>
+
 namespace ZL {
 namespace Util {
 using namespace std;

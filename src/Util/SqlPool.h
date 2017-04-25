@@ -7,18 +7,21 @@
 
 #ifndef SQL_SQLPOOL_H_
 #define SQL_SQLPOOL_H_
-#include <Util/ResourcePool.h>
+
+#include <deque>
+#include <mutex>
+#include <memory>
+#include <sstream>
+#include <functional>
 #include "logger.h"
 #include "SqlConnection.h"
+#include "Thread/ThreadPool.h"
+#include "Util/ResourcePool.h"
 #include "Thread/AsyncTaskThread.h"
-#include "Thread/ThreadPool.hpp"
-#include <memory>
-#include <mutex>
-#include <functional>
-#include <sstream>
-#include <deque>
+
 using namespace std;
 using namespace ZL::Thread;
+
 namespace ZL {
 namespace Util {
 template<int poolSize = 10>
