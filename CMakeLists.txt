@@ -1,0 +1,90 @@
+project(ZLToolKit)
+cmake_minimum_required(VERSION 2.8)
+
+#加载自定义模块
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}")
+#设置库文件路径
+set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+#设置可执行程序路径
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+#设置子目录
+set(SUB_DIR_LIST "Network" "Poller" "Thread" "Util")
+
+foreach(SUB_DIR ${SUB_DIR_LIST})
+    #遍历源文件
+    aux_source_directory(src/${SUB_DIR} SRC_LIST)
+    #创建头文件安装文件夹
+    execute_process(COMMAND mkdir -p ${PROJECT_BINARY_DIR}/include/ZLToolKit/${SUB_DIR}/ )
+    #遍历头文件
+    file(GLOB_RECURSE HEADER_FILES "${PROJECT_SOURCE_DIR}/src/${SUB_DIR}/*.h")
+    #拷贝头文件至安装文件夹
+    execute_process(COMMAND cp ${HEADER_FILES} ${PROJECT_BINARY_DIR}/include/ZLToolKit/${SUB_DIR}/ )
+endforeach(SUB_DIR ${SUB_DIR_LIST})
+
+#非苹果平台移除.mm类型的文件
+if(NOT APPLE)
+list(REMOVE_ITEM SRC_LIST "src/Network/Socket_ios.mm")
+endif()
+
+#查找openssl是否安装
+find_package(OpenSSL QUIET)
+if(OPENSSL_FOUND)
+message(STATUS "找到openssl库:\"${OPENSSL_INCLUDE_DIR}\",ENABLE_OPENSSL宏已打开")
+include_directories(${OPENSSL_INCLUDE_DIR})
+add_definitions(-DENABLE_OPENSSL)
+endif(OPENSSL_FOUND)
+
+#查找mysql是否安装
+find_package(MYSQL QUIET)
+if(MYSQL_FOUND)
+message(STATUS "找到mysqlclient库:\"${MYSQL_INCLUDE_DIR}\",ENABLE_MYSQL宏已打开")
+include_directories(${MYSQL_INCLUDE_DIR})
+add_definitions(-DENABLE_MYSQL)
+endif(MYSQL_FOUND)
+
+#引用头文件路径
+include_directories(${PROJECT_SOURCE_DIR}/src)
+#使能c++11
+add_compile_options(-std=c++11)
+#编译动态库和静态库
+add_library(ZLToolKit_shared SHARED ${SRC_LIST})
+add_library(ZLToolKit_static STATIC ${SRC_LIST})
+set_target_properties(ZLToolKit_shared PROPERTIES OUTPUT_NAME "ZLToolKit")
+set_target_properties(ZLToolKit_static PROPERTIES OUTPUT_NAME "ZLToolKit")
+
+#安装库
+install(TARGETS ZLToolKit_shared LIBRARY DESTINATION lib)
+install(TARGETS ZLToolKit_static ARCHIVE DESTINATION lib)
+
+#安装头文件至系统目录
+install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ZLToolKit DESTINATION include)
+
+#测试程序
+add_subdirectory(tests)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
