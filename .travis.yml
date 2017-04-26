@@ -1,0 +1,20 @@
+language: cpp
+sudo: required
+dist: trusty
+compiler:
+- clang
+- gcc
+os:
+- linux
+before_install:
+- sudo apt-get install libssl-dev
+- sudo apt-get install libmysqlclient-dev
+script:
+- mkdir -p build
+- cd build
+- cmake ..
+- make
+- sudo make install
+
+
+
