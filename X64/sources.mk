@@ -27,4 +27,5 @@ src/Network \
 src/Poller \
 src/Thread \
 src/Util \
+tests \
 
