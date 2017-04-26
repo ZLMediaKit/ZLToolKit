@@ -67,6 +67,19 @@
     make clean
     make
     ```
+- 使用cmake编译
+
+  如果没有安装cmake请先安装cmake：`sudo apt-get insatll cmake`：
+  
+    ```
+    # cmake编译
+    cd ZLToolKit
+    mkdir -p build
+    cd build
+    cmake ..
+    make
+    make install
+    ```
     
 ## 联系方式
 - QQ群：542509000
