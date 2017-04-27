@@ -220,6 +220,19 @@ test_logger/fast:
 .PHONY : test_logger/fast
 
 #=============================================================================
+# Target rules for targets named test_semaphore
+
+# Build rule for target.
+test_semaphore: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_semaphore
+.PHONY : test_semaphore
+
+# fast build rule for target.
+test_semaphore/fast:
+	$(MAKE) -f tests/CMakeFiles/test_semaphore.dir/build.make tests/CMakeFiles/test_semaphore.dir/build
+.PHONY : test_semaphore/fast
+
+#=============================================================================
 # Target rules for targets named test_tcpClient
 
 # Build rule for target.
@@ -721,6 +734,7 @@ help:
 	@echo "... test_asyncTaskThrad"
 	@echo "... test_eventPoller"
 	@echo "... test_logger"
+	@echo "... test_semaphore"
 	@echo "... test_tcpClient"
 	@echo "... test_pipe"
 	@echo "... test_rwmutex"
