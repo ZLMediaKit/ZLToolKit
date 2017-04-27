@@ -14,11 +14,11 @@ foreach(SUB_DIR ${SUB_DIR_LIST})
     #遍历源文件
     aux_source_directory(src/${SUB_DIR} SRC_LIST)
     #创建头文件安装文件夹
-    execute_process(COMMAND mkdir -p ${PROJECT_BINARY_DIR}/include/ZLToolKit/${SUB_DIR}/ )
+    execute_process(COMMAND mkdir -p ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME}/${SUB_DIR}/ )
     #遍历头文件
     file(GLOB_RECURSE HEADER_FILES "${PROJECT_SOURCE_DIR}/src/${SUB_DIR}/*.h")
     #拷贝头文件至安装文件夹
-    execute_process(COMMAND cp ${HEADER_FILES} ${PROJECT_BINARY_DIR}/include/ZLToolKit/${SUB_DIR}/ )
+    execute_process(COMMAND cp ${HEADER_FILES} ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME}/${SUB_DIR}/ )
 endforeach(SUB_DIR ${SUB_DIR_LIST})
 
 #非苹果平台移除.mm类型的文件
@@ -47,17 +47,17 @@ include_directories(${PROJECT_SOURCE_DIR}/src)
 #使能c++11
 add_compile_options(-std=c++11)
 #编译动态库和静态库
-add_library(ZLToolKit_shared SHARED ${SRC_LIST})
-add_library(ZLToolKit_static STATIC ${SRC_LIST})
-set_target_properties(ZLToolKit_shared PROPERTIES OUTPUT_NAME "ZLToolKit")
-set_target_properties(ZLToolKit_static PROPERTIES OUTPUT_NAME "ZLToolKit")
+add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
+add_library(${CMAKE_PROJECT_NAME}_static STATIC ${SRC_LIST})
+set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
+set_target_properties(${CMAKE_PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
 
 #安装库
-install(TARGETS ZLToolKit_shared LIBRARY DESTINATION lib)
-install(TARGETS ZLToolKit_static ARCHIVE DESTINATION lib)
+install(TARGETS ${CMAKE_PROJECT_NAME}_shared LIBRARY DESTINATION lib)
+install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION lib)
 
 #安装头文件至系统目录
-install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ZLToolKit DESTINATION include)
+install(DIRECTORY ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME} DESTINATION include)
 
 #测试程序
 add_subdirectory(tests)

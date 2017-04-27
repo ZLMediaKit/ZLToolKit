@@ -2,9 +2,9 @@ aux_source_directory(. TEST_SRC_LIST)
 foreach(TEST_SRC ${TEST_SRC_LIST})
 STRING(REGEX REPLACE ".cpp" "" TEST_EXE_NAME ${TEST_SRC})
 STRING(REGEX REPLACE "./" "" TEST_EXE_NAME ${TEST_EXE_NAME})
-message(STATUS ${TEST_EXE_NAME} ${TEST_SRC})
+message(STATUS "add test program:${TEST_EXE_NAME}")
 add_executable(${TEST_EXE_NAME} ${TEST_SRC})
-target_link_libraries(${TEST_EXE_NAME} ZLToolKit_shared pthread)
+target_link_libraries(${TEST_EXE_NAME} ${CMAKE_PROJECT_NAME}_shared pthread)
 
 #查找openssl是否安装
 if(OPENSSL_FOUND)
