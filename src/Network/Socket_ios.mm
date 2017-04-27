@@ -7,9 +7,9 @@
 #import "Socket.h"
 #include "Util/logger.h"
 
-#if defined (__APPLE__)
+#if defined (OS_IPHONE)
 #import <Foundation/Foundation.h>
-#endif //__APPLE__
+#endif //OS_IPHONE
 
 using namespace ZL::Util;
 
@@ -18,7 +18,7 @@ namespace Network {
 
 
 
-#if defined (__APPLE__)
+#if defined (OS_IPHONE)
 bool SockFD::setSocketOfIOS(int sock){
     
     CFStreamCreatePairWithSocket(NULL, (CFSocketNativeHandle)sock, (CFReadStreamRef *)(&readStream), (CFWriteStreamRef*)(&writeStream));
@@ -81,7 +81,7 @@ void SockFD::unsetSocketOfIOS(int sock){
         writeStream=NULL;
     }
 }
-#endif //__APPLE__
+#endif //OS_IPHONE
 
 
 

@@ -51,6 +51,16 @@ namespace Network {
 #define TCP_MAX_SEND_BUF (256*1024)
 #define UDP_MAX_SEND_PKT (256)
 
+#if defined(__APPLE__)
+  #import "TargetConditionals.h"
+  #if TARGET_IPHONE_SIMULATOR
+    #warning build for ios simulator
+    #define OS_IPHONE
+  #elif TARGET_OS_IPHONE
+    #warning build for iphone
+    #define OS_IPHONE
+  #endif
+#endif //__APPLE__
 
 typedef enum {
 	Err_success = 0, //成功
@@ -94,18 +104,18 @@ public:
 	}
 	virtual ~SockFD(){
         ::shutdown(_sock, SHUT_RDWR);
-#if defined (__APPLE__)
+#if defined (OS_IPHONE)
         unsetSocketOfIOS(_sock);
-#endif //__APPLE__
+#endif //OS_IPHONE
         int fd =  _sock;
         EventPoller::Instance().delEvent(fd,[fd](bool){
             ::close(fd);
         });
 	}
 	void setConnected(){
-#if defined (__APPLE__)
+#if defined (OS_IPHONE)
 		setSocketOfIOS(_sock);
-#endif //__APPLE__
+#endif //OS_IPHONE
 	}
 	int rawFd() const{
 		return _sock;
@@ -113,12 +123,12 @@ public:
 private:
 	int _sock;
 
-#if defined (__APPLE__)
+#if defined (OS_IPHONE)
 	void *readStream=NULL;
 	void *writeStream=NULL;
 	bool setSocketOfIOS(int socket);
 	void unsetSocketOfIOS(int socket);
-#endif //__APPLE__
+#endif //OS_IPHONE
 };
 
 class Socket: public std::enable_shared_from_this<Socket> {
