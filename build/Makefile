@@ -207,6 +207,19 @@ test_eventPoller/fast:
 .PHONY : test_eventPoller/fast
 
 #=============================================================================
+# Target rules for targets named test_spin_mutex
+
+# Build rule for target.
+test_spin_mutex: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_spin_mutex
+.PHONY : test_spin_mutex
+
+# fast build rule for target.
+test_spin_mutex/fast:
+	$(MAKE) -f tests/CMakeFiles/test_spin_mutex.dir/build.make tests/CMakeFiles/test_spin_mutex.dir/build
+.PHONY : test_spin_mutex/fast
+
+#=============================================================================
 # Target rules for targets named test_logger
 
 # Build rule for target.
@@ -733,6 +746,7 @@ help:
 	@echo "... install/local"
 	@echo "... test_asyncTaskThrad"
 	@echo "... test_eventPoller"
+	@echo "... test_spin_mutex"
 	@echo "... test_logger"
 	@echo "... test_semaphore"
 	@echo "... test_tcpClient"
