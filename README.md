@@ -1,6 +1,7 @@
 # 一个用C++11实现的简单易用的轻量级网络编程框架
- 平台  |编译状态
- Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
+平台|编译状态
+----|-------
+Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
  
 ## 项目初衷
 多年的编程经历让我接触过多种网络开源库，譬如libevent、libev、libuv、boost.asio等等。这些开源框架有些是用C语言开发的，里面包含了各种难以阅读层层嵌套佶屈聱牙的宏，学习起来非常费力；有些使用起来又不甚方便，代码被切割成碎片零零碎碎；有些虽然使用简单，但是却非常宏大，牵涉各种代码，配置复杂，很难交叉编译。由于作者既从事过linux服务器编程又有jni、ios的编程经历，所以一直以来在寻求既能在服务器端高效运行又能在嵌入式平台方便开发的方法，但是一直没有找到比较合适的方案；于是作者大约在一年前开始整理多年的工作成果积累，抽取经过时间检验证明稳定有效的代码并且参考其他成熟的框架形成了这个项目。后面在我使用该项目（初期版本）用于实际开发，一路林林总总遇到了很多问题，但是在后面几个月不间断的调试、测试、修正、优化等过程中项目代码逐渐沉淀稳定，经过长时高强度的测试之后我把代码提交到github形成了这个项目。
@@ -41,29 +42,29 @@
   - libmysqlclient（使能ENABLE_MYSQL宏）
 
     ```
-        # 安装mysql客户端开发套件
-        sudo apt-get install libmysqlclient-dev
+    # 安装mysql客户端开发套件
+    sudo apt-get install libmysqlclient-dev
     ```
 
   - libssl（使能ENABLE_OPENSSL宏）
 
     ```
-        # 安装openssl开发套件
-        sudo apt-get install openssl
-        sudo apt-get install libssl-dev
+    # 安装openssl开发套件
+    sudo apt-get install openssl
+    sudo apt-get install libssl-dev
     ```
   - cmake：
 
     ```
-        # 安装cmake
-        sudo apt-get insatll cmake
+    # 安装cmake
+    sudo apt-get insatll cmake
     ```
 - 使用eclipse编译
-  1、点击菜单：File->Import->Git(Projects from git)-> Clone URI 
-  2、输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
-  3、选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
-  4、在ZLToolKit项目右键菜单中点击 Clean Project 清理项目。
-  5、在ZLToolKit项目右键菜单中点击 Build Project 编译项目。
+  - 点击菜单：File->Import->Git(Projects from git)-> Clone URI 
+  - 输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
+  - 选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
+  - 在ZLToolKit项目右键菜单中点击 Clean Project 清理项目。
+  - 在ZLToolKit项目右键菜单中点击 Build Project 编译项目。
  
 - 使用cmake编译
   
@@ -77,4 +78,5 @@
     make install
     ```
 ## 联系方式
+- 邮箱：<771730766@qq.com>
 - QQ群：542509000
