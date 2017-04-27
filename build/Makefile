@@ -181,43 +181,43 @@ ZLToolKit_static/fast:
 .PHONY : ZLToolKit_static/fast
 
 #=============================================================================
-# Target rules for targets named test_asyncTaskThrad
+# Target rules for targets named test_tcpClient
 
 # Build rule for target.
-test_asyncTaskThrad: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_asyncTaskThrad
-.PHONY : test_asyncTaskThrad
+test_tcpClient: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_tcpClient
+.PHONY : test_tcpClient
 
 # fast build rule for target.
-test_asyncTaskThrad/fast:
-	$(MAKE) -f tests/CMakeFiles/test_asyncTaskThrad.dir/build.make tests/CMakeFiles/test_asyncTaskThrad.dir/build
-.PHONY : test_asyncTaskThrad/fast
+test_tcpClient/fast:
+	$(MAKE) -f tests/CMakeFiles/test_tcpClient.dir/build.make tests/CMakeFiles/test_tcpClient.dir/build
+.PHONY : test_tcpClient/fast
 
 #=============================================================================
-# Target rules for targets named test_eventPoller
+# Target rules for targets named test_udpSock
 
 # Build rule for target.
-test_eventPoller: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_eventPoller
-.PHONY : test_eventPoller
+test_udpSock: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_udpSock
+.PHONY : test_udpSock
 
 # fast build rule for target.
-test_eventPoller/fast:
-	$(MAKE) -f tests/CMakeFiles/test_eventPoller.dir/build.make tests/CMakeFiles/test_eventPoller.dir/build
-.PHONY : test_eventPoller/fast
+test_udpSock/fast:
+	$(MAKE) -f tests/CMakeFiles/test_udpSock.dir/build.make tests/CMakeFiles/test_udpSock.dir/build
+.PHONY : test_udpSock/fast
 
 #=============================================================================
-# Target rules for targets named test_spin_mutex
+# Target rules for targets named test_noticeCenter
 
 # Build rule for target.
-test_spin_mutex: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_spin_mutex
-.PHONY : test_spin_mutex
+test_noticeCenter: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_noticeCenter
+.PHONY : test_noticeCenter
 
 # fast build rule for target.
-test_spin_mutex/fast:
-	$(MAKE) -f tests/CMakeFiles/test_spin_mutex.dir/build.make tests/CMakeFiles/test_spin_mutex.dir/build
-.PHONY : test_spin_mutex/fast
+test_noticeCenter/fast:
+	$(MAKE) -f tests/CMakeFiles/test_noticeCenter.dir/build.make tests/CMakeFiles/test_noticeCenter.dir/build
+.PHONY : test_noticeCenter/fast
 
 #=============================================================================
 # Target rules for targets named test_logger
@@ -246,17 +246,56 @@ test_semaphore/fast:
 .PHONY : test_semaphore/fast
 
 #=============================================================================
-# Target rules for targets named test_tcpClient
+# Target rules for targets named test_eventPoller
 
 # Build rule for target.
-test_tcpClient: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_tcpClient
-.PHONY : test_tcpClient
+test_eventPoller: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_eventPoller
+.PHONY : test_eventPoller
 
 # fast build rule for target.
-test_tcpClient/fast:
-	$(MAKE) -f tests/CMakeFiles/test_tcpClient.dir/build.make tests/CMakeFiles/test_tcpClient.dir/build
-.PHONY : test_tcpClient/fast
+test_eventPoller/fast:
+	$(MAKE) -f tests/CMakeFiles/test_eventPoller.dir/build.make tests/CMakeFiles/test_eventPoller.dir/build
+.PHONY : test_eventPoller/fast
+
+#=============================================================================
+# Target rules for targets named test_asyncTaskThrad
+
+# Build rule for target.
+test_asyncTaskThrad: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_asyncTaskThrad
+.PHONY : test_asyncTaskThrad
+
+# fast build rule for target.
+test_asyncTaskThrad/fast:
+	$(MAKE) -f tests/CMakeFiles/test_asyncTaskThrad.dir/build.make tests/CMakeFiles/test_asyncTaskThrad.dir/build
+.PHONY : test_asyncTaskThrad/fast
+
+#=============================================================================
+# Target rules for targets named test_spin_mutex
+
+# Build rule for target.
+test_spin_mutex: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_spin_mutex
+.PHONY : test_spin_mutex
+
+# fast build rule for target.
+test_spin_mutex/fast:
+	$(MAKE) -f tests/CMakeFiles/test_spin_mutex.dir/build.make tests/CMakeFiles/test_spin_mutex.dir/build
+.PHONY : test_spin_mutex/fast
+
+#=============================================================================
+# Target rules for targets named test_threadPool
+
+# Build rule for target.
+test_threadPool: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_threadPool
+.PHONY : test_threadPool
+
+# fast build rule for target.
+test_threadPool/fast:
+	$(MAKE) -f tests/CMakeFiles/test_threadPool.dir/build.make tests/CMakeFiles/test_threadPool.dir/build
+.PHONY : test_threadPool/fast
 
 #=============================================================================
 # Target rules for targets named test_pipe
@@ -296,19 +335,6 @@ test_tcpEchoServer: cmake_check_build_system
 test_tcpEchoServer/fast:
 	$(MAKE) -f tests/CMakeFiles/test_tcpEchoServer.dir/build.make tests/CMakeFiles/test_tcpEchoServer.dir/build
 .PHONY : test_tcpEchoServer/fast
-
-#=============================================================================
-# Target rules for targets named test_udpSock
-
-# Build rule for target.
-test_udpSock: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_udpSock
-.PHONY : test_udpSock
-
-# fast build rule for target.
-test_udpSock/fast:
-	$(MAKE) -f tests/CMakeFiles/test_udpSock.dir/build.make tests/CMakeFiles/test_udpSock.dir/build
-.PHONY : test_udpSock/fast
 
 src/Network/Socket.o: src/Network/Socket.cpp.o
 
@@ -744,16 +770,18 @@ help:
 	@echo "... ZLToolKit_static"
 	@echo "... install/strip"
 	@echo "... install/local"
-	@echo "... test_asyncTaskThrad"
-	@echo "... test_eventPoller"
-	@echo "... test_spin_mutex"
+	@echo "... test_tcpClient"
+	@echo "... test_udpSock"
+	@echo "... test_noticeCenter"
 	@echo "... test_logger"
 	@echo "... test_semaphore"
-	@echo "... test_tcpClient"
+	@echo "... test_eventPoller"
+	@echo "... test_asyncTaskThrad"
+	@echo "... test_spin_mutex"
+	@echo "... test_threadPool"
 	@echo "... test_pipe"
 	@echo "... test_rwmutex"
 	@echo "... test_tcpEchoServer"
-	@echo "... test_udpSock"
 	@echo "... src/Network/Socket.o"
 	@echo "... src/Network/Socket.i"
 	@echo "... src/Network/Socket.s"
