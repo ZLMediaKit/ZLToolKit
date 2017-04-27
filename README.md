@@ -1,6 +1,5 @@
 # 一个用C++11实现的简单易用的轻量级网络编程框架
-Platform | Build Status
- -------- | ------------
+ 平台  |编译状态
  Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
  
 ## 项目初衷
@@ -37,6 +36,7 @@ Platform | Build Status
 - 我的编译环境
   - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
   - [eclipse for c++](https://www.eclipse.org/downloads/download.php?file=/oomph/epp/neon/R3/eclipse-inst-mac64.tar.gz)
+  - cmake 3.5.1
 - 依赖
   - libmysqlclient（使能ENABLE_MYSQL宏）
 
@@ -52,27 +52,20 @@ Platform | Build Status
         sudo apt-get install openssl
         sudo apt-get install libssl-dev
     ```
+  - cmake：
 
+    ```
+        # 安装cmake
+        sudo apt-get insatll cmake
+    ```
 - 使用eclipse编译
-  - 1、点击菜单：File->Import->Git(Projects from git)-> Clone URI 
-  - 2、输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
-  - 3、选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
-  - 4、在ZLToolKit项目右键菜单中点击 Clean Project 清理项目。
-  - 5、在ZLToolKit项目右键菜单中点击 Build Project 编译项目。
+  1、点击菜单：File->Import->Git(Projects from git)-> Clone URI 
+  2、输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
+  3、选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
+  4、在ZLToolKit项目右键菜单中点击 Clean Project 清理项目。
+  5、在ZLToolKit项目右键菜单中点击 Build Project 编译项目。
  
-- 使用make编译
-
-    如果没有安装eclipse可以使用已经生成的Makefile文件直接编译：
-
-    ```
-    # 根据makefile编译
-    cd ZLToolKit/X64
-    make clean
-    make
-    ```
 - 使用cmake编译
-
-    如果没有安装cmake请先安装cmake：`sudo apt-get insatll cmake`：
   
     ```
     # cmake编译
