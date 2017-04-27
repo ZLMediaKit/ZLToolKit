@@ -52,22 +52,21 @@ void onProduce() {
 	}
 }
 int main() {
-	//测试方法：如果程序异常退出说明读写锁异常
 	signal(SIGINT, programExit);
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 
 	thread_group thread_producer;
 	thread_producer.create_thread([]() {
 		//生产者
-			onProduce();
-		});
+		onProduce();
+	});
 
 	thread_group thread_consumer;
 	for (int i = 0; i < 4; ++i) {
 		thread_consumer.create_thread([i]() {
 			//消费者
-				onConsum(i);
-			});
+			onConsum(i);
+		});
 	}
 	thread_consumer.join_all();
 	thread_producer.join_all();
