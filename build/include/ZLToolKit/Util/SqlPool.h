@@ -1,0 +1,222 @@
+/*
+ * SqlPool.h
+ *
+ *  Created on: 2015年10月29日
+ *      Author: root
+ */
+
+#ifndef SQL_SQLPOOL_H_
+#define SQL_SQLPOOL_H_
+
+#include <deque>
+#include <mutex>
+#include <memory>
+#include <sstream>
+#include <functional>
+#include "logger.h"
+#include "SqlConnection.h"
+#include "Thread/ThreadPool.h"
+#include "Util/ResourcePool.h"
+#include "Thread/AsyncTaskThread.h"
+
+using namespace std;
+using namespace ZL::Thread;
+
+namespace ZL {
+namespace Util {
+template<int poolSize = 10>
+class _SqlPool {
+public:
+	typedef ResourcePool<SqlConnection, poolSize> PoolType;
+	typedef vector<vector<string> > SqlRetType;
+	static _SqlPool &Instance() {
+		static _SqlPool *pool(new _SqlPool());
+		return *pool;
+	}
+	static void Destory(){
+		delete &Instance();
+	}
+	void reSize(int size) {
+		if (size < 0) {
+			return;
+		}
+		poolsize = size;
+		pool->reSize(size);
+		threadPool.reset(new ThreadPool(poolsize));
+	}
+	template<typename ...Args>
+	void Init(Args && ...arg) {
+		pool.reset(new PoolType(std::forward<Args>(arg)...));
+		pool->obtain();
+	}
+
+	template<typename ...Args>
+	int64_t query(const char *fmt, Args && ...arg) {
+		string sql = SqlConnection::queryString(fmt, std::forward<Args>(arg)...);
+		doQuery(sql);
+		return 0;
+	}
+	int64_t query(const string &sql) {
+		doQuery(sql);
+		return 0;
+	}
+
+	template<typename ...Args>
+	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const char *fmt,
+			Args && ...arg) {
+		return _query(rowID,ret, fmt, std::forward<Args>(arg)...);
+	}
+
+	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const string &sql) {
+		return _query(rowID,ret, sql.c_str());
+	}
+	static const string &escape(const string &str) {
+		try {
+			//捕获创建对象异常
+			_SqlPool::Instance().pool->obtain()->escape(
+					const_cast<string &>(str));
+		} catch (exception &e) {
+			WarnL << e.what() << endl;
+			(const_cast<string &>(str)).clear();
+		}
+		return str;
+	}
+
+private:
+	_SqlPool() :
+			threadPool(new ThreadPool(poolSize)), asyncTaskThread(10 * 1000) {
+		poolsize = poolSize;
+		asyncTaskThread.DoTaskDelay(reinterpret_cast<uint64_t>(this), 30 * 1000,
+				[this]() {
+					flushError();
+					return true;
+				});
+	}
+	inline void doQuery(const string &str) {
+		auto lam = [this,str]() {
+			int64_t rowID;
+			if(_query(rowID,str.c_str())==-1) {
+				lock_guard<mutex> lk(error_query_mutex);
+				error_query.push_back(str);
+			}
+		};
+		threadPool->async(lam);
+	}
+	template<typename ...Args>
+	inline int64_t _query(int64_t &rowID,Args &&...arg) {
+		typename PoolType::ValuePtr mysql;
+		try {
+			//捕获执行异常
+			mysql = pool->obtain();
+			return mysql->query(rowID,std::forward<Args>(arg)...);
+		} catch (exception &e) {
+			pool->quit(mysql);
+			WarnL << e.what() << endl;
+			return -1;
+		}
+	}
+	void flushError() {
+		std::shared_ptr<deque<string> > query_new(new deque<string>());
+		error_query_mutex.lock();
+		query_new->swap(error_query);
+		error_query_mutex.unlock();
+		if (query_new->size() == 0) {
+			return;
+		}
+		for (auto &sql : *(query_new.get())) {
+			doQuery(sql);
+		}
+	}
+	virtual ~_SqlPool() {
+		asyncTaskThread.CancelTask(reinterpret_cast<uint64_t>(this));
+		flushError();
+		threadPool.reset();
+		pool.reset();
+		InfoL;
+	}
+	std::shared_ptr<ThreadPool> threadPool;
+	mutex error_query_mutex;
+	deque<string> error_query;
+
+	std::shared_ptr<PoolType> pool;
+	AsyncTaskThread asyncTaskThread;
+	unsigned int poolsize;
+}
+;
+typedef _SqlPool<1> SqlPool;
+
+class SqlStream {
+public:
+	SqlStream(const char *_sql) :
+			sql(_sql) {
+		startPos = 0;
+	}
+	~SqlStream() {
+
+	}
+
+	template<typename T>
+	SqlStream& operator <<(const T& data) {
+		auto pos = sql.find_first_of('?', startPos);
+		if (pos == string::npos) {
+			return *this;
+		}
+		str_tmp.str("");
+		str_tmp << data;
+		string str = str_tmp.str();
+		startPos = pos + str.size();
+		sql.replace(pos, 1, str);
+		return *this;
+	}
+	const string& operator <<(std::ostream&(*f)(std::ostream&)) const {
+		return sql;
+	}
+private:
+	stringstream str_tmp;
+	string sql;
+	string::size_type startPos;
+};
+
+class SqlWriter {
+public:
+	SqlWriter(const char *_sql,bool _throwAble = true) :
+			sqlstream(_sql),throwAble(_throwAble) {
+	}
+	~SqlWriter() {
+
+	}
+	template<typename T>
+	SqlWriter& operator <<(const T& data) {
+		sqlstream << data;
+		return *this;
+	}
+
+	void operator <<(std::ostream&(*f)(std::ostream&)) {
+		SqlPool::Instance().query(sqlstream << endl);
+	}
+	int64_t operator <<(vector<vector<string>> &ret) {
+		affectedRows = SqlPool::Instance().query(rowId,ret, sqlstream << endl);
+		if(affectedRows == -1 && throwAble){
+			throw std::runtime_error("操作数据库失败");
+		}
+		return affectedRows;
+	}
+	int64_t getRowID() const {
+		return rowId;
+	}
+
+	int64_t getAffectedRows() const {
+		return affectedRows;
+	}
+
+private:
+	SqlStream sqlstream;
+	int64_t rowId = 0;
+	int64_t affectedRows = -1;
+	bool throwAble = true;
+};
+
+} /* namespace mysql */
+} /* namespace im */
+
+#endif /* SQL_SQLPOOL_H_ */
