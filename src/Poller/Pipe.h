@@ -24,10 +24,8 @@ public:
     virtual ~Pipe();
     void send(const char *send,int size=0);
 private:
-    void willWrite(int fd,int event);
+    void willWrite(int fd);
     int pipe_fd[2]={-1,-1};
-    bool canWrite=true;
-    string writeBuf;
 };
 
 
