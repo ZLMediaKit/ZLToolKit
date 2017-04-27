@@ -220,19 +220,6 @@ test_logger/fast:
 .PHONY : test_logger/fast
 
 #=============================================================================
-# Target rules for targets named test_pipe
-
-# Build rule for target.
-test_pipe: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_pipe
-.PHONY : test_pipe
-
-# fast build rule for target.
-test_pipe/fast:
-	$(MAKE) -f tests/CMakeFiles/test_pipe.dir/build.make tests/CMakeFiles/test_pipe.dir/build
-.PHONY : test_pipe/fast
-
-#=============================================================================
 # Target rules for targets named test_tcpClient
 
 # Build rule for target.
@@ -246,17 +233,30 @@ test_tcpClient/fast:
 .PHONY : test_tcpClient/fast
 
 #=============================================================================
-# Target rules for targets named test_udpSock
+# Target rules for targets named test_pipe
 
 # Build rule for target.
-test_udpSock: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_udpSock
-.PHONY : test_udpSock
+test_pipe: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_pipe
+.PHONY : test_pipe
 
 # fast build rule for target.
-test_udpSock/fast:
-	$(MAKE) -f tests/CMakeFiles/test_udpSock.dir/build.make tests/CMakeFiles/test_udpSock.dir/build
-.PHONY : test_udpSock/fast
+test_pipe/fast:
+	$(MAKE) -f tests/CMakeFiles/test_pipe.dir/build.make tests/CMakeFiles/test_pipe.dir/build
+.PHONY : test_pipe/fast
+
+#=============================================================================
+# Target rules for targets named test_rwmutex
+
+# Build rule for target.
+test_rwmutex: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_rwmutex
+.PHONY : test_rwmutex
+
+# fast build rule for target.
+test_rwmutex/fast:
+	$(MAKE) -f tests/CMakeFiles/test_rwmutex.dir/build.make tests/CMakeFiles/test_rwmutex.dir/build
+.PHONY : test_rwmutex/fast
 
 #=============================================================================
 # Target rules for targets named test_tcpEchoServer
@@ -270,6 +270,19 @@ test_tcpEchoServer: cmake_check_build_system
 test_tcpEchoServer/fast:
 	$(MAKE) -f tests/CMakeFiles/test_tcpEchoServer.dir/build.make tests/CMakeFiles/test_tcpEchoServer.dir/build
 .PHONY : test_tcpEchoServer/fast
+
+#=============================================================================
+# Target rules for targets named test_udpSock
+
+# Build rule for target.
+test_udpSock: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_udpSock
+.PHONY : test_udpSock
+
+# fast build rule for target.
+test_udpSock/fast:
+	$(MAKE) -f tests/CMakeFiles/test_udpSock.dir/build.make tests/CMakeFiles/test_udpSock.dir/build
+.PHONY : test_udpSock/fast
 
 src/Network/Socket.o: src/Network/Socket.cpp.o
 
@@ -708,10 +721,11 @@ help:
 	@echo "... test_asyncTaskThrad"
 	@echo "... test_eventPoller"
 	@echo "... test_logger"
-	@echo "... test_pipe"
 	@echo "... test_tcpClient"
-	@echo "... test_udpSock"
+	@echo "... test_pipe"
+	@echo "... test_rwmutex"
 	@echo "... test_tcpEchoServer"
+	@echo "... test_udpSock"
 	@echo "... src/Network/Socket.o"
 	@echo "... src/Network/Socket.i"
 	@echo "... src/Network/Socket.s"
