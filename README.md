@@ -61,7 +61,6 @@ macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_m
 - 编译
   
   ```
-  # cmake编译
   cd ZLToolKit
   mkdir -p build
   cd build
@@ -89,7 +88,6 @@ macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_m
 - 编译
   
   ```
-  # cmake编译
   cd ZLToolKit
   mkdir -p build
   cd build
@@ -118,7 +116,6 @@ macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_m
   cd build
   # 生成Xcode工程，工程文件在build目录下
   cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=SIMULATOR64 -G "Xcode"
-  make
   ```
 	
 ## 联系方式
