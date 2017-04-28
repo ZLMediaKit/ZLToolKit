@@ -1,4 +1,4 @@
-# 一个用C++11实现的简单易用的轻量级网络编程框架
+# 一个基于C++11简单易用的轻量级网络编程框架
 平台|编译状态
 ----|-------
 Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
