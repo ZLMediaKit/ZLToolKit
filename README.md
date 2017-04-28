@@ -39,7 +39,7 @@ macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_m
   - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
   - cmake 3.5.1
 - 依赖
-	- cmake：
+  - cmake：
 	
     ```
     # 安装cmake
@@ -73,54 +73,54 @@ macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_m
     
 ## 编译(macOS)
 - 我的编译环境
- - macOS Sierra(10.12.1) + xcode8.3.1
- - Homebrew 1.1.3
- - cmake 3.8.0
+  - macOS Sierra(10.12.1) + xcode8.3.1
+  - Homebrew 1.1.3
+  - cmake 3.8.0
 - 依赖
- - Homebrew
+  - Homebrew
 
-	 ```
-	 ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-	 ```
- - cmake
+    ```
+    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    ```
+  - cmake
  
-	 ```
-	 brew install cmake
-	 ```
+    ```
+    brew install cmake
+    ```
 - 编译
   
-```
-# cmake编译
-cd ZLToolKit
-mkdir -p build
-cd build
-cmake ..
-make
-make install
-```
+  ```
+  # cmake编译
+  cd ZLToolKit
+  mkdir -p build
+  cd build
+  cmake ..
+  make
+  make install
+  ```
 	 
 ## 编译(iOS)
 - 编译环境和依赖:`请参考macOS的编译指导。`
 - 编译
   
-```
-cd ZLToolKit
-mkdir -p build
-cd build
-#IOS_PLATFORM宏可以选择：OS(默认,真机)/SIMULATOR(32位模拟器)/SIMULATOR64(64位模拟器)
-cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=OS
-make
-```
+  ```
+  cd ZLToolKit
+  mkdir -p build
+  cd build
+  #IOS_PLATFORM宏可以选择：OS(默认,真机)/SIMULATOR(32位模拟器)/SIMULATOR64(64位模拟器)
+  cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=OS
+  make
+  ```
 - 你也可以生成Xcode工程再编译：
 
-```
-cd ZLToolKit
-mkdir -p build
-cd build
-# 生成Xcode工程，工程文件在build目录下
-cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=SIMULATOR64 -G "Xcode"
-make
-```
+  ```
+  cd ZLToolKit
+  mkdir -p build
+  cd build
+  # 生成Xcode工程，工程文件在build目录下
+  cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=SIMULATOR64 -G "Xcode"
+  make
+  ```
 	
 ## 联系方式
 - 邮箱：<771730766@qq.com>
