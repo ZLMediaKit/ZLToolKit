@@ -2,7 +2,7 @@
 平台|编译状态
 ----|-------
 Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
-OSX | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac)
+macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac)
  
 ## 项目初衷
 多年的编程经历让我接触过多种网络开源库，譬如libevent、libev、libuv、boost.asio等等。这些开源框架有些是用C语言开发的，里面包含了各种难以阅读层层嵌套佶屈聱牙的宏，学习起来非常费力；有些使用起来又不甚方便，代码被切割成碎片零零碎碎；有些虽然使用简单，但是却非常宏大，牵涉各种代码，配置复杂，很难交叉编译。由于作者既从事过linux服务器编程又有jni、ios的编程经历，所以一直以来在寻求既能在服务器端高效运行又能在嵌入式平台方便开发的方法，但是一直没有找到比较合适的方案；于是作者大约在一年前开始整理多年的工作成果积累，抽取经过时间检验证明稳定有效的代码并且参考其他成熟的框架形成了这个项目。后面在我使用该项目（初期版本）用于实际开发，一路林林总总遇到了很多问题，但是在后面几个月不间断的调试、测试、修正、优化等过程中项目代码逐渐沉淀稳定，经过长时高强度的测试之后我把代码提交到github形成了这个项目。
@@ -37,47 +37,93 @@ OSX | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac
 ## 编译(Linux)
 - 我的编译环境
   - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
-  - [eclipse for c++](https://www.eclipse.org/downloads/download.php?file=/oomph/epp/neon/R3/eclipse-inst-mac64.tar.gz)
   - cmake 3.5.1
 - 依赖
-  - libmysqlclient（使能ENABLE_MYSQL宏）
+	- cmake：
+	
+    ```
+    # 安装cmake
+    sudo apt-get insatll cmake
+    ```
+  - libmysqlclient（使能ENABLE_MYSQL宏，非必备项）
 
     ```
     # 安装mysql客户端开发套件
     sudo apt-get install libmysqlclient-dev
     ```
 
-  - libssl（使能ENABLE_OPENSSL宏）
+  - libssl（使能ENABLE_OPENSSL宏，非必备项）
 
     ```
     # 安装openssl开发套件
     sudo apt-get install openssl
     sudo apt-get install libssl-dev
     ```
-  - cmake：
-
-    ```
-    # 安装cmake
-    sudo apt-get insatll cmake
-    ```
-- 使用eclipse编译
-  - 点击菜单：File->Import->Git(Projects from git)-> Clone URI 
-  - 输入git地址点击 Next 然后选择 master 分支然后一路点击 Next 直至导入项目。
-  - 选中 ZLToolKit项目，点击鼠标右键在下拉菜单中点击 Build Configurations-> Set Active -> X64，选择编译X64版本目标文件。
-  - 在ZLToolKit项目右键菜单中点击 Clean Project 清理项目。
-  - 在ZLToolKit项目右键菜单中点击 Build Project 编译项目。
- 
-- 使用cmake编译
+- 编译
   
-    ```
-    # cmake编译
-    cd ZLToolKit
-    mkdir -p build
-    cd build
-    cmake ..
-    make
-    make install
-    ```
+  ```
+  # cmake编译
+  cd ZLToolKit
+  mkdir -p build
+  cd build
+  cmake ..
+  make
+  make install
+  ```  
+    
+## 编译(macOS)
+- 我的编译环境
+ - macOS Sierra(10.12.1) + xcode8.3.1
+ - Homebrew 1.1.3
+ - cmake 3.8.0
+- 依赖
+ - Homebrew
+
+	 ```
+	 ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+	 ```
+ - cmake
+ 
+	 ```
+	 brew install cmake
+	 ```
+- 编译
+  
+```
+# cmake编译
+cd ZLToolKit
+mkdir -p build
+cd build
+cmake ..
+make
+make install
+```
+	 
+## 编译(iOS)
+- 编译环境和依赖:`请参考macOS的编译指导。`
+- 编译
+  
+```
+cd ZLToolKit
+mkdir -p build
+cd build
+#IOS_PLATFORM宏可以选择：OS(默认,真机)/SIMULATOR(32位模拟器)/SIMULATOR64(64位模拟器)
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=OS
+make
+```
+- 你也可以生成Xcode工程再编译：
+
+```
+cd ZLToolKit
+mkdir -p build
+cd build
+# 生成Xcode工程，工程文件在build目录下
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=SIMULATOR64 -G "Xcode"
+make
+```
+	
 ## 联系方式
 - 邮箱：<771730766@qq.com>
 - QQ群：542509000
+
+
