@@ -46,21 +46,28 @@ endif(MYSQL_FOUND)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 #使能c++11
 add_compile_options(-std=c++11)
-#编译动态库和静态库
-add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
-add_library(${CMAKE_PROJECT_NAME}_static STATIC ${SRC_LIST})
-set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
-set_target_properties(${CMAKE_PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
+add_compile_options(-Wno-deprecated-declarations)
+add_compile_options(-Wno-predefined-identifier-outside-function)
 
-#安装库
+#编译静态库
+if(NOT IOS)
+add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
+set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
 install(TARGETS ${CMAKE_PROJECT_NAME}_shared LIBRARY DESTINATION lib)
+endif(NOT IOS)
+
+#编译动态库
+add_library(${CMAKE_PROJECT_NAME}_static STATIC ${SRC_LIST})
+set_target_properties(${CMAKE_PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
 install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION lib)
 
 #安装头文件至系统目录
 install(DIRECTORY ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME} DESTINATION include)
 
 #测试程序
+if(NOT IOS)
 add_subdirectory(tests)
+endif(NOT IOS)
 
 
 
