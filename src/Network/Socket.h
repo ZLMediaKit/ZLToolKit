@@ -54,10 +54,8 @@ namespace Network {
 #if defined(__APPLE__)
   #import "TargetConditionals.h"
   #if TARGET_IPHONE_SIMULATOR
-    #warning build for ios simulator
     #define OS_IPHONE
   #elif TARGET_OS_IPHONE
-    #warning build for iphone
     #define OS_IPHONE
   #endif
 #endif //__APPLE__
