@@ -3,7 +3,7 @@ sudo: required
 dist: trusty
 compiler:
 - clang
-- gcc
+- gcc5.4
 os:
 - linux
 before_install:
