@@ -6,6 +6,7 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
+#include <unistd.h>
 #include <iostream>
 #include "Util/logger.h"
 #ifdef ENABLE_MYSQL
