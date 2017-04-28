@@ -32,7 +32,6 @@ macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_m
  
 ## 后续任务
 - 提供更多的示例代码
-- 提供ios工程
 
 ## 编译(Linux)
 - 我的编译环境
