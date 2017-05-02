@@ -47,14 +47,18 @@ public:
 	SSL_Box(bool isServer = true, bool enable = true);
 	virtual ~SSL_Box();
 
+	//收到密文后，调用此函数解密
 	void onRecv(const char *data, uint32_t data_len);
+	//需要加密明文调用此函数
 	void onSend(const char *data, uint32_t data_len);
 
+	//设置解密后获取明文的回调
 	template<typename F>
 	void setOnDecData(F &&fun) {
 		onDec = fun;
 	}
 
+	//设置加密后获取密文的回调
 	template<typename F>
 	void setOnEncData(F &&fun) {
 		onEnc = fun;
