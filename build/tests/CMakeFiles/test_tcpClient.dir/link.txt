@@ -1,0 +1,1 @@
+/usr/bin/c++      CMakeFiles/test_tcpClient.dir/test_tcpClient.cpp.o  -o ../bin/test_tcpClient -rdynamic ../lib/libZLToolKit.so -lpthread -lssl -lmysqlclient -Wl,-rpath,/home/xzl/git/ZLToolKit/build/lib 

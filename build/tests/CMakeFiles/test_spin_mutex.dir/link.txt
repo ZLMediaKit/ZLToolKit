@@ -1,0 +1,1 @@
+/usr/bin/c++      CMakeFiles/test_spin_mutex.dir/test_spin_mutex.cpp.o  -o ../bin/test_spin_mutex -rdynamic ../lib/libZLToolKit.so -lpthread -lssl -lmysqlclient -Wl,-rpath,/home/xzl/git/ZLToolKit/build/lib 
