@@ -1,1 +1,0 @@
-/usr/bin/c++      CMakeFiles/test_logger.dir/test_logger.cpp.o  -o ../bin/test_logger -rdynamic ../lib/libZLToolKit.so -lpthread -lssl -lmysqlclient -Wl,-rpath,/home/xzl/git/ZLToolKit/build/lib 

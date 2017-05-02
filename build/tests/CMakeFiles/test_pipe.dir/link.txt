@@ -1,1 +1,0 @@
-/usr/bin/c++      CMakeFiles/test_pipe.dir/test_pipe.cpp.o  -o ../bin/test_pipe -rdynamic ../lib/libZLToolKit.so -lpthread -lssl -lmysqlclient -Wl,-rpath,/home/xzl/git/ZLToolKit/build/lib 

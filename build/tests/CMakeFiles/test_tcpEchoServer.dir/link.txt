@@ -1,1 +1,0 @@
-/usr/bin/c++      CMakeFiles/test_tcpEchoServer.dir/test_tcpEchoServer.cpp.o  -o ../bin/test_tcpEchoServer -rdynamic ../lib/libZLToolKit.so -lpthread -lssl -lmysqlclient -Wl,-rpath,/home/xzl/git/ZLToolKit/build/lib 

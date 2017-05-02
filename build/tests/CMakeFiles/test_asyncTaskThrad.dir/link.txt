@@ -1,1 +1,0 @@
-/usr/bin/c++      CMakeFiles/test_asyncTaskThrad.dir/test_asyncTaskThrad.cpp.o  -o ../bin/test_asyncTaskThrad -rdynamic ../lib/libZLToolKit.so -lpthread -lssl -lmysqlclient -Wl,-rpath,/home/xzl/git/ZLToolKit/build/lib 

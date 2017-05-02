@@ -20,6 +20,7 @@ int main() {
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 #ifdef ENABLE_OPENSSL
+	//请把证书"test_ssl.pem"放置在本程序同目录下
 	SSL_Initor::Instance().loadServerPem((exePath() + ".pem").data());
 	SSL_Box client(false),server(true);
 
