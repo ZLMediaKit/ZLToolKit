@@ -145,6 +145,7 @@ int SockUtil::connect(const char *host, uint16_t port) {
     freeaddrinfo(answer);
     if(ret < 0 && errno!=EINPROGRESS){
         WarnL << "连接主机失败：" << host << " " << port << " " << strerror(errno);
+        close(sockfd);
         return -1;
     }
     return sockfd;
@@ -186,6 +187,7 @@ int SockUtil::connect(const char *host, uint16_t port) {
                         sizeof(struct sockaddr));
     if (ret < 0 && errno != EINPROGRESS) {
         WarnL << "连接主机失败：" << host << " " << port << " " << strerror(errno);
+		close(sockfd);
         return -1;
     }
     return sockfd;
@@ -196,7 +198,6 @@ int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
 	int sockfd = -1;
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 		WarnL << "创建套接字失败:" << strerror(errno);
-        close(sockfd);
 		return -1;
 	}
 
