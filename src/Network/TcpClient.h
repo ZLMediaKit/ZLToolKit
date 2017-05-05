@@ -27,8 +27,8 @@ public:
 protected:
 	void startConnect(const string &strUrl, uint16_t iPort, int iTimeOutSec = 3);
 	void shutdown();
-	int send(const string &str);
-	int send(const char *str, int len);
+	virtual int send(const string &str);
+	virtual int send(const char *str, int len);
 	bool alive() {
 		return m_pSock.operator bool();
 	}

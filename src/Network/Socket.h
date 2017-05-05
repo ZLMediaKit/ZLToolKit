@@ -71,7 +71,7 @@ typedef enum {
 
 class SockException: public std::exception {
 public:
-	SockException(ErrCode _errCode, const string &_errMsg) {
+	SockException(ErrCode _errCode = Err_success, const string &_errMsg = "") {
 		errMsg = _errMsg;
 		errCode = _errCode;
 	}

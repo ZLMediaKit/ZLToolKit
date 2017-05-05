@@ -33,6 +33,9 @@ void TcpClient::startConnect(const string &strUrl, uint16_t iPort,int iTimeoutSe
 	sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
 		auto strongSelf = weakSelf.lock();
 		if(strongSelf){
+            if(err){
+                strongSelf->m_pSock.reset();
+            }
 			strongSelf->onSockConnect(err);
 		}
 	}, iTimeoutSec);
