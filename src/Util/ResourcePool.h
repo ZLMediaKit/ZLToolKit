@@ -41,6 +41,12 @@ private:
 	class _ResourcePool: public enable_shared_from_this<_ResourcePool> {
 	public:
 		typedef std::shared_ptr<C> ValuePtr;
+		_ResourcePool() {
+			poolsize = poolSize;
+			allotter = []()->C* {
+				return new C();
+			};
+		}
 		template<typename ...ArgTypes>
 		_ResourcePool(ArgTypes &&...args) {
 			poolsize = poolSize;
