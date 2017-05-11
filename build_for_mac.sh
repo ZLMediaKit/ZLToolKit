@@ -3,6 +3,7 @@ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/
 brew install cmake
 brew install mysql
 brew install openssl
+cd ..
 git clone --depth=50 https://github.com/xiongziliang/ZLToolKit.git
 cd ZLToolKit
 mkdir -p build
