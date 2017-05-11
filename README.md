@@ -38,36 +38,11 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
 - 我的编译环境
   - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
   - cmake 3.5.1
-- 依赖
-  - cmake：
-	
-    ```
-    # 安装cmake
-    sudo apt-get insatll cmake
-    ```
-  - libmysqlclient（使能ENABLE_MYSQL宏，非必备项）
-
-    ```
-    # 安装mysql客户端开发套件
-    sudo apt-get install libmysqlclient-dev
-    ```
-
-  - libssl（使能ENABLE_OPENSSL宏，非必备项）
-
-    ```
-    # 安装openssl开发套件
-    sudo apt-get install openssl
-    sudo apt-get install libssl-dev
-    ```
 - 编译
   
   ```
   cd ZLToolKit
-  mkdir -p build
-  cd build
-  cmake ..
-  make
-  make install
+  ./build_for_ios.sh
   ```  
     
 ## 编译(macOS)
@@ -75,52 +50,20 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
   - macOS Sierra(10.12.1) + xcode8.3.1
   - Homebrew 1.1.3
   - cmake 3.8.0
-- 依赖
-  - Homebrew
-
-    ```
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    ```
-  - cmake
- 
-    ```
-    brew install cmake
-    ```
-  - mysql（使能ENABLE_MYSQL宏，非必备项）
-
-    ```
-    # 安装mysql客户端开发套件
-    brew install mysql
-    ```
-
-  - openssl（使能ENABLE_OPENSSL宏，非必备项）
-
-    ```
-    # 安装openssl开发套件
-    brew install openssl
-    ```
 - 编译
   
   ```
   cd ZLToolKit
-  mkdir -p build
-  cd build
-  cmake .. -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2j/
-  make
-  make install
+  ./build_for_mac.sh
   ```
 	 
 ## 编译(iOS)
-- 编译环境和依赖:`请参考macOS的编译指导。`
+- 编译环境:`请参考macOS的编译指导。`
 - 编译
   
   ```
   cd ZLToolKit
-  mkdir -p build
-  cd build
-  #IOS_PLATFORM宏可以选择：OS(默认,真机)/SIMULATOR(32位模拟器)/SIMULATOR64(64位模拟器)
-  cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=OS
-  make
+  ./build_for_ios.sh
   ```
 - 你也可以生成Xcode工程再编译：
 
