@@ -86,13 +86,26 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
     ```
     brew install cmake
     ```
+  - mysql（使能ENABLE_MYSQL宏，非必备项）
+
+    ```
+    # 安装mysql客户端开发套件
+    brew install mysql
+    ```
+
+  - openssl（使能ENABLE_OPENSSL宏，非必备项）
+
+    ```
+    # 安装openssl开发套件
+    brew install openssl
+    ```
 - 编译
   
   ```
   cd ZLToolKit
   mkdir -p build
   cd build
-  cmake ..
+  cmake .. -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2j/
   make
   make install
   ```
