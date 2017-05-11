@@ -29,7 +29,7 @@ endif(NOT APPLE)
 set(LINK_LIB_LIST)
 
 #查找openssl是否安装
-find_package(OPENSSL QUIET)
+find_package(OpenSSL QUIET)
 if(OPENSSL_FOUND)
 message(STATUS "找到openssl库:\"${OPENSSL_INCLUDE_DIR}\",ENABLE_OPENSSL宏已打开")
 include_directories(${OPENSSL_INCLUDE_DIR})
