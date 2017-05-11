@@ -4,14 +4,5 @@ STRING(REGEX REPLACE ".cpp" "" TEST_EXE_NAME ${TEST_SRC})
 STRING(REGEX REPLACE "./" "" TEST_EXE_NAME ${TEST_EXE_NAME})
 message(STATUS "add test program:${TEST_EXE_NAME}")
 add_executable(${TEST_EXE_NAME} ${TEST_SRC})
-target_link_libraries(${TEST_EXE_NAME} ${CMAKE_PROJECT_NAME}_shared pthread)
-
-if(MYSQL_FOUND)
-target_link_libraries(${TEST_EXE_NAME} ${MYSQL_LIBRARIES})
-endif(MYSQL_FOUND)
-
-if(OPENSSL_FOUND)
-target_link_libraries(${TEST_EXE_NAME} ${OPENSSL_LIBRARIES})
-endif(OPENSSL_FOUND)
-
+target_link_libraries(${TEST_EXE_NAME} ${CMAKE_PROJECT_NAME}_shared pthread ${LINK_LIB_LIST})
 endforeach(TEST_SRC ${TEST_SRC_LIST})

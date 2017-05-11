@@ -24,24 +24,29 @@ endforeach(SUB_DIR ${SUB_DIR_LIST})
 #非苹果平台移除.mm类型的文件
 if(NOT APPLE)
 list(REMOVE_ITEM SRC_LIST "src/Network/Socket_ios.mm")
-endif()
+endif(NOT APPLE)
+
+set(LINK_LIB_LIST)
 
 #查找openssl是否安装
 find_package(OPENSSL QUIET)
 if(OPENSSL_FOUND)
 message(STATUS "找到openssl库:\"${OPENSSL_INCLUDE_DIR}\",ENABLE_OPENSSL宏已打开")
-include_directories(${OPENSSL_INCLUDE_DIR})
+include_directories(${OPENSSL_INCLUDE_DIRS})
 add_definitions(-DENABLE_OPENSSL)
+list(APPEND  LINK_LIB_LIST ${OPENSSL_LIBRARIES})
 endif(OPENSSL_FOUND)
 
 #查找mysql是否安装
 find_package(MYSQL QUIET)
 if(MYSQL_FOUND)
 message(STATUS "找到mysqlclient库:\"${MYSQL_INCLUDE_DIR}\",ENABLE_MYSQL宏已打开")
-include_directories(${MYSQL_INCLUDE_DIR})
+include_directories(${MYSQL_INCLUDE_DIRS})
 add_definitions(-DENABLE_MYSQL)
+list(APPEND  LINK_LIB_LIST ${MYSQL_LIBRARIES})
 endif(MYSQL_FOUND)
 
+message(STATUS "将链接依赖库:${LINK_LIB_LIST}")
 #引用头文件路径
 include_directories(${PROJECT_SOURCE_DIR}/src)
 #使能c++11
@@ -49,18 +54,12 @@ add_compile_options(-std=c++11)
 add_compile_options(-Wno-deprecated-declarations)
 add_compile_options(-Wno-predefined-identifier-outside-function)
 
+
+
 #编译静态库
 if(NOT IOS)
 add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
-
-if(MYSQL_FOUND)
-target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${MYSQL_LIBRARIES})
-endif(MYSQL_FOUND)
-
-if(OPENSSL_FOUND)
-target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${OPENSSL_LIBRARIES})
-endif(OPENSSL_FOUND)
-
+target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${LINK_LIB_LIST})
 set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
 install(TARGETS ${CMAKE_PROJECT_NAME}_shared LIBRARY DESTINATION lib)
 endif(NOT IOS)
