@@ -72,7 +72,7 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
   mkdir -p build
   cd build
   # 生成Xcode工程，工程文件在build目录下
-  cmake .. -DCMAKE_TOOLCHAIN_FILE=../iOS.cmake -DIOS_PLATFORM=SIMULATOR64 -G "Xcode"
+  cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/iOS.cmake -DIOS_PLATFORM=SIMULATOR64 -G "Xcode"
   ```
 	
 ## 联系方式
