@@ -46,6 +46,7 @@ add_definitions(-DENABLE_MYSQL)
 list(APPEND  LINK_LIB_LIST ${MYSQL_LIBRARIES})
 endif(MYSQL_FOUND)
 
+#打印库文件
 message(STATUS "将链接依赖库:${LINK_LIB_LIST}")
 #引用头文件路径
 include_directories(${PROJECT_SOURCE_DIR}/src)
@@ -53,8 +54,6 @@ include_directories(${PROJECT_SOURCE_DIR}/src)
 add_compile_options(-std=c++11)
 add_compile_options(-Wno-deprecated-declarations)
 add_compile_options(-Wno-predefined-identifier-outside-function)
-
-
 
 #编译静态库
 if(NOT IOS)
