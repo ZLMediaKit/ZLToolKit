@@ -90,7 +90,7 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
 
     ```
     # 安装mysql客户端开发套件
-    brew install install mysql
+    brew install mysql
     ```
 
   - openssl（使能ENABLE_OPENSSL宏，非必备项）
