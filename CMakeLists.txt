@@ -27,7 +27,7 @@ list(REMOVE_ITEM SRC_LIST "src/Network/Socket_ios.mm")
 endif()
 
 #查找openssl是否安装
-find_package(OpenSSL QUIET)
+find_package(OPENSSL QUIET)
 if(OPENSSL_FOUND)
 message(STATUS "找到openssl库:\"${OPENSSL_INCLUDE_DIR}\",ENABLE_OPENSSL宏已打开")
 include_directories(${OPENSSL_INCLUDE_DIR})
@@ -52,6 +52,15 @@ add_compile_options(-Wno-predefined-identifier-outside-function)
 #编译静态库
 if(NOT IOS)
 add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
+
+if(MYSQL_FOUND)
+target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${MYSQL_LIBRARIES})
+endif(MYSQL_FOUND)
+
+if(OPENSSL_FOUND)
+target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${OPENSSL_LIBRARIES})
+endif(OPENSSL_FOUND)
+
 set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
 install(TARGETS ${CMAKE_PROJECT_NAME}_shared LIBRARY DESTINATION lib)
 endif(NOT IOS)

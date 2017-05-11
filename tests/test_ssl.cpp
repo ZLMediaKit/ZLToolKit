@@ -15,7 +15,8 @@
 using namespace std;
 using namespace ZL::Util;
 
-int main() {
+int main(int argc,char *argv[]) {
+    setExePath(argv[0]);
 	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
