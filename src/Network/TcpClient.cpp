@@ -53,7 +53,11 @@ void TcpClient::startConnect(const string &strUrl, uint16_t iPort,int iTimeoutSe
 	}, iTimeoutSec);
 }
 void TcpClient::onSockConnect(const SockException &ex) {
+#ifdef ENABLE_ASNC_TCP_CLIENT
 	auto threadTmp = WorkThreadPool::Instance().getWorkThread();
+#else
+	auto threadTmp = &EventPoller::Instance();
+#endif//ENABLE_ASNC_TCP_CLIENT
 	weak_ptr<TcpClient> weakSelf = shared_from_this();
 	threadTmp->async([weakSelf,ex](){
 		auto strongSelf = weakSelf.lock();
