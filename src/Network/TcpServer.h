@@ -32,6 +32,7 @@ public:
 	typedef std::shared_ptr<TcpServer> Ptr;
 	TcpServer() {
 		socket.reset(new Socket());
+		sessionMap.reset(new typename decltype(sessionMap)::element_type);
 	}
 
 	~TcpServer() {
@@ -39,8 +40,8 @@ public:
 		timer.reset();
 		socket.reset();
 
-		std::unordered_map<Socket *, std::shared_ptr<Session> > copyMap;
-		sessionMap.swap(copyMap);
+		typename decltype(sessionMap)::element_type copyMap;
+		sessionMap->swap(copyMap);
 		for (auto it = copyMap.begin(); it != copyMap.end(); ++it) {
 			auto session = it->second;
 			it->second->async_first( [session]() {
@@ -49,12 +50,10 @@ public:
 		}
 		TraceL << "clean completed!";
 	}
-	void start(uint16_t port, const std::string& host = "0.0.0.0",
-			uint32_t backlog = 1024) {
+	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
 		bool success = socket->listen(port, host.c_str(), backlog);
 		if (!success) {
-			throw std::runtime_error((StrPrinter << "监听本地端口[" << host << ":"
-					<< port << "]失败:" << strerror(errno)).operator<<(endl));
+			throw std::runtime_error((StrPrinter << "监听本地端口[" << host << ":" << port << "]失败:" << strerror(errno)).operator<<(endl));
 		}
 		socket->setOnAccept( bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
 		timer.reset(new Timer(2, [this]()->bool {
@@ -67,52 +66,58 @@ public:
 private:
 	Socket::Ptr socket;
 	std::shared_ptr<Timer> timer;
-	std::unordered_map<Socket *, std::shared_ptr<Session> > sessionMap;
+	std::shared_ptr<std::unordered_map<Socket *, std::shared_ptr<Session> > > sessionMap;
 
 	void onAcceptConnection(const Socket::Ptr & sock) {
-		// DebugL<<EventPoller::Instance().isMainThread();
 		// 接收到客户端连接请求
-		auto th = WorkThreadPool::Instance().getWorkThread();
-		sessionMap.emplace(static_cast<Socket*>(sock.get()), std::make_shared<Session>(th, sock));
-		sock->setOnRead( bind(&TcpServer::onSocketRecv, this, sock.get(), placeholders::_1));
-		sock->setOnErr( bind(&TcpServer::onSocketErr, this, sock.get(), placeholders::_1));
-	}
+		auto session(std::make_shared<Session>(WorkThreadPool::Instance().getWorkThread(), sock));
+		auto sockPtr(sock.get());
+		auto sessionMapTmp(sessionMap);
+		weak_ptr<Session> weakSession(session);
+		sessionMapTmp->emplace(sockPtr, session);
 
-	void onSocketRecv(Socket* sender, const Socket::Buffer::Ptr &buf) {
-		//DebugL<<EventPoller::Instance().isMainThread();
-		//收到客户端数据
-		auto it = sessionMap.find(sender);
-		if (it == sessionMap.end()) {
-			sender->setOnRead(nullptr);
-			WarnL << "未处理的套接字事件";
-			return;
-		}
-		weak_ptr<Session> weakSession = it->second;
-		it->second->async([weakSession,buf]() {
+		// 会话接收数据事件
+		sock->setOnRead([weakSession](const Socket::Buffer::Ptr &buf, struct sockaddr *addr){
+			//获取会话强应用
 			auto strongSession=weakSession.lock();
 			if(!strongSession) {
+				//会话对象已释放
 				return;
 			}
-			strongSession->onRecv(buf);
+			//在会话线程中执行onRecv操作
+			strongSession->async([weakSession,buf]() {
+				auto strongSession=weakSession.lock();
+				if(!strongSession) {
+					return;
+				}
+				strongSession->onRecv(buf);
+			});
+		});
+
+		//会话接收到错误事件
+		sock->setOnErr([weakSession,sockPtr,sessionMapTmp](const SockException &err){
+			//移除掉会话
+			sessionMapTmp->erase(sockPtr);
+			//获取会话强应用
+			auto strongSession=weakSession.lock();
+			if(!strongSession) {
+				//会话对象已释放
+				return;
+			}
+			//在会话线程中执行onError操作
+			strongSession->async_first([weakSession,err]() {
+				auto strongSession=weakSession.lock();
+				if(!strongSession) {
+					return;
+				}
+				strongSession->onError(err);
+			});
 		});
 	}
-	void onSocketErr(Socket *sender, const SockException &err) {
-		//DebugL<<EventPoller::Instance().isMainThread();
-		auto it = sessionMap.find(sender);
-		if (it == sessionMap.end()) {
-			sender->setOnErr(nullptr);
-			WarnL << "未处理的套接字事件";
-			return;
-		}
-		auto session = it->second;
-		it->second->async_first([session,err]() {
-			session->onError(err);
-		});
-		sessionMap.erase(it);
-	}
+
 	void onManagerSession() {
 		//DebugL<<EventPoller::Instance().isMainThread();
-		for (auto &pr : sessionMap) {
+		for (auto &pr : *sessionMap) {
 			weak_ptr<Session> weakSession = pr.second;
 			pr.second->async([weakSession]() {
 				auto strongSession=weakSession.lock();
