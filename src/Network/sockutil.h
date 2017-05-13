@@ -41,7 +41,7 @@ public:
 	static int leaveMultiAddrFilter(int sockFd, const char* strAddr, const char* strSrcIp, const char* strLocalIp = "0.0.0.0");
 
 	static int getSockError(int sockFd);
-	static int setCloseWait(int sockFd, int second = 3);
+	static int setCloseWait(int sockFd, int second = 0);
 
 	static string get_local_ip(int fd);
 	static string get_local_ip();

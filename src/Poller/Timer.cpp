@@ -12,7 +12,7 @@ namespace Poller {
 
 Timer::Timer(int second, function<bool()> &&cb) {
 	AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this), second * 1000, [this,cb]()->bool {
-		EventPoller::Instance().async([this,cb]() {
+		ASYNC_TRACE([this,cb]() {
 			if(!cb()) {
 				AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
 			}

@@ -100,6 +100,7 @@ EventPoller::~EventPoller() {
 }
 
 int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
+	TimeTicker();
 	if (!cb) {
 		WarnL << "PollEventCB 为空!";
 		return -1;
@@ -131,7 +132,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
 }
 
 int EventPoller::delEvent(int fd, PollDelCB &&delCb) {
-	//TraceL<<fd;
+	TimeTicker();
 	if (!delCb) {
 		delCb = [](bool success) {};
 	}
@@ -162,6 +163,7 @@ int EventPoller::delEvent(int fd, PollDelCB &&delCb) {
 #endif //HAS_EPOLL
 }
 int EventPoller::modifyEvent(int fd, int event) {
+	TimeTicker();
 	//TraceL<<fd<<" "<<event;
 #ifdef HAS_EPOLL
 	struct epoll_event ev = { 0 };
@@ -185,6 +187,7 @@ int EventPoller::modifyEvent(int fd, int event) {
 #endif //HAS_EPOLL
 }
 void EventPoller::sync(PollAsyncCB &&syncCb) {
+	TimeTicker();
 	if (!syncCb) {
 		return;
 	}
@@ -196,6 +199,7 @@ void EventPoller::sync(PollAsyncCB &&syncCb) {
 	sem.wait();
 }
 void EventPoller::async(PollAsyncCB &&asyncCb) {
+	TimeTicker();
 	if (!asyncCb) {
 		return;
 	}
@@ -230,6 +234,7 @@ inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size
 	return (Sigal_Type)type;
 }
 inline bool EventPoller::handlePipeEvent() {
+	TimeTicker();
 	while(true){
 		char buf[1024];
 		auto nread = read(pipe_fd[0], buf, sizeof(buf));
@@ -275,6 +280,7 @@ void EventPoller::runLoop() {
 	int nfds = 0;
 	while (true) {
 		nfds = epoll_wait(epoll_fd, events, 1024, -1);
+		TimeTicker();
 		if (nfds == -1) {
 			if (pipe_fd[0] == -1 || pipe_fd[1] == -1) {
 				break;

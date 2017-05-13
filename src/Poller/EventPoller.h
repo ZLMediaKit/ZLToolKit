@@ -14,8 +14,11 @@
 #include <string>
 #include <functional>
 #include <unordered_map>
+#include "Util/logger.h"
 
 using namespace std;
+using namespace ZL::Util;
+
 
 #ifdef __linux__
 #define HAS_EPOLL
@@ -94,6 +97,24 @@ private:
 	string pipeBuffer;
 };
 
+#define ASYNC_TRACE(...) {\
+							/*TraceL;*/\
+							EventPoller::Instance().async(__VA_ARGS__);\
+						}
+#define SYNC_TRACE(...) {\
+							/*TraceL;*/\
+							EventPoller::Instance().sync(__VA_ARGS__);\
+						}
+
 }  // namespace Poller
 }  // namespace ZL
 #endif /* EventPoller_h */
+
+
+
+
+
+
+
+
+

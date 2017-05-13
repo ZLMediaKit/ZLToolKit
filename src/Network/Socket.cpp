@@ -238,7 +238,7 @@ bool Socket::emitErr(const SockException& err) {
 		}
 	}
 	weak_ptr<Socket> weakSelf = this->shared_from_this();
-	EventPoller::Instance().async([weakSelf,err]() {
+	ASYNC_TRACE([weakSelf,err]() {
 		auto strongSelf=weakSelf.lock();
 		if (!strongSelf) {
 			return;
@@ -255,6 +255,7 @@ bool Socket::emitErr(const SockException& err) {
 }
 
 int Socket::send(const char *buf, int size,int flags) {
+	TimeTicker();
 	if (!size) {
 		size = strlen(buf);
 		if (!size) {
@@ -522,6 +523,7 @@ int Socket::sendTo(const string &tmp, struct sockaddr* peerAddr, int flags) {
 	return sendTo(tmp.data(), tmp.size(), peerAddr, flags);
 }
 int Socket::sendTo(const char* buf, int size, struct sockaddr* peerAddr,int flags) {
+	TimeTicker();
 	if (!size) {
 		size = strlen(buf);
 		if (!size) {
