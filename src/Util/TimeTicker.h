@@ -99,10 +99,17 @@ private:
 	Ticker ticker;
 };
 
-#define TimeTicker() Ticker ticker(5,"",WarnL,true)
-#define TimeTicker1(tm) Ticker ticker1(tm,"",WarnL,true)
-#define TimeTicker2(tm,where) Ticker ticker2(tm,where,WarnL,true)
-#define TimeTicker3(tm,where,log) Ticker ticke3(tm,where,log,true)
+#ifdef DEBUG
+	#define TimeTicker() Ticker(5,"",WarnL,true)
+	#define TimeTicker1(tm) Ticker(tm,"",WarnL,true)
+	#define TimeTicker2(tm,where) Ticker(tm,where,WarnL,true)
+	#define TimeTicker3(tm,where,log) Ticker(tm,where,log,true)
+#else
+	#define TimeTicker()
+	#define TimeTicker1(tm)
+	#define TimeTicker2(tm,where)
+	#define TimeTicker3(tm,where,log)
+#endif
 } /* namespace Util */
 } /* namespace ZL */
 
