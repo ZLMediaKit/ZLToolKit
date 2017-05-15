@@ -71,20 +71,12 @@ public:
         }
 	private:
 		void onRead(const T &data) const {
-			decltype(readCB) cb;
-			{
-				lock_guard<recursive_mutex> lck(mtxCB);
-				cb = readCB;
-			}
-			cb(data);
+			lock_guard<recursive_mutex> lck(mtxCB);
+			readCB(data);
 		}
 		void onDetach() const {
-			decltype(detachCB) cb;
-			{
-				lock_guard<recursive_mutex> lck(mtxCB);
-				cb = detachCB;
-			}
-			cb();
+			lock_guard<recursive_mutex> lck(mtxCB);
+			detachCB();
 		}
 		//读环形缓冲
 		const T *read(RingBuffer *ring) {
