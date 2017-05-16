@@ -42,7 +42,7 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
   
   ```
   cd ZLToolKit
-  ./build_for_ios.sh
+  ./build_for_linux.sh
   ```  
     
 ## 编译(macOS)
