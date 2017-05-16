@@ -39,12 +39,12 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
   - Ubuntu16.04 64 bit + gcc5.4(最低gcc4.7)
   - cmake 3.5.1
 - 编译
-  
+
   ```
   cd ZLToolKit
-  ./build_for_linux.sh
+  ./build_for_linux.sh
   ```  
-    
+  
 ## 编译(macOS)
 - 我的编译环境
   - macOS Sierra(10.12.1) + xcode8.3.1
