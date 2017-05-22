@@ -77,7 +77,6 @@ public:
 					const_cast<string &>(str));
 		} catch (exception &e) {
 			WarnL << e.what() << endl;
-			(const_cast<string &>(str)).clear();
 		}
 		return str;
 	}
@@ -92,12 +91,14 @@ private:
 					return true;
 				});
 	}
-	inline void doQuery(const string &str) {
-		auto lam = [this,str]() {
+	inline void doQuery(const string &str,int tryCnt = 3) {
+		auto lam = [this,str,tryCnt]() {
 			int64_t rowID;
-			if(_query(rowID,str.c_str())==-1) {
+			auto cnt = tryCnt - 1;
+			if(_query(rowID,str.c_str())==-2 && cnt > 0) {
 				lock_guard<mutex> lk(error_query_mutex);
-				error_query.push_back(str);
+				sqlQuery query(str,cnt);
+				error_query.push_back(query);
 			}
 		};
 		threadPool->async(lam);
@@ -112,19 +113,19 @@ private:
 		} catch (exception &e) {
 			pool->quit(mysql);
 			WarnL << e.what() << endl;
-			return -1;
+			return -2;
 		}
 	}
 	void flushError() {
-		std::shared_ptr<deque<string> > query_new(new deque<string>());
+		decltype(error_query) query_copy;
 		error_query_mutex.lock();
-		query_new->swap(error_query);
+		query_copy.swap(error_query);
 		error_query_mutex.unlock();
-		if (query_new->size() == 0) {
+		if (query_copy.size() == 0) {
 			return;
 		}
-		for (auto &sql : *(query_new.get())) {
-			doQuery(sql);
+		for (auto &query : query_copy) {
+			doQuery(query.sql_str,query.tryCnt);
 		}
 	}
 	virtual ~_SqlPool() {
@@ -136,7 +137,14 @@ private:
 	}
 	std::shared_ptr<ThreadPool> threadPool;
 	mutex error_query_mutex;
-	deque<string> error_query;
+	class sqlQuery
+	{
+	public:
+		sqlQuery(const string &sql,int cnt):sql_str(sql),tryCnt(cnt){}
+		string sql_str;
+		int tryCnt = 0;
+	} ;
+	deque<sqlQuery> error_query;
 
 	std::shared_ptr<PoolType> pool;
 	AsyncTaskThread asyncTaskThread;
@@ -196,7 +204,7 @@ public:
 	}
 	int64_t operator <<(vector<vector<string>> &ret) {
 		affectedRows = SqlPool::Instance().query(rowId,ret, sqlstream << endl);
-		if(affectedRows == -1 && throwAble){
+		if(affectedRows < 0 && throwAble){
 			throw std::runtime_error("操作数据库失败");
 		}
 		return affectedRows;
