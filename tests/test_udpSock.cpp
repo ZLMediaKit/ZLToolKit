@@ -16,6 +16,10 @@ using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Network;
 
+#ifdef ANDROID
+#define to_string(arg) (StrPrinter << (arg) << endl)
+#endif//ANDROID
+
 bool exitProgram = false;
 void programExit(int arg) {
 	exitProgram = true;
@@ -51,7 +55,7 @@ int main() {
 
 	int i = 0;
 	while(!exitProgram){
-		sockSend->sendTo(std::to_string(i++),&addrDst);
+		sockSend->sendTo(to_string(i++),&addrDst);
 		sleep(1);
 	}
 

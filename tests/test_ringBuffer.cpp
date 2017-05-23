@@ -18,6 +18,10 @@ using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Thread;
 
+#ifdef ANDROID
+#define to_string(arg) (StrPrinter << (arg) << endl)
+#endif//ANDROID
+
 bool g_bExitRead = false;
 bool g_bExitWrite = false;
 RingBuffer<string>::Ptr g_ringBuf(new RingBuffer<string>(48));

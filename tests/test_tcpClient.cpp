@@ -14,6 +14,10 @@ using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Network;
 
+#ifdef ANDROID
+#define to_string(arg) (StrPrinter << (arg) << endl)
+#endif//ANDROID
+
 class TestClient: public TcpClient {
 public:
 	typedef std::shared_ptr<TestClient> Ptr;
@@ -48,7 +52,7 @@ protected:
 		_timer.reset();
 	}
 	void onTick(){
-		send(std::to_string(_nTick++));
+		send(to_string(_nTick++));
 	}
 	int _nTick = 0;
 	std::shared_ptr<Timer> _timer;
