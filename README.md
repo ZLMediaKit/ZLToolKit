@@ -74,6 +74,20 @@ iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios
   # 生成Xcode工程，工程文件在build目录下
   cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/iOS.cmake -DIOS_PLATFORM=SIMULATOR64 -G "Xcode"
   ```
+## 编译(Android)
+- 我的编译环境
+  - macOS Sierra(10.12.1) + xcode8.3.1
+  - Homebrew 1.1.3
+  - cmake 3.8.0
+  - android-ndk-r14b
+- 编译
+
+  ```
+  cd ZLToolKit
+  export ANDROID_NDK_ROOT=/path/to/ndk
+  ./build_for_android.sh
+  ```
+
 	
 ## 联系方式
 - 邮箱：<771730766@qq.com>
