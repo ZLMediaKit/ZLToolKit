@@ -16,9 +16,6 @@ using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Network;
 
-#ifdef ANDROID
-#define to_string(arg) (StrPrinter << (arg) << endl)
-#endif//ANDROID
 
 bool exitProgram = false;
 void programExit(int arg) {
