@@ -42,12 +42,10 @@ string exeDir();
 string exeName();
 void setExePath(const string &path);
 
+#ifdef __WIN32__
+int strcasecmp(const char *strA,const char *strB);
+#endif //WIN32
 
-int compareNoCase(const char *strA,const char *strB);
-
-#ifndef strcasecmp
-#define strcasecmp compareNoCase
-#endif //strcasecmp
 
 }  // namespace Util
 }  // namespace ZL

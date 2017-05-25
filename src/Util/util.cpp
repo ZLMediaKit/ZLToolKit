@@ -95,14 +95,14 @@ std::string  strToLower(const std::string &str)
     return strTmp;
 }
 
-// string.compareNoCase:不区分大小写
-int compareNoCase(const char *strA,const char *strB)
-{
-    string str1 = strToLower(strA);
-    string str2 = strToLower(strB);
-    return str1.compare(str2);
-}
 
+#ifdef __WIN32__
+int strcasecmp(const char *strA,const char *strB){
+	string str1 = strToLower(strA);
+	string str2 = strToLower(strB);
+	return str1.compare(str2);
+}
+#endif //WIN32
 
 }  // namespace Util
 }  // namespace ZL
