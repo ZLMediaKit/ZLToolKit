@@ -46,6 +46,15 @@ void setExePath(const string &path);
 int strcasecmp(const char *strA,const char *strB);
 #endif //WIN32
 
+#ifdef ANDROID
+template <typename T>
+std::string to_string(T value)
+{
+    std::ostringstream os ;
+    os <<  std::forward<T>(value);
+    return os.str() ;
+}
+#endif//ANDROID
 
 }  // namespace Util
 }  // namespace ZL
