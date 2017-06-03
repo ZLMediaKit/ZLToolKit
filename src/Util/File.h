@@ -28,6 +28,7 @@ public:
 	static bool is_special_dir(const char *path);
 	//删除目录或文件
 	static void delete_file(const char *path) ;
+	static bool rm_empty_dir(const char *path);
 private:
 	File();
 	virtual ~File();

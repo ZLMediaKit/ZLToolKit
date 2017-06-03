@@ -158,7 +158,14 @@ void get_file_path(const char *path, const char *file_name, char *file_path) {
 		strcat(file_path, "/");
 	strcat(file_path, file_name);
 }
-
+bool  File::rm_empty_dir(const char *path){
+	if(!is_dir(path)){
+		string superDir = path;
+		superDir = superDir.substr(0, superDir.find_last_of('/') + 1);
+		return rm_empty_dir(superDir.data());
+	}
+	return rmdir(path) == 0;
+}
 void File::delete_file(const char *path) {
 	DIR *dir;
 	dirent *dir_info;
