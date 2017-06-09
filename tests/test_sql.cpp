@@ -31,8 +31,9 @@ int main() {
 	string user = "user";
 	string password = "password";
 	string character = "utf8mb4";
-
+#if (!defined(__GNUC__)) || (__GNUC__ >= 5)
 	SqlPool::Instance().Init(sql_ip,sql_port,dbname,user,password/*,character*/);
+#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
 	SqlPool::Instance().reSize(thread::hardware_concurrency());
 
 	SqlPool::SqlRetType sqlRet;
