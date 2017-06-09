@@ -2,7 +2,7 @@ language: cpp
 sudo: required
 dist: trusty
 compiler:
-- gcc4.7
+- gcc
 os:
 - linux
 before_install:
