@@ -558,7 +558,7 @@ int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
 	int ret = -1;
 #ifdef IP_ADD_SOURCE_MEMBERSHIP
 	struct ip_mreq_source imr;
-#ifdef __ANDROID__
+#ifdef ANDROID
 	imr.imr_multiaddr = inet_addr(strAddr);
 	imr.imr_sourceaddr = inet_addr(strSrcIp);
 	imr.imr_interface = inet_addr(strLocalIp);
@@ -582,7 +582,7 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
 	int ret = -1;
 #ifdef IP_DROP_SOURCE_MEMBERSHIP
 	struct ip_mreq_source imr;
-#ifdef __ANDROID__
+#ifdef ANDROID
 	imr.imr_multiaddr = inet_addr(strAddr);
 	imr.imr_sourceaddr = inet_addr(strSrcIp);
 	imr.imr_interface = inet_addr(strLocalIp);
