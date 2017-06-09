@@ -47,7 +47,7 @@ private:
 				return new C();
 			};
 		}
-#if !defined(__GUNC__) || (__GUNC__ >= 5)
+#if (!defined(__GNUC__)) || (__GNUC__ >= 5)
 		template<typename ...ArgTypes>
 		_ResourcePool(ArgTypes &&...args) {
 			poolsize = poolSize;
@@ -55,7 +55,7 @@ private:
 				return new C(args...);
 			};
 		}
-#endif //!defined(__GUNC__) || (__GUNC__ >= 5)
+#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
 		virtual ~_ResourcePool(){
 			std::lock_guard<mutex> lck(_mutex);
 			for(auto &ptr : objs){
