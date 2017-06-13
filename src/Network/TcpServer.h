@@ -96,20 +96,16 @@ private:
 
 		//会话接收到错误事件
 		sock->setOnErr([weakSession,sockPtr,sessionMapTmp](const SockException &err){
-			//移除掉会话
-			sessionMapTmp->erase(sockPtr);
 			//获取会话强应用
 			auto strongSession=weakSession.lock();
+			//移除掉会话
+			sessionMapTmp->erase(sockPtr);
 			if(!strongSession) {
 				//会话对象已释放
 				return;
 			}
 			//在会话线程中执行onError操作
-			strongSession->async_first([weakSession,err]() {
-				auto strongSession=weakSession.lock();
-				if(!strongSession) {
-					return;
-				}
+			strongSession->async_first([strongSession,err]() {
 				strongSession->onError(err);
 			});
 		});
