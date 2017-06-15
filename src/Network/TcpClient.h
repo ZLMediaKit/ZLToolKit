@@ -88,8 +88,8 @@ protected:
 	virtual void onRecv(const Socket::Buffer::Ptr &pBuf) {}
 	virtual void onSend() {}
 	virtual void onErr(const SockException &ex) {}
-private:
 	Socket::Ptr m_pSock;
+private:
 	Ticker m_ticker;
 	spin_mutex m_mutex;
 
