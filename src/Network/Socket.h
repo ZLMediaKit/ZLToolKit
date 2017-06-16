@@ -15,6 +15,7 @@
 #include <string>
 #include <deque>
 #include <mutex>
+#include <atomic>
 #include "Poller/Timer.h"
 #include "Thread/spin_mutex.h"
 #include "Util/TimeTicker.h"
@@ -185,6 +186,7 @@ public:
 	int sendTo(const char *buf, int size, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
 	int sendTo(const string &buf, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
 	bool emitErr(const SockException &err);
+	void enableRecv(bool enabled);
 
 	string get_local_ip();
 	uint16_t get_local_port();
@@ -221,6 +223,7 @@ private:
     int _lastUdpFlags = UDP_DEFAULE_FLAGS;
     uint32_t _iTcpMaxBufSize = TCP_MAX_SEND_BUF;
     uint32_t _iUdpMaxPktSize = UDP_MAX_SEND_PKT;
+    atomic_bool _enableRecv;
 
 	void closeSock();
 	bool setPeerSock(int fd, struct sockaddr *addr);

@@ -35,6 +35,7 @@ Socket::Socket() {
 		WarnL << "Socket not set acceptCB";
 	};
 	_flushCB = []() {return true;};
+	_enableRecv = true;
 }
 Socket::~Socket() {
 	closeSock();
@@ -189,7 +190,7 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool tcp) {
 int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 	int ret = 0;
 	int sock = pSock->rawFd();
-	while (true) {
+	while (true && _enableRecv.load()) {
 		int nread;
 		ioctl(sock, FIONREAD, &nread);
 		if (nread < 4095) {
@@ -651,7 +652,37 @@ bool Socket::sendTimeout() {
 	}
 	return false;
 }
+void Socket::enableRecv(bool enabled) {
+	if(_enableRecv.load() == enabled){
+		return;
+	}
+	_enableRecv = enabled;
+	if(!enabled){
+		//关闭套接字接收事件
+		return;
+	}
+	//打开套接字接收事件
+	weak_ptr<Socket> weakSelf = this->shared_from_this();
+	ASYNC_TRACE([weakSelf]() {
+		auto strongSelf=weakSelf.lock();
+		if (!strongSelf) {
+			return;
+		}
+		SockFD::Ptr sock;
+		{
+			lock_guard<spin_mutex> lck(strongSelf->_mtx_sockFd);
+			sock = strongSelf->_sockFd;
+		}
+		if(sock){
+			//触发读事件，边沿触发才有意义
+			strongSelf->onRead(sock,true);
+		}
+	});
+
+}
 
 }  // namespace Network
 }  // namespace ZL
+
+
 
