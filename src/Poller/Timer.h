@@ -19,9 +19,9 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Poller {
 
-class Timer{
+class Timer : public AsyncTaskHelper{
 public:
-    Timer(int second,function<bool()> &&cb);
+    Timer(int second,const function<bool()> &cb);
     virtual ~Timer();
 };
 

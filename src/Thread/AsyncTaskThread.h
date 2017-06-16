@@ -31,6 +31,7 @@ typedef struct {
 	function<bool()> task;
 } TaskInfo;
 
+
 class AsyncTaskThread {
 public:
 	//the timer default 30s
@@ -55,6 +56,17 @@ private:
 	atomic_bool threadExit;
 	condition_variable_any cond;
 	uint64_t millisecond_sleep;
+};
+
+class AsyncTaskHelper
+{
+public:
+	AsyncTaskHelper(uint64_t millisecond,const function<bool()> &task){
+		AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this),millisecond,task);
+	}
+	virtual ~AsyncTaskHelper(){
+		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
+	}
 };
 
 } /* namespace Thread */
