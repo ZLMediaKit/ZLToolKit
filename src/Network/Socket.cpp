@@ -675,7 +675,7 @@ void Socket::enableRecv(bool enabled) {
 		}
 		if(sock){
 			//触发读事件，边沿触发才有意义
-			strongSelf->onRead(sock,true);
+			strongSelf->onRead(sock,false);
 		}
 	});
 
