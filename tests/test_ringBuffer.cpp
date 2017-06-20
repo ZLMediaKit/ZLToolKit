@@ -21,7 +21,7 @@ using namespace ZL::Thread;
 
 bool g_bExitRead = false;
 bool g_bExitWrite = false;
-RingBuffer<string>::Ptr g_ringBuf(new RingBuffer<string>(48));
+RingBuffer<string>::Ptr g_ringBuf(new RingBuffer<string>());
 
 
 void onReadEvent(const string &str){
@@ -31,23 +31,11 @@ void onReadEvent(const string &str){
 void onDetachEvent(){
 	WarnL;
 }
-void doRead(int threadNum){
-	//主动读模式采用轮训机制 效率比较差，可以加入条件变量机制改造
-	auto reader = g_ringBuf->attach();
-	while(!g_bExitRead){
-		auto ptr = reader->read();
-		if(ptr){
-			InfoL << "thread " << threadNum << ":" << *ptr;
-		}else{
-			InfoL << "thread " << threadNum << ": read nullptr!";
-			usleep(100 * 1000);
-		}
-	}
-}
+
 void doWrite(){
 	int i = 0;
 	while(!g_bExitWrite){
-		g_ringBuf->write(to_string(++i));
+		g_ringBuf->write(to_string(++i),true);
 		usleep(100 * 1000);
 	}
 
@@ -65,14 +53,7 @@ int main() {
 		onDetachEvent();
 	});
 
-	//主动读取线程
 	thread_group group;
-	for(int i = 0 ;i < 4 ; ++i){
-		group.create_thread([i](){
-			doRead(i);
-		});
-	}
-
 	//写线程
 	group.create_thread([](){
 		doWrite();
