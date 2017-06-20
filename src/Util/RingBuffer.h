@@ -64,14 +64,16 @@ public:
 				detachCB = cb;
 			}
 		}
+        
+        const T* read(){
+            auto strongBuffer=buffer.lock();
+            if(!strongBuffer){
+                return nullptr;
+            }
+            return read(strongBuffer.get());
+        }
+        
 	private:
-		const T* read(){
-			auto strongBuffer=buffer.lock();
-			if(!strongBuffer){
-				return nullptr;
-			}
-			return read(strongBuffer.get());
-		}
 		void onRead(const T &data) {
 			lock_guard<recursive_mutex> lck(mtxCB);
 			if(!readCB){
@@ -110,8 +112,12 @@ public:
 	};
 
 	friend class RingReader;
-	RingBuffer() {
-		ringSize = 32;
+	RingBuffer(int size = 0) {
+        if(size <= 0){
+            size = 32;
+            canReSize = true;
+        }
+		ringSize = size;
 		dataRing = new T[ringSize];
 		ringPos = 0;
 		ringKeyPos = 0;
@@ -139,7 +145,7 @@ public:
 		return ptr;
 	}
 	//写环形缓冲，非线程安全的
-	void write(const T &in,bool isKey) {
+	void write(const T &in,bool isKey = true) {
 		computeBestSize(isKey);
         dataRing[ringPos] = in;
         if (isKey) {
@@ -164,17 +170,19 @@ public:
 	}
 private:
 	T *dataRing;
-	long ringPos;
-	long ringKeyPos;
+	int ringPos;
+	int ringKeyPos;
 	int ringSize;
 	//计算最佳环形缓存大小的参数
 	int besetSize = 0;
 	int totalCnt = 0;
 	int lastKeyCnt = 0;
+    bool canReSize = false;
+            
 	recursive_mutex mtx_reader;
 	unordered_map<void *,std::weak_ptr<RingReader> > readerMap;
 
-	inline long next(long pos) {
+	inline int next(int pos) {
 		//读取器下一位置
 		if (pos > ringSize - 2) {
 			return 0;
@@ -188,7 +196,7 @@ private:
 		readerMap.erase(reader);
 	}
 	void computeBestSize(bool isKey){
-		if(besetSize){
+        if(!canReSize || besetSize){
 			return;
 		}
 		totalCnt++;
