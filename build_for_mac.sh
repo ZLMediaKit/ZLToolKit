@@ -9,5 +9,5 @@ cd ZLToolKit
 mkdir -p mac_build
 cd mac_build 
 cmake .. -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2j/
-make
+make -j4
 sudo make install
