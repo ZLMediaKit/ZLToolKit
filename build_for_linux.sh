@@ -5,8 +5,8 @@ sudo apt-get install libssl-dev
 cd ..
 git clone --depth=50 https://github.com/xiongziliang/ZLToolKit.git
 cd ZLToolKit
-mkdir -p build
-cd build 
+mkdir -p linux_build
+cd linux_build
 cmake ..
 make -j4
 sudo make install
