@@ -227,6 +227,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		}
 		cb(buf, &peerAddr);
 	}
+    return 0;
 }
 void Socket::onError(const SockFD::Ptr &pSock) {
 	emitErr(getSockErr(pSock));
