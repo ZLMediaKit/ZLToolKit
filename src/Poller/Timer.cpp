@@ -10,7 +10,7 @@
 namespace ZL {
 namespace Poller {
 
-Timer::Timer(int second, const function<bool()> &cb):
+Timer::Timer(float second, const function<bool()> &cb):
 		AsyncTaskHelper(second * 1000,[this,cb](){
 			ASYNC_TRACE([this,cb]() {
 				if(!cb()) {

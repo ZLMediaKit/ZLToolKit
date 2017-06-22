@@ -21,7 +21,7 @@ namespace Poller {
 
 class Timer : public AsyncTaskHelper{
 public:
-    Timer(int second,const function<bool()> &cb);
+    Timer(float second,const function<bool()> &cb);
     virtual ~Timer();
 };
 
