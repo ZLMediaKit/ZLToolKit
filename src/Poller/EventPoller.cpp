@@ -45,10 +45,10 @@ EventPoller::EventPoller(bool enableSelfRun) {
 	SockUtil::setNoBlocked(pipe_fd[1],false);
 #ifdef HAS_EPOLL
 
-#ifndef __ARM_ARCH
-	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+#if defined(__ARM_ARCH) || defined(ANDROID)
+    epoll_fd = epoll_create(1024);
 #else
-	epoll_fd = epoll_create(1024);
+	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 #endif
 
 	if (epoll_fd == -1) {
