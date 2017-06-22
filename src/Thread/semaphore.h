@@ -8,16 +8,19 @@
 #ifndef SEMAPHORE_H_
 #define SEMAPHORE_H_
 
+/*
+ * 目前发现信号量在32位的系统上有问题，
+ * 休眠的线程无法被正常唤醒，先禁用之
 #ifdef  __linux__
 #include <semaphore.h>
 #define HAVE_SEM
-#else
+#endif //HAVE_SEM
+*/
+
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
 using namespace std;
-#endif //HAVE_SEM
-
 
 namespace ZL {
 namespace Thread {
