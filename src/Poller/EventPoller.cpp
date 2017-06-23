@@ -44,13 +44,11 @@ EventPoller::EventPoller(bool enableSelfRun) {
 	SockUtil::setNoBlocked(pipe_fd[0]);
 	SockUtil::setNoBlocked(pipe_fd[1],false);
 #ifdef HAS_EPOLL
-
-#ifndef __ARM_ARCH
-	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-#else
+#if defined(__ARM_ARCH) || defined(ANDROID)
 	epoll_fd = epoll_create(1024);
-#endif
-
+#else//defined(__ARM_ARCH) || defined(ANDROID)
+	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+#endif//defined(__ARM_ARCH) || defined(ANDROID)
 	if (epoll_fd == -1) {
 		close(pipe_fd[0]);
 		close(pipe_fd[1]);
