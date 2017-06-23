@@ -45,10 +45,10 @@ EventPoller::EventPoller(bool enableSelfRun) {
 	SockUtil::setNoBlocked(pipe_fd[1],false);
 #ifdef HAS_EPOLL
 
-#if defined(__ARM_ARCH) || defined(ANDROID)
-    epoll_fd = epoll_create(1024);
-#else
+#ifndef __ARM_ARCH
 	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+#else
+	epoll_fd = epoll_create(1024);
 #endif
 
 	if (epoll_fd == -1) {
@@ -224,7 +224,11 @@ inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size
 	switch (type) {
 	case Sig_Async: {
 		PollAsyncCB **cb = (PollAsyncCB **) buf;
-		(*cb)->operator()();
+		try{
+			(*cb)->operator()();
+		}catch (std::exception &ex) {
+			FatalL << ex.what();
+		}
 		delete *cb;
 	}
 		break;
