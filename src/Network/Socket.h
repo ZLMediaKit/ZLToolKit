@@ -49,8 +49,7 @@ namespace Network {
 #define TCP_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT)
 #define UDP_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT)
 
-#define TCP_MAX_SEND_BUF (256*1024)
-#define UDP_MAX_SEND_PKT (256)
+#define MAX_SEND_PKT (256)
 
 #if defined(__APPLE__)
   #import "TargetConditionals.h"
@@ -193,19 +192,15 @@ public:
 	string get_peer_ip();
 	uint16_t get_peer_port();
 
-	void setTcpBufSize(uint32_t iBufSize){
-		_iTcpMaxBufSize = iBufSize;
-	}
-	void setUdpPktSize(uint32_t iPktSize){
-		_iUdpMaxPktSize = iPktSize;
+	void setSendPktSize(uint32_t iPktSize){
+		_iMaxSendPktSize = iPktSize;
 	}
 private:
  	mutable spin_mutex _mtx_sockFd;
 	SockFD::Ptr _sockFd;
 	//send buffer
 	recursive_mutex _mtx_sendBuf;
-	string _tcpSendBuf;
-	deque<string> _udpSendBuf;
+	deque<string> _sendPktBuf;
 	deque<struct sockaddr> _udpSendPeer;
 	/////////////////////
 	std::shared_ptr<Timer> _conTimer;
@@ -219,27 +214,25 @@ private:
 	onAcceptCB _acceptCB;
 	onFlush _flushCB;
 	Ticker _flushTicker;
-    int _lastTcpFlags = TCP_DEFAULE_FLAGS;
-    int _lastUdpFlags = UDP_DEFAULE_FLAGS;
-    uint32_t _iTcpMaxBufSize = TCP_MAX_SEND_BUF;
-    uint32_t _iUdpMaxPktSize = UDP_MAX_SEND_PKT;
+    int _lastSendFlags = TCP_DEFAULE_FLAGS;
+    uint32_t _iMaxSendPktSize = MAX_SEND_PKT;
     atomic_bool _enableRecv;
 
 	void closeSock();
 	bool setPeerSock(int fd, struct sockaddr *addr);
-	bool attachEvent(const SockFD::Ptr &pSock,bool tcp = true);
+	bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
 
 	int onAccept(const SockFD::Ptr &pSock,int event);
 	int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
 	void onError(const SockFD::Ptr &pSock);
-	int onWriteTCP(const SockFD::Ptr &pSock, bool bMainThread,int flags);
-	int onWriteUDP(const SockFD::Ptr &pSock, bool bMainThread,int flags);
+	int realSend(const string &buf, struct sockaddr *peerAddr,int flags);
+	int onWrite(const SockFD::Ptr &pSock, bool bMainThread,int flags,bool isUdp);
 	void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
 	void onFlushed(const SockFD::Ptr &pSock);
 
 	void startWriteEvent(const SockFD::Ptr &pSock);
 	void stopWriteEvent(const SockFD::Ptr &pSock);
-	bool sendTimeout();
+	bool sendTimeout(bool isUdp);
 	SockFD::Ptr makeSock(int sock){
 		return std::make_shared<SockFD>(sock);
 	}
