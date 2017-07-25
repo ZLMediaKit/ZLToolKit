@@ -26,7 +26,8 @@ using namespace ZL::Network;
 #include <sys/epoll.h>
 #define toEpoll(event)	(((event) & Event_Read) ? EPOLLIN : 0) \
 						| (((event) & Event_Write) ? EPOLLOUT : 0) \
-						| (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) | EPOLLET
+						| (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
+						| (((event) & Event_LT) ?  0 : EPOLLET)
 
 #define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
 							| (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \

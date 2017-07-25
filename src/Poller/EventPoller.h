@@ -31,6 +31,7 @@ typedef enum {
 	Event_Read = 1 << 0, //读事件
 	Event_Write = 1 << 1, //写事件
 	Event_Error = 1 << 2, //错误事件
+	Event_LT    = 1 << 3,//水平触发
 } Poll_Event;
 
 typedef enum {

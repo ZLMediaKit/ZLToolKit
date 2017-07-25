@@ -91,12 +91,14 @@ void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
 	auto sockFD = makeSock(sock);
 	weak_ptr<Socket> weakSelf = this->shared_from_this();
 	weak_ptr<SockFD> weakSock = sockFD;
-	auto result = EventPoller::Instance().addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB](int event) {
+	std::shared_ptr<bool> bTriggered(new bool(false));//回调被触发过
+	auto result = EventPoller::Instance().addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
 		auto strongSelf = weakSelf.lock();
 		auto strongSock = weakSock.lock();
-		if(!strongSelf || !strongSock) {
+		if(!strongSelf || !strongSock || *bTriggered) {
 			return;
 		}
+		*bTriggered = true;
 		strongSelf->onConnected(strongSock,connectCB);
 	});
 	if(result == -1){
@@ -106,11 +108,13 @@ void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
 		return;
 	}
 
-	_conTimer.reset(new Timer(timeoutSec, [weakSelf,connectCB]() {
-		auto strongSelf=weakSelf.lock();
-		if (!strongSelf) {
+	_conTimer.reset(new Timer(timeoutSec, [weakSelf,weakSock,connectCB,bTriggered]() {
+		auto strongSelf = weakSelf.lock();
+		auto strongSock = weakSock.lock();
+		if(!strongSelf || !strongSock || *bTriggered) {
 			return false;
 		}
+		*bTriggered = true;
 		SockException err(Err_timeout,strerror(ETIMEDOUT));
 		strongSelf->emitErr(err);
 		connectCB(err);

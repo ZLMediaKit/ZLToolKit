@@ -19,10 +19,12 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Poller {
 
-class Timer : public AsyncTaskHelper{
+class Timer {
 public:
     Timer(float second,const function<bool()> &cb);
     virtual ~Timer();
+private:
+    std::shared_ptr<bool> canceled;
 };
 
 }  // namespace Poller
