@@ -162,6 +162,9 @@ bool  File::rm_empty_dir(const char *path){
 	if(!is_dir(path)){
 		string superDir = path;
 		superDir = superDir.substr(0, superDir.find_last_of('/') + 1);
+		if(superDir == path){
+			return false;
+		}
 		return rm_empty_dir(superDir.data());
 	}
 	return rmdir(path) == 0;
