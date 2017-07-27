@@ -136,8 +136,12 @@ public:
 		}
 		delete[] dataRing;
 	}
-
+#ifdef ENABLE_RING_USEBUF
 	std::shared_ptr<RingReader> attach(bool useBuffer = true) {
+#else //ENABLE_RING_USEBUF
+	std::shared_ptr<RingReader> attach(bool useBuffer = false) {
+#endif //ENABLE_RING_USEBUF
+
 		std::shared_ptr<RingReader> ptr(new RingReader(this->shared_from_this(),useBuffer));
 		std::weak_ptr<RingReader> weakPtr = ptr;
 		lock_guard<recursive_mutex> lck(mtx_reader);
