@@ -54,7 +54,7 @@ public:
 	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
 		bool success = socket->listen(port, host.c_str(), backlog);
 		if (!success) {
-			auto err = StrPrinter << "监听本地端口[" << host << ":" << port << "]失败:" << get_uv_errmsg(true) << endl;
+			string err = (StrPrinter << "listen on " << host << ":" << port << "] failed:" << get_uv_errmsg(true)).operator <<(endl);
 			throw std::runtime_error(err);
 		}
 		socket->setOnAccept( bind(&TcpServer::onAcceptConnection, this, placeholders::_1));

@@ -80,7 +80,11 @@ int SockUtil::setNoSigpipe(int sd) {
 }
 
 int SockUtil::setNoBlocked(int sock, bool noblock) {
+#if defined(WIN32)
 	unsigned long ul = noblock;
+#else
+	int ul = noblock;
+#endif //defined(WIN32)
 	int ret = ioctl(sock, FIONBIO, &ul); //设置为非阻塞模式
 	if (ret == -1) {
 		TraceL << "设置非阻塞失败!";

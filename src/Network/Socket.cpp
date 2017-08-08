@@ -144,8 +144,10 @@ SockException Socket::getSockErr(const SockFD::Ptr &sock, bool tryErrno) {
 	int error = 0, len;
 	len = sizeof(int);
 	getsockopt(sock->rawFd(), SOL_SOCKET, SO_ERROR, (char *)&error, (socklen_t *) &len);
-	if (error == 0 && tryErrno) {
-		error = get_uv_error(true);
+	if (error == 0) {
+		if(tryErrno){
+			error = get_uv_error(true);
+		}
 	}else {
 		error = uv_translate_posix_error(error);
 	}
@@ -191,7 +193,11 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 	int ret = 0;
 	int sock = pSock->rawFd();
 	while (true && _enableRecv.load()) {
+#if defined(WIN32)
 		unsigned long nread;
+#else
+		int nread;
+#endif //defined(WIN32)
 		ioctl(sock, FIONREAD, &nread);
 		if (nread < 4095) {
 			nread = 4095;

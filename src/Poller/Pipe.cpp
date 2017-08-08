@@ -21,7 +21,11 @@ Pipe::Pipe(function<void(int size, const char *buf)> &&onRead) {
 	_pipe.reset(new PipeWrap);
 	auto pipeCopy = _pipe;
 	EventPoller::Instance().addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {
+#if defined(WIN32)
 		unsigned long nread = 1024;
+#else
+		int nread = 1024;
+#endif //defined(WIN32)
 		ioctl(pipeCopy->readFD(), FIONREAD, &nread);
 #if defined(WIN32)
 		std::shared_ptr<char> buf(new char[nread + 1], [](char *ptr) {delete[] ptr; });
