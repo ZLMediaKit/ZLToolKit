@@ -67,6 +67,7 @@ namespace ZL {
 			return ret;
 		}
 		void EventPoller::shutdown() {
+			_exitLoop = true;
 			sigalPipe(Sig_Exit);
 			if (loopThread) {
 				loopThread->join();
@@ -274,7 +275,7 @@ namespace ZL {
 #if defined(HAS_EPOLL)
 			struct epoll_event events[1024];
 			int nfds = 0;
-			while (true) {
+			while (!_exitLoop) {
 				nfds = epoll_wait(epoll_fd, events, 1024, -1);
 				TimeTicker();
 				if (nfds == -1) {
@@ -286,7 +287,7 @@ namespace ZL {
 					struct epoll_event &ev = events[i];
 					int fd = ev.data.fd;
 					int event = toPoller(ev.events);
-					if (fd == _pipe.readFD()]) {
+					if (fd == _pipe.readFD()) {
 						//inner pipe event
 						if (event & Event_Error) {
 							WarnL << "Poller 异常退出监听。";
@@ -318,7 +319,7 @@ namespace ZL {
 			int ret, maxFd;
 			FdSet Set_read, Set_write, Set_err;
 			list<unordered_map<int, Poll_Record>::value_type> listCB;
-			while (true) {
+			while (!_exitLoop) {
 				Set_read.fdZero();
 				Set_write.fdZero();
 				Set_err.fdZero();

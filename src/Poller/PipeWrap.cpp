@@ -60,14 +60,14 @@ int PipeWrap::write(const void *buf, int n) {
 #if defined(WIN32)
 	return send(_pipe_fd[1], (char *)buf, n, 0);
 #else
-	return write(_pipe_fd[1],buf,n);
+	return ::write(_pipe_fd[1],buf,n);
 #endif // defined(WIN32)
 }
 int PipeWrap::read(void *buf, int n) {
 #if defined(WIN32)
 	return recv(_pipe_fd[0], (char *)buf, n, 0);
 #else
-	return read(_pipe_fd[0], buf, n);
+	return ::read(_pipe_fd[0], buf, n);
 #endif // defined(WIN32)
 }
 
