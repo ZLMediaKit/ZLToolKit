@@ -8,19 +8,20 @@
 #ifndef EventPoller_h
 #define EventPoller_h
 
-#include <unistd.h>
 #include <mutex>
 #include <thread>
 #include <string>
 #include <functional>
 #include <unordered_map>
+#include "PipeWrap.h"
 #include "Util/logger.h"
+#include "Util/util.h"
 
 using namespace std;
 using namespace ZL::Util;
 
 
-#ifdef __linux__
+#if defined(__linux__)
 #define HAS_EPOLL
 #endif //__linux__
 
@@ -85,11 +86,11 @@ private:
 	inline bool handlePipeEvent();
 	inline Sigal_Type _handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf);
 
-	int pipe_fd[2] = { -1, -1 };
+	PipeWrap _pipe;
 	thread *loopThread = nullptr;
 	thread::id mainThreadId;
 	mutex mtx_event_map;
-#ifdef HAS_EPOLL
+#if defined(HAS_EPOLL)
 	int epoll_fd = -1;
 	unordered_map<int, PollEventCB> event_map;
 #else

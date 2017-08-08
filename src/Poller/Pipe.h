@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <functional>
+#include "PipeWrap.h"
 #include "EventPoller.h"
 
 using namespace std;
@@ -24,8 +25,7 @@ public:
     virtual ~Pipe();
     void send(const char *send,int size=0);
 private:
-    void willWrite(int fd);
-    int pipe_fd[2]={-1,-1};
+	std::shared_ptr<PipeWrap> _pipe;
 };
 
 

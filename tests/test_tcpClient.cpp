@@ -58,7 +58,7 @@ void programExit(int arg) {
 	EventPoller::Instance().shutdown();
 }
 int main() {
-	//测试方法：先启动test_tcpEchoServer，在启动test_tcpClient
+	//测试方法:先启动test_tcpEchoServer，在启动test_tcpClient
 	signal(SIGINT, programExit);
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());

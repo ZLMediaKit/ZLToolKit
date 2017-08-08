@@ -33,13 +33,13 @@ public:
 	}
 
 	bool is_this_thread_in() {
-		auto it = threads.find(pthread_self());
+		auto it = threads.find(this_thread::get_id());
 		return it != threads.end();
 	}
 
 	bool is_thread_in(thread* thrd) {
 		if (thrd) {
-			auto it = threads.find(thrd->native_handle());
+			auto it = threads.find(thrd->get_id());
 			return it != threads.end();
 		} else {
 			return false;
@@ -49,7 +49,7 @@ public:
 	template<typename F>
 	thread* create_thread(F threadfunc) {
 		thread  *new_thread=new thread(threadfunc);
-		threads[new_thread->native_handle()] = new_thread;
+		threads[new_thread->get_id()] = new_thread;
 		return new_thread;
 	}
 
@@ -59,12 +59,12 @@ public:
 				throw runtime_error(
 						"thread_group: trying to add a duplicated thread");
 			}
-			threads[thrd->native_handle()] = thrd;
+			threads[thrd->get_id()] = thrd;
 		}
 	}
 
 	void remove_thread(thread* thrd) {
-		auto it = threads.find(thrd->native_handle());
+		auto it = threads.find(thrd->get_id());
 		if (it != threads.end()) {
 			threads.erase(it);
 		}
@@ -84,7 +84,7 @@ public:
 		return threads.size();
 	}
 private:
-	unordered_map<thread::native_handle_type, thread*> threads;
+	unordered_map<thread::id, thread*> threads;
 
 };
 

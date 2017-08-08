@@ -6,10 +6,9 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
-#include <unistd.h>
 #include <iostream>
 #include "Util/logger.h"
-#ifdef ENABLE_MYSQL
+#if defined(ENABLE_MYSQL)
 #include "Util/SqlPool.h"
 #endif
 using namespace std;
@@ -19,10 +18,10 @@ int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 	//Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-#ifdef ENABLE_MYSQL
+#if defined(ENABLE_MYSQL)
 
 	/*
-	 * 测试方法：
+	 * 测试方法:
 	 * 请按照实际数据库情况修改源码然后编译执行测试
 	 */
 	string sql_ip = "127.0.0.1";
@@ -61,7 +60,7 @@ int main() {
 	FatalL << "ENABLE_MYSQL not defined!" << endl;
 #endif//ENABLE_MYSQL
 
-#ifdef ENABLE_MYSQL
+#if defined(ENABLE_MYSQL)
 	sleep(3);
 	SqlPool::Destory();
 #endif//ENABLE_MYSQL

@@ -6,10 +6,10 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 #include <signal.h>
-#include <unistd.h>
 #include <iostream>
-#include "Util/logger.h"
+#include <random>
 #include "Util/util.h"
+#include "Util/logger.h"
 #include "Util/ResourcePool.h"
 #include "Thread/threadgroup.h"
 #include <list>
@@ -22,6 +22,7 @@ bool g_bExitFlag = false;
 ResourcePool<string,50> g_pool;
 
 void onRun(int threadNum){
+	std::random_device rd;
 	while(!g_bExitFlag){
 		auto obj_ptr = g_pool.obtain();
 		if(obj_ptr->empty()){
@@ -30,9 +31,9 @@ void onRun(int threadNum){
 			InfoL << "thread " << threadNum << ":" << *obj_ptr;
 		}
 		obj_ptr->assign(StrPrinter << "keeped by thread:" << threadNum <<endl );
-		usleep( 1000 * (random()% 10));
+		usleep( 1000 * (rd()% 10));
 		obj_ptr.reset();//手动释放
-		usleep( 1000 * (random()% 1000));
+		usleep( 1000 * (rd()% 1000));
 	}
 }
 int main() {

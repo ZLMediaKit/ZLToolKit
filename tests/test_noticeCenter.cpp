@@ -5,8 +5,9 @@
 // Copyright   : Your copyright notice
 // Description : Hello World in C++, Ansi-style
 //============================================================================
+
 #include <signal.h>
-#include <unistd.h>
+#include "Util/util.h"
 #include "Util/logger.h"
 #include "Util/NoticeCenter.h"
 using namespace std;
@@ -38,7 +39,7 @@ int main() {
 		string d("d");
 		NoticeCenter::Instance().emitEvent(NOTICE_NAME1,++a,(const char *)"b",c,d);
 		NoticeCenter::Instance().emitEvent(NOTICE_NAME2,d,c,b,a);
-		sleep(1); // sleep 1 ms
+		sleep(1); // sleep 1 second
 	}
 	Logger::Destory();
 	return 0;

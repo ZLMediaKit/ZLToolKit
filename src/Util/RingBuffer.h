@@ -136,7 +136,7 @@ public:
 		}
 		delete[] dataRing;
 	}
-#ifdef ENABLE_RING_USEBUF
+#if defined(ENABLE_RING_USEBUF)
 	std::shared_ptr<RingReader> attach(bool useBuffer = true) {
 #else //ENABLE_RING_USEBUF
 	std::shared_ptr<RingReader> attach(bool useBuffer = false) {

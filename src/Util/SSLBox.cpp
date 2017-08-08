@@ -4,14 +4,16 @@
  *  Created on: 2016年1月11日
  *      Author: root
  */
-#ifdef ENABLE_OPENSSL
-#include <unistd.h>
+#if defined(ENABLE_OPENSSL)
+
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include "SSLBox.h"
+#include "Util/util.h"
+
 #define SSL_BUF_SIZE 1024*4
 
 namespace ZL {
@@ -29,7 +31,7 @@ SSL_Initor::SSL_Initor() {
 	int fd = open("/dev/urandom", O_RDONLY, 0);
 	if (fd >= 0) {
 		::read(fd, seed, SEEDSIZE);
-		::close(fd);
+		close(fd);
 		RAND_seed(seed, SEEDSIZE);
 	}
 	_mutexes = new mutex[CRYPTO_num_locks()];
@@ -58,11 +60,11 @@ void SSL_Initor::loadClientPem(const char *keyAndCA_pem, const char *import_pwd)
 void SSL_Initor::loadPem(SSL_CTX *ctx, const char *keyAndCA_pem,const char *import_pwd) {
 	int errCode = SSL_CTX_use_PrivateKey_file(ctx, keyAndCA_pem,SSL_FILETYPE_PEM);
 	if (errCode != 1) {
-		throw std::runtime_error(std::string("SSL_CTX_use_PrivateKey_file： ") + getLastError());
+		throw std::runtime_error(std::string("SSL_CTX_use_PrivateKey_file: ") + getLastError());
 	}
 	errCode = SSL_CTX_use_certificate_file(ctx, keyAndCA_pem,SSL_FILETYPE_PEM);
 	if (errCode != 1) {
-		throw std::runtime_error(std::string("SSL_CTX_use_certificate_chain_file： ")+ getLastError());
+		throw std::runtime_error(std::string("SSL_CTX_use_certificate_chain_file: ")+ getLastError());
 	}
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, (void *) import_pwd);
 	SSL_CTX_set_default_passwd_cb(ctx,[](char *buf, int size, int rwflag, void *userdata)->int {
@@ -76,7 +78,7 @@ void SSL_Initor::loadPem(SSL_CTX *ctx, const char *keyAndCA_pem,const char *impo
 	});
 	errCode = SSL_CTX_check_private_key(ctx);
 	if (errCode != 1) {
-		throw std::runtime_error(std::string("SSL_CTX_check_private_key： ") + getLastError());
+		throw std::runtime_error(std::string("SSL_CTX_check_private_key: ") + getLastError());
 	}
 }
 

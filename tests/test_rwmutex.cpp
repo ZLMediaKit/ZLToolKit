@@ -6,7 +6,6 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 #include <signal.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <iostream>
 #include "Util/logger.h"
@@ -62,7 +61,7 @@ void onWrite(int index){
 	}
 }
 int main() {
-	//测试方法：如果程序异常退出说明读写锁异常
+	//测试方法:如果程序异常退出说明读写锁异常
 	signal(SIGINT, programExit);
 	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 

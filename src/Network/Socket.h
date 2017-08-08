@@ -8,39 +8,38 @@
 #ifndef Socket_h
 #define Socket_h
 
-#include <stdio.h>
-#include <sys/socket.h>
-#include <functional>
 #include <memory>
 #include <string>
 #include <deque>
 #include <mutex>
 #include <atomic>
+#include <functional>
+#include "Util/util.h"
+#include "Util/TimeTicker.h"
 #include "Poller/Timer.h"
 #include "Thread/spin_mutex.h"
-#include "Util/TimeTicker.h"
 
 using namespace std;
-using namespace ZL::Poller;
 using namespace ZL::Util;
+using namespace ZL::Poller;
 using namespace ZL::Thread;
 
 namespace ZL {
 namespace Network {
 
-#ifdef MSG_NOSIGNAL
+#if defined(MSG_NOSIGNAL)
 #define FLAG_NOSIGNAL MSG_NOSIGNAL
 #else
 #define FLAG_NOSIGNAL 0
 #endif //MSG_NOSIGNAL
 
-#ifdef MSG_MORE
+#if defined(MSG_MORE)
 #define FLAG_MORE MSG_MORE
 #else
 #define FLAG_MORE 0
 #endif //MSG_MORE
 
-#ifdef MSG_DONTWAIT
+#if defined(MSG_DONTWAIT)
 #define FLAG_DONTWAIT MSG_DONTWAIT
 #else
 #define FLAG_DONTWAIT 0
@@ -107,7 +106,7 @@ public:
 #endif //OS_IPHONE
         int fd =  _sock;
         EventPoller::Instance().delEvent(fd,[fd](bool){
-            ::close(fd);
+            close(fd);
         });
 	}
 	void setConnected(){

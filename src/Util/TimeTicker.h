@@ -8,8 +8,8 @@
 #ifndef UTIL_TIMETICKER_H_
 #define UTIL_TIMETICKER_H_
 
-#include <sys/time.h>
 #include "logger.h"
+#include "Util/util.h"
 
 namespace ZL {
 namespace Util {
@@ -17,7 +17,7 @@ namespace Util {
 class Ticker {
 public:
 	Ticker(int64_t _minMs = 0, const char *_where = "",
-			LogInfoMaker && _stream = WarnL,bool printLog=false) :
+			LogInfoMaker && _stream = LogInfoMaker(LWarn, __FILE__, "", __LINE__),bool printLog=false) :
 			stream(_stream) {
 		if(!printLog){
 			stream.clear();
@@ -30,7 +30,7 @@ public:
 	virtual ~Ticker() {
 		int64_t tm = getNowTime() - begin;
 		if (tm > minMs) {
-			stream << where << "执行时间:" << tm << endl;
+			stream << where << " take time:" << tm << endl;
 		} else {
 			stream.clear();
 		}
@@ -99,7 +99,7 @@ private:
 	Ticker ticker;
 };
 
-#ifdef DEBUG
+#if defined(DEBUG)
 	#define TimeTicker() Ticker(5,"",WarnL,true)
 	#define TimeTicker1(tm) Ticker(tm,"",WarnL,true)
 	#define TimeTicker2(tm,where) Ticker(tm,where,WarnL,true)

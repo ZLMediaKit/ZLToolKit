@@ -53,7 +53,7 @@ void TcpClient::startConnect(const string &strUrl, uint16_t iPort,int iTimeoutSe
 	}, iTimeoutSec);
 }
 void TcpClient::onSockConnect(const SockException &ex) {
-#ifdef ENABLE_ASNC_TCP_CLIENT
+#if defined(ENABLE_ASNC_TCP_CLIENT)
 	auto threadTmp = WorkThreadPool::Instance().getWorkThread();
 #else
 	auto threadTmp = &EventPoller::Instance();

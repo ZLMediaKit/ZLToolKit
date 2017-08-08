@@ -1,22 +1,20 @@
-#pragma once
+#ifndef SOCKUTIL_H
+#define SOCKUTIL_H
 
 #include <string>
 #include <string.h>
 #include <stdint.h>
+#include "Util/util.h"
 
 using namespace std;
-
-#ifndef bzero
-#define bzero(ptr,size)  memset((ptr),0,(size));
-#endif //bzero
-
+using namespace ZL::Util;
 
 namespace ZL {
 namespace Network {
 
 class SockUtil {
 public:
-	static int connect(const char *host, uint16_t port);
+	static int connect(const char *host, uint16_t port, bool bAsync = true);
 	static int listen(const uint16_t port, const char *localIp = "0.0.0.0",
 			int backLog = 1024);
 	static int bindUdpSock(const uint16_t port,
@@ -59,3 +57,4 @@ public:
 
 }  // namespace ZL
 
+#endif // !SOCKUTIL_H

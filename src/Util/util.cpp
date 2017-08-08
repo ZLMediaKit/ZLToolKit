@@ -4,18 +4,31 @@
  *  Created on: 2016年8月4日
  *      Author: xzl
  */
+
+#if defined(WIN32)
+#include <io.h>   
+#include <direct.h>  
+#include <sys/stat.h>  
+#include <sys/types.h>
+#endif // defined(WIN32)
+
+
 #include <stdlib.h>
-#include <unistd.h>
+#include <mutex>
 #include <string>
 #include <algorithm>
+#include <unordered_map>
+
 #include "util.h"
+#include "Util/logger.h"
+#include "Util/onceToken.h"
 
 using namespace std;
 
 namespace ZL {
 namespace Util {
 string makeRandStr(int sz, bool printable) {
-	char tmp[sz + 1];
+	char *tmp =  new char[sz+1];
 	static const char CCH[] =
 			"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	int i;
@@ -29,7 +42,9 @@ string makeRandStr(int sz, bool printable) {
 		}
 	}
 	tmp[i] = 0;
-	return tmp;
+	string ret = tmp;
+	delete [] tmp;
+	return ret;
 }
 
 bool is_safe(uint8_t b) {
@@ -64,11 +79,11 @@ static string _exePath("./");
 string exePath() {
 	string filePath;
 	char buffer[256];
-#ifdef __WIN32__
+#if defined(WIN32)
 	int n = -1;
 #else
 	int n = readlink("/proc/self/exe", buffer, sizeof(buffer));
-#endif //__WIN32__
+#endif //WIN32
 	if (n <= 0) {
 		filePath = _exePath;
 	} else {
@@ -96,13 +111,137 @@ std::string  strToLower(const std::string &str)
 }
 
 
-#ifdef __WIN32__
+
+#if defined(WIN32)
+
+static onceToken g_token([]() {
+	WORD wVersionRequested = MAKEWORD(2, 2);
+	WSADATA wsaData;
+	WSAStartup(wVersionRequested, &wsaData);
+}, []() {
+	WSACleanup();
+});
+static unordered_map<void *, HANDLE> g_mapFindHandle;
+static recursive_mutex g_mtxMap;
+
 int strcasecmp(const char *strA,const char *strB){
 	string str1 = strToLower(strA);
 	string str2 = strToLower(strB);
 	return str1.compare(str2);
 }
+void sleep(int second) {
+	Sleep(1000 * second);
+}
+void usleep(int micro_seconds) {
+	timeval tm;
+	tm.tv_sec = micro_seconds / 1000000;
+	tm.tv_sec = micro_seconds % (1000000);
+	select(0, NULL, NULL, NULL, &tm);
+}
+int gettimeofday(struct timeval *tp, void *tzp) {
+	time_t clock;
+	struct tm tm;
+	SYSTEMTIME wtm;
+	GetLocalTime(&wtm);
+	tm.tm_year = wtm.wYear - 1900;
+	tm.tm_mon = wtm.wMonth - 1;
+	tm.tm_mday = wtm.wDay;
+	tm.tm_hour = wtm.wHour;
+	tm.tm_min = wtm.wMinute;
+	tm.tm_sec = wtm.wSecond;
+	tm.tm_isdst = -1;
+	clock = mktime(&tm);
+	tp->tv_sec = clock;
+	tp->tv_usec = wtm.wMilliseconds * 1000;
+	return (0);
+}
+
+int mkdir(const char *path, int mode) {
+	return _mkdir(path);
+}
+HANDLE getFileHandle(DIR *d) {
+	lock_guard<recursive_mutex> lck(g_mtxMap);
+	auto it = g_mapFindHandle.find(d);
+	if (it == g_mapFindHandle.end()) {
+		WarnL << "no such HANDLE!";
+		return INVALID_HANDLE_VALUE;
+	}
+	return it->second;
+}
+DIR *opendir(const char *name) {
+	char namebuf[512];
+	sprintf(namebuf, "%s\\*.*", name);
+
+	WIN32_FIND_DATA FindData;
+	auto hFind = FindFirstFile(namebuf, &FindData);
+	if (hFind == INVALID_HANDLE_VALUE) {
+		WarnL << "FindFirstFile failed:" << GetLastError();
+		return nullptr;
+	}
+	DIR *dir = (DIR *)malloc(sizeof(DIR));
+	memset(dir, 0, sizeof(DIR));
+	dir->dd_fd = 0;   // simulate return  
+
+	lock_guard<recursive_mutex> lck(g_mtxMap);
+	g_mapFindHandle[dir] = hFind;
+	return dir;
+}
+struct dirent *readdir(DIR *d) {
+	HANDLE hFind = getFileHandle(d);
+	if (INVALID_HANDLE_VALUE == hFind) {
+		return nullptr;
+	}
+
+	WIN32_FIND_DATA FileData;
+	//fail or end  
+	if (!FindNextFile(hFind, &FileData)) {
+		return nullptr;
+	}
+
+	struct dirent *dir = (struct dirent *)malloc(sizeof(struct dirent) + sizeof(FileData.cFileName));
+	strcpy(dir->d_name, FileData.cFileName);
+	dir->d_reclen = strlen(dir->d_name);
+
+	//check there is file or directory  
+	if (FileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+		dir->d_type = 2;
+	}
+	else {
+		dir->d_type = 1;
+	}
+	if (d->index) {
+		//覆盖前释放内存
+		free(d->index);
+	}
+	d->index = dir;
+	return dir;
+}
+int closedir(DIR *d) {
+	auto handle = getFileHandle(d);
+	if (handle == INVALID_HANDLE_VALUE) {
+		//句柄不存在
+		return -1;
+	}
+	//关闭句柄
+	FindClose(handle);
+	//释放内存
+	if (d) {
+		if (d->index) {
+			free(d->index);
+		}
+		free(d);
+	}
+	return 0;
+}
+
+int ioctl(int fd, long cmd, u_long *ptr) {
+	return ioctlsocket(fd, cmd,ptr);
+}
+int close(int fd) {
+	return closesocket(fd);
+}
 #endif //WIN32
+
 
 }  // namespace Util
 }  // namespace ZL

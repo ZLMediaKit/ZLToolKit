@@ -9,7 +9,7 @@
 #include <iostream>
 #include "Util/logger.h"
 #include "Util/util.h"
-#ifdef ENABLE_OPENSSL
+#if defined(ENABLE_OPENSSL)
 #include "Util/SSLBox.h"
 #endif
 using namespace std;
@@ -20,7 +20,7 @@ int main(int argc,char *argv[]) {
 	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-#ifdef ENABLE_OPENSSL
+#if defined(ENABLE_OPENSSL)
 	//请把证书"test_ssl.pem"放置在本程序同目录下
 	SSL_Initor::Instance().loadServerPem((exePath() + ".pem").data());
 	SSL_Box client(false),server(true);
@@ -48,7 +48,7 @@ int main(int argc,char *argv[]) {
 		client.onRecv(data,len);
 	});
 
-	FatalL << "请输入字符开始测试,输入quit停止测试：" << endl;
+	FatalL << "请输入字符开始测试,输入quit停止测试:" << endl;
 	string inbug;
 	while(true){
 		std::cin >> inbug;

@@ -22,6 +22,9 @@ void programExit(int arg) {
 int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+#if defined(WIN32)
+	FatalL << "can not run in windows!" << endl;
+#else
 	auto parentPid = getpid();
 	InfoL << "parent pid:" << parentPid << endl;
 	Pipe pipe([](int size,const char *buf) {
@@ -34,7 +37,7 @@ int main() {
 		while (i--) {
 			sleep(1);
 			auto msg = StrPrinter << "message " << i << " form subprocess:" << getpid() << endl;
-			DebugL << "子进程发送：" << msg << endl;
+			DebugL << "子进程发送:" << msg << endl;
 			pipe.send(msg.data(), msg.size());
 		}
 		DebugL << "子进程退出" << endl;
@@ -45,7 +48,7 @@ int main() {
 		EventPoller::Destory();
 		InfoL << "父进程退出" << endl;
 	}
-
+#endif // defined(WIN32)
 	Logger::Destory();
 	return 0;
 }

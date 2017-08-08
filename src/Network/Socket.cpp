@@ -5,14 +5,11 @@
 //  Created by xzl on 16/4/13.
 //
 
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
 #include "sockutil.h"
 #include "Socket.h"
+#include "Util/util.h"
 #include "Util/logger.h"
+#include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
 #include "Thread/semaphore.h"
 #include "Poller/EventPoller.h"
@@ -85,7 +82,7 @@ void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
 	closeSock();
 	int sock = SockUtil::connect(url.data(), port);
 	if (sock < 0) {
-		connectCB(SockException(Err_other, strerror(errno)));
+		connectCB(SockException(Err_other, get_uv_errmsg(true)));
 		return;
 	}
 	auto sockFD = makeSock(sock);
@@ -115,7 +112,7 @@ void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
 			return false;
 		}
 		*bTriggered = true;
-		SockException err(Err_timeout,strerror(ETIMEDOUT));
+		SockException err(Err_timeout, uv_strerror(UV_ETIMEDOUT));
 		strongSelf->emitErr(err);
 		connectCB(err);
 		return false;
@@ -144,22 +141,25 @@ failed:
 }
 
 SockException Socket::getSockErr(const SockFD::Ptr &sock, bool tryErrno) {
-	int error = -1, len;
+	int error = 0, len;
 	len = sizeof(int);
-	getsockopt(sock->rawFd(), SOL_SOCKET, SO_ERROR, &error, (socklen_t *) &len);
+	getsockopt(sock->rawFd(), SOL_SOCKET, SO_ERROR, (char *)&error, (socklen_t *) &len);
 	if (error == 0 && tryErrno) {
-		error = errno;
+		error = get_uv_error(true);
+	}else {
+		error = uv_translate_posix_error(error);
 	}
+
 	switch (error) {
 	case 0:
-	case EINPROGRESS:
-		return SockException(Err_success, strerror(error));
-	case ECONNREFUSED:
-		return SockException(Err_refused, strerror(error));
-	case ETIMEDOUT:
-		return SockException(Err_timeout, strerror(error));
+	case UV_EAGAIN:
+		return SockException(Err_success, "success");
+	case UV_ECONNREFUSED:
+		return SockException(Err_refused, uv_strerror(error));
+	case UV_ETIMEDOUT:
+		return SockException(Err_timeout, uv_strerror(error));
 	default:
-		return SockException(Err_other, strerror(error));
+		return SockException(Err_other, uv_strerror(error));
 	}
 }
 bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
@@ -191,7 +191,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 	int ret = 0;
 	int sock = pSock->rawFd();
 	while (true && _enableRecv.load()) {
-		int nread;
+		unsigned long nread;
 		ioctl(sock, FIONREAD, &nread);
 		if (nread < 4095) {
 			nread = 4095;
@@ -202,7 +202,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 
 		do {
 			nread = recvfrom(sock, buf->_data, nread, 0, &peerAddr, &len);
-		} while (-1 == nread && EINTR == errno);
+		} while (-1 == nread && UV_EINTR == get_uv_error(true));
 
 		if (nread == 0) {
 			if (mayEof) {
@@ -212,7 +212,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		}
 
 		if (nread == -1) {
-			if (errno != EAGAIN && errno != EWOULDBLOCK) {
+			if (get_uv_error(true) != UV_EAGAIN) {
 				emitErr(getSockErr(pSock));
 			}
 			return ret;
@@ -393,10 +393,12 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 		if (event & Event_Read) {
 			peerfd = accept(pSock->rawFd(), &addr, &len);
 			if (peerfd == -1) {
-				if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				int err = get_uv_error(true);
+				if (err == UV_EAGAIN) {
+					//没有新连接
 					return 0;
 				}
-				ErrorL << "tcp服务器监听异常:" << strerror(errno);
+				ErrorL << "tcp服务器监听异常:" << uv_strerror(err);
 				onError(pSock);
 				return -1;
 			}
@@ -419,7 +421,7 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 		}
 
 		if (event & Event_Error) {
-			ErrorL << "tcp服务器监听异常:" << strerror(errno);
+			ErrorL << "tcp服务器监听异常:" << get_uv_errmsg();
 			onError(pSock);
 			return -1;
 		}
@@ -513,14 +515,14 @@ int Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread,int flags,bool isU
 		if(isUdp){
 			peer = &udpSendPeer_copy->front();
 		}
-		ssize_t n ;
+		int n ;
 		do {
 			if(isUdp){
 				n = ::sendto(pSock->rawFd(), buf.data(), buf.size(), flags, peer, sizeof(struct sockaddr));
 			}else{
 				n = ::send(pSock->rawFd(), buf.data(), buf.size(), flags);
 			}
-		} while (-1 == n && EINTR == errno);
+		} while (-1 == n && UV_EINTR == get_uv_error(true));
 
 		if (n > 0) {
 			_flushTicker.resetTime();
@@ -538,7 +540,8 @@ int Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread,int flags,bool isU
 		}
 		if (n <= 0) {
 			//一个都没发送成功
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			int err = get_uv_error(true);
+			if (err == UV_EAGAIN) {
 				//InfoL << "send wait...";
 				if(!bMainThread){
 					startWriteEvent(pSock);
@@ -546,7 +549,7 @@ int Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread,int flags,bool isU
 				break;
 			}
 			//发生异常
-			//ErrorL << "send err:" << strerror(err);
+			//ErrorL << "send err:" << uv_strerror(err);
 			onError(pSock);
 			return -1;
 		}

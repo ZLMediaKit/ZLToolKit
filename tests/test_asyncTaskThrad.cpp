@@ -28,18 +28,18 @@ int main() {
 
 	std::shared_ptr<int> pCount1(new int(0));
 	AsyncTaskThread::Instance().DoTaskDelay(1,1000,[pCount1](){
-		DebugL << "定时器1:" << ++(*pCount1);
+		DebugL << "timer type 1:" << ++(*pCount1);
 		return true;
 	});
 
 	AsyncTaskThread::Instance().DoTaskDelay(1,1000,[](){
-		DebugL << "类型1定时器可以同名";
+		DebugL << "timer type 1";
 		return true;
 	});
 
 	AsyncTaskThread::Instance().DoTaskDelay(2,5000,[](){
 		AsyncTaskThread::Instance().CancelTask(1);
-		DebugL << "五秒后取消类型1的所有定时器";
+		DebugL << "all timer was canceled after 5 second";
 		return false;
 	});
 

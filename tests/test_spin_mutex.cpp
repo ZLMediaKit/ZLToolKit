@@ -6,7 +6,6 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 #include <signal.h>
-#include <unistd.h>
 #include <iostream>
 #include "Util/logger.h"
 #include "Thread/threadgroup.h"

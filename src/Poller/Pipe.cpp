@@ -6,53 +6,49 @@
 //
 
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <arpa/inet.h>
-#include <Poller/Pipe.h>
-#include <unistd.h>
-#include "Util/logger.h"
+#include "Pipe.h"
 #include "Util/util.h"
+#include "Util/logger.h"
 #include "Network/sockutil.h"
 
 using namespace std;
 using namespace ZL::Util;
-using ZL::Network::SockUtil;
+using namespace ZL::Network;
 
 namespace ZL {
 namespace Poller {
 Pipe::Pipe(function<void(int size, const char *buf)> &&onRead) {
-	if (pipe(pipe_fd)) {
-		throw runtime_error(StrPrinter << "创建管道失败：" << errno << endl);
-	}
-	SockUtil::setNoBlocked(pipe_fd[0]);
-	SockUtil::setNoBlocked(pipe_fd[1],false);
-	int fd = pipe_fd[0];
-	EventPoller::Instance().addEvent(pipe_fd[0], Event_Read, [onRead,fd](int event) {
-		int nread;
-		ioctl(fd, FIONREAD, &nread);
-		char buf[nread+1];
-		buf[nread]='\0';
-		nread=(int)read(fd, buf, sizeof(buf));
-		if(onRead){
-			onRead(nread,buf);
+	_pipe.reset(new PipeWrap);
+	auto pipeCopy = _pipe;
+	EventPoller::Instance().addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {
+		unsigned long nread;
+		ioctl(pipeCopy->readFD(), FIONREAD, &nread);
+#if defined(WIN32)
+		std::shared_ptr<char> buf(new char[nread + 1], [](char *ptr) {delete[] ptr; });
+		buf.get()[nread] = '\0';
+		nread = pipeCopy->read(buf.get(), nread + 1);
+		if (onRead) {
+			onRead(nread, buf.get());
 		}
+#else
+		char buf[nread + 1];
+		buf[nread] = '\0';
+		nread = pipeCopy->read(buf, sizeof(buf));
+		if (onRead) {
+			onRead(nread, buf);
+		}
+#endif // defined(WIN32)
+		
 	});
 }
 Pipe::~Pipe() {
-	if (pipe_fd[0] > 0) {
-		int fd = pipe_fd[0];
-		EventPoller::Instance().delEvent(pipe_fd[0], [fd](bool success) {
-			close(fd);
-		});
-		pipe_fd[0] = -1;
-	}
-	if (pipe_fd[1] > 0) {
-		close(pipe_fd[1]);
-		pipe_fd[1] = -1;
+	if (_pipe) {
+		auto pipeCopy = _pipe;
+		EventPoller::Instance().delEvent(pipeCopy->readFD(), [pipeCopy](bool success) {});
 	}
 }
 void Pipe::send(const char *buf, int size) {
-	write(pipe_fd[1], buf,size);
+	_pipe->write(buf,size);
 }
 
 

@@ -23,6 +23,7 @@ public:
 	void *ptr;
 private:
 };
+
 } /* namespace Poller */
 } /* namespace ZL */
 using namespace ZL::Poller;

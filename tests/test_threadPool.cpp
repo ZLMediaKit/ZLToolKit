@@ -7,7 +7,6 @@
 //============================================================================
 
 #include <signal.h>
-#include <unistd.h>
 #include <iostream>
 #include "Util/logger.h"
 #include "Thread/ThreadPool.h"
@@ -27,23 +26,23 @@ int main() {
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	Ticker timeTicker;
-	TraceL << "主线程id:" << this_thread::get_id();
+	TraceL << "main thread id:" << this_thread::get_id();
 
-	DebugL << "开始异步操作"<< endl;
+	DebugL << "start async task"<< endl;
 	timeTicker.resetTime();
 	ThreadPool::Instance().async([](){
 		sleep(1);
-		DebugL << "异步操作:" << this_thread::get_id() << endl;
+		DebugL << "async thread id:" << this_thread::get_id() << endl;
 	});
-	DebugL << "异步操作消耗时间：" <<  timeTicker.elapsedTime() << "ms" << endl;
+	DebugL << "async task take time:" <<  timeTicker.elapsedTime() << "ms" << endl;
 
-	InfoL << "开始同步操作"<< endl;
+	InfoL << "start sync task"<< endl;
 	timeTicker.resetTime();
 	ThreadPool::Instance().sync([](){
 		sleep(1);
-		InfoL << "同步操作:" << this_thread::get_id()<< endl;
+		InfoL << "sync thread id:" << this_thread::get_id()<< endl;
 	});
-	InfoL << "同步操作消耗时间：" <<  timeTicker.elapsedTime() << "ms" << endl;
+	InfoL << "sync task take time:" <<  timeTicker.elapsedTime() << "ms" << endl;
 
 	while(!g_bExitFlag){
 		sleep(1);

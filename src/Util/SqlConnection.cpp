@@ -4,7 +4,7 @@
  *  Created on: 2015年10月29日
  *      Author: root
  */
-#ifdef ENABLE_MYSQL
+#if defined(ENABLE_MYSQL)
 #include "SqlConnection.h"
 #include <stdexcept>
 namespace ZL {

@@ -55,25 +55,33 @@ message(STATUS "将链接依赖库:${LINK_LIB_LIST}")
 include_directories(${PROJECT_SOURCE_DIR}/src)
 #使能c++11
 add_compile_options(-std=c++11)
+
+if(NOT WIN32)
 add_compile_options(-Wno-deprecated-declarations)
 add_compile_options(-Wno-predefined-identifier-outside-function)
-
+endif(NOT WIN32)
 
 #编译动态库
 if(NOT IOS AND NOT ANDROID)
 add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
 target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${LINK_LIB_LIST})
 set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
+if(NOT WIN32)
+#安装动态库至系统目录
 install(TARGETS ${CMAKE_PROJECT_NAME}_shared LIBRARY DESTINATION lib)
+endif()
 endif()
 
 #编译静态库
 add_library(${CMAKE_PROJECT_NAME}_static STATIC ${SRC_LIST})
 set_target_properties(${CMAKE_PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
-install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION lib)
 
+if(NOT WIN32)
+#安装静态库至系统目录
+install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION lib)
 #安装头文件至系统目录
 install(DIRECTORY ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME} DESTINATION include)
+endif()
 
 #测试程序
 if(NOT IOS)

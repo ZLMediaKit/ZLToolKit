@@ -5,14 +5,24 @@
  *      Author: xzl
  */
 
+#if defined(WIN32)
+#define DIR_SUFFIX '\\'
+#include <io.h>   
+#include <direct.h>  
+#include <sys/stat.h>  
+#include <sys/types.h>
+#else
+#define DIR_SUFFIX '/'
+#endif // WIN32
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <dirent.h>
-#include <unistd.h>
 #include <string>
 #include "File.h"
 #include "logger.h"
+#include "Util/uv_errno.h"
+#include "Util/util.h"
 
 using namespace std;
 
@@ -25,7 +35,7 @@ bool File::isrfile(const char *path) {
 	int cc = stat(path, &buf);
 	if (cc == -1) {
 		//获取文件信息失败
-		WarnL << strerror(errno);
+		WarnL << get_uv_errmsg();
 		return false;
 	}
 	//获取文件信息成功
@@ -35,6 +45,9 @@ bool File::isrfile(const char *path) {
 		//如果不是一般普通文件
 		return false;
 	}
+#if defined(WIN32)
+	return true;
+#else
 	if (buf.st_mode & S_IROTH) {
 		//S_IROTH 其他用户的读权限
 		//如果其他用户可读该文件,那所有用户都可以读该文件
@@ -72,6 +85,8 @@ bool File::isrfile(const char *path) {
 		}
 	}
 	return false;
+#endif // defined(WIN32)
+
 }
 
 FILE *File::createfile_file(const char *file, const char *mode) {
@@ -79,20 +94,20 @@ FILE *File::createfile_file(const char *file, const char *mode) {
 	std::string dir;
 	int index = 1;
 	FILE *ret = NULL;
-	while (1) {
-		index = path.find('/', index) + 1;
+	while (true) {
+		index = path.find(DIR_SUFFIX, index) + 1;
 		dir = path.substr(0, index);
 		if (dir.length() == 0) {
 			break;
 		}
 		if (access(dir.c_str(), 0) == -1) { //access函数是查看是不是存在
 			if (mkdir(dir.c_str(), 0777) == -1) {  //如果不存在就用mkdir函数来创建
-				WarnL << dir << ":" << strerror(errno);
+				WarnL << dir << ":" << get_uv_errmsg();
 				return NULL;
 			}
 		}
 	}
-	if (path[path.size() - 1] != '/') {
+	if (path[path.size() - 1] != DIR_SUFFIX) {
 		ret = fopen(file, mode);
 	}
 	return ret;
@@ -102,14 +117,14 @@ bool File::createfile_path(const char *file, unsigned int mod) {
 	std::string dir;
 	int index = 1;
 	while (1) {
-		index = path.find('/', index) + 1;
+		index = path.find(DIR_SUFFIX, index) + 1;
 		dir = path.substr(0, index);
 		if (dir.length() == 0) {
 			break;
 		}
 		if (access(dir.c_str(), 0) == -1) { //access函数是查看是不是存在
 			if (mkdir(dir.c_str(), mod) == -1) {  //如果不存在就用mkdir函数来创建
-				WarnL << dir << ":" << strerror(errno);
+				WarnL << dir << ":" << get_uv_errmsg();
 				return false;
 			}
 		}
@@ -120,20 +135,18 @@ bool File::createfile_path(const char *file, unsigned int mod) {
 //判断是否为目录
 bool File::is_dir(const char *path) {
 	struct stat statbuf;
-	if (lstat(path, &statbuf) == 0) {
+	if (stat(path, &statbuf) == 0) {
 		//lstat返回文件的信息，文件信息存放在stat结构中
-		if (S_ISDIR(statbuf.st_mode)) {
+		if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
 			return true;
 		}
-#ifdef __WIN32__
-		return false;
-#else //__WIN32__
+#if !defined(WIN32)
 		if (S_ISLNK(statbuf.st_mode)) {
-			char realFile[256]={0};
-			readlink(path,realFile,sizeof(realFile));
+			char realFile[256] = { 0 };
+			readlink(path, realFile, sizeof(realFile));
 			return File::is_dir(realFile);
 		}
-#endif //__WIN32__
+#endif // !defined(WIN32)
 	}
 	return false;
 }
@@ -141,8 +154,18 @@ bool File::is_dir(const char *path) {
 //判断是否为常规文件
 bool File::is_file(const char *path) {
 	struct stat statbuf;
-	if (lstat(path, &statbuf) == 0)
-		return S_ISREG(statbuf.st_mode) != 0; //判断文件是否为常规文件
+	if (stat(path, &statbuf) == 0) {
+		if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
+			return true;
+		}
+#if !defined(WIN32)
+		if (S_ISLNK(statbuf.st_mode)) {
+			char realFile[256] = { 0 };
+			readlink(path, realFile, sizeof(realFile));
+			return File::is_file(realFile);
+		}
+#endif // !defined(WIN32)
+	}
 	return false;
 }
 
@@ -154,14 +177,15 @@ bool File::is_special_dir(const char *path) {
 //生成完整的文件路径
 void get_file_path(const char *path, const char *file_name, char *file_path) {
 	strcpy(file_path, path);
-	if (file_path[strlen(path) - 1] != '/')
-		strcat(file_path, "/");
+	if (file_path[strlen(file_path) - 1] != DIR_SUFFIX) {
+		file_path[strlen(file_path)] = DIR_SUFFIX;
+	}
 	strcat(file_path, file_name);
 }
 bool  File::rm_empty_dir(const char *path){
 	if(!is_dir(path)){
 		string superDir = path;
-		superDir = superDir.substr(0, superDir.find_last_of('/') + 1);
+		superDir = superDir.substr(0, superDir.find_last_of(DIR_SUFFIX) + 1);
 		if(superDir == path){
 			return false;
 		}

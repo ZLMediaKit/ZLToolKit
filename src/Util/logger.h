@@ -206,13 +206,12 @@ private:
 
 	std::tm toLocal(const std::time_t& time) {
 		std::tm tm_snapshot;
-/*
-#if defined(__WIN32__)
+
+#if defined(WIN32)
 		localtime_s(&tm_snapshot, &time); // thread-safe?
 #else
-*/
 		localtime_r(&time, &tm_snapshot); // POSIX
-//#endif
+#endif //WIN32
 		return tm_snapshot;
 	}
 	LogLevel level;

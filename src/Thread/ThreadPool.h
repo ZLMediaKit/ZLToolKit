@@ -8,11 +8,12 @@
 #ifndef THREADPOOL_H_
 #define THREADPOOL_H_
 
+
 #include <assert.h>
 #include <vector>
 #include "threadgroup.h"
 #include "TaskQueue.h"
-#include "TaskQueue.h"
+#include "Util/util.h"
 #include "Util/logger.h"
 
 using namespace ZL::Util;
@@ -29,7 +30,7 @@ public:
 		PRIORITY_HIGHEST
 	};
 
-	//num：线程池线程个数
+	//num:线程池线程个数
 	ThreadPool(int num, Priority _priority = PRIORITY_NORMAL) :
 			thread_num(num), avaible(true), priority(_priority) {
 		start();
@@ -102,6 +103,14 @@ public:
 	}
 	static bool setPriority(Priority _priority = PRIORITY_NORMAL,
 			thread::native_handle_type threadId = 0) {
+		// set priority
+#if defined(WIN32)
+		static int Priorities[] = { THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST };
+		if (_priority != PRIORITY_NORMAL && SetThreadPriority(GetCurrentThread(), Priorities[_priority]) == 0) {
+			return false;
+		}
+		return true;
+#else
 		static int Min = sched_get_priority_min(SCHED_OTHER);
 		if (Min == -1) {
 			return false;
@@ -111,7 +120,7 @@ public:
 			return false;
 		}
 		static int Priorities[] = { Min, Min + (Max - Min) / 4, Min
-				+ (Max - Min) / 2, Min + (Max - Min) / 4, Max };
+			+ (Max - Min) / 2, Min + (Max - Min) / 4, Max };
 
 		if (threadId == 0) {
 			threadId = pthread_self();
@@ -119,6 +128,7 @@ public:
 		struct sched_param params;
 		params.sched_priority = Priorities[_priority];
 		return pthread_setschedparam(threadId, SCHED_OTHER, &params) == 0;
+#endif
 	}
 private:
 	TaskQueue my_queue;

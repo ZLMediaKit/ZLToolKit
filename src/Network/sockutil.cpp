@@ -1,26 +1,17 @@
 #include "sockutil.h"
 #include <stdio.h>
-#include <errno.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <fcntl.h>
-#include <netinet/tcp.h>
-#include <netinet/in.h>
 #include <assert.h>
-#include <netdb.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
+#include "Util/util.h"
+#include "Util/logger.h"
+#include "Util/uv_errno.h"
 
 #if defined (__APPLE__)
 #include <ifaddrs.h>
 #endif
 
-#include <arpa/inet.h>
-#include "Util/logger.h"
 using namespace std;
 using namespace ZL::Util;
 
@@ -37,16 +28,15 @@ int SockUtil::setCloseWait(int sockFd, int second) {
 	int ret = setsockopt(sockFd, SOL_SOCKET, SO_LINGER,
 			(const char*) &m_sLinger, sizeof(linger));
 	if (ret == -1) {
-		TraceL << "设置 SO_LINGER 失败！";
+		TraceL << "设置 SO_LINGER 失败!";
 	}
 	return ret;
 }
 int SockUtil::setNoDelay(int sockFd, bool on) {
 	int opt = on ? 1 : 0;
-	int ret = setsockopt(sockFd, IPPROTO_TCP, TCP_NODELAY, &opt,
-			static_cast<socklen_t>(sizeof(opt)));
+	int ret = setsockopt(sockFd, IPPROTO_TCP, TCP_NODELAY,(char *)&opt,static_cast<socklen_t>(sizeof(opt)));
 	if (ret == -1) {
-		TraceL << "设置 NoDelay 失败！";
+		TraceL << "设置 NoDelay 失败!";
 	}
 	return ret;
 }
@@ -54,38 +44,36 @@ int SockUtil::setNoDelay(int sockFd, bool on) {
 int SockUtil::setReuseable(int sockFd, bool on) {
 	int opt = on ? 1 : 0;
 	int ret = setsockopt(sockFd, SOL_SOCKET,
-	SO_REUSEADDR, &opt, static_cast<socklen_t>(sizeof(opt)));
+	SO_REUSEADDR, (char *)&opt, static_cast<socklen_t>(sizeof(opt)));
 	if (ret == -1) {
-		TraceL << "设置 SO_REUSEADDR 失败！";
+		TraceL << "设置 SO_REUSEADDR 失败!";
 	}
 	return ret;
 }
 int SockUtil::setBroadcast(int sockFd, bool on) {
 	int opt = on ? 1 : 0;
-	int ret = setsockopt(sockFd, SOL_SOCKET, SO_BROADCAST, &opt,
-			static_cast<socklen_t>(sizeof(opt)));
+	int ret = setsockopt(sockFd, SOL_SOCKET, SO_BROADCAST, (char *)&opt,static_cast<socklen_t>(sizeof(opt)));
 	if (ret == -1) {
-		TraceL << "设置 SO_BROADCAST 失败！";
+		TraceL << "设置 SO_BROADCAST 失败!";
 	}
 	return ret;
 }
 
 int SockUtil::setKeepAlive(int sockFd, bool on) {
 	int opt = on ? 1 : 0;
-	int ret = setsockopt(sockFd, SOL_SOCKET, SO_KEEPALIVE, &opt,
-			static_cast<socklen_t>(sizeof(opt)));
+	int ret = setsockopt(sockFd, SOL_SOCKET, SO_KEEPALIVE, (char *)&opt,static_cast<socklen_t>(sizeof(opt)));
 	if (ret == -1) {
-		TraceL << "设置 SO_KEEPALIVE 失败！";
+		TraceL << "设置 SO_KEEPALIVE 失败!";
 	}
 	return ret;
 }
 
 int SockUtil::setNoSigpipe(int sd) {
 	int set = 1, ret = 1;
-#ifdef SO_NOSIGPIPE
+#if defined(SO_NOSIGPIPE)
 	ret= setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
 	if (ret == -1) {
-		TraceL << "设置 SO_NOSIGPIPE 失败！";
+		TraceL << "设置 SO_NOSIGPIPE 失败!";
 	}
 #endif
 	return ret;
@@ -95,45 +83,44 @@ int SockUtil::setNoBlocked(int sock, bool noblock) {
 	unsigned long ul = noblock;
 	int ret = ioctl(sock, FIONBIO, &ul); //设置为非阻塞模式
 	if (ret == -1) {
-		TraceL << "设置非阻塞失败！";
+		TraceL << "设置非阻塞失败!";
 	}
     
 	return ret;
 }
 
 int SockUtil::setRecvBuf(int sock, int size) {
-	int ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+	int ret = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char *)&size, sizeof(size));
 	if (ret == -1) {
-		TraceL << "设置接收缓冲区失败！";
+		TraceL << "设置接收缓冲区失败!";
 	}
 	return ret;
 }
 int SockUtil::setSendBuf(int sock, int size) {
-	int ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+	int ret = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char *)&size, sizeof(size));
 	if (ret == -1) {
-		TraceL << "设置发送缓冲区失败！";
+		TraceL << "设置发送缓冲区失败!";
 	}
 	return ret;
 }
 
-int SockUtil::connect(const char *host, uint16_t port) {
+int SockUtil::connect(const char *host, uint16_t port,bool bAsync) {
     
 #if defined (__APPLE__)
-	
     struct addrinfo *answer=nullptr;
     int ret = getaddrinfo(host, NULL, NULL, &answer);
     if (ret < 0 || !answer) {
-        WarnL << "域名解析失败：" << host;
+        WarnL << "域名解析失败:" << host;
         return -1;
     }
     int sockfd= socket(answer->ai_family, SOCK_STREAM , IPPROTO_TCP);
     if (sockfd < 0) {
         freeaddrinfo(answer);
-        WarnL << "创建套接字失败：" << host;
+        WarnL << "创建套接字失败:" << host;
         return -1;
     }
     setNoSigpipe(sockfd);
-    setNoBlocked(sockfd);
+    setNoBlocked(sockfd, bAsync);
     setNoDelay(sockfd);
     setSendBuf(sockfd);
     setRecvBuf(sockfd);
@@ -142,25 +129,17 @@ int SockUtil::connect(const char *host, uint16_t port) {
     int16_t n_port=htons(port);
     memcpy(answer->ai_addr->sa_data, &n_port, 2);
     ret = ::connect(sockfd, answer->ai_addr, sizeof(struct sockaddr));
-    freeaddrinfo(answer);
-    if(ret < 0 && errno!=EINPROGRESS){
-        WarnL << "连接主机失败：" << host << " " << port << " " << strerror(errno);
-        close(sockfd);
-        return -1;
-    }
-    return sockfd;
-    
+    freeaddrinfo(answer);   
 #else
-    
     struct hostent *hp = gethostbyname(host);
     if (hp == NULL) {
-        WarnL << "域名解析失败：" << host;
+        WarnL << "域名解析失败:" << host;
         return false;
     }
     struct in_addr *addr = (in_addr*) hp->h_addr_list[0];
     if (addr == NULL) {
         //freehostent(hp);
-        WarnL << "域名解析失败：" << host;
+        WarnL << "域名解析失败:" << host;
         return false;
     }
     struct sockaddr_in servaddr;
@@ -177,7 +156,7 @@ int SockUtil::connect(const char *host, uint16_t port) {
     }
     
     setNoSigpipe(sockfd);
-    setNoBlocked(sockfd);
+    setNoBlocked(sockfd,bAsync);
     setNoDelay(sockfd);
     setSendBuf(sockfd);
     setRecvBuf(sockfd);
@@ -185,19 +164,25 @@ int SockUtil::connect(const char *host, uint16_t port) {
     
     int ret = ::connect(sockfd, (struct sockaddr *) &servaddr,
                         sizeof(struct sockaddr));
-    if (ret < 0 && errno != EINPROGRESS) {
-        WarnL << "连接主机失败：" << host << " " << port << " " << strerror(errno);
-		close(sockfd);
-        return -1;
-    }
-    return sockfd;
 #endif //__APPLE__
+
+	if (ret == 0) {
+		//同步连接成功
+		return sockfd;
+	}
+	if (bAsync &&  get_uv_error(true) == UV_EAGAIN) {
+		//异步连接成功
+		return sockfd;
+	}
+	WarnL << "连接主机失败:" << host << " " << port << " " << get_uv_errmsg(true);
+	close(sockfd);
+	return -1;
 }
 
 int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
 	int sockfd = -1;
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-		WarnL << "创建套接字失败:" << strerror(errno);
+		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
 		return -1;
 	}
 
@@ -212,13 +197,13 @@ int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
 	bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
 	//绑定监听
     if (::bind(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1) {
-		WarnL << "绑定套接字失败:" << strerror(errno);
+		WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
 		close(sockfd);
 		return -1;
 	}
 	//开始监听
 	if (::listen(sockfd, backLog) == -1) {
-		WarnL << "开始监听失败:" << strerror(errno);
+		WarnL << "开始监听失败:" << get_uv_errmsg(true);
 		close(sockfd);
 		return -1;
 	}
@@ -230,11 +215,11 @@ int SockUtil::getSockError(int sockFd) {
 	int opt;
 	socklen_t optLen = static_cast<socklen_t>(sizeof(opt));
 
-	if (getsockopt(sockFd, SOL_SOCKET, SO_ERROR, &opt, &optLen) < 0) {
-		int err = errno;
+	if (getsockopt(sockFd, SOL_SOCKET, SO_ERROR, (char *)&opt, &optLen) < 0) {
+		int err = get_uv_error(true);
 		return err;
 	} else {
-		return opt;
+		return uv_translate_posix_error(opt);
 	}
 }
 
@@ -283,7 +268,17 @@ string getIosIp(){
 string SockUtil::get_local_ip() {
 #if defined (__APPLE__)
     return getIosIp();
-#endif //__APPLE__
+#elif defined (WIN32)
+	char local[255] = { 0 };
+	gethostname(local, sizeof(local));
+	hostent* ph = gethostbyname(local);
+	if (ph == NULL) {
+		return "0.0.0.0";
+	}
+	in_addr addr;
+	memcpy(&addr, ph->h_addr_list[0], sizeof(in_addr)); // 这里仅获取第一个ip  
+	return inet_ntoa(addr);
+#else
 	int i = 0;
 	int sockfd;
 	struct ifconf ifconf;
@@ -295,11 +290,11 @@ string SockUtil::get_local_ip() {
 	ifconf.ifc_buf = buf;
 
 	if ((sockfd = ::socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		WarnL << "创建套接字失败:" << strerror(errno);
+		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
 		return "127.0.0.1";
 	}
 	if (-1 == ioctl(sockfd, SIOCGIFCONF, &ifconf)) {    //获取所有接口信息
-		WarnL << "ioctl 失败:" << strerror(errno);
+		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
 		close(sockfd);
 		return "127.0.0.1";
 	}
@@ -318,6 +313,7 @@ string SockUtil::get_local_ip() {
 	}
 
 	return "127.0.0.1";
+#endif
 }
 
 uint16_t SockUtil::get_local_port(int fd) {
@@ -351,7 +347,7 @@ string SockUtil::get_peer_ip(int fd) {
 int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
 	int sockfd = -1;
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-		WarnL << "创建套接字失败:" << strerror(errno);
+		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
 		return -1;
 	}
 	setReuseable(sockfd);
@@ -368,7 +364,7 @@ int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
 	bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
 //绑定监听
     if (::bind(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1) {
-		WarnL << "绑定套接字失败:" << strerror(errno);
+		WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
 		close(sockfd);
 		return -1;
 	}
@@ -388,7 +384,47 @@ uint16_t SockUtil::get_peer_port(int fd) {
 	}
 	return 0;
 }
+#if defined(WIN32)
+template<typename FUN>
+void for_each_netAdapter(FUN && fun) {
+	unsigned long nSize = sizeof(IP_ADAPTER_INFO);
+	PIP_ADAPTER_INFO adapterList = (PIP_ADAPTER_INFO)new char[nSize];
+	int nRet = GetAdaptersInfo(adapterList, &nSize);
+	if (ERROR_BUFFER_OVERFLOW == nRet){
+		delete [] adapterList;
+		adapterList = (PIP_ADAPTER_INFO)new char[nSize];
+		nRet = GetAdaptersInfo(adapterList, &nSize);
+	}
+	auto adapterPtr = adapterList;
+	while (adapterPtr && ERROR_SUCCESS == nRet){
+		if (fun(adapterPtr)) {
+			break;
+		}
+		adapterPtr = adapterList->Next;
+	}
+	//释放内存空间
+	delete [] adapterPtr;
+}
+#endif // defined(WIN32)
+
+
 string SockUtil::get_ifr_name(const char *localIp){
+#if defined(WIN32)
+	string ret = "en0";
+	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
+		IP_ADDR_STRING *ipAddr = &(ptr->IpAddressList);
+		while (ipAddr){
+			if (strcmp(localIp,ipAddr->IpAddress.String) == 0){
+				//ip匹配到了
+				ret.assign(ptr->AdapterName);
+				return true;
+			}
+			ipAddr = ipAddr->Next;
+		}
+		return false;
+	});
+	return ret;
+#else
 	int i = 0;
 	int sockfd;
 	struct ifconf ifconf;
@@ -400,11 +436,11 @@ string SockUtil::get_ifr_name(const char *localIp){
 	ifconf.ifc_buf = buf;
 
 	if ((sockfd = ::socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		WarnL << "创建套接字失败:" << strerror(errno);
+		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
 		return "en0";
 	}
 	if (-1 == ioctl(sockfd, SIOCGIFCONF, &ifconf)) {    //获取所有接口信息
-		WarnL << "ioctl 失败:" << strerror(errno);
+		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
 		close(sockfd);
 		return "en0";
 	}
@@ -422,49 +458,80 @@ string SockUtil::get_ifr_name(const char *localIp){
 		return ifreq->ifr_name;
 	}
 	return "en0";
+#endif // defined(WIN32)
 }
 
 
 string SockUtil::get_ifr_mask(const char* ifrName) {
+#if defined(WIN32)
+	string ret;
+	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
+		if (strcmp(ifrName,ptr->AdapterName) == 0){
+			//找到了该网卡
+			IP_ADDR_STRING *ipAddr = &(ptr->IpAddressList);
+			//获取第一个ip的子网掩码
+			ret.assign(ipAddr->IpMask.String);
+			return true;
+		}
+		return false;
+	});
+	return ret;
+#else
 	int sockFd;
 	struct ifreq ifr_mask;
-	sockFd = socket( AF_INET, SOCK_STREAM, 0);
+	sockFd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockFd == -1) {
-		WarnL << "创建套接字失败:" << strerror(errno);
+		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
 		return "";
 	}
 	memset(&ifr_mask, 0, sizeof(ifr_mask));
 	strncpy(ifr_mask.ifr_name, ifrName, sizeof(ifr_mask.ifr_name) - 1);
 	if ((ioctl(sockFd, SIOCGIFNETMASK, &ifr_mask)) < 0) {
-		WarnL << "ioctl 失败:" << strerror(errno);
+		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
 		close(sockFd);
 		return "";
 	}
 	close(sockFd);
 #if defined (__APPLE__)
-    return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_ifru.ifru_broadaddr))->sin_addr);
+	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_ifru.ifru_broadaddr))->sin_addr);
 #else
 	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
 #endif //__APPLE__
+
+#endif // defined(WIN32)
 }
 
 string SockUtil::get_ifr_brdaddr(const char *ifrName){
+#if defined(WIN32)
+	in_addr broadcast;
+	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
+		if (strcmp(ifrName, ptr->AdapterName) == 0) {
+			//找到该网卡
+			IP_ADDR_STRING *ipAddr = &(ptr->IpAddressList);
+			broadcast.S_un.S_addr = (inet_addr(ipAddr->IpAddress.String) & inet_addr(ipAddr->IpMask.String)) | (~inet_addr(ipAddr->IpMask.String));
+			return true;
+		}
+		return false;
+	});
+	return inet_ntoa(broadcast);
+#else
 	int sockFd;
 	struct ifreq ifr_mask;
 	sockFd = socket( AF_INET, SOCK_STREAM, 0);
 	if (sockFd == -1) {
-		WarnL << "创建套接字失败:" << strerror(errno);
+		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
 		return "";
 	}
 	memset(&ifr_mask, 0, sizeof(ifr_mask));
 	strncpy(ifr_mask.ifr_name, ifrName, sizeof(ifr_mask.ifr_name) - 1);
 	if ((ioctl(sockFd, SIOCGIFBRDADDR, &ifr_mask)) < 0) {
-		WarnL << "ioctl 失败:" << strerror(errno);
+		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
 		close(sockFd);
 		return "";
 	}
 	close(sockFd);
 	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
+#endif // defined(WIN32)
 }
 #define ip_addr_netcmp(addr1, addr2, mask) (((addr1) & (mask)) == ((addr2) & (mask)))
 bool SockUtil::in_same_lan(const char *myIp,const char *dstIp){
@@ -474,7 +541,7 @@ bool SockUtil::in_same_lan(const char *myIp,const char *dstIp){
 
 
 static void clearMulticastAllSocketOption(int socket) {
-#ifdef IP_MULTICAST_ALL
+#if defined(IP_MULTICAST_ALL)
   // This option is defined in modern versions of Linux to overcome a bug in the Linux kernel's default behavior.
   // When set to 0, it ensures that we receive only packets that were sent to the specified IP multicast address,
   // even if some other process on the same system has joined a different multicast group with the same port number.
@@ -486,10 +553,10 @@ static void clearMulticastAllSocketOption(int socket) {
 
 int SockUtil::setMultiTTL(int sockFd, uint8_t ttl) {
 	int ret = -1;
-#ifdef IP_MULTICAST_TTL
+#if defined(IP_MULTICAST_TTL)
 	ret= setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 	if (ret == -1) {
-		TraceL << "设置 IP_MULTICAST_TTL 失败！";
+		TraceL << "设置 IP_MULTICAST_TTL 失败!";
 	}
 #endif
 	clearMulticastAllSocketOption(sockFd);
@@ -498,12 +565,12 @@ int SockUtil::setMultiTTL(int sockFd, uint8_t ttl) {
 
 int SockUtil::setMultiIF(int sockFd, const char* strLocalIp) {
 	int ret = -1;
-#ifdef IP_MULTICAST_IF
+#if defined(IP_MULTICAST_IF)
 	struct in_addr addr;
 	addr.s_addr = inet_addr(strLocalIp);
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_IF, &addr, sizeof(addr));
 	if (ret == -1) {
-		TraceL << "设置 IP_MULTICAST_IF 失败！";
+		TraceL << "设置 IP_MULTICAST_IF 失败!";
 	}
 #endif
 	clearMulticastAllSocketOption(sockFd);
@@ -512,11 +579,11 @@ int SockUtil::setMultiIF(int sockFd, const char* strLocalIp) {
 
 int SockUtil::setMultiLOOP(int sockFd, bool bAccept) {
 	int ret = -1;
-#ifdef IP_MULTICAST_LOOP
+#if defined(IP_MULTICAST_LOOP)
 	uint8_t loop = bAccept;
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 	if (ret == -1) {
-		TraceL << "设置 IP_MULTICAST_LOOP 失败！";
+		TraceL << "设置 IP_MULTICAST_LOOP 失败!";
 	}
 #endif
 	clearMulticastAllSocketOption(sockFd);
@@ -525,13 +592,13 @@ int SockUtil::setMultiLOOP(int sockFd, bool bAccept) {
 
 int SockUtil::joinMultiAddr(int sockFd, const char* strAddr,const char* strLocalIp) {
 	int ret = -1;
-#ifdef IP_ADD_MEMBERSHIP
+#if defined(IP_ADD_MEMBERSHIP)
 	struct ip_mreq imr;
 	imr.imr_multiaddr.s_addr = inet_addr(strAddr);
 	imr.imr_interface.s_addr = inet_addr(strLocalIp);
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_MEMBERSHIP,  (const char*)&imr, sizeof (struct ip_mreq));
 	if (ret == -1) {
-		TraceL << "设置 IP_ADD_MEMBERSHIP 失败:" << strerror(errno);
+		TraceL << "设置 IP_ADD_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
 #endif
 	clearMulticastAllSocketOption(sockFd);
@@ -540,13 +607,13 @@ int SockUtil::joinMultiAddr(int sockFd, const char* strAddr,const char* strLocal
 
 int SockUtil::leaveMultiAddr(int sockFd, const char* strAddr,const char* strLocalIp) {
 	int ret = -1;
-#ifdef IP_DROP_MEMBERSHIP
+#if defined(IP_DROP_MEMBERSHIP)
 	struct ip_mreq imr;
 	imr.imr_multiaddr.s_addr = inet_addr(strAddr);
 	imr.imr_interface.s_addr = inet_addr(strLocalIp);
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_MEMBERSHIP,  (const char*)&imr, sizeof (struct ip_mreq));
 	if (ret == -1) {
-		TraceL << "设置 IP_DROP_MEMBERSHIP 失败:" << strerror(errno);;
+		TraceL << "设置 IP_DROP_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
 #endif
 	clearMulticastAllSocketOption(sockFd);
@@ -556,9 +623,9 @@ int SockUtil::leaveMultiAddr(int sockFd, const char* strAddr,const char* strLoca
 int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
 		const char* strSrcIp, const char* strLocalIp) {
 	int ret = -1;
-#ifdef IP_ADD_SOURCE_MEMBERSHIP
+#if defined(IP_ADD_SOURCE_MEMBERSHIP)
 	struct ip_mreq_source imr;
-#ifdef ANDROID
+#if defined(ANDROID)
 	imr.imr_multiaddr = inet_addr(strAddr);
 	imr.imr_sourceaddr = inet_addr(strSrcIp);
 	imr.imr_interface = inet_addr(strLocalIp);
@@ -570,7 +637,7 @@ int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
 			(const char*) &imr, sizeof(struct ip_mreq_source));
 	if (ret == -1) {
-		TraceL << "设置 IP_ADD_SOURCE_MEMBERSHIP 失败:" << strerror(errno);
+		TraceL << "设置 IP_ADD_SOURCE_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
 #endif
 	clearMulticastAllSocketOption(sockFd);
@@ -580,9 +647,9 @@ int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
 int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
 		const char* strSrcIp, const char* strLocalIp) {
 	int ret = -1;
-#ifdef IP_DROP_SOURCE_MEMBERSHIP
+#if defined(IP_DROP_SOURCE_MEMBERSHIP)
 	struct ip_mreq_source imr;
-#ifdef ANDROID
+#if defined(ANDROID)
 	imr.imr_multiaddr = inet_addr(strAddr);
 	imr.imr_sourceaddr = inet_addr(strSrcIp);
 	imr.imr_interface = inet_addr(strLocalIp);
@@ -594,7 +661,7 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
 			(const char*) &imr, sizeof(struct ip_mreq_source));
 	if (ret == -1) {
-		TraceL << "设置 IP_DROP_SOURCE_MEMBERSHIP 失败:" << strerror(errno);
+		TraceL << "设置 IP_DROP_SOURCE_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
 #endif
 	clearMulticastAllSocketOption(sockFd);

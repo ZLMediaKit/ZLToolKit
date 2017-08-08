@@ -6,23 +6,17 @@
  */
 
 #include <iostream>
-#include <errno.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <netinet/tcp.h>
-#include <netinet/in.h>
 #include <assert.h>
-#include <netdb.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
 #include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
 #include "SelectWrap.h"
+#include "Util/util.h"
+#include "Util/uv_errno.h"
 
 using namespace std;
+using namespace ZL::Util;
 
 namespace ZL {
 namespace Poller {

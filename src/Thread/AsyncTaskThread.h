@@ -9,7 +9,6 @@
 #define AsyncTaskThread_h
 
 #include <stdio.h>
-#include <sys/time.h>
 #include <deque>
 #include <mutex>
 #include <atomic>
@@ -18,8 +17,11 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <condition_variable>
+#include "Util/util.h"
 
 using namespace std;
+using namespace ZL::Util;
+
 #define TASK_INTERVAL 50
 
 namespace ZL {
