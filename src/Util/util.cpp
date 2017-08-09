@@ -5,12 +5,12 @@
  *      Author: xzl
  */
 
-#if defined(WIN32)
+#if defined(_WIN32)
 #include <io.h>   
 #include <direct.h>  
 #include <sys/stat.h>  
 #include <sys/types.h>
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 
 
 #include <stdlib.h>
@@ -79,7 +79,7 @@ static string _exePath("./");
 string exePath() {
 	string filePath;
 	char buffer[256];
-#if defined(WIN32)
+#if defined(_WIN32)
 	int n = -1;
 #else
 	int n = readlink("/proc/self/exe", buffer, sizeof(buffer));
@@ -112,7 +112,7 @@ std::string  strToLower(const std::string &str)
 
 
 
-#if defined(WIN32)
+#if defined(_WIN32)
 
 static onceToken g_token([]() {
 	WORD wVersionRequested = MAKEWORD(2, 2);

@@ -207,7 +207,7 @@ private:
 	std::tm toLocal(const std::time_t& time) {
 		std::tm tm_snapshot;
 
-#if defined(WIN32)
+#if defined(_WIN32)
 		localtime_s(&tm_snapshot, &time); // thread-safe?
 #else
 		localtime_r(&time, &tm_snapshot); // POSIX

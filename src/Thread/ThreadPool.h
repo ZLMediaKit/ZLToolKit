@@ -104,7 +104,7 @@ public:
 	static bool setPriority(Priority _priority = PRIORITY_NORMAL,
 			thread::native_handle_type threadId = 0) {
 		// set priority
-#if defined(WIN32)
+#if defined(_WIN32)
 		static int Priorities[] = { THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST };
 		if (_priority != PRIORITY_NORMAL && SetThreadPriority(GetCurrentThread(), Priorities[_priority]) == 0) {
 			return false;

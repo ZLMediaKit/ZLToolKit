@@ -8,7 +8,7 @@
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
 
-#if defined(WIN32)
+#if defined(_WIN32)
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
 #pragma warning(disable:4819)
@@ -27,7 +27,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 
 #include <stdio.h>
 #include <string.h>
@@ -78,7 +78,7 @@ std::string to_string(T value)
 }
 #endif//ANDROID
 
-#if defined(WIN32)
+#if defined(_WIN32)
 int strcasecmp(const char *strA,const char *strB);
 void sleep(int second);
 void usleep(int micro_seconds);

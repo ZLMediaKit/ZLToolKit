@@ -21,11 +21,11 @@
 #include "uv_errno.h"
 #include <stdio.h>
 #include <stdlib.h>
-#if defined(WIN32)
+#if defined(_WIN32)
 #include <Windows.h>
 #else
 #include <errno.h>
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 
 
 static const char* uv__unknown_err_code(int err) {
@@ -69,7 +69,7 @@ int uv_translate_posix_error(int err) {
 }
 
 int get_uv_error(bool netErr) {
-#if defined(WIN32)
+#if defined(_WIN32)
 	auto errCode = netErr ? WSAGetLastError() : GetLastError();
 	switch (errCode) {
 	case ERROR_NOACCESS:                    return UV_EACCES;
@@ -173,7 +173,7 @@ int get_uv_error(bool netErr) {
 	}
 #else
 	return uv_translate_posix_error(errno);
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 }
 
 

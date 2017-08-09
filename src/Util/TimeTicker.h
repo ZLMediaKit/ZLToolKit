@@ -99,7 +99,7 @@ private:
 	Ticker ticker;
 };
 
-#if defined(DEBUG)
+#if defined(_DEBUG)
 	#define TimeTicker() Ticker(5,"",WarnL,true)
 	#define TimeTicker1(tm) Ticker(tm,"",WarnL,true)
 	#define TimeTicker2(tm,where) Ticker(tm,where,WarnL,true)

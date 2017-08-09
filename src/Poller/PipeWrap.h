@@ -19,9 +19,9 @@ public:
 private:
 	int _pipe_fd[2] = { -1,-1 };
 	void clearFD();
-#if defined(WIN32)
+#if defined(_WIN32)
 	int _listenerFd = -1;
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 
 		};
 

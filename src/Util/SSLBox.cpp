@@ -6,6 +6,7 @@
  */
 #if defined(ENABLE_OPENSSL)
 
+#include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
@@ -26,14 +27,6 @@ SSL_Initor::SSL_Initor() {
 	OpenSSL_add_all_digests();
 	OpenSSL_add_all_ciphers();
 	OpenSSL_add_all_algorithms();
-	const int SEEDSIZE = 256;
-	char seed[SEEDSIZE];
-	int fd = open("/dev/urandom", O_RDONLY, 0);
-	if (fd >= 0) {
-		::read(fd, seed, SEEDSIZE);
-		close(fd);
-		RAND_seed(seed, SEEDSIZE);
-	}
 	_mutexes = new mutex[CRYPTO_num_locks()];
 	CRYPTO_set_locking_callback([](int mode,int n,
 			const char *file,int line) {

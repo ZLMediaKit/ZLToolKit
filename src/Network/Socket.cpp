@@ -193,11 +193,11 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 	int ret = 0;
 	int sock = pSock->rawFd();
 	while (true && _enableRecv.load()) {
-#if defined(WIN32)
+#if defined(_WIN32)
 		unsigned long nread;
 #else
 		int nread;
-#endif //defined(WIN32)
+#endif //defined(_WIN32)
 		ioctl(sock, FIONREAD, &nread);
 		if (nread < 4095) {
 			nread = 4095;

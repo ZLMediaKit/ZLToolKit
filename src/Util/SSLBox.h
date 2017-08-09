@@ -17,6 +17,33 @@
 #include <functional>
 #include "logger.h"
 
+#if defined(_WIN32)
+#if defined(_WIN64)
+
+//64bit
+#if defined(_DEBUG)
+#pragma  comment (lib,"libssl64MDd") 
+#pragma  comment (lib,"libcrypto64MDd") 
+#else
+#pragma  comment (lib,"libssl64MD") 
+#pragma  comment (lib,"libcrypto64MD") 
+#endif // defined(_DEBUG)
+
+#else 
+
+//32 bit
+#if defined(_DEBUG)
+#pragma  comment (lib,"libssl32MDd") 
+#pragma  comment (lib,"libcrypto32MDd") 
+#else
+#pragma  comment (lib,"libssl32MD") 
+#pragma  comment (lib,"libcrypto32MD") 
+#endif // defined(_DEBUG)
+
+#endif //defined(_WIN64)
+#endif // defined(_WIN32)
+
+
 using namespace std;
 
 namespace ZL {

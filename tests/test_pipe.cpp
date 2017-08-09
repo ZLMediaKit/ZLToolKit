@@ -22,7 +22,7 @@ void programExit(int arg) {
 int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
-#if defined(WIN32)
+#if defined(_WIN32)
 	FatalL << "can not run in windows!" << endl;
 #else
 	auto parentPid = getpid();
@@ -48,7 +48,7 @@ int main() {
 		EventPoller::Destory();
 		InfoL << "父进程退出" << endl;
 	}
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 	Logger::Destory();
 	return 0;
 }

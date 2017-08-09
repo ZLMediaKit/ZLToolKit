@@ -25,7 +25,7 @@ namespace Poller {
 
 PipeWrap::PipeWrap(){
 
-#if defined(WIN32)
+#if defined(_WIN32)
 	_listenerFd = SockUtil::listen(0, "127.0.0.1");
 	SockUtil::setNoBlocked(_listenerFd,false);
 	checkFD(_listenerFd)
@@ -39,7 +39,7 @@ PipeWrap::PipeWrap(){
 	if (pipe(_pipe_fd) == -1) {
 		throw runtime_error((StrPrinter << "create posix pipe failed:" << get_uv_errmsg()).operator<<(endl));\
 	}
-#endif // defined(WIN32)	
+#endif // defined(_WIN32)	
 	SockUtil::setNoBlocked(_pipe_fd[0],true);
 	SockUtil::setNoBlocked(_pipe_fd[1],false);
 }
@@ -48,9 +48,9 @@ void PipeWrap::clearFD() {
 	closeFD(_pipe_fd[0]);
 	closeFD(_pipe_fd[1]);
 
-#if defined(WIN32)
+#if defined(_WIN32)
 	closeFD(_listenerFd);
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 
 }
 PipeWrap::~PipeWrap(){
@@ -58,18 +58,18 @@ PipeWrap::~PipeWrap(){
 }
 
 int PipeWrap::write(const void *buf, int n) {
-#if defined(WIN32)
+#if defined(_WIN32)
 	return send(_pipe_fd[1], (char *)buf, n, 0);
 #else
 	return ::write(_pipe_fd[1],buf,n);
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 }
 int PipeWrap::read(void *buf, int n) {
-#if defined(WIN32)
+#if defined(_WIN32)
 	return recv(_pipe_fd[0], (char *)buf, n, 0);
 #else
 	return ::read(_pipe_fd[0], buf, n);
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 }
 
 } /* namespace Poller */

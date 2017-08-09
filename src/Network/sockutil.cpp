@@ -80,11 +80,11 @@ int SockUtil::setNoSigpipe(int sd) {
 }
 
 int SockUtil::setNoBlocked(int sock, bool noblock) {
-#if defined(WIN32)
+#if defined(_WIN32)
 	unsigned long ul = noblock;
 #else
 	int ul = noblock;
-#endif //defined(WIN32)
+#endif //defined(_WIN32)
 	int ret = ioctl(sock, FIONBIO, &ul); //设置为非阻塞模式
 	if (ret == -1) {
 		TraceL << "设置非阻塞失败!";
@@ -388,7 +388,7 @@ uint16_t SockUtil::get_peer_port(int fd) {
 	}
 	return 0;
 }
-#if defined(WIN32)
+#if defined(_WIN32)
 template<typename FUN>
 void for_each_netAdapter(FUN && fun) {
 	unsigned long nSize = sizeof(IP_ADAPTER_INFO);
@@ -409,11 +409,11 @@ void for_each_netAdapter(FUN && fun) {
 	//释放内存空间
 	delete [] adapterPtr;
 }
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 
 
 string SockUtil::get_ifr_name(const char *localIp){
-#if defined(WIN32)
+#if defined(_WIN32)
 	string ret = "en0";
 	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
 		IP_ADDR_STRING *ipAddr = &(ptr->IpAddressList);
@@ -462,12 +462,12 @@ string SockUtil::get_ifr_name(const char *localIp){
 		return ifreq->ifr_name;
 	}
 	return "en0";
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 }
 
 
 string SockUtil::get_ifr_mask(const char* ifrName) {
-#if defined(WIN32)
+#if defined(_WIN32)
 	string ret;
 	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
 		if (strcmp(ifrName,ptr->AdapterName) == 0){
@@ -502,11 +502,11 @@ string SockUtil::get_ifr_mask(const char* ifrName) {
 	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
 #endif //__APPLE__
 
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 }
 
 string SockUtil::get_ifr_brdaddr(const char *ifrName){
-#if defined(WIN32)
+#if defined(_WIN32)
 	in_addr broadcast;
 	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
 		if (strcmp(ifrName, ptr->AdapterName) == 0) {
@@ -535,7 +535,7 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
 	}
 	close(sockFd);
 	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 }
 #define ip_addr_netcmp(addr1, addr2, mask) (((addr1) & (mask)) == ((addr2) & (mask)))
 bool SockUtil::in_same_lan(const char *myIp,const char *dstIp){

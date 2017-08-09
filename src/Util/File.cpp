@@ -5,7 +5,7 @@
  *      Author: xzl
  */
 
-#if defined(WIN32)
+#if defined(_WIN32)
 #define DIR_SUFFIX '\\'
 #include <io.h>   
 #include <direct.h>  
@@ -45,7 +45,7 @@ bool File::isrfile(const char *path) {
 		//如果不是一般普通文件
 		return false;
 	}
-#if defined(WIN32)
+#if defined(_WIN32)
 	return true;
 #else
 	if (buf.st_mode & S_IROTH) {
@@ -85,7 +85,7 @@ bool File::isrfile(const char *path) {
 		}
 	}
 	return false;
-#endif // defined(WIN32)
+#endif // defined(_WIN32)
 
 }
 
@@ -140,13 +140,13 @@ bool File::is_dir(const char *path) {
 		if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
 			return true;
 		}
-#if !defined(WIN32)
+#if !defined(_WIN32)
 		if (S_ISLNK(statbuf.st_mode)) {
 			char realFile[256] = { 0 };
 			readlink(path, realFile, sizeof(realFile));
 			return File::is_dir(realFile);
 		}
-#endif // !defined(WIN32)
+#endif // !defined(_WIN32)
 	}
 	return false;
 }
@@ -158,13 +158,13 @@ bool File::is_file(const char *path) {
 		if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
 			return true;
 		}
-#if !defined(WIN32)
+#if !defined(_WIN32)
 		if (S_ISLNK(statbuf.st_mode)) {
 			char realFile[256] = { 0 };
 			readlink(path, realFile, sizeof(realFile));
 			return File::is_file(realFile);
 		}
-#endif // !defined(WIN32)
+#endif // !defined(_WIN32)
 	}
 	return false;
 }
