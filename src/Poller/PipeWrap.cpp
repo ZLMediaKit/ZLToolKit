@@ -1,9 +1,10 @@
-
+#include <exception>
 #include "PipeWrap.h"
 #include "Util/util.h"
 #include "Util/uv_errno.h"
 #include "Network/sockutil.h"
 
+using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Network;
 
