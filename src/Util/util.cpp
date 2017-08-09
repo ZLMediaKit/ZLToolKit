@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "util.h"
+#include "Util/File.h"
 #include "Util/logger.h"
 #include "Util/onceToken.h"
 
@@ -23,9 +24,6 @@
 #include <sys/types.h>
 #include <shlwapi.h>  
 #pragma comment(lib, "shlwapi.lib")
-#define DIR_SUFFIX '\\'
-#else
-#define DIR_SUFFIX '/'
 #endif // defined(_WIN32)
 
 using namespace std;

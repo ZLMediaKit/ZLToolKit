@@ -6,13 +6,10 @@
  */
 
 #if defined(_WIN32)
-#define DIR_SUFFIX '\\'
 #include <io.h>   
 #include <direct.h>  
 #include <sys/stat.h>  
 #include <sys/types.h>
-#else
-#define DIR_SUFFIX '/'
 #endif // WIN32
 
 #include <stdlib.h>
