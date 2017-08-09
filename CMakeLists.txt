@@ -26,7 +26,7 @@ foreach(SUB_DIR ${SUB_DIR_LIST})
     #遍历源文件
     aux_source_directory(src/${SUB_DIR} SRC_LIST)
 	#安装头文件至系统目录
-	install(DIRECTORY src/${SUB_DIR} DESTINATION ${INSTALL_PATH_INCLUDE}/ZLToolKit FILES_MATCHING PATTERN "*.h")
+	install(DIRECTORY src/${SUB_DIR} DESTINATION ${INSTALL_PATH_INCLUDE}/${CMAKE_PROJECT_NAME} FILES_MATCHING PATTERN "*.h")
 endforeach(SUB_DIR ${SUB_DIR_LIST})
 
 #非苹果平台移除.mm类型的文件
