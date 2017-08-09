@@ -95,6 +95,11 @@ string exePath() {
 	} else {
 		filePath = buffer;
 	}
+	for (auto &ch : filePath) {
+		if (ch == '\\') {
+			ch = '/';
+		}
+	}
 	return filePath;
 }
 void setExePath(const string &path){
@@ -102,11 +107,11 @@ void setExePath(const string &path){
 }
 string exeDir(){
 	auto path = exePath();
-	return path.substr(0, path.find_last_of(DIR_SUFFIX) + 1);
+	return path.substr(0, path.find_last_of('/') + 1);
 }
 string exeName(){
 	auto path = exePath();
-	return path.substr(path.find_last_of(DIR_SUFFIX) + 1);
+	return path.substr(path.find_last_of('/') + 1);
 }
 // string转小写
 std::string  strToLower(const std::string &str)

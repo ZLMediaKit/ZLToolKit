@@ -92,7 +92,7 @@ FILE *File::createfile_file(const char *file, const char *mode) {
 	int index = 1;
 	FILE *ret = NULL;
 	while (true) {
-		index = path.find(DIR_SUFFIX, index) + 1;
+		index = path.find('/', index) + 1;
 		dir = path.substr(0, index);
 		if (dir.length() == 0) {
 			break;
@@ -104,7 +104,7 @@ FILE *File::createfile_file(const char *file, const char *mode) {
 			}
 		}
 	}
-	if (path[path.size() - 1] != DIR_SUFFIX) {
+	if (path[path.size() - 1] != '/') {
 		ret = fopen(file, mode);
 	}
 	return ret;
@@ -114,7 +114,7 @@ bool File::createfile_path(const char *file, unsigned int mod) {
 	std::string dir;
 	int index = 1;
 	while (1) {
-		index = path.find(DIR_SUFFIX, index) + 1;
+		index = path.find('/', index) + 1;
 		dir = path.substr(0, index);
 		if (dir.length() == 0) {
 			break;
@@ -174,15 +174,15 @@ bool File::is_special_dir(const char *path) {
 //生成完整的文件路径
 void get_file_path(const char *path, const char *file_name, char *file_path) {
 	strcpy(file_path, path);
-	if (file_path[strlen(file_path) - 1] != DIR_SUFFIX) {
-		file_path[strlen(file_path)] = DIR_SUFFIX;
+	if (file_path[strlen(file_path) - 1] != '/') {
+		file_path[strlen(file_path)] = '/';
 	}
 	strcat(file_path, file_name);
 }
 bool  File::rm_empty_dir(const char *path){
 	if(!is_dir(path)){
 		string superDir = path;
-		superDir = superDir.substr(0, superDir.find_last_of(DIR_SUFFIX) + 1);
+		superDir = superDir.substr(0, superDir.find_last_of('/') + 1);
 		if(superDir == path){
 			return false;
 		}

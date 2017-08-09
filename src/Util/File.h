@@ -10,12 +10,6 @@
 
 #include <stdio.h>
 
-#if defined(_WIN32)
-#define DIR_SUFFIX '\\'
-#else
-#define DIR_SUFFIX '/'
-#endif // WIN32
-
 namespace ZL {
 namespace Util {
 
