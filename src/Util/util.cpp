@@ -5,13 +5,6 @@
  *      Author: xzl
  */
 
-#if defined(_WIN32)
-#include <io.h>   
-#include <direct.h>  
-#include <sys/stat.h>  
-#include <sys/types.h>
-#endif // defined(_WIN32)
-
 
 #include <stdlib.h>
 #include <mutex>
@@ -22,6 +15,18 @@
 #include "util.h"
 #include "Util/logger.h"
 #include "Util/onceToken.h"
+
+#if defined(_WIN32)
+#include <io.h>   
+#include <direct.h>  
+#include <sys/stat.h>  
+#include <sys/types.h>
+#include <shlwapi.h>  
+#pragma comment(lib, "shlwapi.lib")
+#define DIR_SUFFIX '\\'
+#else
+#define DIR_SUFFIX '/'
+#endif // defined(_WIN32)
 
 using namespace std;
 
@@ -78,16 +83,21 @@ string hexdump(const void *buf, size_t len) {
 static string _exePath("./");
 string exePath() {
 	string filePath;
-	char buffer[256];
+	char buffer[1024] = {0};
 #if defined(_WIN32)
-	int n = -1;
+	wchar_t szExePath[MAX_PATH] = { 0 };
+	int wcSize = GetModuleFileNameW(NULL, szExePath, sizeof(szExePath));
+	PathRemoveFileSpecW(szExePath);
+
+	size_t n = 0;
+	wcstombs_s(&n, buffer, wcSize, szExePath, _TRUNCATE);
 #else
 	int n = readlink("/proc/self/exe", buffer, sizeof(buffer));
 #endif //WIN32
 	if (n <= 0) {
 		filePath = _exePath;
 	} else {
-		filePath.assign(buffer, n);
+		filePath = buffer;
 	}
 	return filePath;
 }
@@ -96,11 +106,11 @@ void setExePath(const string &path){
 }
 string exeDir(){
 	auto path = exePath();
-	return path.substr(0, path.find_last_of('/') + 1);
+	return path.substr(0, path.find_last_of(DIR_SUFFIX) + 1);
 }
 string exeName(){
 	auto path = exePath();
-	return path.substr(path.find_last_of('/') + 1);
+	return path.substr(path.find_last_of(DIR_SUFFIX) + 1);
 }
 // string转小写
 std::string  strToLower(const std::string &str)
