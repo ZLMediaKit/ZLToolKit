@@ -1,4 +1,4 @@
-#include <exception>
+#include <stdexcept>
 #include "PipeWrap.h"
 #include "Util/util.h"
 #include "Util/uv_errno.h"
