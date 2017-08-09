@@ -87,10 +87,8 @@ string exePath() {
 #if defined(_WIN32)
 	wchar_t szExePath[MAX_PATH] = { 0 };
 	int wcSize = GetModuleFileNameW(NULL, szExePath, sizeof(szExePath));
-	PathRemoveFileSpecW(szExePath);
-
 	size_t n = 0;
-	wcstombs_s(&n, buffer, wcSize, szExePath, _TRUNCATE);
+	wcstombs_s(&n, buffer, wcSize + 1, szExePath, _TRUNCATE);
 #else
 	int n = readlink("/proc/self/exe", buffer, sizeof(buffer));
 #endif //WIN32
