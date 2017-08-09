@@ -25,7 +25,6 @@ if(WIN32)
       $ENV{SystemDrive}/MySQL/*/include
       $ENV{ProgramW6432}/MySQL/*/include
    )
-   message(STATUS ${MYSQL_INCLUDE_DIR})
 else(WIN32)
    find_path(MYSQL_INCLUDE_DIR mysql/mysql.h
       PATHS

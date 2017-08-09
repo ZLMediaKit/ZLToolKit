@@ -20,6 +20,7 @@
 
 #if defined(_WIN32)
 #include <mysql.h>
+#pragma  comment (lib,"libmysql") 
 #else
 #include <mysql/mysql.h>
 #endif // defined(_WIN32)

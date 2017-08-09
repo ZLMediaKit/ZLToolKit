@@ -13,15 +13,20 @@ set(SUB_DIR_LIST "Network" "Poller" "Thread" "Util")
 #使能GOP缓存
 add_definitions(-DENABLE_RING_USEBUF)
 
+#安装目录
+if(WIN32)
+set(INSTALL_PATH_LIB $ENV{HOME}/${CMAKE_PROJECT_NAME}/lib)
+set(INSTALL_PATH_INCLUDE $ENV{HOME}/${CMAKE_PROJECT_NAME}/include)
+else()
+set(INSTALL_PATH_LIB lib)
+set(INSTALL_PATH_INCLUDE include)
+endif()
+
 foreach(SUB_DIR ${SUB_DIR_LIST})
     #遍历源文件
     aux_source_directory(src/${SUB_DIR} SRC_LIST)
-    #创建头文件安装文件夹
-    execute_process(COMMAND mkdir -p ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME}/${SUB_DIR}/ )
-    #遍历头文件
-    file(GLOB_RECURSE HEADER_FILES "${PROJECT_SOURCE_DIR}/src/${SUB_DIR}/*.h")
-    #拷贝头文件至安装文件夹
-    execute_process(COMMAND cp ${HEADER_FILES} ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME}/${SUB_DIR}/ )
+	#安装头文件至系统目录
+	install(DIRECTORY src/${SUB_DIR} DESTINATION ${INSTALL_PATH_INCLUDE}/ZLToolKit FILES_MATCHING PATTERN "*.h")
 endforeach(SUB_DIR ${SUB_DIR_LIST})
 
 #非苹果平台移除.mm类型的文件
@@ -66,22 +71,14 @@ if(NOT IOS AND NOT ANDROID)
 add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
 target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${LINK_LIB_LIST})
 set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
-if(NOT WIN32)
-#安装动态库至系统目录
-install(TARGETS ${CMAKE_PROJECT_NAME}_shared LIBRARY DESTINATION lib)
-endif()
+install(TARGETS ${CMAKE_PROJECT_NAME}_shared  ARCHIVE DESTINATION ${INSTALL_PATH_LIB} LIBRARY DESTINATION ${INSTALL_PATH_LIB})
 endif()
 
 #编译静态库
 add_library(${CMAKE_PROJECT_NAME}_static STATIC ${SRC_LIST})
 set_target_properties(${CMAKE_PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
-
-if(NOT WIN32)
 #安装静态库至系统目录
-install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION lib)
-#安装头文件至系统目录
-install(DIRECTORY ${PROJECT_BINARY_DIR}/include/${CMAKE_PROJECT_NAME} DESTINATION include)
-endif()
+install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION ${INSTALL_PATH_LIB})
 
 #测试程序
 if(NOT IOS)
