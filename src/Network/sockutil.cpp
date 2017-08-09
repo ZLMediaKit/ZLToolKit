@@ -269,19 +269,47 @@ string getIosIp(){
 }
 #endif //__APPLE_
 
+#if defined(_WIN32)
+template<typename FUN>
+void for_each_netAdapter(FUN && fun) {
+	unsigned long nSize = sizeof(IP_ADAPTER_INFO);
+	PIP_ADAPTER_INFO adapterList = (PIP_ADAPTER_INFO)new char[nSize];
+	int nRet = GetAdaptersInfo(adapterList, &nSize);
+	if (ERROR_BUFFER_OVERFLOW == nRet) {
+		delete[] adapterList;
+		adapterList = (PIP_ADAPTER_INFO)new char[nSize];
+		nRet = GetAdaptersInfo(adapterList, &nSize);
+	}
+	auto adapterPtr = adapterList;
+	while (adapterPtr && ERROR_SUCCESS == nRet) {
+		if (fun(adapterPtr)) {
+			break;
+		}
+		adapterPtr = adapterList->Next;
+	}
+	//释放内存空间
+	delete[] adapterPtr;
+}
+#endif // defined(_WIN32)
+
 string SockUtil::get_local_ip() {
 #if defined (__APPLE__)
     return getIosIp();
 #elif defined (WIN32)
-	char local[255] = { 0 };
-	gethostname(local, sizeof(local));
-	hostent* ph = gethostbyname(local);
-	if (ph == NULL) {
-		return "0.0.0.0";
-	}
-	in_addr addr;
-	memcpy(&addr, ph->h_addr_list[0], sizeof(in_addr)); // 这里仅获取第一个ip  
-	return inet_ntoa(addr);
+	string ret = "0.0.0.0";
+	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
+		IP_ADDR_STRING *ipAddr = &(ptr->IpAddressList);
+		while (ipAddr) {
+			if (strcmp("127.0.0.1", ipAddr->IpAddress.String) != 0) {
+				//ip匹配到了
+				ret.assign(ipAddr->IpAddress.String);
+				return true;
+			}
+			ipAddr = ipAddr->Next;
+		}
+		return false;
+	});
+	return ret;
 #else
 	int i = 0;
 	int sockfd;
@@ -388,29 +416,6 @@ uint16_t SockUtil::get_peer_port(int fd) {
 	}
 	return 0;
 }
-#if defined(_WIN32)
-template<typename FUN>
-void for_each_netAdapter(FUN && fun) {
-	unsigned long nSize = sizeof(IP_ADAPTER_INFO);
-	PIP_ADAPTER_INFO adapterList = (PIP_ADAPTER_INFO)new char[nSize];
-	int nRet = GetAdaptersInfo(adapterList, &nSize);
-	if (ERROR_BUFFER_OVERFLOW == nRet){
-		delete [] adapterList;
-		adapterList = (PIP_ADAPTER_INFO)new char[nSize];
-		nRet = GetAdaptersInfo(adapterList, &nSize);
-	}
-	auto adapterPtr = adapterList;
-	while (adapterPtr && ERROR_SUCCESS == nRet){
-		if (fun(adapterPtr)) {
-			break;
-		}
-		adapterPtr = adapterList->Next;
-	}
-	//释放内存空间
-	delete [] adapterPtr;
-}
-#endif // defined(_WIN32)
-
 
 string SockUtil::get_ifr_name(const char *localIp){
 #if defined(_WIN32)
