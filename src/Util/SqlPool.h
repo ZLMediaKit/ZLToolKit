@@ -205,7 +205,7 @@ public:
 	int64_t operator <<(vector<vector<string>> &ret) {
 		affectedRows = SqlPool::Instance().query(rowId,ret, sqlstream << endl);
 		if(affectedRows < 0 && throwAble){
-			throw std::runtime_error("操作数据库失败");
+			throw std::runtime_error("operate database failed");
 		}
 		return affectedRows;
 	}

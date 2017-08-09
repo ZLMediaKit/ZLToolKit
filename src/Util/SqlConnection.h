@@ -11,14 +11,19 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/time.h>
-#include <mysql/mysql.h>
 #include <string>
 #include <vector>
 #include <sstream>
 #include <iostream>
 #include <stdexcept>
 #include "Util/logger.h"
+
+#if defined(_WIN32)
+#include <mysql.h>
+#else
+#include <mysql/mysql.h>
+#endif // defined(_WIN32)
+
 
 using namespace std;
 
@@ -119,9 +124,10 @@ public:
 		return fmt;
 	}
 	string &escape(string &str) {
-		char out[str.length() * 2 + 1];
+		char *out = new char[str.length() * 2 + 1];
 		mysql_real_escape_string(&sql, out, str.c_str(), str.size());
 		str.assign(out);
+		delete [] out;
 		return str;
 	}
 private:
