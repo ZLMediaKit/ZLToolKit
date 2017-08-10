@@ -7,21 +7,85 @@
 
 #if defined(_WIN32)
 #include <io.h>   
-#include <direct.h>  
-#include <sys/stat.h>  
-#include <sys/types.h>
 #endif // WIN32
 
+#include <direct.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <sys/stat.h>
 #include <string>
 #include "File.h"
-#include "logger.h"
-#include "Util/uv_errno.h"
 #include "Util/util.h"
+#include "Util/logger.h"
+#include "Util/uv_errno.h"
 
 using namespace std;
+using namespace ZL::Util;
+
+#if defined(_WIN32)
+int mkdir(const char *path, int mode) {
+	return _mkdir(path);
+}
+
+DIR *opendir(const char *name) {
+	char namebuf[512];
+	sprintf(namebuf, "%s\\*.*", name);
+
+	WIN32_FIND_DATA FindData;
+	auto hFind = FindFirstFile(namebuf, &FindData);
+	if (hFind == INVALID_HANDLE_VALUE) {
+		WarnL << "FindFirstFile failed:" << get_uv_errmsg();
+		return nullptr;
+	}
+	DIR *dir = (DIR *)malloc(sizeof(DIR));
+	memset(dir, 0, sizeof(DIR));
+	dir->dd_fd = 0;   // simulate return  
+	dir->handle = hFind;
+	return dir;
+}
+struct dirent *readdir(DIR *d) {
+	HANDLE hFind = d->handle;
+	WIN32_FIND_DATA FileData;
+	//fail or end  
+	if (!FindNextFile(hFind, &FileData)) {
+		return nullptr;
+	}
+	struct dirent *dir = (struct dirent *)malloc(sizeof(struct dirent) + sizeof(FileData.cFileName));
+	strcpy(dir->d_name, FileData.cFileName);
+	dir->d_reclen = strlen(dir->d_name);
+	//check there is file or directory  
+	if (FileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+		dir->d_type = 2;
+	}
+	else {
+		dir->d_type = 1;
+	}
+	if (d->index) {
+		//覆盖前释放内存
+		free(d->index);
+		d->index = nullptr;
+	}
+	d->index = dir;
+	return dir;
+}
+int closedir(DIR *d) {
+	if (!d) {
+		return -1;
+	}
+	//关闭句柄
+	if (d->handle != INVALID_HANDLE_VALUE) {
+		FindClose(d->handle);
+		d->handle = INVALID_HANDLE_VALUE;
+	}
+	//释放内存
+	if (d->index) {
+		free(d->index);
+		d->index = nullptr;
+	}
+	free(d);
+	return 0;
+}
+#endif // defined(_WIN32)
+
 
 namespace ZL {
 namespace Util {

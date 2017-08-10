@@ -1,13 +1,40 @@
 #ifndef SOCKUTIL_H
 #define SOCKUTIL_H
 
+#if defined(_WIN32)
+#include <WinSock2.h>
+#include <Iphlpapi.h>
+#pragma comment (lib,"WS2_32")
+#pragma comment(lib,"Iphlpapi.lib") 
+#else
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#endif // defined(_WIN32)
+
 #include <string>
 #include <string.h>
 #include <stdint.h>
-#include "Util/util.h"
 
 using namespace std;
-using namespace ZL::Util;
+
+#if defined(_WIN32)
+
+#ifndef socklen_t
+#define socklen_t int
+#endif //!socklen_t
+#ifndef SHUT_RDWR
+#define SHUT_RDWR 2
+#endif //!SHUT_RDWR
+
+int ioctl(int fd, long cmd, u_long *ptr);
+int close(int fd);
+
+#endif // defined(_WIN32)
 
 namespace ZL {
 namespace Network {
@@ -54,7 +81,6 @@ public:
 };
 
 }  // namespace Network
-
 }  // namespace ZL
 
 #endif // !SOCKUTIL_H

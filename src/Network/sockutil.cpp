@@ -1,12 +1,12 @@
-#include "sockutil.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <assert.h>
 #include <string.h>
+#include "sockutil.h"
 #include "Util/util.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
+#include "Util/onceToken.h"
 
 #if defined (__APPLE__)
 #include <ifaddrs.h>
@@ -15,6 +15,21 @@
 using namespace std;
 using namespace ZL::Util;
 
+#if defined(_WIN32)
+static onceToken g_token([]() {
+	WORD wVersionRequested = MAKEWORD(2, 2);
+	WSADATA wsaData;
+	WSAStartup(wVersionRequested, &wsaData);
+}, []() {
+	WSACleanup();
+});
+int ioctl(int fd, long cmd, u_long *ptr) {
+	return ioctlsocket(fd, cmd, ptr);
+}
+int close(int fd) {
+	return closesocket(fd);
+}
+#endif // defined(_WIN32)
 
 namespace ZL {
 namespace Network {
