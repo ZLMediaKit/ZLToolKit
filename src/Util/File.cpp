@@ -7,9 +7,11 @@
 
 #if defined(_WIN32)
 #include <io.h>   
+#include <direct.h>
+#else
+#include <dirent.h>
 #endif // WIN32
 
-#include <direct.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <string>
