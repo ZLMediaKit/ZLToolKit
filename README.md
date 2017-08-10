@@ -93,7 +93,7 @@ Windows | 已经完成移植
 - 我的编译环境
   - windows 10
   - visual studio 2017
-  - [openssl](http://slproweb.com/download/Win32OpenSSL-1_1_0f.exe)
+  - [openssl](http://slproweb.com/download/Win32OpenSSL-1_1_0f.exe)
   - [mysqlclient](https://dev.mysql.com/downloads/file/?id=472430)
   
 - 编译
