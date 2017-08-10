@@ -5,6 +5,7 @@ Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch
 macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac)
 iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios)
 Android | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android)
+Windows | 已经完成移植
 
 ## 项目初衷
 多年的编程经历让我接触过多种网络开源库，譬如libevent、libev、libuv、boost.asio等等。这些开源框架有些是用C语言开发的，里面包含了各种难以阅读层层嵌套佶屈聱牙的宏，学习起来非常费力；有些使用起来又不甚方便，代码被切割成碎片零零碎碎；有些虽然使用简单，但是却非常宏大，牵涉各种代码，配置复杂，很难交叉编译。由于作者既从事过linux服务器编程又有jni、ios的编程经历，所以一直以来在寻求既能在服务器端高效运行又能在嵌入式平台方便开发的方法，但是一直没有找到比较合适的方案；于是作者大约在一年前开始整理多年的工作成果积累，抽取经过时间检验证明稳定有效的代码并且参考其他成熟的框架形成了这个项目。后面在我使用该项目（初期版本）用于实际开发，一路林林总总遇到了很多问题，但是在后面几个月不间断的调试、测试、修正、优化等过程中项目代码逐渐沉淀稳定，经过长时高强度的测试之后我把代码提交到github形成了这个项目。
@@ -88,7 +89,20 @@ Android | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for
   export ANDROID_NDK_ROOT=/path/to/ndk
   ./build_for_android.sh
   ```
-
+## 编译(Windows)
+- 我的编译环境
+  - windows 10
+  - visual studio 2017
+  - [openssl](http://slproweb.com/download/Win32OpenSSL-1_1_0f.exe)
+  - [mysqlclient](https://dev.mysql.com/downloads/file/?id=472430)
+  
+- 编译
+```
+   1 使用vs2017打开工程目录文件夹,然后自动生成工程文件，工程文件路径请查看cmake输出.
+   2 找到工程文件(ZLToolKit.sln),双击用vs2017打开.
+   3 编译 ALL_BUILD 项目.
+   4 找到目标文件并运行测试用例.
+```
 	
 ## 联系方式
 - 邮箱：<771730766@qq.com>
