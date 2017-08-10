@@ -303,7 +303,7 @@ void for_each_netAdapter(FUN && fun) {
 		adapterPtr = adapterList->Next;
 	}
 	//释放内存空间
-	delete[] adapterPtr;
+	delete[] adapterList;
 }
 #endif // defined(_WIN32)
 
@@ -315,7 +315,8 @@ string SockUtil::get_local_ip() {
 	for_each_netAdapter([&](PIP_ADAPTER_INFO ptr) {
 		IP_ADDR_STRING *ipAddr = &(ptr->IpAddressList);
 		while (ipAddr) {
-			if (strcmp("127.0.0.1", ipAddr->IpAddress.String) != 0) {
+			if (strcmp("127.0.0.1", ipAddr->IpAddress.String) != 0 && 
+				strcmp("0.0.0.0", ipAddr->IpAddress.String) != 0) {
 				//ip匹配到了
 				ret.assign(ipAddr->IpAddress.String);
 				return true;
