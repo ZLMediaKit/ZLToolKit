@@ -27,8 +27,8 @@ PipeWrap::PipeWrap(){
 
 #if defined(_WIN32)
 	_listenerFd = SockUtil::listen(0, "127.0.0.1");
-	SockUtil::setNoBlocked(_listenerFd,false);
 	checkFD(_listenerFd)
+	SockUtil::setNoBlocked(_listenerFd,false);
 	auto localPort = SockUtil::get_local_port(_listenerFd);
 	_pipe_fd[1] = SockUtil::connect("127.0.0.1", localPort,false);
 	checkFD(_pipe_fd[1])
