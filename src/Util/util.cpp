@@ -131,7 +131,7 @@ void sleep(int second) {
 void usleep(int micro_seconds) {
 	struct timeval tm;
 	tm.tv_sec = micro_seconds / 1000000;
-	tm.tv_sec = micro_seconds % (1000000);
+	tm.tv_usec = micro_seconds % (1000000);
 	select(0, NULL, NULL, NULL, &tm);
 }
 int gettimeofday(struct timeval *tp, void *tzp) {
