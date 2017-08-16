@@ -153,13 +153,13 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync) {
     struct hostent *hp = gethostbyname(host);
     if (hp == NULL) {
         WarnL << "域名解析失败:" << host;
-        return false;
+        return -1;
     }
     struct in_addr *addr = (in_addr*) hp->h_addr_list[0];
     if (addr == NULL) {
         //freehostent(hp);
         WarnL << "域名解析失败:" << host;
-        return false;
+        return -1;
     }
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
