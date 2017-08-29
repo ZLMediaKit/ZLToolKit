@@ -74,9 +74,9 @@ int get_uv_error(bool netErr) {
 	switch (errCode) {
 	case ERROR_NOACCESS:                    return UV_EACCES;
 	case WSAEACCES:                         return UV_EACCES;
-#if !defined(__MINGW32__)
+#if defined(ERROR_ELEVATION_REQUIRED)
 	case ERROR_ELEVATION_REQUIRED:          return UV_EACCES;
-#endif //!defined(__MINGW32__)
+#endif //ERROR_ELEVATION_REQUIRED
 	case ERROR_ADDRESS_ALREADY_ASSOCIATED:  return UV_EADDRINUSE;
 	case WSAEADDRINUSE:                     return UV_EADDRINUSE;
 	case WSAEADDRNOTAVAIL:                  return UV_EADDRNOTAVAIL;
@@ -106,9 +106,9 @@ int get_uv_error(bool netErr) {
 	case ERROR_INSUFFICIENT_BUFFER:         return UV_EINVAL;
 	case ERROR_INVALID_DATA:                return UV_EINVAL;
 	case ERROR_INVALID_PARAMETER:           return UV_EINVAL;
-#if !defined(__MINGW32__)
+#if defined(ERROR_SYMLINK_NOT_SUPPORTED)
     case ERROR_SYMLINK_NOT_SUPPORTED:       return UV_EINVAL;
-#endif //!defined(__MINGW32__)
+#endif //ERROR_SYMLINK_NOT_SUPPORTED
 	case WSAEINVAL:                         return UV_EINVAL;
 	case WSAEPFNOSUPPORT:                   return UV_EINVAL;
 	case WSAESOCKTNOSUPPORT:                return UV_EINVAL;
