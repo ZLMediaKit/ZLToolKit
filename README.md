@@ -95,7 +95,7 @@ Windows | 已经完成移植
   - visual studio 2017
   - [openssl](http://slproweb.com/download/Win32OpenSSL-1_1_0f.exe)
   - [mysqlclient](https://dev.mysql.com/downloads/file/?id=472430)
-  - [字符转换工具](http://www.cr173.com/soft/96995.html)
+  - [字符转换工具](http://xz.mqego.com/soft1/gb2utf8.zip)
   
 - 编译
 ```
