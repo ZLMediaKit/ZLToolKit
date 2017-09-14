@@ -95,13 +95,16 @@ Windows | 已经完成移植
   - visual studio 2017
   - [openssl](http://slproweb.com/download/Win32OpenSSL-1_1_0f.exe)
   - [mysqlclient](https://dev.mysql.com/downloads/file/?id=472430)
+  - [字符转换工具](http://www.cr173.com/soft/96995.html)
   
 - 编译
 ```
-   1 使用vs2017打开ZLToolKit源码根目录文件夹,然后自动生成工程文件，工程文件路径请查看cmake输出.
-   2 找到工程文件(ZLToolKit.sln),双击用vs2017打开.
-   3 编译 ALL_BUILD 项目.
-   4 找到目标文件并运行测试用例.
+   1 使用字符转换工具把代码(UTF8)转换成GBK(过滤器添加|*.cpp|*h|*.c).
+   2 使用vs2017打开ZLToolKit源码根目录文件夹,然后自动生成工程文件，工程文件路径请查看cmake输出.
+   3 找到工程文件(ZLToolKit.sln),双击用vs2017打开.
+   4 编译 ALL_BUILD 项目.
+   6 选择 INSTALL 项目并安装.
+   7 找到目标文件并运行测试用例.
 ```
 	
 ## 联系方式
