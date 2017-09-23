@@ -15,24 +15,24 @@
 using namespace std;
 using namespace ZL::Util;
 
-#if defined(_WIN32)
-static onceToken g_token([]() {
-	WORD wVersionRequested = MAKEWORD(2, 2);
-	WSADATA wsaData;
-	WSAStartup(wVersionRequested, &wsaData);
-}, []() {
-	WSACleanup();
-});
-int ioctl(int fd, long cmd, u_long *ptr) {
-	return ioctlsocket(fd, cmd, ptr);
-}
-int close(int fd) {
-	return closesocket(fd);
-}
-#endif // defined(_WIN32)
-
 namespace ZL {
 namespace Network {
+
+#if defined(_WIN32)
+static onceToken g_token([]() {
+    WORD wVersionRequested = MAKEWORD(2, 2);
+    WSADATA wsaData;
+    WSAStartup(wVersionRequested, &wsaData);
+}, []() {
+    WSACleanup();
+});
+int ioctl(int fd, long cmd, u_long *ptr) {
+    return ioctlsocket(fd, cmd, ptr);
+}
+int close(int fd) {
+    return closesocket(fd);
+}
+#endif // defined(_WIN32)
 
 int SockUtil::setCloseWait(int sockFd, int second) {
 	linger m_sLinger;

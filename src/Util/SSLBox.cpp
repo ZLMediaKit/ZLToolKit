@@ -36,7 +36,11 @@ SSL_Initor::SSL_Initor() {
 		_mutexes[n].unlock();
 	});
 	CRYPTO_set_id_callback([]() ->unsigned long {
+#if !defined(_WIN32)
 		return (unsigned long)pthread_self();
+#else
+		return (unsigned long)GetCurrentThreadId();
+#endif
 	});
 	ssl_client = SSL_CTX_new(TLSv1_client_method());
 	ssl_server = SSL_CTX_new(TLSv1_server_method());

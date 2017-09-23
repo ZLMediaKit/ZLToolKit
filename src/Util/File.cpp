@@ -32,10 +32,10 @@ DIR *opendir(const char *name) {
 	char namebuf[512];
 	sprintf(namebuf, "%s\\*.*", name);
 
-	WIN32_FIND_DATA FindData;
-	auto hFind = FindFirstFile(namebuf, &FindData);
+	WIN32_FIND_DATAA FindData;
+    auto hFind = FindFirstFileA(namebuf, &FindData);
 	if (hFind == INVALID_HANDLE_VALUE) {
-		WarnL << "FindFirstFile failed:" << get_uv_errmsg();
+        WarnL << "FindFirstFileA failed:" << get_uv_errmsg();
 		return nullptr;
 	}
 	DIR *dir = (DIR *)malloc(sizeof(DIR));
@@ -46,13 +46,13 @@ DIR *opendir(const char *name) {
 }
 struct dirent *readdir(DIR *d) {
 	HANDLE hFind = d->handle;
-	WIN32_FIND_DATA FileData;
+	WIN32_FIND_DATAA FileData;
 	//fail or end  
-	if (!FindNextFile(hFind, &FileData)) {
+	if (!FindNextFileA(hFind, &FileData)) {
 		return nullptr;
 	}
 	struct dirent *dir = (struct dirent *)malloc(sizeof(struct dirent) + sizeof(FileData.cFileName));
-	strcpy(dir->d_name, FileData.cFileName);
+    strcpy(dir->d_name, (char *)FileData.cFileName);
 	dir->d_reclen = strlen(dir->d_name);
 	//check there is file or directory  
 	if (FileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {

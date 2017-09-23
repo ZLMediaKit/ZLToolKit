@@ -67,7 +67,11 @@ std::string to_string(T value){
 #if defined(_WIN32)
 
 int gettimeofday(struct timeval *tp, void *tzp);
+
+#if !defined(strcasecmp)
 int strcasecmp(const char *strA,const char *strB);
+#endif //!defined(strcasecmp)
+
 void usleep(int micro_seconds);
 void sleep(int second);
 

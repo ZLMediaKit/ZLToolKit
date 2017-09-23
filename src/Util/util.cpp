@@ -79,10 +79,7 @@ string exePath() {
 	string filePath;
 	char buffer[1024] = {0};
 #if defined(_WIN32)
-	wchar_t szExePath[MAX_PATH] = { 0 };
-	int wcSize = GetModuleFileNameW(NULL, szExePath, sizeof(szExePath));
-	size_t n = 0;
-	wcstombs_s(&n, buffer, wcSize + 1, szExePath, _TRUNCATE);
+	int n = GetModuleFileNameA(NULL, buffer, sizeof(buffer));
 #else
 	int n = readlink("/proc/self/exe", buffer, sizeof(buffer));
 #endif //WIN32
@@ -120,11 +117,15 @@ std::string  strToLower(const std::string &str)
 
 
 #if defined(_WIN32)
+
+#if !defined(strcasecmp)
 int strcasecmp(const char *strA,const char *strB){
 	string str1 = strToLower(strA);
 	string str2 = strToLower(strB);
 	return str1.compare(str2);
 }
+#endif// !defined(strcasecmp)
+
 void sleep(int second) {
 	Sleep(1000 * second);
 }
@@ -132,7 +133,7 @@ void usleep(int micro_seconds) {
 	struct timeval tm;
 	tm.tv_sec = micro_seconds / 1000000;
 	tm.tv_usec = micro_seconds % (1000000);
-	select(0, NULL, NULL, NULL, &tm);
+    select(0, NULL, NULL, NULL, &tm);
 }
 int gettimeofday(struct timeval *tp, void *tzp) {
 	time_t clock;

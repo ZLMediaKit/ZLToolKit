@@ -22,6 +22,9 @@
 
 using namespace std;
 
+namespace ZL {
+namespace Network {
+
 #if defined(_WIN32)
 
 #ifndef socklen_t
@@ -35,9 +38,6 @@ int ioctl(int fd, long cmd, u_long *ptr);
 int close(int fd);
 
 #endif // defined(_WIN32)
-
-namespace ZL {
-namespace Network {
 
 class SockUtil {
 public:
