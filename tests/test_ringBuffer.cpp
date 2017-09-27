@@ -1,10 +1,3 @@
-//============================================================================
-// Name        : ToolKitTest.cpp
-// Author      : xzl
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
-//============================================================================
 #include <signal.h>
 #include <iostream>
 #include "Util/logger.h"
@@ -17,37 +10,47 @@ using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Thread;
 
-
-bool g_bExitRead = false;
+//环形缓存写线程退出标记
 bool g_bExitWrite = false;
-RingBuffer<string>::Ptr g_ringBuf(new RingBuffer<string>());
 
+//一个30个string对象的环形缓存
+RingBuffer<string>::Ptr g_ringBuf(new RingBuffer<string>(30));
 
+//写事件回调函数
 void onReadEvent(const string &str){
 	//读事件模式性
 	DebugL << str;
 }
+
+//环形缓存销毁事件
 void onDetachEvent(){
 	WarnL;
 }
 
+//写环形缓存任务
 void doWrite(){
 	int i = 0;
 	while(!g_bExitWrite){
+		//每隔100ms写一个数据到环形缓存
 		g_ringBuf->write(to_string(++i),true);
 		usleep(100 * 1000);
 	}
 
 }
 int main() {
+	//初始化日志
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
-	//Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	//添加一个读取器
+	//从环形缓存获取一个读取器
 	auto ringReader = g_ringBuf->attach();
+
+	//设置读取事件
 	ringReader->setReadCB([](const string &pkt){
 		onReadEvent(pkt);
 	});
+
+	//设置环形缓存销毁事件
 	ringReader->setDetachCB([](){
 		onDetachEvent();
 	});
@@ -58,16 +61,16 @@ int main() {
 		doWrite();
 	});
 
-	sleep(1);
-	//写线程退出
-	g_bExitWrite = true;
-	sleep(1);
-	//释放环形缓冲
-	g_ringBuf.reset();
+	//测试3秒钟
+	sleep(3);
 
-	sleep(1);
-	g_bExitRead = true;
+	//通知写线程退出
+	g_bExitWrite = true;
+	//等待写线程退出
 	group.join_all();
+
+	//释放环形缓冲，此时触发Detach事件
+	g_ringBuf.reset();
 
 	Logger::Destory();
 	return 0;
