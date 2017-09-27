@@ -10,7 +10,7 @@ src
 |	|-- sockutil.h
 |	|-- TcpClient.cpp		# TCP客户端封装，派生该类可以很容易实现客户端程序
 |	|-- TcpClient.h
-|	|-- TcpLimitedSession.h 	# 派生于TcpClient，该模板类可以全局限制会话数量
+|	|-- TcpLimitedSession.h 	# 派生于TcpSession，该模板类可以全局限制会话数量
 |	|-- TcpServer.h			# TCP服务器模板类，可以很容易就实现一个高性能私有协议服务器
 |	|-- TcpSession.h 		# TCP服务私有协议实现会话基类，用于处理TCP长连接数据及响应
 |
@@ -61,3 +61,5 @@ src
 	|-- uv_errno.h
 	
 ``` 
+
+
