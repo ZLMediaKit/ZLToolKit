@@ -8,6 +8,9 @@
 #ifndef SRC_UTIL_FILE_H_
 #define SRC_UTIL_FILE_H_
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #if defined(_WIN32)
 #include <WinSock2.h>   
 #pragma comment (lib,"WS2_32")
