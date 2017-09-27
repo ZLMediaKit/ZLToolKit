@@ -10,16 +10,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(__linux__)
+#include <limits.h>
+#endif
 
 #if defined(_WIN32)
 #include <WinSock2.h>   
 #pragma comment (lib,"WS2_32")
 #endif // WIN32
-#include <stdio.h>
 
 #if defined(_WIN32)
 #ifndef PATH_MAX
-#define PATH_MAX 256
+#define PATH_MAX 1024
 #endif // !PATH_MAX
 
 struct dirent{
