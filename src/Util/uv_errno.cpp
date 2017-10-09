@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ï»¿/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
 *  Copyright (c) 2016 xiongziliang <771730766@qq.com>
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -59,7 +59,7 @@ int uv_translate_posix_error(int err) {
 		return err;
 	}
 	switch (err) {
-		//ÎªÁË¼æÈİwindowsÆ½Ì¨£¬ĞÅºÅEINPROGRESS £¬EAGAIN£¬EWOULDBLOCKÈ«²¿Í³Ò»³ÉEAGAIN´¦Àí
+		//ä¸ºäº†å…¼å®¹windowså¹³å°ï¼Œä¿¡å·EINPROGRESS ï¼ŒEAGAINï¼ŒEWOULDBLOCKå…¨éƒ¨ç»Ÿä¸€æˆEAGAINå¤„ç†
 	case EINPROGRESS:
 	case EWOULDBLOCK: err = EAGAIN; break;
 	default:

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2015 r-lyeh (https://github.com/r-lyeh)
  * Copyright (c) 2016 xiongziliang <771730766@qq.com>
  *

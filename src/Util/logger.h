@@ -1,4 +1,4 @@
-/*
+﻿/*
  * MIT License
  *
  * Copyright (c) 2016 xiongziliang <771730766@qq.com>
@@ -173,9 +173,15 @@ class LogInfo {
 public:
 	friend class LogInfoMaker;
 	void format(ostream& ost, const char *timeFormat = "%Y-%m-%d %H:%M:%S",
-			bool enableColor = true) {
-		static string appName = exeName();
-        ost << appName << " "<< file << " " << line << "\r\n ";
+			bool enableColor = true, bool enableDetail = true) {
+		if (!enableDetail && message.str().empty()) {
+			//没有任何信息打印
+			return;
+		}
+		if (enableDetail) {
+			static string appName = exeName();
+			ost << appName << " " << file << " " << line << "\r\n ";
+		}
 		if (enableColor) {
 			ost << COLOR[level][1];
 		}
@@ -183,7 +189,9 @@ public:
 			ost << print(toLocal(ts), timeFormat);
 		}
 		ost << " [" << LogLevelStr[level] << "] ";
-		ost << function << " ";
+		if (enableDetail) {
+			ost << function << " ";
+		}
 		ost << message.str();
 		if (enableColor) {
 			ost << CLEAR_COLOR;
@@ -205,7 +213,7 @@ private:
 /*
 #if defined(__WIN32__)
 		// BOGUS hack done for VS2012: C++11 non-conformant since it SHOULD take a "const struct tm* "
-		// ref. C++11 standard: ISO/IEC 14882:2011, � 27.7.1,
+		// ref. C++11 standard: ISO/IEC 14882:2011, ? 27.7.1,
 		std::ostringstream oss;
 		oss << std::put_time(const_cast<std::tm*>(&dt), fmt);
 		return oss.str();
@@ -350,7 +358,7 @@ public:
 	}
 	virtual ~ConsoleChannel() {
 	}
-	void write(const LogInfo_ptr &logInfo) {
+	virtual void write(const LogInfo_ptr &logInfo) override{
 		if (level() > logInfo->getLevel()) {
 			return;
 		}
@@ -367,7 +375,7 @@ public:
 	virtual ~FileChannel() {
 		close();
 	}
-	virtual void write(const std::shared_ptr<LogInfo> &stream) {
+	virtual void write(const std::shared_ptr<LogInfo> &stream) override {
 		if (level() > stream->getLevel()) {
 			return;
 		}

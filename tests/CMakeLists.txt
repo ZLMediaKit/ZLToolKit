@@ -1,4 +1,4 @@
-aux_source_directory(. TEST_SRC_LIST)
+﻿aux_source_directory(. TEST_SRC_LIST)
 foreach(TEST_SRC ${TEST_SRC_LIST})
 STRING(REGEX REPLACE ".cpp" "" TEST_EXE_NAME ${TEST_SRC})
 STRING(REGEX REPLACE "./" "" TEST_EXE_NAME ${TEST_EXE_NAME})
