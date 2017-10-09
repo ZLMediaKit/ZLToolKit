@@ -196,7 +196,7 @@ public:
 		if (enableColor) {
 			ost << CLEAR_COLOR;
 		}
-		ost.flush();
+		ost << endl;
 	}
 
 	LogLevel getLevel() const {
@@ -287,7 +287,6 @@ public:
 		if (!logInfo) {
 			return *this;
 		}
-		logInfo->message << f;
 		Logger::Instance().write(logInfo);
 		logInfo.reset();
 		return *this;

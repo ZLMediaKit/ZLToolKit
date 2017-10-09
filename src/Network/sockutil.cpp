@@ -323,7 +323,7 @@ void for_each_netAdapter(FUN && fun) {
 		if (fun(adapterPtr)) {
 			break;
 		}
-		adapterPtr = adapterList->Next;
+		adapterPtr = adapterPtr->Next;
 	}
 	//释放内存空间
 	delete[] adapterList;
