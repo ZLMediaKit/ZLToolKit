@@ -32,6 +32,9 @@ using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Thread;
 
+#ifndef UINT32_MAX
+#define UINT32_MAX 0xFFFFFFFF
+#endif
 
 int main() {
 	signal(SIGINT, [](int){});
