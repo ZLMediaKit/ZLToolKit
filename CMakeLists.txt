@@ -13,6 +13,11 @@ set(SUB_DIR_LIST "Network" "Poller" "Thread" "Util")
 #使能GOP缓存
 add_definitions(-DENABLE_RING_USEBUF)
 
+if(WIN32)
+#防止Windows.h包含Winsock.h
+add_definitions(-DWIN32_LEAN_AND_MEAN)
+endif(WIN32)
+
 #安装目录
 if(WIN32)
 set(INSTALL_PATH_LIB $ENV{HOME}/${CMAKE_PROJECT_NAME}/lib)
