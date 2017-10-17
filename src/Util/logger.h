@@ -180,7 +180,7 @@ public:
 		}
 		if (enableDetail) {
 			static string appName = exeName();
-			ost << appName << " " << file << " " << line << "\r\n ";
+			ost << appName << " " << file << " " << line << endl;
 		}
 		if (enableColor) {
 			ost << COLOR[level][1];
