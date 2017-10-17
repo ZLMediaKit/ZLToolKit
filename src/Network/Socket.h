@@ -233,7 +233,6 @@ private:
 	Ticker _flushTicker;
     int _lastSendFlags = TCP_DEFAULE_FLAGS;
     uint32_t _iMaxSendPktSize = MAX_SEND_PKT;
-    atomic_bool _enableRecv;
 
 	void closeSock();
 	bool setPeerSock(int fd, struct sockaddr *addr);
