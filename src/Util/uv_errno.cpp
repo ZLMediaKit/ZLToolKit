@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #if defined(_WIN32)
+#include <WinSock2.h>
 #include <Windows.h>
 #else
 #include <errno.h>
