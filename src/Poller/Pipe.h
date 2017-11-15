@@ -38,7 +38,7 @@ namespace Poller {
 class Pipe
 {
 public:
-    Pipe(function<void(int size,const char *buf)> &&onRead=nullptr);
+    Pipe(const function<void(int size,const char *buf)> &onRead=nullptr);
     virtual ~Pipe();
     void send(const char *send,int size=0);
 private:

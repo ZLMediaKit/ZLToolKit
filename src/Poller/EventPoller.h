@@ -87,12 +87,12 @@ public:
 	static void Destory() {
 		delete &EventPoller::Instance();
 	}
-	int addEvent(int fd, int event, PollEventCB &&eventCb);
-	int delEvent(int fd, PollDelCB &&delCb = nullptr);
+	int addEvent(int fd, int event, const PollEventCB &eventCb);
+	int delEvent(int fd, const PollDelCB &delCb = nullptr);
 	int modifyEvent(int fd, int event);
 
-	void async(PollAsyncCB &&asyncCb);
-	void sync(PollSyncCB &&syncCb);
+	void async(const PollAsyncCB &asyncCb);
+	void sync(const PollSyncCB &syncCb);
 
 	void runLoop();
 	void shutdown();

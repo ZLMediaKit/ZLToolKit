@@ -57,7 +57,7 @@ namespace ZL {
 
 		EventPoller::EventPoller(bool enableSelfRun) {
 #if defined(HAS_EPOLL)
-#if defined(__ARM_ARCH) || defined(ANDROID)
+			#if defined(__ARM_ARCH) || defined(ANDROID)
 			epoll_fd = epoll_create(1024);
 #else//defined(__ARM_ARCH) || defined(ANDROID)
 			epoll_fd = epoll_create1(EPOLL_CLOEXEC);
@@ -103,7 +103,7 @@ namespace ZL {
 			InfoL;
 		}
 
-		int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
+		int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
 			TimeTicker();
 			if (!cb) {
 				WarnL << "PollEventCB 为空!";
@@ -129,16 +129,16 @@ namespace ZL {
 				return 0;
 			}
 			async([this, fd, event, cb]() {
-				addEvent(fd, event, const_cast<PollEventCB &&>(cb));
+				addEvent(fd, event, cb);
 			});
 			return 0;
 #endif //HAS_EPOLL
 		}
 
-		int EventPoller::delEvent(int fd, PollDelCB &&delCb) {
+		int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
 			TimeTicker();
 			if (!delCb) {
-				delCb = [](bool success) {};
+				const_cast<PollDelCB&>(delCb) = [](bool success) {};
 			}
 #if defined(HAS_EPOLL)
 			int ret0 = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
@@ -155,14 +155,13 @@ namespace ZL {
 				lock_guard<mutex> lck(mtx_event_map);
 				if (event_map.erase(fd)) {
 					delCb(true);
-				}
-				else {
+				}else {
 					delCb(false);
 				}
 				return 0;
 			}
 			async([this, fd, delCb]() {
-				delEvent(fd, const_cast<PollDelCB &&>(delCb));
+				delEvent(fd, delCb);
 			});
 			return 0;
 #endif //HAS_EPOLL
@@ -191,7 +190,7 @@ namespace ZL {
 			return 0;
 #endif //HAS_EPOLL
 		}
-		void EventPoller::sync(PollAsyncCB &&syncCb) {
+		void EventPoller::sync(const PollAsyncCB &syncCb) {
 			TimeTicker();
 			if (!syncCb) {
 				return;
@@ -203,7 +202,7 @@ namespace ZL {
 			});
 			sem.wait();
 		}
-		void EventPoller::async(PollAsyncCB &&asyncCb) {
+		void EventPoller::async(const PollAsyncCB &asyncCb) {
 			TimeTicker();
 			if (!asyncCb) {
 				return;
@@ -227,19 +226,19 @@ namespace ZL {
 
 		inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf) {
 			switch (type) {
-			case Sig_Async: {
-				PollAsyncCB **cb = (PollAsyncCB **)buf;
-				try {
-					(*cb)->operator()();
+				case Sig_Async: {
+					PollAsyncCB **cb = (PollAsyncCB **)buf;
+					try {
+						(*cb)->operator()();
+					}
+					catch (std::exception &ex) {
+						FatalL << ex.what();
+					}
+					delete *cb;
 				}
-				catch (std::exception &ex) {
-					FatalL << ex.what();
-				}
-				delete *cb;
-			}
-				break;
-			default:
-				break;
+					break;
+				default:
+					break;
 			}
 			return (Sigal_Type)type;
 		}
@@ -260,7 +259,7 @@ namespace ZL {
 				err = get_uv_error();
 
 			} while (err != UV_EAGAIN);
-			
+
 			bool ret = true;
 			while (pipeBuffer.size() >= 2 * sizeof(uint64_t)) {
 				uint64_t type = *((uint64_t *)pipeBuffer.data());

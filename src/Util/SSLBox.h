@@ -99,13 +99,13 @@ public:
 	//设置解密后获取明文的回调
 	template<typename F>
 	void setOnDecData(F &&fun) {
-		onDec = fun;
+		onDec = std::forward<F>(fun);
 	}
 
 	//设置加密后获取密文的回调
 	template<typename F>
 	void setOnEncData(F &&fun) {
-		onEnc = fun;
+		onEnc = std::forward<F>(fun);;
 	}
 	void shutdown();
 private:

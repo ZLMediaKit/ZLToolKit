@@ -34,7 +34,7 @@ using namespace ZL::Network;
 
 namespace ZL {
 namespace Poller {
-Pipe::Pipe(function<void(int size, const char *buf)> &&onRead) {
+Pipe::Pipe(const function<void(int size, const char *buf)> &onRead) {
 	_pipe.reset(new PipeWrap);
 	auto pipeCopy = _pipe;
 	EventPoller::Instance().addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {

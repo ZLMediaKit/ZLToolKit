@@ -93,7 +93,7 @@ void Socket::setOnFlush(const onFlush &cb) {
 		_flushCB = []() {return true;};
 	}
 }
-void Socket::connect(const string &url, uint16_t port, onErrCB &&connectCB,
+void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB,
 		int timeoutSec) {
 	closeSock();
 	int sock = SockUtil::connect(url.data(), port);

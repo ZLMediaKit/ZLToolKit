@@ -118,7 +118,7 @@ public:
 	static void Destory() {
 		delete &Logger::Instance();
 	}
-	void add(const std::shared_ptr<LogChannel> &&channel) {
+	void add(const std::shared_ptr<LogChannel> &channel) {
 		channels[channel->name()] = channel;
 	}
 	void del(const string& name) {
@@ -135,7 +135,7 @@ public:
 		return it->second;
 	}
 
-	void setWriter(const std::shared_ptr<LogWriter> &&_writer) {
+	void setWriter(const std::shared_ptr<LogWriter> &_writer) {
 		if (_writer) {
 			this->writer = _writer;
 		}
@@ -172,6 +172,7 @@ protected:
 class LogInfo {
 public:
 	friend class LogInfoMaker;
+	friend class LogChannel;
 	void format(ostream& ost, const char *timeFormat = "%Y-%m-%d %H:%M:%S",
 			bool enableColor = true, bool enableDetail = true) {
 		if (!enableDetail && message.str().empty()) {
@@ -202,6 +203,13 @@ public:
 	LogLevel getLevel() const {
 		return level;
 	}
+
+	LogLevel level;
+	int line;
+	string file;
+	string function;
+	time_t ts;
+	ostringstream message;
 
 private:
 	LogInfo(LogLevel _level, const char* _file, const char* _function,
@@ -239,12 +247,7 @@ private:
 #endif //WIN32
 		return tm_snapshot;
 	}
-	LogLevel level;
-	int line;
-	string file;
-	string function;
-	time_t ts;
-	ostringstream message;
+
 };
 
 class LogInfoMaker {

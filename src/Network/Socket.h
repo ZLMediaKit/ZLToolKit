@@ -188,7 +188,7 @@ public:
 		}
 		return sock->rawFd();
 	}
-	void connect(const string &url, uint16_t port, onErrCB &&connectCB, int timeoutSec = 5);
+	void connect(const string &url, uint16_t port,const onErrCB &connectCB, int timeoutSec = 5);
 	bool listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
 	bool bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0");
 
