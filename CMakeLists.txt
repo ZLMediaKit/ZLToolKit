@@ -39,7 +39,11 @@ if(NOT APPLE)
 list(REMOVE_ITEM SRC_LIST "src/Network/Socket_ios.mm")
 endif(NOT APPLE)
 
-set(LINK_LIB_LIST)
+if(WIN32)
+    set(LINK_LIB_LIST WS2_32 Iphlpapi shlwapi)
+else()
+    set(LINK_LIB_LIST)
+endif()
 
 #查找openssl是否安装
 find_package(OpenSSL QUIET)
