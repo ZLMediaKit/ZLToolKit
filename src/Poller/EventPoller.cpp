@@ -248,16 +248,12 @@ namespace ZL {
 			char buf[1024];
 			int err = 0;
 			do {
-				do {
-					nread = _pipe.read(buf, sizeof(buf));
-				} while (-1 == nread && UV_EINTR == get_uv_error());
-
+				nread = _pipe.read(buf, sizeof(buf));
 				if (nread > 0) {
 					pipeBuffer.append(buf, nread);
 					continue;
 				}
 				err = get_uv_error();
-
 			} while (err != UV_EAGAIN);
 
 			bool ret = true;
