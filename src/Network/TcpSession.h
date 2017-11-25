@@ -51,7 +51,7 @@ public:
 	virtual void onRecv(const Socket::Buffer::Ptr &) =0;
 	virtual void onError(const SockException &err) =0;
 	virtual void onManager() =0;
-
+    virtual void attachServer(const mINI &ini){};
 	template <typename T>
 	void async(T &&task) {
 		th->async(std::forward<T>(task));
@@ -92,8 +92,6 @@ protected:
 	virtual int send(const char *buf, int size) {
 		return sock->send(buf, size);
 	}
-	virtual void attachServer(const mINI &ini){};
-
 	Socket::Ptr sock;
 private:
 	std::shared_ptr<ThreadPool> th;
