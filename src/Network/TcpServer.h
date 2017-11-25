@@ -29,6 +29,7 @@
 #include <exception>
 #include <functional>
 #include "Socket.h"
+#include "Util/mini.h"
 #include "Util/util.h"
 #include "Util/uv_errno.h"
 #include "Util/logger.h"
@@ -45,7 +46,7 @@ namespace ZL {
 namespace Network {
 
 template<typename Session>
-class TcpServer {
+class TcpServer : public mINI {
 public:
 	typedef std::shared_ptr<TcpServer> Ptr;
 	TcpServer() {
@@ -90,6 +91,7 @@ private:
 	void onAcceptConnection(const Socket::Ptr & sock) {
 		// 接收到客户端连接请求
 		auto session(std::make_shared<Session>(WorkThreadPool::Instance().getWorkThread(), sock));
+		session->attachServer(*this);
 		auto sockPtr(sock.get());
 		auto sessionMapTmp(sessionMap);
 		weak_ptr<Session> weakSession(session);

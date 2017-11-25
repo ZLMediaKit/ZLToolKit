@@ -27,6 +27,7 @@
 #include <memory>
 #include "Socket.h"
 #include "Util/logger.h"
+#include "Util/mini.h"
 #include "Thread/ThreadPool.h"
 
 using namespace std;
@@ -91,6 +92,7 @@ protected:
 	virtual int send(const char *buf, int size) {
 		return sock->send(buf, size);
 	}
+	virtual void attachServer(const mINI &ini){};
 
 	Socket::Ptr sock;
 private:
