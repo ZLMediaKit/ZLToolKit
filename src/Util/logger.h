@@ -181,7 +181,11 @@ public:
 		}
 		if (enableDetail) {
 			static string appName = exeName();
-			ost << appName << " " << file << " " << line << endl;
+#if defined(WIN32)
+			ost << appName <<"(" << GetCurrentProcessId() << ") " << file << " " << line << endl;
+#else
+			ost << appName <<"(" << getpid() << ") " << file << " " << line << endl;
+#endif
 		}
 		if (enableColor) {
 			ost << COLOR[level][1];
