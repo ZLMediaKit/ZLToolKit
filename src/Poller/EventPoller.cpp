@@ -89,6 +89,7 @@ namespace ZL {
 			if (loopThread) {
 				loopThread->join();
 				delete loopThread;
+				loopThread = nullptr;
 			}
 
 #if defined(HAS_EPOLL)
