@@ -24,8 +24,10 @@
 #include <signal.h>
 #include <iostream>
 #include "Util/logger.h"
+#include "Util/TimeTicker.h"
 #include "Network/TcpServer.h"
 #include "Network/TcpSession.h"
+
 using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Network;
@@ -51,7 +53,13 @@ public:
 	virtual void onManager() {
 		//定时管理该对象，譬如会话超时检查
 		DebugL;
+		if(_ticker.createdTime() > 5){
+			shutdown();
+		}
 	}
+
+private:
+	Ticker _ticker;
 };
 
 

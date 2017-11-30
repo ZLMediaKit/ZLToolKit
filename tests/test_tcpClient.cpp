@@ -43,7 +43,7 @@ public:
 protected:
 	virtual void onConnect(const SockException &ex) override{
 		//连接结果事件
-		InfoL << (ex ? "success" : ex.what());
+		InfoL << (ex ?  ex.what() : "success");
 		if(!ex){
 			weak_ptr<TestClient> weakSelf =
 					dynamic_pointer_cast<TestClient>(shared_from_this());
@@ -68,6 +68,7 @@ protected:
 		//断开连接事件，一般是EOF
 		WarnL << ex.what();
 		_timer.reset();
+		connect();
 	}
 	void onTick(){
 		//定时发送数据到服务器
