@@ -14,7 +14,7 @@ if(WIN32)
     list(APPEND SUB_DIR_LIST "win32")
     #防止Windows.h包含Winsock.h
     add_definitions(-DWIN32_LEAN_AND_MEAN)
-endif(WIN32)
+endif()
 
 #使能GOP缓存
 add_definitions(-DENABLE_RING_USEBUF)
@@ -95,7 +95,7 @@ endif()
 #测试程序
 if(NOT IOS)
     add_subdirectory(tests)
-endif(IOS)
+endif()
 
 
 

@@ -26,6 +26,7 @@
 #include "Util/logger.h"
 #include "Util/util.h"
 #include "Network/TcpClient.h"
+#include <signal.h>
 
 using namespace std;
 using namespace ZL::Util;
