@@ -25,12 +25,6 @@
 #ifndef SRC_UTIL_CMD_H_
 #define SRC_UTIL_CMD_H_
 
-#if defined(_WIN32)
-#include "win32/getopt.h"
-#else
-#include <getopt.h>
-#endif // defined(_WIN32)
-
 #include <map>
 #include <mutex>
 #include <string>
@@ -51,9 +45,9 @@ class Option {
 public:
     typedef function<bool(const std::shared_ptr<ostream> &stream, const string &arg)> OptionHandler;
     enum ArgType {
-        ArgNone = no_argument,
-        ArgRequired = required_argument,
-        ArgOptional = optional_argument
+        ArgNone = 0,//no_argument,
+        ArgRequired = 1,//required_argument,
+        ArgOptional = 2,//optional_argument
     };
     Option(){}
     Option(char shortOpt,
@@ -104,7 +98,7 @@ public:
             static string defaultPrefix = "默认:";
             static string defaultNull = "null";
 
-            ostream &printer = *stream;
+            stringstream printer;
             int maxLen_longOpt = 0;
             int maxLen_default = defaultNull.size();
 
@@ -146,7 +140,7 @@ public:
                 //打印描述
                 printer << "  " << opt._des << endl;
             }
-            throw std::invalid_argument("");
+            throw std::invalid_argument(printer.str());
         });
         (*this) << _helper;
     }
@@ -180,99 +174,11 @@ public:
             }
         }
     }
-    void operator ()(mINI &allArg, int argc, char *argv[],const std::shared_ptr<ostream> &stream) {
-        (*this) << endl;
-        lock_guard<mutex> lck(s_mtx_opt);
-        int index;
-        optind = 0;
-        opterr = 0;
-        while ((index = getopt_long(argc, argv, &_str_shortOpt[0], &_vec_longOpt[0],NULL)) != -1) {
-            stringstream ss;
-            ss  << "  未识别的选项,输入\"-h\"获取帮助.";
-            if(index < 0xFF){
-                //短参数
-                auto it = _map_charIndex.find(index);
-                if(it == _map_charIndex.end()){
-                    throw std::invalid_argument(ss.str());
-                }
-                index = it->second;
-            }
-
-            auto it = _map_options.find(index);
-            if(it == _map_options.end()){
-                throw std::invalid_argument(ss.str());
-            }
-            auto &opt = it->second;
-            auto pr = allArg.emplace(opt._longOpt, optarg ? optarg : "");
-            if (!opt(stream, pr.first->second)) {
-                return;
-            }
-            optarg = NULL;
-        }
-        for (auto &pr : _map_options) {
-            if(pr.second._defaultValue && allArg.find(pr.second._longOpt) == allArg.end()){
-                //有默认值,赋值默认值
-                allArg.emplace(pr.second._longOpt,*pr.second._defaultValue);
-            }
-        }
-        for (auto &pr : _map_options) {
-            if(pr.second._mustExist){
-                if(allArg.find(pr.second._longOpt) == allArg.end() ){
-                    stringstream ss;
-                    ss << "  参数\"" << pr.second._longOpt << "\"必须提供,输入\"-h\"选项获取帮助";
-                    throw std::invalid_argument(ss.str());
-                }
-            }
-        }
-        if(allArg.empty() && _map_options.size() > 1){
-            _helper(stream,"");
-            return;
-        }
-        if (_onCompleted) {
-            _onCompleted(stream, allArg);
-        }
-    }
-private:
-    void operator <<(ostream&(*f)(ostream&)) {
-        _str_shortOpt.clear();
-        _vec_longOpt.clear();
-        struct option tmp;
-        for (auto &pr : _map_options) {
-            auto &opt = pr.second;
-            //long opt
-            tmp.name = (char *)opt._longOpt.data();
-            tmp.has_arg = opt._argType;
-            tmp.flag = NULL;
-            tmp.val = pr.first;
-            _vec_longOpt.emplace_back(tmp);
-            //short opt
-            if(!opt._shortOpt){
-                continue;
-            }
-            _str_shortOpt.push_back(opt._shortOpt);
-            switch (opt._argType) {
-                case Option::ArgRequired:
-                    _str_shortOpt.append(":");
-                    break;
-                case Option::ArgOptional:
-                    _str_shortOpt.append("::");
-                    break;
-                default:
-                    break;
-            }
-        }
-        tmp.flag=0;
-        tmp.name=0;
-        tmp.has_arg=0;
-        tmp.val=0;
-        _vec_longOpt.emplace_back(tmp);
-    }
+    void operator ()(mINI &allArg, int argc, char *argv[],const std::shared_ptr<ostream> &stream);
 private:
     map<int,Option> _map_options;
     map<char,int> _map_charIndex;
     OptionCompleted _onCompleted;
-    vector<struct option> _vec_longOpt;
-    string _str_shortOpt;
     Option _helper;
     static mutex s_mtx_opt;
 };
