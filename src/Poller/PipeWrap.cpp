@@ -81,7 +81,7 @@ PipeWrap::~PipeWrap(){
 }
 
 int PipeWrap::write(const void *buf, int n) {
-	ssize_t ret;
+	int ret;
 	do {
 #if defined(_WIN32)
 		ret = send(_pipe_fd[1], (char *)buf, n, 0);
@@ -93,7 +93,7 @@ int PipeWrap::write(const void *buf, int n) {
 }
 
 int PipeWrap::read(void *buf, int n) {
-	ssize_t ret;
+	int ret;
 	do {
 #if defined(_WIN32)
 		ret = recv(_pipe_fd[0], (char *)buf, n, 0);
