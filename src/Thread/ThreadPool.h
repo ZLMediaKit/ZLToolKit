@@ -48,9 +48,11 @@ public:
 	};
 
 	//num:线程池线程个数
-	ThreadPool(int num, Priority _priority = PRIORITY_NORMAL) :
-			thread_num(num), avaible(true), priority(_priority) {
-		start();
+	ThreadPool(int num, Priority priority = PRIORITY_NORMAL,bool autoRun = true) :
+			_thread_num(num), _avaible(true), _priority(priority) {
+        if(autoRun){
+            start();
+        }
 	}
 	~ThreadPool() {
 		wait();
@@ -59,25 +61,25 @@ public:
 	//把任务打入线程池并异步执行
 	template <typename T>
 	bool async(T &&task) {
-		if (!avaible) {
+		if (!_avaible) {
 			return false;
 		}
-		if (my_thread_group.is_this_thread_in()) {
+		if (_thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			my_queue.push_task(std::forward<T>(task));
+			_queue.push_task(std::forward<T>(task));
 		}
 		return true;
 	}
 	template <typename T>
 	bool async_first(T &&task) {
-		if (!avaible) {
+		if (!_avaible) {
 			return false;
 		}
-		if (my_thread_group.is_this_thread_in()) {
+		if (_thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			my_queue.push_task_first(std::forward<T>(task));
+			_queue.push_task_first(std::forward<T>(task));
 		}
 		return true;
 	}
@@ -105,25 +107,21 @@ public:
 		}
 		return flag;
 	}
-	//同步等待线程池执行完所有任务并退出
-	void wait() {
-		exit();
-		my_thread_group.join_all();
-	}
+
     uint64_t size() const{
-        return my_queue.size();
+        return _queue.size();
     }
 	static ThreadPool &Instance() {
 		//单例模式
 		static ThreadPool instance(thread::hardware_concurrency());
 		return instance;
 	}
-	static bool setPriority(Priority _priority = PRIORITY_NORMAL,
+	static bool setPriority(Priority priority = PRIORITY_NORMAL,
 			thread::native_handle_type threadId = 0) {
 		// set priority
 #if defined(_WIN32)
 		static int Priorities[] = { THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST };
-		if (_priority != PRIORITY_NORMAL && SetThreadPriority(GetCurrentThread(), Priorities[_priority]) == 0) {
+		if (priority != PRIORITY_NORMAL && SetThreadPriority(GetCurrentThread(), Priorities[priority]) == 0) {
 			return false;
 		}
 		return true;
@@ -143,47 +141,48 @@ public:
 			threadId = pthread_self();
 		}
 		struct sched_param params;
-		params.sched_priority = Priorities[_priority];
+		params.sched_priority = Priorities[priority];
 		return pthread_setschedparam(threadId, SCHED_OTHER, &params) == 0;
 #endif
 	}
+
+    void start() {
+        if (_thread_num <= 0)
+            return;
+        for (int i = 0; i < _thread_num - _thread_group.size(); ++i) {
+            _thread_group.create_thread(bind(&ThreadPool::run, this));
+        }
+    }
+    //同步等待线程池执行完所有任务并退出
+    void wait() {
+        _avaible = false;
+        _queue.push_exit(_thread_num);
+        _thread_group.join_all();
+    }
 private:
-	TaskQueue my_queue;
-	thread_group my_thread_group;
-	int thread_num;
-	volatile bool avaible;
-	Priority priority;
-	//发送空任务至任务列队，通知线程主动退出
-	void exit() {
-		avaible = false;
-		my_queue.push_exit(thread_num);
-	}
-	void start() {
-		if (thread_num <= 0)
-			return;
-		for (int i = 0; i < thread_num; ++i) {
-			my_thread_group.create_thread(bind(&ThreadPool::run, this));
-		}
-	}
+	TaskQueue _queue;
+	thread_group _thread_group;
+	int _thread_num;
+	volatile bool _avaible;
+	Priority _priority;
+private:
 	void run() {
-		ThreadPool::setPriority(priority);
+		ThreadPool::setPriority(_priority);
 		function<void(void)> task;
-		while (true) {
-			if (my_queue.get_task(task)) {
-				try {
-					task();
-				} catch (std::exception &ex) {
-					FatalL << ex.what();
-				}
-				task = nullptr;
-			} else {
-				//空任务，退出线程
-				break;
-			}
+		while (_avaible) {
+			if (!_queue.get_task(task)) {
+                //空任务，退出线程
+                break;
+            }
+            try {
+                task();
+                task = nullptr;
+            } catch (std::exception &ex) {
+                FatalL << ex.what();
+            }
 		}
 	}
-}
-;
+};
 
 } /* namespace Thread */
 } /* namespace ZL */

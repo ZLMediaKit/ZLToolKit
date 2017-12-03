@@ -33,9 +33,8 @@
 #define HAVE_SEM
 #endif //HAVE_SEM
 */
-
-#include <mutex>
 #include <atomic>
+#include <mutex>
 #include <condition_variable>
 using namespace std;
 
@@ -46,48 +45,47 @@ class semaphore {
 public:
 	explicit semaphore(unsigned int initial = 0) {
 #if defined(HAVE_SEM)
-		sem_init(&sem, 0, initial);
+		sem_init(&_sem, 0, initial);
 #else
-		count_ = 0;
+		_count = 0;
 #endif
 	}
 	~semaphore() {
 #if defined(HAVE_SEM)
-		sem_destroy(&sem);
+		sem_destroy(&_sem);
 #endif
 	}
 	void post(unsigned int n = 1) {
 #if defined(HAVE_SEM)
 		while (n--) {
-			sem_post(&sem);
+			sem_post(&_sem);
 		}
 #else
-		unique_lock<mutex> lock(mutex_);
-		count_ += n;
+		_count += n;
 		while (n--) {
-			condition_.notify_one();
+			_condition.notify_one();
 		}
 #endif
 
 	}
 	void wait() {
 #if defined(HAVE_SEM)
-		sem_wait(&sem);
+		sem_wait(&_sem);
 #else
-		unique_lock<mutex> lock(mutex_);
-		while (count_ == 0) {
-			condition_.wait(lock);
+        while (_count == 0) {
+			unique_lock<mutex> lock(_mutex);
+			_condition.wait(lock);
 		}
-		--count_;
+		--_count;
 #endif
 	}
 private:
 #if defined(HAVE_SEM)
-	sem_t sem;
+	sem_t _sem;
 #else
-	atomic_uint count_;
-	mutex mutex_;
-	condition_variable_any condition_;
+	atomic_int _count;
+	mutex _mutex;
+	condition_variable_any _condition;
 #endif
 };
 } /* namespace Thread */

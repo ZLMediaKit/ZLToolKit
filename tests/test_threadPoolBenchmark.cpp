@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MIT License
  *
  * Copyright (c) 2016 xiongziliang <771730766@qq.com>
@@ -21,42 +21,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
- 
-#ifndef UTIL_WORKTHREADPOOL_H_
-#define UTIL_WORKTHREADPOOL_H_
-
-#include <map>
-#include <thread>
-#include <memory>
 #include <atomic>
 #include <iostream>
-#include <unordered_map>
-#include "ThreadPool.h"
+#include "Util/logger.h"
+#include "Util/TimeTicker.h"
+#include "Thread/ThreadPool.h"
 
 using namespace std;
+using namespace ZL::Util;
 
-namespace ZL {
-namespace Thread {
 
-class WorkThreadPool {
-public:
-	WorkThreadPool(int threadnum = thread::hardware_concurrency());
-	virtual ~WorkThreadPool();
-	std::shared_ptr<ThreadPool> &getWorkThread();
-	static WorkThreadPool &Instance() {
-		static WorkThreadPool *intance(new WorkThreadPool());
-		return *intance;
-	}
-	static void Destory(){
-		delete &(WorkThreadPool::Instance());
-	}
-private:
-	int threadnum;
-	atomic<int> threadPos;
-	vector <std::shared_ptr<ThreadPool> > threads;
-};
+int main() {
+    //初始化日志系统
+    Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 
-} /* namespace Thread */
-} /* namespace ZL */
+    atomic_llong count(0);
+    ThreadPool pool(10,ThreadPool::PRIORITY_HIGHEST, true);
 
-#endif /* UTIL_WORKTHREADPOOL_H_ */
+    Ticker ticker;
+    for (int i = 0 ; i < 10*10000;++i){
+        pool.async([&](){
+           if(++count >= 10*10000){
+               InfoL << "总共耗时:" << ticker.elapsedTime() << "," << count;
+           }
+        });
+    }
+    InfoL << "ThreadPool::async耗时:" << ticker.elapsedTime() << endl;
+    uint64_t  lastCount = 0 ,nowCount = 0;
+    ticker.resetTime();
+    //此处才开始启动线程
+    //pool.start();
+    //while (true)
+    {
+        sleep(1);
+        nowCount = count.load();
+        InfoL << nowCount - lastCount;
+        lastCount = nowCount;
+    }
+
+    Logger::Destory();
+    return 0;
+}

@@ -25,10 +25,12 @@
 #ifndef TASKQUEUE_H_
 #define TASKQUEUE_H_
 
+#include <list>
 #include <deque>
 #include <atomic>
 #include <mutex>
 #include <functional>
+#include "List.h"
 #include "spin_mutex.h"
 #include "semaphore.h"
 
@@ -46,42 +48,46 @@ public:
 	template <typename T>
 	void push_task(T &&task_func) {
 		{
-			lock_guard<spin_mutex> lock(my_mutex);
-			my_queue.emplace_back(std::forward<T>(task_func));
+			lock_guard<decltype(_mutex)> lock(_mutex);
+			_queue.emplace_back(std::forward<T>(task_func));
 		}
-		sem.post();
+		_sem.post();
 	}
 	template <typename T>
 	void push_task_first(T &&task_func) {
 		{
-			lock_guard<spin_mutex> lock(my_mutex);
-			my_queue.emplace_front(std::forward<T>(task_func));
+            lock_guard<decltype(_mutex)> lock(_mutex);
+			_queue.emplace_front(std::forward<T>(task_func));
 		}
-		sem.post();
+		_sem.post();
 	}
 	//清空任务列队
 	void push_exit(unsigned int n) {
-		sem.post(n);
+		_sem.post(n);
 	}
 	//从列队获取一个任务，由执行线程执行
 	bool get_task(function<void(void)> &tsk) {
-		sem.wait();
-		lock_guard<spin_mutex> lock(my_mutex);
-		if (my_queue.size() == 0) {
+		_sem.wait();
+        lock_guard<decltype(_mutex)> lock(_mutex);
+		if (_queue.size() == 0) {
 			return false;
 		}
-		tsk = my_queue.front();
-		my_queue.pop_front();
+		//改成右值引用后性能提升了1倍多！
+		tsk = std::move(_queue.front());
+		_queue.pop_front();
 		return true;
 	}
     uint64_t size() const{
-        lock_guard<spin_mutex> lock(my_mutex);
-        return my_queue.size();
+        lock_guard<decltype(_mutex)> lock(_mutex);
+        return _queue.size();
     }
 private:
-	deque<function<void(void)>> my_queue;
-	mutable spin_mutex my_mutex;
-	semaphore sem;
+    //经过对比List,std::list,std::deque三种容器发现，
+    //在i5-6200U单线程环境下，执行1000万个任务时，分别耗时1.3，2.4，1.8秒左右
+    //所以此处我们替换成性能最好的List模板
+	List<function<void(void)> > _queue;
+	mutable spin_mutex _mutex;
+	semaphore _sem;
 };
 
 } /* namespace Thread */

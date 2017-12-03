@@ -40,14 +40,9 @@ WorkThreadPool::WorkThreadPool(int _threadnum) :
 }
 
 WorkThreadPool::~WorkThreadPool() {
-	wait();
 	InfoL;
 }
-void WorkThreadPool::wait() {
-	for (auto &th : threads) {
-		th->wait();
-	}
-}
+
 std::shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
 	if (++threadPos >= threadnum) {
 		threadPos = 0;
