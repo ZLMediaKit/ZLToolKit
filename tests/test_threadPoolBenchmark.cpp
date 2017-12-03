@@ -36,12 +36,12 @@ int main() {
     Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 
     atomic_llong count(0);
-    ThreadPool pool(10,ThreadPool::PRIORITY_HIGHEST, true);
+    ThreadPool pool(1,ThreadPool::PRIORITY_HIGHEST, false);
 
     Ticker ticker;
-    for (int i = 0 ; i < 10*10000;++i){
+    for (int i = 0 ; i < 1000*10000;++i){
         pool.async([&](){
-           if(++count >= 10*10000){
+           if(++count >= 1000*10000){
                InfoL << "总共耗时:" << ticker.elapsedTime() << "," << count;
            }
         });
@@ -50,9 +50,8 @@ int main() {
     uint64_t  lastCount = 0 ,nowCount = 0;
     ticker.resetTime();
     //此处才开始启动线程
-    //pool.start();
-    //while (true)
-    {
+    pool.start();
+    while (true){
         sleep(1);
         nowCount = count.load();
         InfoL << nowCount - lastCount;
