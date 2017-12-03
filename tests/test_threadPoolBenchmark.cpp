@@ -32,6 +32,10 @@ using namespace ZL::Util;
 
 
 int main() {
+    signal(SIGINT,[](int ){
+        Logger::Destory();
+        exit(0);
+    });
     //初始化日志系统
     Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 
@@ -57,7 +61,5 @@ int main() {
         InfoL << nowCount - lastCount;
         lastCount = nowCount;
     }
-
-    Logger::Destory();
     return 0;
 }
