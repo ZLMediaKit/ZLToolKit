@@ -107,7 +107,9 @@ public:
         if(!_front){
             return;
         }
+        auto ptr = _front;
         _front = _front->next;
+        delete ptr;
         if(!_front){
             _back = nullptr;
         }
