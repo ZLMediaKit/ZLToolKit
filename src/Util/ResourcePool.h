@@ -31,6 +31,10 @@
 #include <atomic>
 #include <functional>
 #include <unordered_set>
+#include "Thread/spin_mutex.h"
+#include "Thread/List.h"
+
+using namespace ZL::Thread;
 
 namespace ZL {
 namespace Util {
@@ -79,16 +83,19 @@ private:
 		}
 #endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
 		virtual ~_ResourcePool(){
-			std::lock_guard<mutex> lck(_mutex);
-			for(auto &ptr : objs){
+			std::lock_guard<decltype(_mutex)> lck(_mutex);
+//			for(auto &ptr : objs){
+//				delete ptr;
+//			}
+			objs.for_each([](C *ptr){
 				delete ptr;
-			}
+			});
 		}
 		void setSize(int size) {
 			poolsize = size;
 		}
 		ValuePtr obtain() {
-			std::lock_guard<mutex> lck(_mutex);
+			std::lock_guard<decltype(_mutex)> lck(_mutex);
 			C *ptr = nullptr;
 			if (objs.size() == 0) {
 				ptr = allotter();
@@ -99,7 +106,7 @@ private:
 			return ValuePtr(ptr, Deleter(this->shared_from_this()));
 		}
 		void quit(const ValuePtr &ptr) {
-			std::lock_guard<mutex> lck(_mutex);
+			std::lock_guard<decltype(_mutex)> lck(_mutex);
 			quitSet.emplace(ptr.get());
 		}
 	private:
@@ -121,7 +128,7 @@ private:
 		};
 	private:
 		void recycle(C *obj) {
-			std::lock_guard<mutex> lck(_mutex);
+			std::lock_guard<decltype(_mutex)> lck(_mutex);
 			auto it = quitSet.find(obj);
 			if (it != quitSet.end()) {
 				delete obj;
@@ -132,13 +139,13 @@ private:
 				delete obj;
 				return;
 			}
-			objs.push_back(obj);
+			objs.emplace_back(obj);
 		}
 
-		deque<C*> objs;
+		List<C*> objs;
 		unordered_set<C*> quitSet;
 		function<C*(void)> allotter;
-		mutex _mutex;
+		spin_mutex _mutex;
 		int poolsize;
 	};
 	std::shared_ptr<_ResourcePool> pool;

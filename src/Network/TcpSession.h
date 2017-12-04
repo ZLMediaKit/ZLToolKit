@@ -89,9 +89,13 @@ protected:
 	virtual int send(const string &buf) {
 		return sock->send(buf);
 	}
+	virtual int send(string &&buf) {
+		return sock->send(std::move(buf));
+	}
 	virtual int send(const char *buf, int size) {
 		return sock->send(buf, size);
 	}
+
 	Socket::Ptr sock;
 private:
 	std::shared_ptr<ThreadPool> th;

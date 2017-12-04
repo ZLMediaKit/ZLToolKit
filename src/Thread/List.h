@@ -52,6 +52,7 @@ private:
     ListNode *next = nullptr;
 };
 
+
 template<typename T>
 class List {
 public:
@@ -64,6 +65,15 @@ public:
             last = ptr;
             ptr = ptr->next;
             delete last;
+        }
+    }
+
+    template <typename  FUN>
+    void for_each(FUN &&fun){
+        auto ptr = _front;
+        while(ptr){
+            fun(ptr->_data);
+            ptr = ptr->next;
         }
     }
 
@@ -115,6 +125,7 @@ public:
         }
         --_size;
     }
+
 private:
     NodeType *_front = nullptr;
     NodeType *_back = nullptr;

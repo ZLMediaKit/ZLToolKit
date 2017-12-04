@@ -164,7 +164,18 @@ int TcpClient::send(const string& str) {
 	}
 	return -1;
 }
-
+int TcpClient::send(string&& str) {
+	decltype(m_pSock) sockTmp;
+	{
+		lock_guard<spin_mutex> lck(m_mutex);
+		sockTmp = m_pSock;
+		m_ticker.resetTime();
+	}
+	if (sockTmp) {
+		return sockTmp->send(std::move(str));
+	}
+	return -1;
+}
 int TcpClient::send(const char* str, int len) {
 	decltype(m_pSock) sockTmp;
 	{

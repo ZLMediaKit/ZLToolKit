@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include <type_traits>
 #include "sockutil.h"
 #include "Socket.h"
 #include "Util/util.h"
@@ -31,6 +32,7 @@
 #include "Thread/semaphore.h"
 #include "Poller/EventPoller.h"
 
+using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Thread;
 using namespace ZL::Poller;
@@ -288,8 +290,12 @@ int Socket::send(const char *buf, int size,int flags) {
 	return send(string(buf,size), flags);
 }
 int Socket::send(const string &buf, int flags) {
-	return realSend(buf,nullptr,flags);
+	return realSend(buf,nullptr,flags, false);
 }
+int Socket::send(string &&buf, int flags) {
+	return realSend(buf,nullptr,flags, true);
+}
+
 int Socket::sendTo(const char* buf, int size, struct sockaddr* peerAddr,int flags) {
 	if (size <= 0) {
 		size = strlen(buf);
@@ -300,10 +306,14 @@ int Socket::sendTo(const char* buf, int size, struct sockaddr* peerAddr,int flag
 	return sendTo(string(buf,size), peerAddr, flags);
 }
 int Socket::sendTo(const string &buf, struct sockaddr* peerAddr, int flags) {
-	return realSend(buf,peerAddr,flags);
+	return realSend(buf,peerAddr,flags, false);
 }
 
-int Socket::realSend(const string &buf, struct sockaddr *peerAddr,int flags){
+int Socket::sendTo(string &&buf, struct sockaddr* peerAddr, int flags) {
+	return realSend(buf,peerAddr,flags,true);
+}
+
+int Socket::realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool moveAble){
 	TimeTicker();
 	if (buf.empty()) {
 		return 0;
@@ -336,7 +346,11 @@ int Socket::realSend(const string &buf, struct sockaddr *peerAddr,int flags){
 		} else if (sz >= _iMaxSendPktSize / 2) {
 			sz = 0;
 		}
-		_sendPktBuf.emplace_back(buf);
+		if(moveAble){
+			_sendPktBuf.emplace_back(std::move(buf));
+		} else{
+			_sendPktBuf.emplace_back(buf);
+		}
 		if(isUdp){
 			//udp
 			_udpSendPeer.emplace_back(*peerAddr);

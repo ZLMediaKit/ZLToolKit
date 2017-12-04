@@ -199,8 +199,12 @@ public:
 
 	int send(const char *buf, int size = 0,int flags = TCP_DEFAULE_FLAGS);
 	int send(const string &buf,int flags = TCP_DEFAULE_FLAGS);
+	int send(string &&buf,int flags = TCP_DEFAULE_FLAGS);
+
 	int sendTo(const char *buf, int size, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
 	int sendTo(const string &buf, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
+	int sendTo(string &&buf, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
+
 	bool emitErr(const SockException &err);
 	void enableRecv(bool enabled);
 
@@ -241,7 +245,7 @@ private:
 	int onAccept(const SockFD::Ptr &pSock,int event);
 	int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
 	void onError(const SockFD::Ptr &pSock);
-	int realSend(const string &buf, struct sockaddr *peerAddr,int flags);
+	int realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool moveAble = false);
 	int onWrite(const SockFD::Ptr &pSock, bool bMainThread,int flags,bool isUdp);
 	void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
 	void onFlushed(const SockFD::Ptr &pSock);

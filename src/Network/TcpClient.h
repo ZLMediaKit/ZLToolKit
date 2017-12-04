@@ -48,6 +48,7 @@ protected:
 	void startConnect(const string &strUrl, uint16_t iPort, int iTimeOutSec = 3);
 	void shutdown();
 	virtual int send(const string &str);
+    virtual int send(string &&buf);
 	virtual int send(const char *str, int len);
 	bool alive() {
 		lock_guard<spin_mutex> lck(m_mutex);
