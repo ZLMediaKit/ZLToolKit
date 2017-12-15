@@ -500,7 +500,7 @@ string SockUtil::get_ifr_name(const char *localIp){
 	for (i = (ifconf.ifc_len / sizeof(struct ifreq)); i > 0; i--) {
 		ip = inet_ntoa(((struct sockaddr_in*) &(ifreq->ifr_addr))->sin_addr);
         //DebugL << ip << " " << ifreq->ifr_name;
-		if (strcmp(ip,localIp) != 0) {
+		if (strcmp(ip,localIp) != 0 || strcmp(ifreq->ifr_name,"") == 0) {
 			ifreq++;
 			continue;
 		}
