@@ -185,6 +185,7 @@ SockException Socket::getSockErr(const SockFD::Ptr &sock, bool tryErrno) {
 bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	weak_ptr<SockFD> weakSock = pSock;
+	_enableRecv = true;
 	return -1 != EventPoller::Instance().addEvent(pSock->rawFd(),
 			Event_Read | Event_Error | Event_Write,
 			[weakSelf,weakSock,isUdp](int event) {
@@ -390,6 +391,7 @@ bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
 	auto pSock = makeSock(sock);
 	weak_ptr<SockFD> weakSock = pSock;
 	weak_ptr<Socket> weakSelf = this->shared_from_this();
+	_enableRecv = true;
 	auto result = EventPoller::Instance().addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
 		auto strongSelf = weakSelf.lock();
 		auto strongSock = weakSock.lock();
@@ -611,11 +613,13 @@ int Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread,int flags,bool isU
 
 
 void Socket::startWriteEvent(const SockFD::Ptr &pSock) {
-	EventPoller::Instance().modifyEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write);
+    int flag = _enableRecv ? Event_Read : 0;
+	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error | Event_Write);
 }
 
 void Socket::stopWriteEvent(const SockFD::Ptr &pSock) {
-	EventPoller::Instance().modifyEvent(pSock->rawFd(), Event_Read | Event_Error);
+    int flag = _enableRecv ? Event_Read : 0;
+	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);
 }
 bool Socket::sendTimeout(bool isUdp) {
 	if (_flushTicker.elapsedTime() > 5 * 1000) {
@@ -629,11 +633,12 @@ bool Socket::sendTimeout(bool isUdp) {
 	return false;
 }
 void Socket::enableRecv(bool enabled) {
-    if(enabled){
-        EventPoller::Instance().modifyEvent(rawFD(), Event_Read | Event_Error | Event_Write);
-    }else{
-        EventPoller::Instance().modifyEvent(rawFD(), Event_Error | Event_Write);
+    if(_enableRecv == enabled){
+        return;
     }
+    _enableRecv = enabled;
+    int flag = _enableRecv ? Event_Read : 0;
+    EventPoller::Instance().modifyEvent(rawFD(), flag | Event_Error | Event_Write);
 }
 
 }  // namespace Network
