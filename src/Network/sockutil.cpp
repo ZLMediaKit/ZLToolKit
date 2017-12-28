@@ -296,7 +296,10 @@ string getIosIp(){
                 if(tmp != "127.0.0.1" && tmp != "0.0.0.0") {
 					//获取一个有效IP
 					address = tmp;
-					break;
+                    if(strstr(address.data(),"192.") == address.data()){
+                        //优先采用无线wifi地址
+                        break;
+                    }
                 }
             }
             temp_addr = temp_addr->ifa_next;
