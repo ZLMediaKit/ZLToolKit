@@ -64,7 +64,7 @@ int SockUtil::setCloseWait(int sockFd, int second) {
 	m_sLinger.l_onoff = (second > 0);
 	m_sLinger.l_linger = second; //设置等待时间为x秒
 	int ret = setsockopt(sockFd, SOL_SOCKET, SO_LINGER,
-			(const char*) &m_sLinger, sizeof(linger));
+			(char*) &m_sLinger, sizeof(linger));
 	if (ret == -1) {
 		TraceL << "设置 SO_LINGER 失败!";
 	}
@@ -109,7 +109,7 @@ int SockUtil::setKeepAlive(int sockFd, bool on) {
 int SockUtil::setNoSigpipe(int sd) {
 	int set = 1, ret = 1;
 #if defined(SO_NOSIGPIPE)
-	ret= setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
+	ret= setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, (char*)&set, sizeof(int));
 	if (ret == -1) {
 		TraceL << "设置 SO_NOSIGPIPE 失败!";
 	}
@@ -606,7 +606,7 @@ static void clearMulticastAllSocketOption(int socket) {
 int SockUtil::setMultiTTL(int sockFd, uint8_t ttl) {
 	int ret = -1;
 #if defined(IP_MULTICAST_TTL)
-	ret= setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+	ret= setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_TTL, (char*)&ttl, sizeof(ttl));
 	if (ret == -1) {
 		TraceL << "设置 IP_MULTICAST_TTL 失败!";
 	}
@@ -620,7 +620,7 @@ int SockUtil::setMultiIF(int sockFd, const char* strLocalIp) {
 #if defined(IP_MULTICAST_IF)
 	struct in_addr addr;
 	addr.s_addr = inet_addr(strLocalIp);
-	ret = setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_IF, &addr, sizeof(addr));
+	ret = setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&addr, sizeof(addr));
 	if (ret == -1) {
 		TraceL << "设置 IP_MULTICAST_IF 失败!";
 	}
@@ -633,7 +633,7 @@ int SockUtil::setMultiLOOP(int sockFd, bool bAccept) {
 	int ret = -1;
 #if defined(IP_MULTICAST_LOOP)
 	uint8_t loop = bAccept;
-	ret = setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+	ret = setsockopt(sockFd, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loop, sizeof(loop));
 	if (ret == -1) {
 		TraceL << "设置 IP_MULTICAST_LOOP 失败!";
 	}
@@ -648,7 +648,7 @@ int SockUtil::joinMultiAddr(int sockFd, const char* strAddr,const char* strLocal
 	struct ip_mreq imr;
 	imr.imr_multiaddr.s_addr = inet_addr(strAddr);
 	imr.imr_interface.s_addr = inet_addr(strLocalIp);
-	ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_MEMBERSHIP,  (const char*)&imr, sizeof (struct ip_mreq));
+	ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_MEMBERSHIP,  (char*)&imr, sizeof (struct ip_mreq));
 	if (ret == -1) {
 		TraceL << "设置 IP_ADD_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
@@ -663,7 +663,7 @@ int SockUtil::leaveMultiAddr(int sockFd, const char* strAddr,const char* strLoca
 	struct ip_mreq imr;
 	imr.imr_multiaddr.s_addr = inet_addr(strAddr);
 	imr.imr_interface.s_addr = inet_addr(strLocalIp);
-	ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_MEMBERSHIP,  (const char*)&imr, sizeof (struct ip_mreq));
+	ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_MEMBERSHIP,  (char*)&imr, sizeof (struct ip_mreq));
 	if (ret == -1) {
 		TraceL << "设置 IP_DROP_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
@@ -687,7 +687,7 @@ int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
 	imr.imr_interface.s_addr =  inet_addr(strLocalIp);
 #endif
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
-			(const char*) &imr, sizeof(struct ip_mreq_source));
+			(char*) &imr, sizeof(struct ip_mreq_source));
 	if (ret == -1) {
 		TraceL << "设置 IP_ADD_SOURCE_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
@@ -711,7 +711,7 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
 	imr.imr_interface.s_addr = inet_addr(strLocalIp);
 #endif
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
-			(const char*) &imr, sizeof(struct ip_mreq_source));
+			(char*) &imr, sizeof(struct ip_mreq_source));
 	if (ret == -1) {
 		TraceL << "设置 IP_DROP_SOURCE_MEMBERSHIP 失败:" << get_uv_errmsg(true);
 	}
