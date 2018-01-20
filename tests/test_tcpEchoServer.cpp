@@ -53,7 +53,7 @@ public:
 	virtual void onManager() {
 		//定时管理该对象，譬如会话超时检查
 		DebugL;
-		if(_ticker.createdTime() > 5){
+		if(_ticker.createdTime() > 5 * 1000){
 			shutdown();
 		}
 	}

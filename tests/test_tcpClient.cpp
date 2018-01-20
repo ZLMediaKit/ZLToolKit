@@ -89,6 +89,8 @@ int main() {
 	TestClient::Ptr client(new TestClient());//必须使用智能指针
 	client->connect();//连接服务器
 	EventPoller::Instance().runLoop();//主线程事件轮询
+	client.reset();
+
 	EventPoller::Destory();
 	Logger::Destory();
 	return 0;
