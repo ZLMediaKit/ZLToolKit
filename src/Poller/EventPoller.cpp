@@ -212,7 +212,7 @@ namespace ZL {
 				asyncCb();
 				return;
 			}
-			std::shared_ptr<Ticker> pTicker(new Ticker(5, "wake up main thread", FatalL, true));
+			std::shared_ptr<Ticker> pTicker(new Ticker(5, "wake up main thread", WarnL, true));
 			auto lam = [asyncCb, pTicker]() {
 				const_cast<std::shared_ptr<Ticker> &>(pTicker).reset();
 				asyncCb();
