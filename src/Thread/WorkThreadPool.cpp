@@ -41,6 +41,9 @@ WorkThreadPool::WorkThreadPool(int _threadnum) :
 
 WorkThreadPool::~WorkThreadPool() {
 	InfoL;
+	for(auto &thread : threads){
+		thread->wait();
+	}
 }
 
 std::shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
