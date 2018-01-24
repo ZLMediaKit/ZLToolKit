@@ -142,18 +142,20 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB,
 void Socket::onConnected(const SockFD::Ptr &pSock,const onErrCB &connectCB) {
 	_conTimer.reset();
 	auto err = getSockErr(pSock, false);
-	if (!err) {
-		EventPoller::Instance().delEvent(pSock->rawFd());
-		if(!attachEvent(pSock,false)){
-			WarnL << "开始Poll监听失败";
-			err.reset(Err_other, "开始Poll监听失败");
-			goto failed;
-		}
-		pSock->setConnected();
-		connectCB(err);
-		return;
-	}
-failed:
+    do {
+        if (!err) {
+            EventPoller::Instance().delEvent(pSock->rawFd());
+            if (!attachEvent(pSock, false)) {
+                WarnL << "开始Poll监听失败";
+                err.reset(Err_other, "开始Poll监听失败");
+                break;
+            }
+            pSock->setConnected();
+            connectCB(err);
+            return;
+        }
+    }while(0);
+
 	emitErr(err);
 	connectCB(err);
 }
@@ -203,7 +205,7 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 			strongSelf->onRead(strongSock,!isUdp);
 		}
 		if (event & Event_Write) {
-			strongSelf->onWrite(strongSock,true,strongSelf->_lastSendFlags,isUdp);
+			strongSelf->onWrite(strongSock,true);
 		}
 	});
 }
@@ -238,7 +240,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 
 		if (nread == -1) {
 			if (get_uv_error(true) != UV_EAGAIN) {
-				emitErr(getSockErr(pSock));
+				onError(pSock);
 			}
 			return ret;
 		}
@@ -315,7 +317,6 @@ int Socket::sendTo(string &&buf, struct sockaddr* peerAddr, int flags) {
 }
 
 int Socket::realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool moveAble){
-	TimeTicker();
 	if (buf.empty()) {
 		return 0;
 	}
@@ -327,41 +328,56 @@ int Socket::realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool
 	if (!sock) {
 		return -1;
 	}
-	bool isUdp = peerAddr;
-	std::size_t sz;
-	{
+    int ret = buf.size();
+	Packet::Ptr packet ;
+	if(moveAble){
+		packet.reset(new Packet(std::move(buf)));
+	} else{
+		packet.reset(new Packet(buf));
+	}
+    packet->setFlag(flags);
+    if(peerAddr){
+        packet->setAddr(peerAddr);
+    }
+    //数据包个数
+	int packetSize;
+	do{//减小临界区
 		lock_guard<recursive_mutex> lck(_mtx_sendBuf);
-		sz = _sendPktBuf.size();
-		if (sz >= _iMaxSendPktSize) {
-			if (sendTimeout(isUdp)) {
+        packetSize = _sendPktBuf.size();
+		if (packetSize >= _iMaxSendPktSize) {
+			if (sendTimeout()) {
+                //一定时间内没有任何数据发送成功，则主动断开socket
 				return -1;
 			}
-			WarnL << "socket send buffer overflow,previous data has been discarded.";
-			sz = 0;
-			//the first packet maybe sent partially
-			_sendPktBuf.erase(_sendPktBuf.begin()+1,_sendPktBuf.end());
-			if(isUdp){
-				//udp
-				_udpSendPeer.erase(_udpSendPeer.begin()+1,_udpSendPeer.end());
+			if (!_shouldDropPacket) {
+				//强制刷新socket缓存
+                packetSize = 0;
+				//未写入任何数据，(不能主动丢包)交给上层应用处理
+                ret = 0;
+                WarnL << "socket send buffer reach the limit:" << _iMaxSendPktSize;
+                break;
 			}
-		} else if (sz >= _iMaxSendPktSize / 2) {
-			sz = 0;
+            //可以主动丢包
+            WarnL << "socket send buffer overflow,previous data has been cleared.";
+            //强制刷新socket缓存
+            packetSize = 0;
+            //清空发送列队；第一个包数据发送可能不完整，我们需要一个包一个包完整的发送数据
+            _sendPktBuf.erase(_sendPktBuf.begin() + 1, _sendPktBuf.end());
+		} else if (packetSize >= _iMaxSendPktSize / 2) {
+            //发送列队到了一半后就强制刷新socket缓存
+            packetSize = 0;
 		}
-		if(moveAble){
-			_sendPktBuf.emplace_back(std::move(buf));
-		} else{
-			_sendPktBuf.emplace_back(buf);
-		}
-		if(isUdp){
-			//udp
-			_udpSendPeer.emplace_back(*peerAddr);
-		}
+		_sendPktBuf.emplace_back(packet);
+	}while(0);
+
+	if(!packetSize){
+		//列队中没有数据，说明socket是空闲的，启动发送流程
+		if(!onWrite(sock,false)){
+            //发生错误
+            return -1;
+        }
 	}
-	if (sz) {
-		return 0;
-	}
-	_lastSendFlags = flags;
-	return onWrite(sock,false,flags,isUdp);
+	return ret;
 }
 
 
@@ -424,12 +440,14 @@ bool Socket::bindUdpSock(const uint16_t port, const char* localIp) {
 	return true;
 }
 int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
-	struct sockaddr addr;
-	socklen_t len = sizeof addr;
 	int peerfd;
 	while (true) {
 		if (event & Event_Read) {
-			peerfd = accept(pSock->rawFd(), &addr, &len);
+            do{
+                peerfd = accept(pSock->rawFd(), NULL, NULL);
+            }while(-1 == peerfd && UV_EINTR == get_uv_error(true));
+
+
 			if (peerfd == -1) {
 				int err = get_uv_error(true);
 				if (err == UV_EAGAIN) {
@@ -448,7 +466,7 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			SockUtil::setCloseWait(peerfd);
 
 			Socket::Ptr peerSock(new Socket());
-			if(peerSock->setPeerSock(peerfd, &addr)){
+			if(peerSock->setPeerSock(peerfd)){
 				onAcceptCB cb;
 				{
 					lock_guard<spin_mutex> lck(_mtx_accept);
@@ -465,14 +483,13 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 		}
 	}
 }
-bool Socket::setPeerSock(int sock, struct sockaddr *addr) {
+bool Socket::setPeerSock(int sock) {
 	closeSock();
 	auto pSock = makeSock(sock);
 	if(!attachEvent(pSock,false)){
 		WarnL << "开始Poll监听失败";
 		return false;
 	}
-	_peerAddr = *addr;
 	lock_guard<spin_mutex> lck(_mtx_sockFd);
 	_sockFd = pSock;
 	return true;
@@ -527,9 +544,8 @@ uint16_t Socket::get_peer_port() {
 	return SockUtil::get_peer_port(sock->rawFd());
 }
 
-int Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread,int flags,bool isUdp) {
-	deque<string> sendPktBuf_copy;
-	std::shared_ptr<deque<struct sockaddr> > udpSendPeer_copy;
+bool Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread) {
+	decltype(_sendPktBuf) sendPktBuf_copy;
 	{
 		lock_guard<recursive_mutex> lck(_mtx_sendBuf);
 		auto sz = _sendPktBuf.size();
@@ -538,77 +554,51 @@ int Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread,int flags,bool isU
 				stopWriteEvent(pSock);
 				onFlushed(pSock);
 			}
-			return 0;
+			return true;
 		}
 		sendPktBuf_copy.swap(_sendPktBuf);
-		if(isUdp){
-			udpSendPeer_copy.reset(new deque<struct sockaddr>());
-			udpSendPeer_copy->swap(_udpSendPeer);
-		}
 	}
-	int byteSent = 0;
-	while (sendPktBuf_copy.size()) {
-		auto &buf = sendPktBuf_copy.front();
-		struct sockaddr *peer;
-		if(isUdp){
-			peer = &udpSendPeer_copy->front();
-		}
-		int n ;
-		do {
-			if(isUdp){
-				n = ::sendto(pSock->rawFd(), buf.data(), buf.size(), flags, peer, sizeof(struct sockaddr));
-			}else{
-				n = ::send(pSock->rawFd(), buf.data(), buf.size(), flags);
-			}
-		} while (-1 == n && UV_EINTR == get_uv_error(true));
+    int sockFd = pSock->rawFd();
+	while (!sendPktBuf_copy.empty()) {
+		auto &packet = sendPktBuf_copy.front();
+		int n = packet->send(sockFd);
+        if(n > 0){
+            //全部或部分发送成功
+            _flushTicker.resetTime();
+            if(packet->empty()){
+                //全部发送成功
+                sendPktBuf_copy.pop_front();
+                continue;
+            }
+            //部分发送成功
+            if (!bMainThread) {
+                startWriteEvent(pSock);
+            }
+            break;
+        }
 
-		if (n > 0) {
-			_flushTicker.resetTime();
-		}
-
-		byteSent += (n > 0 ? n : 0);
-
-		if (n >= (int) buf.size()) {
-			//全部发送成功
-			sendPktBuf_copy.pop_front();
-			if(isUdp){
-				udpSendPeer_copy->pop_front();
-			}
-			continue;
-		}
-		if (n <= 0) {
-			//一个都没发送成功
-			int err = get_uv_error(true);
-			if (err == UV_EAGAIN) {
-				//InfoL << "send wait...";
-				if(!bMainThread){
-					startWriteEvent(pSock);
-				}
-				break;
-			}
-			//发生异常
-			//ErrorL << "send err:" << uv_strerror(err);
-			onError(pSock);
-			return -1;
-		}
-		//部分发送成功
-		//InfoL << "send some success...";
-		if (!bMainThread) {
-			startWriteEvent(pSock);
-		}
-		buf.erase(0, n);
-		break;
-	} ;
+        //一个都没发送成功
+        int err = get_uv_error(true);
+        if (err == UV_EAGAIN) {
+            //等待下一次发送
+            if(!bMainThread){
+                startWriteEvent(pSock);
+            }
+            break;
+        }
+        //其他错误代码，发生异常
+        onError(pSock);
+        return false;
+	}
 
 	if (sendPktBuf_copy.empty()) {
-		return byteSent + onWrite(pSock,bMainThread,flags,isUdp);
+        //确保真正全部发送完毕
+		return onWrite(pSock,bMainThread);
 	}
+    //未发送完毕则回滚数据
 	lock_guard<recursive_mutex> lck(_mtx_sendBuf);
 	_sendPktBuf.insert(_sendPktBuf.begin(), sendPktBuf_copy.begin(),sendPktBuf_copy.end());
-	if(isUdp){
-		_udpSendPeer.insert(_udpSendPeer.begin(), udpSendPeer_copy->begin(),udpSendPeer_copy->end());
-	}
-	return byteSent;
+	return true;
 }
 
 
@@ -621,13 +611,10 @@ void Socket::stopWriteEvent(const SockFD::Ptr &pSock) {
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);
 }
-bool Socket::sendTimeout(bool isUdp) {
+bool Socket::sendTimeout() {
 	if (_flushTicker.elapsedTime() > 5 * 1000) {
 		emitErr(SockException(Err_other, "Socket send timeout"));
 		_sendPktBuf.clear();
-		if(isUdp){
-			_udpSendPeer.clear();
-		}
 		return true;
 	}
 	return false;

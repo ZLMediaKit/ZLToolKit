@@ -36,6 +36,7 @@
 #include "Poller/Timer.h"
 #include "Network/sockutil.h"
 #include "Thread/spin_mutex.h"
+#include "Util/uv_errno.h"
 
 using namespace std;
 using namespace ZL::Util;
@@ -63,7 +64,7 @@ namespace Network {
 #define FLAG_DONTWAIT 0
 #endif //MSG_DONTWAIT
 
-#define TCP_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT)
+#define TCP_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
 #define UDP_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT)
 
 #define MAX_SEND_PKT (256)
@@ -85,6 +86,7 @@ typedef enum {
 	Err_dns,
 	Err_other,
 } ErrCode;
+
 
 class SockException: public std::exception {
 public:
@@ -216,16 +218,68 @@ public:
 	void setSendPktSize(uint32_t iPktSize){
 		_iMaxSendPktSize = iPktSize;
 	}
+    void setShouldDropPacket(bool dropPacket){
+        _shouldDropPacket = dropPacket;
+    }
+private:
+    class Packet
+    {
+    private:
+        Packet(const Packet &that) = delete;
+        Packet(Packet &&that) = delete;
+        Packet &operator=(const Packet &that) = delete;
+        Packet &operator=(Packet &&that) = delete;
+    public:
+		typedef std::shared_ptr<Packet> Ptr;
+        Packet(const char *data,int len):_data(data,len){}
+        Packet(const string &data):_data(data){}
+        Packet(string &&data):_data(std::move(data)){}
+        ~Packet(){  if(_addr){ delete _addr; } }
+
+        void setAddr(const struct sockaddr *addr){
+            if(_addr){
+                *_addr = *addr;
+            }else{
+                _addr = new struct sockaddr(*addr);
+            }
+        }
+        void setFlag(int flag){
+            _flag = flag;
+        }
+        int send(int fd){
+            int n;
+            do {
+                if(_addr){
+                    n = ::sendto(fd, _data.data(), _data.size(), _flag, _addr, sizeof(struct sockaddr));
+                }else{
+                    n = ::send(fd, _data.data(), _data.size(), _flag);
+                }
+            } while (-1 == n && UV_EINTR == get_uv_error(true));
+
+            if(n >= _data.size()){
+                //全部发送成功
+                _data.clear();
+            }else if(n > 0) {
+                //部分发送成功
+                _data.erase(0, n);
+            }
+            return n;
+        }
+        int empty() const{
+            return _data.empty();
+        }
+    private:
+        struct sockaddr *_addr = nullptr;
+        string _data;
+        int _flag;
+    };
 private:
  	mutable spin_mutex _mtx_sockFd;
 	SockFD::Ptr _sockFd;
-	//send buffer
 	recursive_mutex _mtx_sendBuf;
-	deque<string> _sendPktBuf;
-	deque<struct sockaddr> _udpSendPeer;
+	deque<Packet::Ptr> _sendPktBuf;
 	/////////////////////
 	std::shared_ptr<Timer> _conTimer;
-	struct sockaddr _peerAddr;
 	spin_mutex _mtx_read;
 	spin_mutex _mtx_err;
 	spin_mutex _mtx_accept;
@@ -235,25 +289,26 @@ private:
 	onAcceptCB _acceptCB;
 	onFlush _flushCB;
 	Ticker _flushTicker;
-    int _lastSendFlags = TCP_DEFAULE_FLAGS;
     uint32_t _iMaxSendPktSize = MAX_SEND_PKT;
     atomic<bool> _enableRecv;
+    //默认网络底层可以主动丢包
+    bool _shouldDropPacket = true;
 
 	void closeSock();
-	bool setPeerSock(int fd, struct sockaddr *addr);
+	bool setPeerSock(int fd);
 	bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
 
 	int onAccept(const SockFD::Ptr &pSock,int event);
 	int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
 	void onError(const SockFD::Ptr &pSock);
 	int realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool moveAble = false);
-	int onWrite(const SockFD::Ptr &pSock, bool bMainThread,int flags,bool isUdp);
+	bool onWrite(const SockFD::Ptr &pSock, bool bMainThread);
 	void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
 	void onFlushed(const SockFD::Ptr &pSock);
 
 	void startWriteEvent(const SockFD::Ptr &pSock);
 	void stopWriteEvent(const SockFD::Ptr &pSock);
-	bool sendTimeout(bool isUdp);
+	bool sendTimeout();
 	SockFD::Ptr makeSock(int sock){
 		return std::make_shared<SockFD>(sock);
 	}
