@@ -211,6 +211,7 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 }
 
 int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
+    TimeTicker1(1);
 	int ret = 0;
 	int sock = pSock->rawFd();
 	while (true && _enableRecv) {
@@ -225,10 +226,10 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		}
 		struct sockaddr peerAddr;
 		socklen_t len = sizeof(struct sockaddr);
-		Buffer::Ptr buf(new Buffer(nread + 1));
-
+		Buffer::Ptr buf = _memPool.obtain();
+		buf->setCapacity(nread + 1);
 		do {
-			nread = recvfrom(sock, buf->_data, nread, 0, &peerAddr, &len);
+			nread = recvfrom(sock, buf->data(), nread, 0, &peerAddr, &len);
 		} while (-1 == nread && UV_EINTR == get_uv_error(true));
 
 		if (nread == 0) {
@@ -245,8 +246,8 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 			return ret;
 		}
 		ret += nread;
-		buf->_data[nread] = '\0';
-		buf->_size = nread;
+		buf->data()[nread] = '\0';
+		buf->setSize(nread);
 		onReadCB cb;
 		{
 			lock_guard<spin_mutex> lck(_mtx_read);

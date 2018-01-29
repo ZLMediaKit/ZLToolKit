@@ -29,6 +29,7 @@
 #include <string>
 #include <deque>
 #include <mutex>
+#include <vector>
 #include <atomic>
 #include <functional>
 #include "Util/util.h"
@@ -37,6 +38,7 @@
 #include "Network/sockutil.h"
 #include "Thread/spin_mutex.h"
 #include "Util/uv_errno.h"
+#include <Util/ResourcePool.h>
 
 using namespace std;
 using namespace ZL::Util;
@@ -153,23 +155,45 @@ public:
 	class Buffer {
 	public:
 		typedef std::shared_ptr<Buffer> Ptr;
-		Buffer(uint32_t size) {
-			_size = size;
-			_data = new char[size];
+        Buffer(uint32_t capacity = 0) {
+            setCapacity(capacity);
+        }
+        virtual ~Buffer() {
+			if(_data){
+				delete[] _data;
+			}
 		}
-		virtual ~Buffer() {
-			delete[] _data;
-		}
-		const char *data() const {
+		char *data() {
 			return _data;
 		}
 		uint32_t size() const {
 			return _size;
 		}
+		void setCapacity(uint32_t capacity){
+			if(_capacity >= capacity){
+				return;
+			}
+			if(_data){
+				delete[] _data;
+			}
+			_data = new char[capacity];;
+            _capacity = capacity;
+		}
+		void setSize(uint32_t size){
+            if(size > _capacity){
+                throw std::invalid_argument("Buffer::setSize out of range");
+            }
+			_size = size;
+		}
+        void assign(const char *data,int size){
+            setCapacity(size);
+            memcpy(_data,data,size);
+            setSize(size);
+        }
 	private:
-		friend class Socket;
-		char *_data;
-		uint32_t _size;
+        char *_data = nullptr;
+		int _size = 0;
+		int _capacity = 0;
 	};
 	typedef std::shared_ptr<Socket> Ptr;
 	typedef function<void(const Buffer::Ptr &buf, struct sockaddr *addr)> onReadCB;
@@ -314,6 +338,7 @@ private:
 		return std::make_shared<SockFD>(sock);
 	}
 	static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
+    ResourcePool<Buffer,MAX_SEND_PKT> _memPool;
 
 };
 
