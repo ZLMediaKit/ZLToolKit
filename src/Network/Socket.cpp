@@ -226,7 +226,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		}
 		struct sockaddr peerAddr;
 		socklen_t len = sizeof(struct sockaddr);
-		Buffer::Ptr buf = _memPool.obtain();
+        BufferRaw::Ptr buf = _bufferPool.obtain();
 		buf->setCapacity(nread + 1);
 		do {
 			nread = recvfrom(sock, buf->data(), nread, 0, &peerAddr, &len);
@@ -284,41 +284,30 @@ bool Socket::emitErr(const SockException& err) {
 	return true;
 }
 
-int Socket::send(const char *buf, int size,int flags) {
-	if (size <= 0) {
-		size = strlen(buf);
-		if (!size) {
-			return 0;
-		}
-	}
-	return send(string(buf,size), flags);
+
+int Socket::send(const char* buf, int size, int flags,struct sockaddr* peerAddr) {
+    if (size <= 0) {
+        size = strlen(buf);
+        if (!size) {
+            return 0;
+        }
+    }
+    BufferRaw::Ptr ptr = _bufferPool.obtain();
+    ptr->assign(buf,size);
+    return send(ptr,flags,peerAddr);
 }
-int Socket::send(const string &buf, int flags) {
-	return realSend(buf,nullptr,flags, false);
-}
-int Socket::send(string &&buf, int flags) {
-	return realSend(buf,nullptr,flags, true);
+int Socket::send(const string &buf, int flags, struct sockaddr* peerAddr) {
+    BufferString::Ptr ptr(new BufferString(buf));
+    return send(ptr,flags,peerAddr);
 }
 
-int Socket::sendTo(const char* buf, int size, struct sockaddr* peerAddr,int flags) {
-	if (size <= 0) {
-		size = strlen(buf);
-		if (!size) {
-			return 0;
-		}
-	}
-	return sendTo(string(buf,size), peerAddr, flags);
-}
-int Socket::sendTo(const string &buf, struct sockaddr* peerAddr, int flags) {
-	return realSend(buf,peerAddr,flags, false);
+int Socket::send(string &&buf, int flags,struct sockaddr* peerAddr) {
+    BufferString::Ptr ptr(new BufferString(std::move(buf)));
+    return send(ptr,flags,peerAddr);
 }
 
-int Socket::sendTo(string &&buf, struct sockaddr* peerAddr, int flags) {
-	return realSend(buf,peerAddr,flags,true);
-}
-
-int Socket::realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool moveAble){
-	if (buf.empty()) {
+int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
+	if(!buf->size()){
 		return 0;
 	}
 	SockFD::Ptr sock;
@@ -329,17 +318,13 @@ int Socket::realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool
 	if (!sock) {
 		return -1;
 	}
-    int ret = buf.size();
-	Packet::Ptr packet ;
-	if(moveAble){
-		packet.reset(new Packet(std::move(buf)));
-	} else{
-		packet.reset(new Packet(buf));
-	}
+
+    int ret = buf->size();
+
+	Packet::Ptr packet = _packetPool.obtain();
+    packet->setData(buf);
     packet->setFlag(flags);
-    if(peerAddr){
-        packet->setAddr(peerAddr);
-    }
+    packet->setAddr(peerAddr);
     //数据包个数
 	int packetSize;
 	do{//减小临界区

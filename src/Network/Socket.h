@@ -66,8 +66,7 @@ namespace Network {
 #define FLAG_DONTWAIT 0
 #endif //MSG_DONTWAIT
 
-#define TCP_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
-#define UDP_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT)
+#define SOCKET_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
 
 #define MAX_SEND_PKT (256)
 
@@ -152,21 +151,36 @@ private:
 
 class Socket: public std::enable_shared_from_this<Socket> {
 public:
-	class Buffer {
+	class Buffer
+	{
+    private:
+        Buffer(const Buffer &that) = delete;
+        Buffer(Buffer &&that) = delete;
+        Buffer &operator=(const Buffer &that) = delete;
+        Buffer &operator=(Buffer &&that) = delete;
 	public:
 		typedef std::shared_ptr<Buffer> Ptr;
-        Buffer(uint32_t capacity = 0) {
-            setCapacity(capacity);
-        }
-        virtual ~Buffer() {
+		Buffer(){};
+		virtual ~Buffer(){};
+		virtual char *data() = 0 ;
+		virtual uint32_t size() const = 0;
+	};
+
+	class BufferRaw : public  Buffer{
+	public:
+		typedef std::shared_ptr<BufferRaw> Ptr;
+		BufferRaw(uint32_t capacity = 0) {
+			setCapacity(capacity);
+		}
+		virtual ~BufferRaw() {
 			if(_data){
 				delete[] _data;
 			}
 		}
-		char *data() {
+		char *data() override {
 			return _data;
 		}
-		uint32_t size() const {
+		uint32_t size() const override{
 			return _size;
 		}
 		void setCapacity(uint32_t capacity){
@@ -177,24 +191,41 @@ public:
 				delete[] _data;
 			}
 			_data = new char[capacity];;
-            _capacity = capacity;
+			_capacity = capacity;
 		}
 		void setSize(uint32_t size){
-            if(size > _capacity){
-                throw std::invalid_argument("Buffer::setSize out of range");
-            }
+			if(size > _capacity){
+				throw std::invalid_argument("Buffer::setSize out of range");
+			}
 			_size = size;
 		}
-        void assign(const char *data,int size){
-            setCapacity(size);
-            memcpy(_data,data,size);
-            setSize(size);
-        }
+		void assign(const char *data,int size){
+			setCapacity(size);
+			memcpy(_data,data,size);
+			setSize(size);
+		}
 	private:
-        char *_data = nullptr;
+		char *_data = nullptr;
 		int _size = 0;
 		int _capacity = 0;
 	};
+
+    class BufferString : public  Buffer {
+    public:
+        typedef std::shared_ptr<BufferString> Ptr;
+        BufferString(const string &data):_data(data) {}
+        BufferString(string &&data):_data(std::move(data)){}
+        virtual ~BufferString() {}
+        char *data() override {
+            return const_cast<char *>(_data.data());
+        }
+        uint32_t size() const override{
+            return _data.size();
+        }
+    private:
+        string _data;
+    };
+
 	typedef std::shared_ptr<Socket> Ptr;
 	typedef function<void(const Buffer::Ptr &buf, struct sockaddr *addr)> onReadCB;
 	typedef function<void(const SockException &err)> onErrCB;
@@ -223,13 +254,10 @@ public:
 	void setOnAccept(const onAcceptCB &cb);
 	void setOnFlush(const onFlush &cb);
 
-	int send(const char *buf, int size = 0,int flags = TCP_DEFAULE_FLAGS);
-	int send(const string &buf,int flags = TCP_DEFAULE_FLAGS);
-	int send(string &&buf,int flags = TCP_DEFAULE_FLAGS);
-
-	int sendTo(const char *buf, int size, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
-	int sendTo(const string &buf, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
-	int sendTo(string &&buf, struct sockaddr *peerAddr,int flags = UDP_DEFAULE_FLAGS);
+	int send(const char *buf, int size = 0,int flags = SOCKET_DEFAULE_FLAGS,struct sockaddr *peerAddr = nullptr);
+	int send(const string &buf,int flags = SOCKET_DEFAULE_FLAGS,struct sockaddr *peerAddr = nullptr);
+	int send(string &&buf,int flags = SOCKET_DEFAULE_FLAGS,struct sockaddr *peerAddr = nullptr);
+	int send(const Buffer::Ptr &buf,int flags = SOCKET_DEFAULE_FLAGS , struct sockaddr *peerAddr = nullptr);
 
 	bool emitErr(const SockException &err);
 	void enableRecv(bool enabled);
@@ -241,10 +269,13 @@ public:
 
 	void setSendPktSize(uint32_t iPktSize){
 		_iMaxSendPktSize = iPktSize;
+        _bufferPool.reSize(iPktSize);
+        _packetPool.reSize(iPktSize);
 	}
     void setShouldDropPacket(bool dropPacket){
         _shouldDropPacket = dropPacket;
     }
+
 private:
     class Packet
     {
@@ -254,35 +285,44 @@ private:
         Packet &operator=(const Packet &that) = delete;
         Packet &operator=(Packet &&that) = delete;
     public:
-		typedef std::shared_ptr<Packet> Ptr;
-        Packet(const char *data,int len):_data(data,len){}
-        Packet(const string &data):_data(data){}
-        Packet(string &&data):_data(std::move(data)){}
-        ~Packet(){  if(_addr){ delete _addr; } }
+        typedef std::shared_ptr<Packet> Ptr;
+		Packet(){}
+        ~Packet(){  if(_addr) delete _addr;  }
 
         void setAddr(const struct sockaddr *addr){
-            if(_addr){
-                *_addr = *addr;
-            }else{
-                _addr = new struct sockaddr(*addr);
+            if (addr) {
+                if (_addr) {
+                    *_addr = *addr;
+                } else {
+                    _addr = new struct sockaddr(*addr);
+                }
+            } else {
+                if (_addr) {
+                    delete _addr;
+                    _addr = nullptr;
+                }
             }
         }
         void setFlag(int flag){
             _flag = flag;
         }
+        void setData(const Buffer::Ptr &data){
+            _data = data;
+            _offset = 0;
+        }
         int send(int fd){
             int n;
             do {
                 if(_addr){
-                    n = ::sendto(fd, _data.data() + _offset, _data.size() - _offset, _flag, _addr, sizeof(struct sockaddr));
+                    n = ::sendto(fd, _data->data() + _offset, _data->size() - _offset, _flag, _addr, sizeof(struct sockaddr));
                 }else{
-                    n = ::send(fd, _data.data() + _offset, _data.size() - _offset, _flag);
+                    n = ::send(fd, _data->data() + _offset, _data->size() - _offset, _flag);
                 }
             } while (-1 == n && UV_EINTR == get_uv_error(true));
 
-            if(n >= _data.size() - _offset){
+            if(n >= _data->size() - _offset){
                 //全部发送成功
-                _offset = _data.size();
+                _offset = _data->size();
             }else if(n > 0) {
                 //部分发送成功
                 _offset += n;
@@ -290,14 +330,15 @@ private:
             return n;
         }
         int empty() const{
-            return _offset >= _data.size();
+            return _offset >= _data->size();
         }
     private:
         struct sockaddr *_addr = nullptr;
-        string _data;
+        Buffer::Ptr _data;
         int _flag = 0;
         int _offset = 0;
     };
+
 private:
  	mutable spin_mutex _mtx_sockFd;
 	SockFD::Ptr _sockFd;
@@ -326,7 +367,6 @@ private:
 	int onAccept(const SockFD::Ptr &pSock,int event);
 	int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
 	void onError(const SockFD::Ptr &pSock);
-	int realSend(const string &buf, struct sockaddr *peerAddr,int flags,bool moveAble = false);
 	bool onWrite(const SockFD::Ptr &pSock, bool bMainThread);
 	void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
 	void onFlushed(const SockFD::Ptr &pSock);
@@ -338,8 +378,8 @@ private:
 		return std::make_shared<SockFD>(sock);
 	}
 	static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
-    ResourcePool<Buffer,MAX_SEND_PKT> _memPool;
-
+    ResourcePool<BufferRaw,MAX_SEND_PKT> _bufferPool;
+    ResourcePool<Packet,MAX_SEND_PKT> _packetPool;
 };
 
 }  // namespace Network

@@ -72,7 +72,7 @@ int main() {
 	int i = 0;
 	while(!exitProgram){
         //每隔一秒往对方发送数据
-		sockSend->sendTo(to_string(i++),&addrDst);
+		sockSend->send(to_string(i++),SOCKET_DEFAULE_FLAGS,&addrDst);
 		sleep(1);
 	}
 
