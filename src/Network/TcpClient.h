@@ -50,6 +50,7 @@ protected:
 	virtual int send(const string &str);
     virtual int send(string &&buf);
 	virtual int send(const char *str, int len);
+	virtual int send(const Socket::Buffer::Ptr &buf);
 	bool alive() {
 		lock_guard<spin_mutex> lck(m_mutex);
 		return m_pSock.operator bool();

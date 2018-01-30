@@ -95,6 +95,9 @@ protected:
 	virtual int send(const char *buf, int size) {
 		return sock->send(buf, size);
 	}
+	virtual int send(const Socket::Buffer::Ptr &buf) {
+		return sock->send(buf);
+	}
 
 	Socket::Ptr sock;
 private:

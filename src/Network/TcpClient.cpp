@@ -189,6 +189,18 @@ int TcpClient::send(const char* str, int len) {
 	return -1;
 }
 
+int TcpClient::send(const Socket::Buffer::Ptr &buf){
+	decltype(m_pSock) sockTmp;
+	{
+		lock_guard<spin_mutex> lck(m_mutex);
+		sockTmp = m_pSock;
+		m_ticker.resetTime();
+	}
+	if (sockTmp) {
+		return sockTmp->send(buf);
+	}
+	return -1;
+}
 uint64_t TcpClient::elapsedTime() {
 	lock_guard<spin_mutex> lck(m_mutex);
 	return m_ticker.elapsedTime();
