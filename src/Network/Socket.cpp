@@ -614,6 +614,27 @@ void Socket::enableRecv(bool enabled) {
     EventPoller::Instance().modifyEvent(rawFD(), flag | Event_Error | Event_Write);
 }
 
+int Socket::Packet::send(int fd){
+	int n;
+	do {
+		if(_addr){
+			n = ::sendto(fd, _data->data() + _offset, _data->size() - _offset, _flag, _addr, sizeof(struct sockaddr));
+		}else{
+			n = ::send(fd, _data->data() + _offset, _data->size() - _offset, _flag);
+		}
+	} while (-1 == n && UV_EINTR == get_uv_error(true));
+
+	if(n >= (int)_data->size() - _offset){
+		//全部发送成功
+		_offset = _data->size();
+		_data.reset();
+	}else if(n > 0) {
+		//部分发送成功
+		_offset += n;
+	}
+	return n;
+}
+
 }  // namespace Network
 }  // namespace ZL
 

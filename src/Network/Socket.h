@@ -310,26 +310,8 @@ private:
             _data = data;
             _offset = 0;
         }
-        int send(int fd){
-            int n;
-            do {
-                if(_addr){
-                    n = ::sendto(fd, _data->data() + _offset, _data->size() - _offset, _flag, _addr, sizeof(struct sockaddr));
-                }else{
-                    n = ::send(fd, _data->data() + _offset, _data->size() - _offset, _flag);
-                }
-            } while (-1 == n && UV_EINTR == get_uv_error(true));
+        int send(int fd);
 
-            if(n >= _data->size() - _offset){
-                //全部发送成功
-                _offset = _data->size();
-                _data.reset();
-            }else if(n > 0) {
-                //部分发送成功
-                _offset += n;
-            }
-            return n;
-        }
         bool empty() const{
             if(!_data){
                 return true;
