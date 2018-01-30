@@ -47,12 +47,12 @@ public:
 	ResourcePool() {
 			pool.reset(new _ResourcePool());
 	}
-#if (!defined(__GNUC__)) || (__GNUC__ >= 5)
+#if (!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 	template<typename ...ArgTypes>
 	ResourcePool(ArgTypes &&...args) {
 		pool.reset(new _ResourcePool(std::forward<ArgTypes>(args)...));
 	}
-#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
+#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 	void reSize(int size) {
 		pool->setSize(size);
 	}
@@ -73,7 +73,7 @@ private:
 				return new C();
 			};
 		}
-#if (!defined(__GNUC__)) || (__GNUC__ >= 5)
+#if (!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 		template<typename ...ArgTypes>
 		_ResourcePool(ArgTypes &&...args) {
 			poolsize = poolSize;
@@ -81,7 +81,7 @@ private:
 				return new C(args...);
 			};
 		}
-#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
+#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 		virtual ~_ResourcePool(){
 			std::lock_guard<decltype(_mutex)> lck(_mutex);
 //			for(auto &ptr : objs){
