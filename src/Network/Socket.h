@@ -323,13 +323,17 @@ private:
             if(n >= _data->size() - _offset){
                 //全部发送成功
                 _offset = _data->size();
+                _data.reset();
             }else if(n > 0) {
                 //部分发送成功
                 _offset += n;
             }
             return n;
         }
-        int empty() const{
+        bool empty() const{
+            if(!_data){
+                return true;
+            }
             return _offset >= _data->size();
         }
     private:
