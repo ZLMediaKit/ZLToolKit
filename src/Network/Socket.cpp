@@ -336,22 +336,14 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 				return -1;
 			}
 			if (!_shouldDropPacket) {
-				//强制刷新socket缓存
-                packetSize = 0;
 				//未写入任何数据，(不能主动丢包)交给上层应用处理
                 ret = 0;
-                WarnL << "socket send buffer reach the limit:" << _iMaxSendPktSize;
                 break;
 			}
             //可以主动丢包
             WarnL << "socket send buffer overflow,previous data has been cleared.";
-            //强制刷新socket缓存
-            packetSize = 0;
             //清空发送列队；第一个包数据发送可能不完整，我们需要一个包一个包完整的发送数据
             _sendPktBuf.erase(_sendPktBuf.begin() + 1, _sendPktBuf.end());
-		} else if (packetSize >= _iMaxSendPktSize / 2) {
-            //发送列队到了一半后就强制刷新socket缓存
-            packetSize = 0;
 		}
 		_sendPktBuf.emplace_back(packet);
 	}while(0);
@@ -598,7 +590,7 @@ void Socket::stopWriteEvent(const SockFD::Ptr &pSock) {
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);
 }
 bool Socket::sendTimeout() {
-	if (_flushTicker.elapsedTime() > 5 * 1000) {
+	if (_flushTicker.elapsedTime() > 10 * 1000) {
 		emitErr(SockException(Err_other, "Socket send timeout"));
 		_sendPktBuf.clear();
 		return true;
