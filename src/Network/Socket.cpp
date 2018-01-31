@@ -321,7 +321,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 
     int ret = buf->size();
 
-	Packet::Ptr packet = _packetPool.obtain();
+	Packet::Ptr packet(new Packet);// = _packetPool.obtain();
     packet->setData(buf);
     packet->setFlag(flags);
     packet->setAddr(peerAddr);
