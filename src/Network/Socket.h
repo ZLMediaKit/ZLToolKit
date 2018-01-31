@@ -270,12 +270,14 @@ public:
 	void setSendPktSize(uint32_t iPktSize){
 		_iMaxSendPktSize = iPktSize;
         _bufferPool.reSize(iPktSize);
-        _packetPool.reSize(iPktSize);
 	}
     void setShouldDropPacket(bool dropPacket){
         _shouldDropPacket = dropPacket;
     }
 
+    BufferRaw::Ptr obtainBuffer() {
+        return _bufferPool.obtain();
+    }
 private:
     class Packet
     {
@@ -365,7 +367,6 @@ private:
 	}
 	static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
     ResourcePool<BufferRaw,MAX_SEND_PKT> _bufferPool;
-    ResourcePool<Packet,MAX_SEND_PKT> _packetPool;
 };
 
 }  // namespace Network
