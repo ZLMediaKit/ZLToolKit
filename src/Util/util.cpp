@@ -173,13 +173,49 @@ string exeName(){
 	return path.substr(path.find_last_of('/') + 1);
 }
 // string转小写
-std::string  strToLower(const std::string &str)
+std::string &strToLower(std::string &str)
 {
-    std::string strTmp = str;
-    transform(strTmp.begin(), strTmp.end(), strTmp.begin(), towupper);
-    return strTmp;
+    transform(str.begin(), str.end(), str.begin(), towlower);
+    return str;
+}
+// string转大写
+std::string &strToUpper(std::string &str)
+{
+	transform(str.begin(), str.end(), str.begin(), towupper);
+	return str;
 }
 
+vector<string> split(const string& s, const char *delim){
+	vector<string> ret;
+	size_t last = 0;
+	size_t index = s.find_first_of(delim, last);
+	while (index != string::npos) {
+		if(index - last > 0){
+			ret.push_back(s.substr(last, index - last));
+		}
+		last = index + 1;
+		index = s.find_first_of(delim, last);
+	}
+	if (index - last > 0) {
+		ret.push_back(s.substr(last, index - last));
+	}
+	return ret;
+}
+
+#define TRIM(s) \
+    do{ \
+    	while( s.size() && ( s.back()=='\t' || s.back()=='\r' || s.back()=='\n' || s.back()==' ' ) ) s.pop_back(); \
+		while( s.size() && ( s.front()=='\t' || s.front()=='\r' ||  s.front()=='\n' || s.front()==' ' ) ) s.erase(0,1); \
+		return s; \
+	}while(0);
+
+//去除前后的空格、回车符、制表符
+std::string& trim(std::string &s){
+	TRIM(s);
+}
+std::string trim(std::string &&s){
+	TRIM(s);
+}
 
 
 #if defined(_WIN32)

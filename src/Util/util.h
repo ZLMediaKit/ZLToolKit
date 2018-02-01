@@ -37,6 +37,7 @@
 #include <string.h>
 #include <string>
 #include <sstream>
+#include <vector>
 
 using namespace std;
 
@@ -68,6 +69,16 @@ string exeDir();
 string exeName();
 //设置应用程序文件路径，非win/mac/linux系统才有效
 void setExePath(const string &path);
+
+vector<string> split(const string& s, const char *delim);
+//去除前后的空格、回车符、制表符
+std::string& trim(std::string &s);
+std::string trim(std::string &&s);
+// string转小写
+std::string &strToLower(std::string &str);
+// string转大写
+std::string &strToUpper(std::string &str);
+
 
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));

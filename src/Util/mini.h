@@ -43,11 +43,6 @@ class mINI_basic: public map<key, variant> {
 public:
 	void parse(const string &text) {
 		// reset, split lines and parse
-		static auto trim = []( string line ) {
-			while( line.size() && ( line.back()=='\t' || line.back()=='\r' || line.back()==' ' ) ) line.pop_back();
-			while( line.size() && ( line.front()=='\t' || line.front()=='\r' || line.front()==' ' ) ) line.erase(0,1);
-			return line;
-		};
 		vector<string> lines = tokenize(text, "\n");
 		string symbol, tag;
 		for (auto &line : lines){
