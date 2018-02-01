@@ -202,19 +202,23 @@ vector<string> split(const string& s, const char *delim){
 	return ret;
 }
 
-#define TRIM(s) \
+#define TRIM(s,chars) \
     do{ \
-    	while( s.size() && ( s.back()=='\t' || s.back()=='\r' || s.back()=='\n' || s.back()==' ' ) ) s.pop_back(); \
-		while( s.size() && ( s.front()=='\t' || s.front()=='\r' ||  s.front()=='\n' || s.front()==' ' ) ) s.erase(0,1); \
-		return s; \
+    	string map(0xFF, '\0'); \
+        for (auto &ch : chars) { \
+            map[(unsigned char &)ch] = '\1'; \
+        } \
+        while( s.size() && map.at((unsigned char &)s.back())) s.pop_back(); \
+        while( s.size() && map.at((unsigned char &)s.front())) s.erase(0,1); \
+        return s; \
 	}while(0);
 
 //去除前后的空格、回车符、制表符
-std::string& trim(std::string &s){
-	TRIM(s);
+std::string& trim(std::string &s,const string &chars){
+    TRIM(s,chars);
 }
-std::string trim(std::string &&s){
-	TRIM(s);
+std::string trim(std::string &&s,const string &chars){
+	TRIM(s,chars);
 }
 
 

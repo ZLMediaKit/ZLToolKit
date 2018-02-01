@@ -71,9 +71,9 @@ string exeName();
 void setExePath(const string &path);
 
 vector<string> split(const string& s, const char *delim);
-//去除前后的空格、回车符、制表符
-std::string& trim(std::string &s);
-std::string trim(std::string &&s);
+//去除前后的空格、回车符、制表符...
+std::string& trim(std::string &s,const string &chars=" \r\n\t");
+std::string trim(std::string &&s,const string &chars=" \r\n\t");
 // string转小写
 std::string &strToLower(std::string &str);
 // string转大写
