@@ -490,7 +490,7 @@ string SockUtil::get_ifr_name(const char *localIp){
         while (ipAddr){
             if (strcmp(localIp,ipAddr->IpAddress.String) == 0){
                 //ip匹配到了
-                ret.assign(ptr->AdapterName);
+                ret.assign(adapter->AdapterName);
                 return true;
             }
             ipAddr = ipAddr->Next;

@@ -226,8 +226,8 @@ std::string trim(std::string &&s,const string &chars){
 
 #if !defined(strcasecmp)
 int strcasecmp(const char *strA,const char *strB){
-	string str1 = strToLower(strA);
-	string str2 = strToLower(strB);
+	string str1 = strToLower(string(strA));
+	string str2 = strToLower(string(strB));
 	return str1.compare(str2);
 }
 #endif// !defined(strcasecmp)
