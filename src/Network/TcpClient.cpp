@@ -44,8 +44,9 @@ void TcpClient::shutdown() {
 		sockTmp->setOnFlush(nullptr);
 		sockTmp->setOnRead(nullptr);
 	}
-	lock_guard<spin_mutex> lck(m_mutex);
-	m_pSock.reset();
+    _managerTimer.reset();
+    lock_guard<spin_mutex> lck(m_mutex);
+    m_pSock.reset();
 }
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,int iTimeoutSec) {
 	shutdown();
@@ -122,6 +123,20 @@ void TcpClient::onSockConnect(const SockException &ex) {
 				strongSelf->onSockRecv(pBuf);
 			});
 		});
+        _managerTimer.reset(new Timer(2,[weakSelf, threadTmp](){
+            auto strongSelf = weakSelf.lock();
+            if (!strongSelf) {
+                return false;
+            }
+            threadTmp->async([weakSelf]() {
+                auto strongSelf = weakSelf.lock();
+                if (!strongSelf) {
+                    return;
+                }
+                strongSelf->onManager();
+            });
+            return true;
+        }));
 	}
 	threadTmp->async([weakSelf,ex](){
 		auto strongSelf = weakSelf.lock();

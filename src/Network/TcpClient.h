@@ -107,7 +107,12 @@ protected:
 	virtual void onRecv(const Socket::Buffer::Ptr &pBuf) {}
 	virtual void onSend() {}
 	virtual void onErr(const SockException &ex) {}
-	Socket::Ptr m_pSock;
+    //tcp连接成功后每2秒触发一次该事件
+    virtual void onManager() {}
+
+    Socket::Ptr m_pSock;
+    //timer
+    std::shared_ptr<Timer> _managerTimer;
 private:
 	Ticker m_ticker;
 	spin_mutex m_mutex;
