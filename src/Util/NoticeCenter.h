@@ -81,7 +81,7 @@ public:
 			delete obj;
 		});
 		lock_guard<recursive_mutex> lck(_mtxListener);
-		_mapListener[strEvent][tag] = pListener;
+		_mapListener[strEvent].emplace(tag,pListener);
 	}
 
 
@@ -111,7 +111,7 @@ public:
 private:
 	NoticeCenter(){}
 	recursive_mutex _mtxListener;
-	unordered_map<string,unordered_map<void *,std::shared_ptr<void> > > _mapListener;
+	unordered_map<string,unordered_multimap<void *,std::shared_ptr<void> > > _mapListener;
 
 };
 

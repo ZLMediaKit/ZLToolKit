@@ -35,7 +35,7 @@ namespace Util {
 class onceToken {
 public:
 	typedef function<void(void)> task;
-	onceToken(const task &onConstructed, const task &_onDestructed) {
+	onceToken(const task &onConstructed, const task &_onDestructed = nullptr) {
 		if (onConstructed) {
 			onConstructed();
 		}
