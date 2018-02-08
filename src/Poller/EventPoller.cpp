@@ -150,7 +150,7 @@ namespace ZL {
 			}
 			bool success = ret0 == 0 && ret1 > 0;
 			delCb(success);
-			return success;
+			return success ? 0 : -1;
 #else
 			if (isMainThread()) {
 				lock_guard<mutex> lck(mtx_event_map);
