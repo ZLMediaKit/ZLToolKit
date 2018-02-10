@@ -105,16 +105,16 @@ private:
 
 	PipeWrap _pipe;
 	bool _exitLoop = false;
-	thread *loopThread = nullptr;
-	thread::id mainThreadId;
-	mutex mtx_event_map;
+	thread *_loopThread = nullptr;
+	thread::id _mainThreadId;
+	mutex _mtx_event_map;
 #if defined(HAS_EPOLL)
-	int epoll_fd = -1;
-	unordered_map<int, PollEventCB> event_map;
+	int _epoll_fd = -1;
+	unordered_map<int, PollEventCB> _event_map;
 #else
-	unordered_map<int, Poll_Record> event_map;
+	unordered_map<int, Poll_Record> _event_map;
 #endif //HAS_EPOLL
-	string pipeBuffer;
+	string _pipeBuffer;
 };
 
 #define ASYNC_TRACE(...) {\

@@ -40,17 +40,17 @@ public:
 	virtual ~EchoSession() {
 		DebugL;
 	}
-	virtual void onRecv(const Socket::Buffer::Ptr &buf) override{
+	virtual void onRecv(const Buffer::Ptr &buf) override{
 		//处理客户端发送过来的数据
 		TraceL << buf->data();
 		//把数据回显至客户端
-		send(buf->data(),buf->size());
+        *(this) << "recved " << buf->size() << ": " << buf;
 	}
 	virtual void onError(const SockException &err) override{
 		//客户端断开连接或其他原因导致该对象脱离TCPServer管理
 		WarnL << err.what();
 	}
-	virtual void onManager() {
+	virtual void onManager() override{
 		//定时管理该对象，譬如会话超时检查
 		DebugL;
 		if(_ticker.createdTime() > 5 * 1000){
@@ -70,8 +70,8 @@ int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	TcpServer<EchoSession>::Ptr server(new TcpServer<EchoSession>());
-	server->start(9000);//监听9000端口
+	TcpServer::Ptr server(new TcpServer());
+	server->start<EchoSession>(9000);//监听9000端口
 
 	EventPoller::Instance().runLoop();//主线程事件轮询
 

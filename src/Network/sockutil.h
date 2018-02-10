@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef SOCKUTIL_H
-#define SOCKUTIL_H
+#ifndef NETWORK_SOCKUTIL_H
+#define NETWORK_SOCKUTIL_H
 
 #if defined(_WIN32)
 #include <WinSock2.h>
@@ -63,19 +63,17 @@ int close(int fd);
 
 #endif // defined(_WIN32)
 
+//套接字工具类，封装了socket、网络的一些基本操作
 class SockUtil {
 public:
 	static int connect(const char *host, uint16_t port, bool bAsync = true);
-	static int listen(const uint16_t port, const char *localIp = "0.0.0.0",
-			int backLog = 1024);
-	static int bindUdpSock(const uint16_t port,
-			const char *localIp = "0.0.0.0");
+	static int listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
+	static int bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0");
 	static int setNoDelay(int sockFd, bool on = true);
 	static int setNoSigpipe(int sock);
 	static int setNoBlocked(int sock, bool noblock = true);
 	static int setRecvBuf(int sock, int size = 256 * 1024);
 	static int setSendBuf(int sock, int size = 256 * 1024);
-
 	static int setReuseable(int sockFd, bool on = true);
 	static int setBroadcast(int sockFd, bool on = true);
 	static int setKeepAlive(int sockFd, bool on = true);
@@ -98,13 +96,17 @@ public:
 	static string get_peer_ip(int fd);
 	static uint16_t get_peer_port(int fd);
 
+    //获取网卡名
 	static string get_ifr_name(const char *localIp);
+    //根据网卡名获取子网掩码
 	static string get_ifr_mask(const char *ifrName);
+    //根据网卡名获取广播地址
 	static string get_ifr_brdaddr(const char *ifrName);
+    //是否为同一网段
 	static bool in_same_lan(const char *myIp, const char *dsrIp);
 };
 
 }  // namespace Network
 }  // namespace ZL
 
-#endif // !SOCKUTIL_H
+#endif // !NETWORK_SOCKUTIL_H

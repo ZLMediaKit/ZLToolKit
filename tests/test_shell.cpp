@@ -37,8 +37,8 @@ public:
     typedef std::shared_ptr<TestClient> Ptr;
     TestClient() {}
     virtual ~TestClient(){}
-    void connect(const string &strUrl, uint16_t iPort,int iTimeoutSec){
-        startConnect(strUrl,iPort,iTimeoutSec);
+    void connect(const string &strUrl, uint16_t iPort,float fTimeoutSec){
+        startConnect(strUrl,iPort,fTimeoutSec);
     }
 	void disconnect(){
 		shutdown();
@@ -66,7 +66,7 @@ protected:
         //连接结果事件
         InfoL << (ex ?  ex.what() : "success");
     }
-    virtual void onRecv(const Socket::Buffer::Ptr &pBuf) override{
+    virtual void onRecv(const Buffer::Ptr &pBuf) override{
         //接收数据事件
         DebugL << pBuf->data();
     }

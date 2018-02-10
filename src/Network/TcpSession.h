@@ -25,6 +25,7 @@
 #ifndef SERVER_SESSION_H_
 #define SERVER_SESSION_H_
 #include <memory>
+#include <strstream>
 #include "Socket.h"
 #include "Util/logger.h"
 #include "Util/mini.h"
@@ -37,72 +38,61 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Network {
 
-class TcpSession: public std::enable_shared_from_this<TcpSession> {
+class TcpSession: public std::enable_shared_from_this<TcpSession> , public SocketWriter {
 public:
-	TcpSession(const std::shared_ptr<ThreadPool> &_th, const Socket::Ptr &_sock) :
-			sock(_sock), th(_th) {
-		localIp = sock->get_local_ip();
-		peerIp = sock->get_peer_ip();
-		localPort = sock->get_local_port();
-		peerPort = sock->get_peer_port();
-	}
-	virtual ~TcpSession() {}
-	virtual void onRecv(const Socket::Buffer::Ptr &) =0;
-	virtual void onError(const SockException &err) =0;
+    typedef std::shared_ptr<TcpSession> Ptr;
+
+	TcpSession(const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock);
+	virtual ~TcpSession();
+    //接收数据入口
+	virtual void onRecv(const Buffer::Ptr &) = 0;
+    //收到eof或其他导致脱离TcpServer事件的回调
+	virtual void onError(const SockException &err) = 0;
+    //每隔一段时间触发，用来做超时管理
 	virtual void onManager() =0;
+    //在创建TcpSession后，TcpServer会把自身的配置参数通过该函数传递给TcpSession
     virtual void attachServer(const mINI &ini){};
+    //作为该TcpSession的唯一标识符
+    virtual string getIdentifier() const;
+    //在TcpSession绑定的线程中异步排队执行任务
 	template <typename T>
 	void async(T &&task) {
-		th->async(std::forward<T>(task));
+		_th->async(std::forward<T>(task));
 	}
-	template <typename T>
+    //在TcpSession绑定的线程中最高优先级异步执行任务
+    template <typename T>
 	void async_first(T &&task) {
-		th->async_first(std::forward<T>(task));
+		_th->async_first(std::forward<T>(task));
 	}
-    void safeShutdown(){
-        std::weak_ptr<TcpSession> weakSelf = shared_from_this();
-        async_first([weakSelf](){
-            auto strongSelf = weakSelf.lock();
-            if(strongSelf){
-                strongSelf->shutdown();
-            }
-        });
-    }
-    const string& getLocalIp() const {
-        return localIp;
-    }
-    const string& getPeerIp() const {
-        return peerIp;
-    }
-    uint16_t getLocalPort() const {
-        return localPort;
-    }
-    uint16_t getPeerPort() const {
-        return peerPort;
-    }
+    //安全的脱离TcpServer并触发onError事件
+    void safeShutdown();
+    //本机网卡ip
+    const string& getLocalIp() const ;
+    //本机网卡端口号
+    uint16_t getLocalPort() const ;
+    //客户端ip
+    const string& getPeerIp() const ;
+    //客户端端口号
+    uint16_t getPeerPort() const ;
 protected:
-	virtual void shutdown() {
-		sock->emitErr(SockException(Err_other, "self shutdown"));
-	}
-	virtual int send(const string &buf) {
-		return sock->send(buf);
-	}
-	virtual int send(string &&buf) {
-		return sock->send(std::move(buf));
-	}
-	virtual int send(const char *buf, int size) {
-		return sock->send(buf, size);
-	}
-	virtual int send(const Socket::Buffer::Ptr &buf) {
-		return sock->send(buf);
-	}
-	Socket::Ptr sock;
+    //从缓存池中获取一片缓存
+    BufferRaw::Ptr obtainBuffer();
+    //脱离TcpServer并触发onError事件
+	virtual void shutdown() ;
+    //send系列函数
+	virtual int send(const string &buf);
+    virtual int send(string &&buf);
+	virtual int send(const char *buf, int size);
+	virtual int send(const Buffer::Ptr &buf);
+protected:
+    //sock对象需要暴露给派生类
+    Socket::Ptr _sock;
 private:
-	std::shared_ptr<ThreadPool> th;
-	string localIp;
-	string peerIp;
-	uint16_t localPort;
-	uint16_t peerPort;
+    std::shared_ptr<ThreadPool> _th;
+    string _localIp;
+    string _peerIp;
+    uint16_t _localPort;
+    uint16_t _peerPort;
 };
 
 

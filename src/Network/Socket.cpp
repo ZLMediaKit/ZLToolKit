@@ -95,8 +95,7 @@ void Socket::setOnFlush(const onFlush &cb) {
 		_flushCB = []() {return true;};
 	}
 }
-void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB,
-		int timeoutSec) {
+void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec) {
 	closeSock();
 	int sock = SockUtil::connect(url.data(), port);
 	if (sock < 0) {
@@ -104,7 +103,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB,
 		return;
 	}
 	auto sockFD = makeSock(sock);
-	weak_ptr<Socket> weakSelf = this->shared_from_this();
+	weak_ptr<Socket> weakSelf = shared_from_this();
 	weak_ptr<SockFD> weakSock = sockFD;
 	std::shared_ptr<bool> bTriggered(new bool(false));//回调被触发过
 	auto result = EventPoller::Instance().addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
@@ -214,7 +213,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
     TimeTicker1(1);
 	int ret = 0;
 	int sock = pSock->rawFd();
-	while (true && _enableRecv) {
+	while (_enableRecv) {
 #if defined(_WIN32)
 		unsigned long nread;
 #else
@@ -248,12 +247,9 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		ret += nread;
 		buf->data()[nread] = '\0';
 		buf->setSize(nread);
-		onReadCB cb;
-		{
-			lock_guard<spin_mutex> lck(_mtx_read);
-			cb = _readCB;
-		}
-		cb(buf, &peerAddr);
+
+        lock_guard<spin_mutex> lck(_mtx_read);
+        _readCB(buf, &peerAddr);
 	}
     return 0;
 }
@@ -264,21 +260,19 @@ bool Socket::emitErr(const SockException& err) {
 	{
 		lock_guard<spin_mutex> lck(_mtx_sockFd);
 		if (!_sockFd) {
+            //防止多次触发onErr事件
 			return false;
 		}
 	}
-	weak_ptr<Socket> weakSelf = this->shared_from_this();
+	weak_ptr<Socket> weakSelf = shared_from_this();
 	ASYNC_TRACE([weakSelf,err]() {
 		auto strongSelf=weakSelf.lock();
 		if (!strongSelf) {
 			return;
 		}
-		onErrCB cb;
-		{
-			lock_guard<spin_mutex> lck(strongSelf->_mtx_err);
-			cb = strongSelf->_errCB;
-		}
-		cb(err);
+
+        lock_guard<spin_mutex> lck(strongSelf->_mtx_err);
+        strongSelf->_errCB(err);
 	});
 	closeSock();
 	return true;
@@ -360,12 +354,12 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 
 
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
-	onFlush cb;
-	{
-		lock_guard<spin_mutex> lck(_mtx_flush);
-		cb = _flushCB;
-	}
-	if (!cb()) {
+    bool flag;
+    {
+        lock_guard<spin_mutex> lck(_mtx_flush);
+        flag = _flushCB();
+    }
+	if (!flag) {
 		setOnFlush(nullptr);
 	}
 }
@@ -384,7 +378,7 @@ bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
 	}
 	auto pSock = makeSock(sock);
 	weak_ptr<SockFD> weakSock = pSock;
-	weak_ptr<Socket> weakSelf = this->shared_from_this();
+	weak_ptr<Socket> weakSelf = shared_from_this();
 	_enableRecv = true;
 	auto result = EventPoller::Instance().addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
 		auto strongSelf = weakSelf.lock();
@@ -445,12 +439,8 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 
 			Socket::Ptr peerSock(new Socket());
 			if(peerSock->setPeerSock(peerfd)){
-				onAcceptCB cb;
-				{
-					lock_guard<spin_mutex> lck(_mtx_accept);
-					cb = _acceptCB;
-				}
-				cb(peerSock);
+                lock_guard<spin_mutex> lck(_mtx_accept);
+                _acceptCB(peerSock);
 			}
 		}
 
@@ -474,52 +464,36 @@ bool Socket::setPeerSock(int sock) {
 }
 
 string Socket::get_local_ip() {
-	SockFD::Ptr sock;
-	{
-		lock_guard<spin_mutex> lck(_mtx_sockFd);
-		sock = _sockFd;
-	}
-	if (!sock) {
+    lock_guard<spin_mutex> lck(_mtx_sockFd);
+	if (!_sockFd) {
 		return "";
 	}
-	return SockUtil::get_local_ip(sock->rawFd());
+	return SockUtil::get_local_ip(_sockFd->rawFd());
 }
 
 uint16_t Socket::get_local_port() {
-	SockFD::Ptr sock;
-	{
-		lock_guard<spin_mutex> lck(_mtx_sockFd);
-		sock = _sockFd;
-	}
-	if (!sock) {
+    lock_guard<spin_mutex> lck(_mtx_sockFd);
+	if (!_sockFd) {
 		return 0;
 	}
-	return SockUtil::get_local_port(sock->rawFd());
+	return SockUtil::get_local_port(_sockFd->rawFd());
 
 }
 
 string Socket::get_peer_ip() {
-	SockFD::Ptr sock;
-	{
-		lock_guard<spin_mutex> lck(_mtx_sockFd);
-		sock = _sockFd;
-	}
-	if (!sock) {
+    lock_guard<spin_mutex> lck(_mtx_sockFd);
+	if (!_sockFd) {
 		return "";
 	}
-	return SockUtil::get_peer_ip(sock->rawFd());
+	return SockUtil::get_peer_ip(_sockFd->rawFd());
 }
 
 uint16_t Socket::get_peer_port() {
-	SockFD::Ptr sock;
-	{
-		lock_guard<spin_mutex> lck(_mtx_sockFd);
-		sock = _sockFd;
-	}
-	if (!sock) {
+    lock_guard<spin_mutex> lck(_mtx_sockFd);
+	if (!_sockFd) {
 		return 0;
 	}
-	return SockUtil::get_peer_port(sock->rawFd());
+	return SockUtil::get_peer_port(_sockFd->rawFd());
 }
 
 bool Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread) {
@@ -590,7 +564,7 @@ void Socket::stopWriteEvent(const SockFD::Ptr &pSock) {
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);
 }
 bool Socket::sendTimeout() {
-	if (_flushTicker.elapsedTime() > 10 * 1000) {
+	if (_flushTicker.elapsedTime() > _sendTimeOutSec * 1000) {
 		emitErr(SockException(Err_other, "Socket send timeout"));
 		_sendPktBuf.clear();
 		return true;
@@ -605,8 +579,50 @@ void Socket::enableRecv(bool enabled) {
     int flag = _enableRecv ? Event_Read : 0;
     EventPoller::Instance().modifyEvent(rawFD(), flag | Event_Error | Event_Write);
 }
+SockFD::Ptr Socket::makeSock(int sock){
+    return std::make_shared<SockFD>(sock);
+}
 
-int Socket::Packet::send(int fd){
+int Socket::rawFD() const{
+    lock_guard<spin_mutex> lck(_mtx_sockFd);
+    if(!_sockFd){
+        return -1;
+    }
+    return _sockFd->rawFd();
+}
+
+
+void Socket::setSendPktSize(uint32_t iPktSize){
+    _iMaxSendPktSize = iPktSize;
+    _bufferPool.reSize(iPktSize);
+}
+void Socket::setShouldDropPacket(bool dropPacket){
+    _shouldDropPacket = dropPacket;
+}
+void Socket::setSendTimeOutSecond(float second){
+    _sendTimeOutSec = second;
+}
+
+BufferRaw::Ptr Socket::obtainBuffer() {
+    return _bufferPool.obtain();
+}
+
+///////////////Packet/////////////////////
+void Packet::setAddr(const struct sockaddr *addr){
+    if (addr) {
+        if (_addr) {
+            *_addr = *addr;
+        } else {
+            _addr = new struct sockaddr(*addr);
+        }
+    } else {
+        if (_addr) {
+            delete _addr;
+            _addr = nullptr;
+        }
+    }
+}
+int Packet::send(int fd){
 	int n;
 	do {
 		if(_addr){

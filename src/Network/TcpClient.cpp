@@ -26,7 +26,7 @@
 namespace ZL {
 namespace Network {
 
-TcpClient::TcpClient() {
+TcpClient::TcpClient() : SocketWriter(nullptr) {
 }
 
 TcpClient::~TcpClient() {
@@ -34,131 +34,79 @@ TcpClient::~TcpClient() {
 }
 
 void TcpClient::shutdown() {
-	decltype(m_pSock) sockTmp;
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		sockTmp = m_pSock;
-	}
-	if(sockTmp){
-		sockTmp->setOnErr(nullptr);
-		sockTmp->setOnFlush(nullptr);
-		sockTmp->setOnRead(nullptr);
-	}
+    lock_guard<spin_mutex> lck(_mutex);
+    if(_sock){
+        _sock->setOnErr(nullptr);
+        _sock->setOnFlush(nullptr);
+        _sock->setOnRead(nullptr);
+        _sock.reset();
+    }
+    SocketWriter::setSock(nullptr);
     _managerTimer.reset();
-    lock_guard<spin_mutex> lck(m_mutex);
-    m_pSock.reset();
 }
-void TcpClient::startConnect(const string &strUrl, uint16_t iPort,int iTimeoutSec) {
-	shutdown();
-	Socket::Ptr sockTmp(new Socket());
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		m_ticker.resetTime();
-		m_pSock = sockTmp;
-	}
 
-	weak_ptr<TcpClient> weakSelf = shared_from_this();
-	sockTmp->connect(strUrl, iPort, [weakSelf](const SockException &err){
+void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
+	shutdown();
+
+    lock_guard<spin_mutex> lck(_mutex);
+    _sock.reset(new Socket());
+    SocketWriter::setSock(_sock);
+
+    weak_ptr<TcpClient> weakSelf = shared_from_this();
+    _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
 		auto strongSelf = weakSelf.lock();
 		if(strongSelf){
             if(err){
-            	lock_guard<spin_mutex> lck(strongSelf->m_mutex);
-                strongSelf->m_pSock.reset();
+            	lock_guard<spin_mutex> lck(strongSelf->_mutex);
+                strongSelf->_sock.reset();
             }
 			strongSelf->onSockConnect(err);
 		}
-	}, iTimeoutSec);
+	}, fTimeOutSec);
 }
 void TcpClient::onSockConnect(const SockException &ex) {
-#if defined(ENABLE_ASNC_TCP_CLIENT)
-	auto threadTmp = WorkThreadPool::Instance().getWorkThread();
-#else
-	auto threadTmp = &EventPoller::Instance();
-#endif//ENABLE_ASNC_TCP_CLIENT
-
-	decltype(m_pSock) sockTmp;
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		sockTmp = m_pSock;
-	}
-	weak_ptr<TcpClient> weakSelf = shared_from_this();
-	if(!ex && sockTmp) {
-		sockTmp->setOnErr([weakSelf, threadTmp](const SockException &ex) {
+    lock_guard<spin_mutex> lck(_mutex);
+	if(!ex && _sock) {
+        weak_ptr<TcpClient> weakSelf = shared_from_this();
+        _sock->setOnErr([weakSelf](const SockException &ex) {
 			auto strongSelf = weakSelf.lock();
 			if (!strongSelf) {
 				return;
 			}
-			threadTmp->async([weakSelf, ex]() {
-				auto strongSelf = weakSelf.lock();
-				if (!strongSelf) {
-					return;
-				}
-				strongSelf->onSockErr(ex);
-			});
+            strongSelf->onSockErr(ex);
 		});
-		sockTmp->setOnFlush([weakSelf, threadTmp]() {
+        _sock->setOnFlush([weakSelf]() {
 			auto strongSelf = weakSelf.lock();
 			if (!strongSelf) {
 				return false;
 			}
-			threadTmp->async([weakSelf]() {
-				auto strongSelf = weakSelf.lock();
-				if (!strongSelf) {
-					return;
-				}
-				strongSelf->onSockSend();
-			});
+            strongSelf->onSockSend();
 			return true;
 		});
-		sockTmp->setOnRead([weakSelf, threadTmp](const Socket::Buffer::Ptr &pBuf, struct sockaddr *addr) {
+        _sock->setOnRead([weakSelf](const Buffer::Ptr &pBuf, struct sockaddr *addr) {
 			auto strongSelf = weakSelf.lock();
 			if (!strongSelf) {
 				return;
 			}
-			threadTmp->async([weakSelf, pBuf]() {
-				auto strongSelf = weakSelf.lock();
-				if (!strongSelf) {
-					return;
-				}
-				strongSelf->onSockRecv(pBuf);
-			});
+            strongSelf->onSockRecv(pBuf);
 		});
-        _managerTimer.reset(new Timer(2,[weakSelf, threadTmp](){
+        _managerTimer.reset(new Timer(2,[weakSelf](){
             auto strongSelf = weakSelf.lock();
             if (!strongSelf) {
                 return false;
             }
-            threadTmp->async([weakSelf]() {
-                auto strongSelf = weakSelf.lock();
-                if (!strongSelf) {
-                    return;
-                }
-                strongSelf->onManager();
-            });
+            strongSelf->onManager();
             return true;
         }));
 	}
-	threadTmp->async([weakSelf,ex](){
-		auto strongSelf = weakSelf.lock();
-		if(strongSelf){
-			strongSelf->onConnect(ex);
-		}
-	});
+    onConnect(ex);
 }
 
-void TcpClient::onSockRecv(const Socket::Buffer::Ptr& pBuf) {
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		m_ticker.resetTime();
-	}
+void TcpClient::onSockRecv(const Buffer::Ptr& pBuf) {
 	onRecv(pBuf);
 }
 
 void TcpClient::onSockSend() {
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		m_ticker.resetTime();
-	}
 	onSend();
 }
 
@@ -168,57 +116,74 @@ void TcpClient::onSockErr(const SockException& ex) {
 }
 
 int TcpClient::send(const string& str) {
-	decltype(m_pSock) sockTmp;
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		sockTmp = m_pSock;
-		m_ticker.resetTime();
-	}
-	if (sockTmp) {
-		return sockTmp->send(str);
+    lock_guard<spin_mutex> lck(_mutex);
+	if (_sock) {
+		return _sock->send(str,_flags);
 	}
 	return -1;
 }
 int TcpClient::send(string&& str) {
-	decltype(m_pSock) sockTmp;
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		sockTmp = m_pSock;
-		m_ticker.resetTime();
-	}
-	if (sockTmp) {
-		return sockTmp->send(std::move(str));
+    lock_guard<spin_mutex> lck(_mutex);
+	if (_sock) {
+		return _sock->send(std::move(str),_flags);
 	}
 	return -1;
 }
 int TcpClient::send(const char* str, int len) {
-	decltype(m_pSock) sockTmp;
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		sockTmp = m_pSock;
-		m_ticker.resetTime();
-	}
-	if (sockTmp) {
-		return sockTmp->send(str, len);
+    lock_guard<spin_mutex> lck(_mutex);
+	if (_sock) {
+		return _sock->send(str, len,_flags);
 	}
 	return -1;
 }
 
-int TcpClient::send(const Socket::Buffer::Ptr &buf){
-	decltype(m_pSock) sockTmp;
-	{
-		lock_guard<spin_mutex> lck(m_mutex);
-		sockTmp = m_pSock;
-		m_ticker.resetTime();
-	}
-	if (sockTmp) {
-		return sockTmp->send(buf);
+int TcpClient::send(const Buffer::Ptr &buf){
+    lock_guard<spin_mutex> lck(_mutex);
+	if (_sock) {
+		return _sock->send(buf,_flags);
 	}
 	return -1;
 }
-uint64_t TcpClient::elapsedTime() {
-	lock_guard<spin_mutex> lck(m_mutex);
-	return m_ticker.elapsedTime();
+
+bool TcpClient::alive() {
+    lock_guard<spin_mutex> lck(_mutex);
+    return _sock.operator bool();
+}
+//从缓存池中获取一片缓存
+BufferRaw::Ptr TcpClient::obtainBuffer(){
+    lock_guard<spin_mutex> lck(_mutex);
+    if(!_sock){
+        return nullptr;
+    }
+    return _sock->obtainBuffer();
+}
+string TcpClient::get_local_ip() {
+    lock_guard<spin_mutex> lck(_mutex);
+    if(!_sock){
+        return "";
+    }
+    return _sock->get_local_ip();
+}
+uint16_t TcpClient::get_local_port() {
+    lock_guard<spin_mutex> lck(_mutex);
+    if(!_sock){
+        return 0;
+    }
+    return _sock->get_local_port();
+}
+string TcpClient::get_peer_ip() {
+    lock_guard<spin_mutex> lck(_mutex);
+    if(!_sock){
+        return "";
+    }
+    return _sock->get_peer_ip();
+}
+uint16_t TcpClient::get_peer_port() {
+    lock_guard<spin_mutex> lck(_mutex);
+    if(!_sock){
+        return 0;
+    }
+    return _sock->get_peer_port();
 }
 
 } /* namespace Network */

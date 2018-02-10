@@ -58,18 +58,18 @@ namespace ZL {
 		EventPoller::EventPoller(bool enableSelfRun) {
 #if defined(HAS_EPOLL)
 			#if defined(__ARM_ARCH) || defined(ANDROID)
-			epoll_fd = epoll_create(1024);
+			_epoll_fd = epoll_create(1024);
 #else//defined(__ARM_ARCH) || defined(ANDROID)
-			epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+			_epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 #endif//defined(__ARM_ARCH) || defined(ANDROID)
-			if (epoll_fd == -1) {
+			if (_epoll_fd == -1) {
 				throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg() << endl);
 			}
 #endif //HAS_EPOLL
 			initPoll();
 			if (enableSelfRun) {
-				loopThread = new thread(&EventPoller::runLoop, this);
-				mainThreadId = loopThread->get_id();
+				_loopThread = new thread(&EventPoller::runLoop, this);
+				_mainThreadId = _loopThread->get_id();
 			}
 		}
 		inline int EventPoller::sigalPipe(uint64_t type, uint64_t i64_size, uint64_t *buf) {
@@ -86,16 +86,16 @@ namespace ZL {
 		void EventPoller::shutdown() {
 			_exitLoop = true;
 			sigalPipe(Sig_Exit);
-			if (loopThread) {
-				loopThread->join();
-				delete loopThread;
-				loopThread = nullptr;
+			if (_loopThread) {
+				_loopThread->join();
+				delete _loopThread;
+				_loopThread = nullptr;
 			}
 
 #if defined(HAS_EPOLL)
-			if (epoll_fd != -1) {
-				close(epoll_fd);
-				epoll_fd = -1;
+			if (_epoll_fd != -1) {
+				close(_epoll_fd);
+				_epoll_fd = -1;
 			}
 #endif //HAS_EPOLL
 		}
@@ -111,22 +111,22 @@ namespace ZL {
 				return -1;
 			}
 #if defined(HAS_EPOLL)
-			lock_guard<mutex> lck(mtx_event_map);
+			lock_guard<mutex> lck(_mtx_event_map);
 			struct epoll_event ev = { 0 };
 			ev.events = toEpoll(event);
 			ev.data.fd = fd;
-			int ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+			int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
 			if (ret == 0) {
-				event_map.emplace(fd, cb);
+				_event_map.emplace(fd, cb);
 			}
 			return ret;
 #else
 			if (isMainThread()) {
-				lock_guard<mutex> lck(mtx_event_map);
+				lock_guard<mutex> lck(_mtx_event_map);
 				Poll_Record record;
 				record.event = (Poll_Event)event;
 				record.callBack = cb;
-				event_map.emplace(fd, record);
+				_event_map.emplace(fd, record);
 				return 0;
 			}
 			async([this, fd, event, cb]() {
@@ -142,19 +142,19 @@ namespace ZL {
 				const_cast<PollDelCB&>(delCb) = [](bool success) {};
 			}
 #if defined(HAS_EPOLL)
-			int ret0 = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+			int ret0 = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 			int ret1 = 0;
 			{
-				lock_guard<mutex> lck(mtx_event_map);
-				ret1 = event_map.erase(fd);
+				lock_guard<mutex> lck(_mtx_event_map);
+				ret1 = _event_map.erase(fd);
 			}
 			bool success = ret0 == 0 && ret1 > 0;
 			delCb(success);
 			return success ? 0 : -1;
 #else
 			if (isMainThread()) {
-				lock_guard<mutex> lck(mtx_event_map);
-				if (event_map.erase(fd)) {
+				lock_guard<mutex> lck(_mtx_event_map);
+				if (_event_map.erase(fd)) {
 					delCb(true);
 				}else {
 					delCb(false);
@@ -174,13 +174,13 @@ namespace ZL {
 			struct epoll_event ev = { 0 };
 			ev.events = toEpoll(event);
 			ev.data.fd = fd;
-			return epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
+			return epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 #else
 
 			if (isMainThread()) {
-				lock_guard<mutex> lck(mtx_event_map);
-				auto it = event_map.find(fd);
-				if (it != event_map.end()) {
+				lock_guard<mutex> lck(_mtx_event_map);
+				auto it = _event_map.find(fd);
+				if (it != _event_map.end()) {
 					it->second.event = (Poll_Event)event;
 				}
 				return 0;
@@ -208,7 +208,7 @@ namespace ZL {
 			if (!asyncCb) {
 				return;
 			}
-			if (mainThreadId == this_thread::get_id()) {
+			if (_mainThreadId == this_thread::get_id()) {
 				asyncCb();
 				return;
 			}
@@ -222,7 +222,7 @@ namespace ZL {
 		}
 
 		bool EventPoller::isMainThread() {
-			return mainThreadId == this_thread::get_id();
+			return _mainThreadId == this_thread::get_id();
 		}
 
 		inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf) {
@@ -251,25 +251,25 @@ namespace ZL {
 			do {
 				nread = _pipe.read(buf, sizeof(buf));
 				if (nread > 0) {
-					pipeBuffer.append(buf, nread);
+					_pipeBuffer.append(buf, nread);
 					continue;
 				}
 				err = get_uv_error();
 			} while (err != UV_EAGAIN);
 
 			bool ret = true;
-			while (pipeBuffer.size() >= 2 * sizeof(uint64_t)) {
-				uint64_t type = *((uint64_t *)pipeBuffer.data());
-				uint64_t slinceSize = *((uint64_t *)(pipeBuffer.data()) + 1);
+			while (_pipeBuffer.size() >= 2 * sizeof(uint64_t)) {
+				uint64_t type = *((uint64_t *)_pipeBuffer.data());
+				uint64_t slinceSize = *((uint64_t *)(_pipeBuffer.data()) + 1);
 				uint64_t slinceByte = (2 + slinceSize) * sizeof(uint64_t);
-				if (slinceByte > pipeBuffer.size()) {
+				if (slinceByte > _pipeBuffer.size()) {
 					break;
 				}
-				uint64_t *ptr = (uint64_t *)(pipeBuffer.data()) + 2;
+				uint64_t *ptr = (uint64_t *)(_pipeBuffer.data()) + 2;
 				if (Sig_Exit == _handlePipeEvent(type, slinceSize, ptr)) {
 					ret = false;
 				}
-				pipeBuffer.erase(0, slinceByte);
+				_pipeBuffer.erase(0, slinceByte);
 			}
 			return ret;
 		}
@@ -283,13 +283,13 @@ namespace ZL {
 #endif //HAS_EPOLL
 		}
 		void EventPoller::runLoop() {
-			mainThreadId = this_thread::get_id();
+			_mainThreadId = this_thread::get_id();
 			ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
 #if defined(HAS_EPOLL)
 			struct epoll_event events[1024];
 			int nfds = 0;
 			while (!_exitLoop) {
-				nfds = epoll_wait(epoll_fd, events, 1024, -1);
+				nfds = epoll_wait(_epoll_fd, events, 1024, -1);
 				TimeTicker();
 				if (nfds == -1) {
 					WarnL << "epoll_wait() interrupted!";
@@ -315,11 +315,11 @@ namespace ZL {
 					// other event
 					PollEventCB eventCb;
 					{
-						lock_guard<mutex> lck(mtx_event_map);
-						auto it = event_map.find(fd);
-						if (it == event_map.end()) {
+						lock_guard<mutex> lck(_mtx_event_map);
+						auto it = _event_map.find(fd);
+						if (it == _event_map.end()) {
 							WarnL << "未找到Poll事件回调对象!";
-							epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+							epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 							continue;
 						}
 						eventCb = it->second;
@@ -339,8 +339,8 @@ namespace ZL {
 				Set_read.fdSet(_pipe.readFD()); //监听管道可读事件
 				maxFd = _pipe.readFD();
 				{
-					lock_guard<mutex> lck(mtx_event_map);
-					for (auto &pr : event_map) {
+					lock_guard<mutex> lck(_mtx_event_map);
+					for (auto &pr : _event_map) {
 						if (pr.first > maxFd) {
 							maxFd = pr.first;
 						}
@@ -374,8 +374,8 @@ namespace ZL {
 				}
 
 				{
-					lock_guard<mutex> lck(mtx_event_map);
-					for (auto &pr : event_map) {
+					lock_guard<mutex> lck(_mtx_event_map);
+					for (auto &pr : _event_map) {
 						int event = 0;
 						if (Set_read.isSet(pr.first)) {
 							event |= Event_Read;

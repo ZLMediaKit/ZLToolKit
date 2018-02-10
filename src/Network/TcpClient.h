@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-#ifndef SRC_NETWORK_TCPCLIENT_H_
-#define SRC_NETWORK_TCPCLIENT_H_
+#ifndef NETWORK_TCPCLIENT_H
+#define NETWORK_TCPCLIENT_H
 
 #include <memory>
 #include <functional>
@@ -39,92 +39,55 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Network {
 
-class TcpClient : public std::enable_shared_from_this<TcpClient> {
+
+//Tcp客户端，接口非线程安全的，建议切换到主线程后再操作该对象
+class TcpClient : public std::enable_shared_from_this<TcpClient> , public SocketWriter{
 public:
 	typedef std::shared_ptr<TcpClient> Ptr;
 	TcpClient();
 	virtual ~TcpClient();
+    //开始连接服务器，strUrl可以是域名或ip
+    void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
+    //主动断开服务器
+    void shutdown();
+    //是否与服务器连接中
+    bool alive();
 protected:
-	void startConnect(const string &strUrl, uint16_t iPort, int iTimeOutSec = 3);
-	void shutdown();
+    //发送数据
 	virtual int send(const string &str);
     virtual int send(string &&buf);
 	virtual int send(const char *str, int len);
-	virtual int send(const Socket::Buffer::Ptr &buf);
-	bool alive() {
-		lock_guard<spin_mutex> lck(m_mutex);
-		return m_pSock.operator bool();
-	}
-	string get_local_ip() {
-		decltype(m_pSock) sockTmp;
-		{
-			lock_guard<spin_mutex> lck(m_mutex);
-			sockTmp = m_pSock;
-		}
-		if(!sockTmp){
-			return "";
-		}
-		return sockTmp->get_local_ip();
-	}
-	uint16_t get_local_port() {
-		decltype(m_pSock) sockTmp;
-		{
-			lock_guard<spin_mutex> lck(m_mutex);
-			sockTmp = m_pSock;
-		}
-		if(!sockTmp){
-			return 0;
-		}
-		return sockTmp->get_local_port();
-	}
-	string get_peer_ip() {
-		decltype(m_pSock) sockTmp;
-		{
-			lock_guard<spin_mutex> lck(m_mutex);
-			sockTmp = m_pSock;
-		}
-		if(!sockTmp){
-			return "";
-		}
-		return sockTmp->get_peer_ip();
-	}
-	uint16_t get_peer_port() {
-		decltype(m_pSock) sockTmp;
-		{
-			lock_guard<spin_mutex> lck(m_mutex);
-			sockTmp = m_pSock;
-		}
-		if(!sockTmp){
-			return 0;
-		}
-		return sockTmp->get_peer_port();
-	}
-
-	uint64_t elapsedTime();
-
-	//链接成功后，客户端将绑定一个后台线程，并且onConnect/onRecv/onSend/onErr事件将在该后台线程触发
-	virtual void onConnect(const SockException &ex) {}
-	virtual void onRecv(const Socket::Buffer::Ptr &pBuf) {}
-	virtual void onSend() {}
-	virtual void onErr(const SockException &ex) {}
+	virtual int send(const Buffer::Ptr &buf);
+    //连接服务器结果回调
+    virtual void onConnect(const SockException &ex) {}
+    //收到数据回调
+    virtual void onRecv(const Buffer::Ptr &pBuf) {}
+    //数据全部发送完毕后回调
+    virtual void onSend() {}
+    //被动断开连接回调
+    virtual void onErr(const SockException &ex) {}
     //tcp连接成功后每2秒触发一次该事件
     virtual void onManager() {}
+    //从socket缓存池中获取一片缓存，如果未连接，则返回空
+    BufferRaw::Ptr obtainBuffer();
 
-    Socket::Ptr m_pSock;
-    //timer
-    std::shared_ptr<Timer> _managerTimer;
+    /////////获取ip或端口///////////
+	string get_local_ip();
+    uint16_t get_local_port();
+	string get_peer_ip();
+	uint16_t get_peer_port();
 private:
-	Ticker m_ticker;
-	spin_mutex m_mutex;
-
 	void onSockConnect(const SockException &ex);
-	void onSockRecv(const Socket::Buffer::Ptr &pBuf);
+	void onSockRecv(const Buffer::Ptr &pBuf);
 	void onSockSend();
 	void onSockErr(const SockException &ex);
-
+private:
+    spin_mutex _mutex;
+    Socket::Ptr _sock;
+    std::shared_ptr<Timer> _managerTimer;
 };
 
 } /* namespace Network */
 } /* namespace ZL */
 
-#endif /* SRC_NETWORK_TCPCLIENT_H_ */
+#endif /* NETWORK_TCPCLIENT_H */

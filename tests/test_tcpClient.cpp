@@ -44,19 +44,8 @@ protected:
 	virtual void onConnect(const SockException &ex) override{
 		//连接结果事件
 		InfoL << (ex ?  ex.what() : "success");
-		if(!ex){
-			weak_ptr<TestClient> weakSelf =
-					dynamic_pointer_cast<TestClient>(shared_from_this());
-			_timer.reset(new Timer(1,[weakSelf](){
-				auto strongSelf = weakSelf.lock();
-				if(strongSelf){
-					strongSelf->onTick();
-				}
-				return strongSelf.operator bool();
-			}));
-		}
 	}
-	virtual void onRecv(const Socket::Buffer::Ptr &pBuf) override{
+	virtual void onRecv(const Buffer::Ptr &pBuf) override{
 		//接收数据事件
 		DebugL << pBuf->data();
 	}
@@ -67,29 +56,36 @@ protected:
 	virtual void onErr(const SockException &ex) override{
 		//断开连接事件，一般是EOF
 		WarnL << ex.what();
-		_timer.reset();
 		connect();
 	}
-	void onTick(){
+    virtual void onManager() override{
 		//定时发送数据到服务器
-		send(to_string(_nTick++));
+        BufferRaw::Ptr buf = obtainBuffer();
+        if(buf){
+            buf->assign("[BufferRaw]\0");
+            (*this) << SocketFlags(SOCKET_DEFAULE_FLAGS | FLAG_MORE)
+                    << _nTick++ << " "
+                    << 3.14 << " "
+                    << string("string") << " "
+                    <<(Buffer::Ptr &)buf;
+        }
 	}
-
+private:
 	int _nTick = 0;
-	std::shared_ptr<Timer> _timer;
 };
 
 
 int main() {
-	signal(SIGINT, [](int){EventPoller::Instance().shutdown();});// 设置退出信号
-	// 设置日志系统
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
-	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+    signal(SIGINT, [](int) { EventPoller::Instance().shutdown(); });// 设置退出信号
+    // 设置日志系统
+    Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+    Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	TestClient::Ptr client(new TestClient());//必须使用智能指针
-	client->connect();//连接服务器
-	EventPoller::Instance().runLoop();//主线程事件轮询
-	client.reset();
+    {
+        TestClient::Ptr client(new TestClient());//必须使用智能指针
+        client->connect();//连接服务器
+        EventPoller::Instance().runLoop();//主线程事件轮询
+    }
 
 	EventPoller::Destory();
 	Logger::Destory();

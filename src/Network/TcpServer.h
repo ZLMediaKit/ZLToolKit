@@ -22,17 +22,19 @@
  * SOFTWARE.
  */
 
-#ifndef TCPSERVER_TCPSERVER_H_
-#define TCPSERVER_TCPSERVER_H_
+#ifndef TCPSERVER_TCPSERVER_H
+#define TCPSERVER_TCPSERVER_H
 
+#include <mutex>
 #include <memory>
 #include <exception>
 #include <functional>
-#include "Socket.h"
+#include <unordered_map>
+#include "TcpSession.h"
 #include "Util/mini.h"
 #include "Util/util.h"
-#include "Util/uv_errno.h"
 #include "Util/logger.h"
+#include "Util/uv_errno.h"
 #include "Poller/Timer.h"
 #include "Thread/semaphore.h"
 #include "Thread/WorkThreadPool.h"
@@ -45,38 +47,95 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Network {
 
-template<typename Session>
+//全局的TcpSession记录对象，方便后面管理
+//线程安全的
+class SessionMap {
+public:
+    friend class TcpServer;
+    //单例
+    static SessionMap &Instance(){
+        static SessionMap instance;
+        return instance;
+    }
+    //获取Session
+    TcpSession::Ptr get(const string &tag){
+        lock_guard<mutex> lck(_mtx_session);
+        auto it = _map_session.find(tag);
+        if(it == _map_session.end()){
+            return nullptr;
+        }
+        return it->second.lock();
+    }
+private:
+    SessionMap(){};
+    ~SessionMap(){};
+    //添加Session
+    bool add(const string &tag,const TcpSession::Ptr &session){
+        InfoL ;
+        lock_guard<mutex> lck(_mtx_session);
+        return _map_session.emplace(tag,session).second;
+    }
+    //移除Session
+    bool remove(const string &tag){
+        InfoL ;
+        lock_guard<mutex> lck(_mtx_session);
+        return _map_session.erase(tag);
+    }
+private:
+    unordered_map<string, weak_ptr<TcpSession> > _map_session;
+    mutex _mtx_session;
+};
+
+
+//TCP服务器，可配置的；配置通过TcpSession::attachServer方法传递给会话对象
+//该对象是非线程安全的，务必在主线程中操作
 class TcpServer : public mINI {
 public:
 	typedef std::shared_ptr<TcpServer> Ptr;
-	TcpServer() {
-		socket.reset(new Socket());
-		sessionMap.reset(new typename decltype(sessionMap)::element_type);
-	}
+    typedef unordered_map<string, TcpSession::Ptr > SessionMapType;
+
+    TcpServer() {
+		_socket.reset(new Socket());
+		_sessionMap.reset(new SessionMapType);
+        _socket->setOnAccept( bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
+    }
 
 	~TcpServer() {
-		TraceL << "start clean...";
-		timer.reset();
-		socket.reset();
+		TraceL << "start clean tcp server...";
+		_timer.reset();
+        //先关闭socket监听，防止收到新的连接
+		_socket.reset();
 
-		typename decltype(sessionMap)::element_type copyMap;
-		sessionMap->swap(copyMap);
-		for (auto it = copyMap.begin(); it != copyMap.end(); ++it) {
-			auto session = it->second;
-			it->second->async_first( [session]() {
+        //务必通知TcpSession已从TcpServer脱离
+		for (auto &pr : *_sessionMap) {
+            //从全局的map中移除记录
+            SessionMap::Instance().remove(pr.first);
+
+            auto session = pr.second;
+            session->async_first([session]() {
+                //遍历触发onError事件，确保脱离TcpServer时都能知晓
 				session->onError(SockException(Err_other,"Tcp server shutdown!"));
 			});
 		}
-		TraceL << "clean completed!";
+		TraceL << "clean tcp server completed!";
 	}
+
+    //开始监听服务器
+    template <typename SessionType>
 	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
-		bool success = socket->listen(port, host.c_str(), backlog);
-		if (!success) {
+        //TcpSession创建器，通过它创建不同类型的服务器
+        _sessionMaker = [](const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock){
+            return std::make_shared<SessionType>(th,sock);
+        };
+
+        if (!_socket->listen(port, host.c_str(), backlog)) {
+            //创建tcp监听失败，可能是由于端口占用或权限问题
 			string err = (StrPrinter << "listen on " << host << ":" << port << "] failed:" << get_uv_errmsg(true)).operator <<(endl);
 			throw std::runtime_error(err);
 		}
-		socket->setOnAccept( bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
-		timer.reset(new Timer(2, [this]()->bool {
+
+        //新建一个定时器定时管理这些tcp会话
+		_timer.reset(new Timer(2, [this]()->bool {
 			this->onManagerSession();
 			return true;
 		}));
@@ -84,21 +143,28 @@ public:
 	}
 
 private:
-	Socket::Ptr socket;
-	std::shared_ptr<Timer> timer;
-	std::shared_ptr<std::unordered_map<Socket *, std::shared_ptr<Session> > > sessionMap;
+    // 接收到客户端连接请求
+    void onAcceptConnection(const Socket::Ptr & sock) {
+        //创建一个TcpSession;这里实现创建不同的服务会话实例
+		auto session = _sessionMaker(WorkThreadPool::Instance().getWorkThread(), sock);
+        //把本服务器的配置传递给TcpSession
+        session->attachServer(*this);
 
-	void onAcceptConnection(const Socket::Ptr & sock) {
-		// 接收到客户端连接请求
-		auto session(std::make_shared<Session>(WorkThreadPool::Instance().getWorkThread(), sock));
-		session->attachServer(*this);
-		auto sockPtr(sock.get());
-		auto sessionMapTmp(sessionMap);
-		weak_ptr<Session> weakSession(session);
-		sessionMapTmp->emplace(sockPtr, session);
+        //TcpSession的唯一识别符，可以是guid之类的
+        auto sessionId = session->getIdentifier();
+        //记录该TcpSession
+        if(!SessionMap::Instance().add(sessionId,session)){
+            //有同名session，说明getIdentifier生成的标识符有问题
+            WarnL << "SessionMap::add failed:" << sessionId;
+            return;
+        }
+        //SessionMap中没有相关记录，那么_sessionMap更不可能有相关记录了；
+        //所以_sessionMap::emplace肯定能成功
+        assert(_sessionMap->emplace(sessionId, session).second == true);
 
-		// 会话接收数据事件
-		sock->setOnRead([weakSession](const Socket::Buffer::Ptr &buf, struct sockaddr *addr){
+        weak_ptr<TcpSession> weakSession(session);
+		//会话接收数据事件
+		sock->setOnRead([weakSession](const Buffer::Ptr &buf, struct sockaddr *addr){
 			//获取会话强应用
 			auto strongSession=weakSession.lock();
 			if(!strongSession) {
@@ -115,27 +181,30 @@ private:
 			});
 		});
 
-		//会话接收到错误事件
-		sock->setOnErr([weakSession,sockPtr,sessionMapTmp](const SockException &err){
+        auto sessionMapTmp = _sessionMap;
+        //会话接收到错误事件
+		sock->setOnErr([weakSession,sessionId,sessionMapTmp](const SockException &err){
 			//获取会话强应用
 			auto strongSession=weakSession.lock();
 			//移除掉会话
-			sessionMapTmp->erase(sockPtr);
-			if(!strongSession) {
+			sessionMapTmp->erase(sessionId);
+            SessionMap::Instance().remove(sessionId);
+            if(!strongSession) {
 				//会话对象已释放
 				return;
 			}
 			//在会话线程中执行onError操作
 			strongSession->async_first([strongSession,err]() {
+                //传递强指针是为了确保onError在脱离TCPServer后一定会执行
 				strongSession->onError(err);
 			});
 		});
 	}
 
+    //定时管理Session
 	void onManagerSession() {
-		//DebugL<<EventPoller::Instance().isMainThread();
-		for (auto &pr : *sessionMap) {
-			weak_ptr<Session> weakSession = pr.second;
+		for (auto &pr : *_sessionMap) {
+			weak_ptr<TcpSession> weakSession = pr.second;
 			pr.second->async([weakSession]() {
 				auto strongSession=weakSession.lock();
 				if(!strongSession) {
@@ -145,9 +214,14 @@ private:
 			});
 		}
 	}
+private:
+    Socket::Ptr _socket;
+    std::shared_ptr<Timer> _timer;
+    std::shared_ptr<SessionMapType > _sessionMap;
+    function<TcpSession::Ptr(const std::shared_ptr<ThreadPool> &, const Socket::Ptr &)> _sessionMaker;
 };
 
 } /* namespace Network */
 } /* namespace ZL */
 
-#endif /* TCPSERVER_TCPSERVER_H_ */
+#endif /* TCPSERVER_TCPSERVER_H */
