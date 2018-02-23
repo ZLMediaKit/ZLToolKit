@@ -454,13 +454,18 @@ public:
     //触发onError事件
     virtual void shutdown();
     /////////获取ip或端口///////////
-    string get_local_ip();
+    const string &get_local_ip() const;
     uint16_t get_local_port();
-    string get_peer_ip();
+    const string &get_peer_ip() const;
     uint16_t get_peer_port();
 protected:
     int _flags = SOCKET_DEFAULE_FLAGS;
     Socket::Ptr _sock;
+private:
+    string _local_ip;
+    uint16_t _local_port = 0;
+    string _peer_ip;
+    uint16_t _peer_port = 0;
 };
 
 

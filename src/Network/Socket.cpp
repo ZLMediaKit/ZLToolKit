@@ -652,6 +652,12 @@ SocketHelper::~SocketHelper() {}
 //重新设置socket
 void SocketHelper::setSock(const Socket::Ptr &sock) {
     _sock = sock;
+    if(_sock){
+        _local_ip = _sock->get_local_ip();
+        _local_port = _sock->get_local_port();
+        _peer_ip = _sock->get_peer_ip();
+        _peer_port = _sock->get_peer_port();
+    }
 }
 
 //设置socket flags
@@ -745,32 +751,20 @@ void SocketHelper::shutdown() {
 }
 
 /////////获取ip或端口///////////
-string SocketHelper::get_local_ip() {
-    if (!_sock) {
-        return "";
-    }
-    return _sock->get_local_ip();
+const string& SocketHelper::get_local_ip() const{
+    return _local_ip;
 }
 
 uint16_t SocketHelper::get_local_port() {
-    if (!_sock) {
-        return 0;
-    }
-    return _sock->get_local_port();
+    return _local_port;
 }
 
-string SocketHelper::get_peer_ip() {
-    if (!_sock) {
-        return "";
-    }
-    return _sock->get_peer_ip();
+const string& SocketHelper::get_peer_ip() const{
+    return _peer_ip;
 }
 
 uint16_t SocketHelper::get_peer_port() {
-    if (!_sock) {
-        return 0;
-    }
-    return _sock->get_peer_port();
+    return _peer_port;
 }
 
 }  // namespace Network
