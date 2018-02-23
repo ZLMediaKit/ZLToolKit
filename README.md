@@ -1,10 +1,10 @@
 # 一个基于C++11简单易用的轻量级网络编程框架
 平台|编译状态
 ----|-------
-Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
-macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac)
-iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios)
-Android | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android)
+Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=develop)](https://travis-ci.org/xiongziliang/ZLToolKit)
+macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac.svg?branch=develop)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac)
+iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios.svg?branch=develop)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios)
+Android | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android.svg?branch=develop)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android)
 Windows | 已经完成移植
 
 ## 项目初衷
@@ -32,10 +32,11 @@ Windows | 已经完成移植
   - mysql链接池，使用占位符（？）方式生成sql语句，支持同步异步操作。
   - 简单易用的ssl加解密黑盒，支持多线程。
   - 其他一些有用的工具。
-  - 命令行解析工具，可以很便捷的实现可配置应用程序
+  - 命令行解析工具，可以很便捷的实现可配置应用程序
  
-## 后续任务
-- 提供更多的示例代码
+## 警告
+该分支为开发分支，代码可能极度稳定！
+
 
 ## 编译(Linux)
 - 我的编译环境

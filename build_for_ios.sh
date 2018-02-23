@@ -4,6 +4,7 @@ brew install cmake
 cd ..
 git clone --depth=50 https://github.com/xiongziliang/ZLToolKit.git
 cd ZLToolKit
+git checkout develop
 mkdir -p ios_build
 rm -rf ./build
 ln -s ./ios_build ./build
