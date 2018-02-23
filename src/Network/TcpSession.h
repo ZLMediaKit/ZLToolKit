@@ -25,7 +25,7 @@
 #ifndef SERVER_SESSION_H_
 #define SERVER_SESSION_H_
 #include <memory>
-#include <strstream>
+#include <sstream>
 #include "Socket.h"
 #include "Util/logger.h"
 #include "Util/mini.h"

@@ -31,7 +31,7 @@
 #include <mutex>
 #include <vector>
 #include <atomic>
-#include <strstream>
+#include <sstream>
 #include <functional>
 #include "Util/util.h"
 #include "Util/uv_errno.h"
