@@ -11,5 +11,6 @@ mkdir -p mac_build
 rm -rf ./build
 ln -s ./mac_build ./build
 cd mac_build 
-cmake .. -DOPENSSL_ROOT_DIR=../TcpProxyServer/Android_Project/ProxySDK/SDK/libs/${ANDROID_ABI}/ make -j4
+cmake .. -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl/1.0.2j/
+make -j4
 sudo make install
