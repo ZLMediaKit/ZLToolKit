@@ -71,13 +71,13 @@ private:
     ~SessionMap(){};
     //添加Session
     bool add(const string &tag,const TcpSession::Ptr &session){
-        InfoL ;
+        //InfoL ;
         lock_guard<mutex> lck(_mtx_session);
         return _map_session.emplace(tag,session).second;
     }
     //移除Session
     bool remove(const string &tag){
-        InfoL ;
+        //InfoL ;
         lock_guard<mutex> lck(_mtx_session);
         return _map_session.erase(tag);
     }
