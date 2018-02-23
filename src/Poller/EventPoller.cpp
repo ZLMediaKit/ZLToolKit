@@ -70,7 +70,9 @@ namespace ZL {
 			if (enableSelfRun) {
 				_loopThread = new thread(&EventPoller::runLoop, this);
 				_mainThreadId = _loopThread->get_id();
-			}
+			}else{
+                _mainThreadId = this_thread::get_id();
+            }
 		}
 		inline int EventPoller::sigalPipe(uint64_t type, uint64_t i64_size, uint64_t *buf) {
 			uint64_t *pipeBuf = new uint64_t[2 + i64_size];
