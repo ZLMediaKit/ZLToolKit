@@ -4,7 +4,7 @@ brew install cmake
 cd ..
 git clone --depth=50 https://github.com/xiongziliang/ZLToolKit.git
 cd ZLToolKit
-git checkout develop
+git fetch origin develop:develop
 mkdir -p android_build
 rm -rf ./build
 ln -s ./android_build ./build
