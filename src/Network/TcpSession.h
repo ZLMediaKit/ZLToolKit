@@ -38,7 +38,7 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Network {
 
-class TcpSession: public std::enable_shared_from_this<TcpSession> , public SocketWriter {
+class TcpSession: public std::enable_shared_from_this<TcpSession> , public SocketHelper {
 public:
     typedef std::shared_ptr<TcpSession> Ptr;
 
@@ -66,33 +66,8 @@ public:
 	}
     //安全的脱离TcpServer并触发onError事件
     void safeShutdown();
-    //本机网卡ip
-    const string& getLocalIp() const ;
-    //本机网卡端口号
-    uint16_t getLocalPort() const ;
-    //客户端ip
-    const string& getPeerIp() const ;
-    //客户端端口号
-    uint16_t getPeerPort() const ;
-protected:
-    //从缓存池中获取一片缓存
-    BufferRaw::Ptr obtainBuffer();
-    //脱离TcpServer并触发onError事件
-	virtual void shutdown() ;
-    //send系列函数
-	virtual int send(const string &buf);
-    virtual int send(string &&buf);
-	virtual int send(const char *buf, int size);
-	virtual int send(const Buffer::Ptr &buf);
-protected:
-    //sock对象需要暴露给派生类
-    Socket::Ptr _sock;
 private:
     std::shared_ptr<ThreadPool> _th;
-    string _localIp;
-    string _peerIp;
-    uint16_t _localPort;
-    uint16_t _peerPort;
 };
 
 

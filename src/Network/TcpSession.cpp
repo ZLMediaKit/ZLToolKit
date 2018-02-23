@@ -30,11 +30,7 @@ namespace ZL {
 namespace Network {
 
 TcpSession::TcpSession( const std::shared_ptr<ThreadPool> &th,
-                        const Socket::Ptr &sock) : _th(th), _sock(sock),SocketWriter(sock) {
-    _localIp = _sock->get_local_ip();
-    _peerIp = _sock->get_peer_ip();
-    _localPort = _sock->get_local_port();
-    _peerPort = _sock->get_peer_port();
+                        const Socket::Ptr &sock) : _th(th),SocketHelper(sock) {
 }
 
 TcpSession::~TcpSession() {
@@ -52,45 +48,6 @@ void TcpSession::safeShutdown(){
             strongSelf->shutdown();
         }
     });
-}
-
-const string& TcpSession::getLocalIp() const {
-    return _localIp;
-}
-
-uint16_t TcpSession::getLocalPort() const {
-    return _localPort;
-}
-
-const string& TcpSession::getPeerIp() const {
-    return _peerIp;
-}
-
-uint16_t TcpSession::getPeerPort() const {
-    return _peerPort;
-}
-
-BufferRaw::Ptr TcpSession::obtainBuffer(){
-    return _sock->obtainBuffer();
-}
-void TcpSession::shutdown() {
-    _sock->emitErr(SockException(Err_other, "self shutdown"));
-}
-
-int TcpSession::send(const string &buf) {
-    return _sock->send(buf,_flags);
-}
-
-int TcpSession::send(string &&buf) {
-    return _sock->send(std::move(buf),_flags);
-}
-
-int TcpSession::send(const char *buf, int size) {
-    return _sock->send(buf,size,_flags);
-}
-
-int TcpSession::send(const Buffer::Ptr &buf) {
-    return _sock->send(buf, _flags);
 }
 
 

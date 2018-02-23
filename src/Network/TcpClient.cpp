@@ -26,46 +26,55 @@
 namespace ZL {
 namespace Network {
 
-TcpClient::TcpClient() : SocketWriter(nullptr) {
+TcpClient::TcpClient() : SocketHelper(nullptr) {
 }
 
 TcpClient::~TcpClient() {
-	shutdown();
 }
 
 void TcpClient::shutdown() {
-    lock_guard<spin_mutex> lck(_mutex);
-    if(_sock){
-        _sock->setOnErr(nullptr);
-        _sock->setOnFlush(nullptr);
-        _sock->setOnRead(nullptr);
-        _sock.reset();
-    }
-    SocketWriter::setSock(nullptr);
-    _managerTimer.reset();
+    weak_ptr<TcpClient> weakSelf = shared_from_this();
+    ASYNC_TRACE([weakSelf,this](){
+        auto strongSelf = weakSelf.lock();
+        if(!strongSelf){
+            return;
+        }
+        SocketHelper::setSock(nullptr);
+        _managerTimer.reset();
+    });
+}
+
+bool TcpClient::alive() {
+    bool ret = false;
+    SYNC_TRACE([&](){
+        ret = _sock.operator bool();
+    });
+    return ret;
 }
 
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
-	shutdown();
-
-    lock_guard<spin_mutex> lck(_mutex);
-    _sock.reset(new Socket());
-    SocketWriter::setSock(_sock);
-
     weak_ptr<TcpClient> weakSelf = shared_from_this();
-    _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
-		auto strongSelf = weakSelf.lock();
-		if(strongSelf){
-            if(err){
-            	lock_guard<spin_mutex> lck(strongSelf->_mutex);
-                strongSelf->_sock.reset();
+    ASYNC_TRACE([strUrl,iPort,fTimeOutSec,weakSelf,this](){
+        auto strongSelf = weakSelf.lock();
+        if(!strongSelf){
+            return;
+        }
+        shutdown();
+        SocketHelper::setSock(std::make_shared<Socket>());
+
+        weak_ptr<TcpClient> weakSelf = shared_from_this();
+        _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
+            auto strongSelf = weakSelf.lock();
+            if(strongSelf){
+                if(err){
+                    strongSelf->SocketHelper::setSock(nullptr);
+                }
+                strongSelf->onSockConnect(err);
             }
-			strongSelf->onSockConnect(err);
-		}
-	}, fTimeOutSec);
+        }, fTimeOutSec);
+    });
 }
 void TcpClient::onSockConnect(const SockException &ex) {
-    lock_guard<spin_mutex> lck(_mutex);
 	if(!ex && _sock) {
         weak_ptr<TcpClient> weakSelf = shared_from_this();
         _sock->setOnErr([weakSelf](const SockException &ex) {
@@ -113,77 +122,6 @@ void TcpClient::onSockSend() {
 void TcpClient::onSockErr(const SockException& ex) {
 	shutdown();
 	onErr(ex);
-}
-
-int TcpClient::send(const string& str) {
-    lock_guard<spin_mutex> lck(_mutex);
-	if (_sock) {
-		return _sock->send(str,_flags);
-	}
-	return -1;
-}
-int TcpClient::send(string&& str) {
-    lock_guard<spin_mutex> lck(_mutex);
-	if (_sock) {
-		return _sock->send(std::move(str),_flags);
-	}
-	return -1;
-}
-int TcpClient::send(const char* str, int len) {
-    lock_guard<spin_mutex> lck(_mutex);
-	if (_sock) {
-		return _sock->send(str, len,_flags);
-	}
-	return -1;
-}
-
-int TcpClient::send(const Buffer::Ptr &buf){
-    lock_guard<spin_mutex> lck(_mutex);
-	if (_sock) {
-		return _sock->send(buf,_flags);
-	}
-	return -1;
-}
-
-bool TcpClient::alive() {
-    lock_guard<spin_mutex> lck(_mutex);
-    return _sock.operator bool();
-}
-//从缓存池中获取一片缓存
-BufferRaw::Ptr TcpClient::obtainBuffer(){
-    lock_guard<spin_mutex> lck(_mutex);
-    if(!_sock){
-        return nullptr;
-    }
-    return _sock->obtainBuffer();
-}
-string TcpClient::get_local_ip() {
-    lock_guard<spin_mutex> lck(_mutex);
-    if(!_sock){
-        return "";
-    }
-    return _sock->get_local_ip();
-}
-uint16_t TcpClient::get_local_port() {
-    lock_guard<spin_mutex> lck(_mutex);
-    if(!_sock){
-        return 0;
-    }
-    return _sock->get_local_port();
-}
-string TcpClient::get_peer_ip() {
-    lock_guard<spin_mutex> lck(_mutex);
-    if(!_sock){
-        return "";
-    }
-    return _sock->get_peer_ip();
-}
-uint16_t TcpClient::get_peer_port() {
-    lock_guard<spin_mutex> lck(_mutex);
-    if(!_sock){
-        return 0;
-    }
-    return _sock->get_peer_port();
 }
 
 } /* namespace Network */

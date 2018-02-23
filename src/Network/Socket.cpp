@@ -642,6 +642,136 @@ int Packet::send(int fd){
 	}
 	return n;
 }
+///////////////SocketHelper///////////////////
+SocketHelper::SocketHelper(const Socket::Ptr &sock) {
+    setSock(sock);
+}
+
+SocketHelper::~SocketHelper() {}
+
+//重新设置socket
+void SocketHelper::setSock(const Socket::Ptr &sock) {
+    _sock = sock;
+}
+
+//设置socket flags
+SocketHelper &SocketHelper::operator<<(const SocketFlags &flags) {
+    _flags = flags._flags;
+    return *this;
+}
+
+//////////////////operator << 系列函数//////////////////
+//发送char *
+SocketHelper &SocketHelper::operator<<(const char *buf) {
+    if (!_sock) {
+        return *this;
+    }
+    _sock->send(buf, 0, _flags);
+    return *this;
+}
+
+//发送字符串
+SocketHelper &SocketHelper::operator<<(const string &buf) {
+    if (!_sock) {
+        return *this;
+    }
+    _sock->send(buf, _flags);
+    return *this;
+}
+
+//发送字符串
+SocketHelper &SocketHelper::operator<<(string &&buf) {
+    if (!_sock) {
+        return *this;
+    }
+    _sock->send(std::move(buf), _flags);
+    return *this;
+}
+
+//发送Buffer对象
+SocketHelper &SocketHelper::operator<<(const Buffer::Ptr &buf) {
+    if (!_sock) {
+        return *this;
+    }
+    _sock->send(buf, _flags);
+    return *this;
+}
+
+
+//////////////////send系列函数//////////////////
+int SocketHelper::send(const string &buf) {
+    if (!_sock) {
+        return -1;
+    }
+    return _sock->send(buf, _flags);
+}
+
+int SocketHelper::send(string &&buf) {
+    if (!_sock) {
+        return -1;
+    }
+    return _sock->send(std::move(buf), _flags);
+}
+
+int SocketHelper::send(const char *buf, int size) {
+    if (!_sock) {
+        return -1;
+    }
+    return _sock->send(buf, size, _flags);
+}
+
+int SocketHelper::send(const Buffer::Ptr &buf) {
+    if (!_sock) {
+        return -1;
+    }
+    return _sock->send(buf, _flags);
+}
+
+////////其他方法////////
+//从缓存池中获取一片缓存
+BufferRaw::Ptr SocketHelper::obtainBuffer() {
+    if (!_sock) {
+        return nullptr;
+    }
+    return _sock->obtainBuffer();
+}
+
+//触发onError事件
+void SocketHelper::shutdown() {
+    if (_sock) {
+        _sock->emitErr(SockException(Err_other, "self shutdown"));
+        _sock = nullptr;
+    }
+}
+
+/////////获取ip或端口///////////
+string SocketHelper::get_local_ip() {
+    if (!_sock) {
+        return "";
+    }
+    return _sock->get_local_ip();
+}
+
+uint16_t SocketHelper::get_local_port() {
+    if (!_sock) {
+        return 0;
+    }
+    return _sock->get_local_port();
+}
+
+string SocketHelper::get_peer_ip() {
+    if (!_sock) {
+        return "";
+    }
+    return _sock->get_peer_ip();
+}
+
+uint16_t SocketHelper::get_peer_port() {
+    if (!_sock) {
+        return 0;
+    }
+    return _sock->get_peer_port();
+}
 
 }  // namespace Network
 }  // namespace ZL

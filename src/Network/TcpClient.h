@@ -40,8 +40,8 @@ namespace ZL {
 namespace Network {
 
 
-//Tcp客户端，接口非线程安全的，建议切换到主线程后再操作该对象
-class TcpClient : public std::enable_shared_from_this<TcpClient> , public SocketWriter{
+//Tcp客户端，接口线程安全的
+class TcpClient : public std::enable_shared_from_this<TcpClient> , public SocketHelper{
 public:
 	typedef std::shared_ptr<TcpClient> Ptr;
 	TcpClient();
@@ -49,15 +49,10 @@ public:
     //开始连接服务器，strUrl可以是域名或ip
     void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
     //主动断开服务器
-    void shutdown();
+    void shutdown() override ;
     //是否与服务器连接中
     bool alive();
 protected:
-    //发送数据
-	virtual int send(const string &str);
-    virtual int send(string &&buf);
-	virtual int send(const char *str, int len);
-	virtual int send(const Buffer::Ptr &buf);
     //连接服务器结果回调
     virtual void onConnect(const SockException &ex) {}
     //收到数据回调
@@ -68,22 +63,12 @@ protected:
     virtual void onErr(const SockException &ex) {}
     //tcp连接成功后每2秒触发一次该事件
     virtual void onManager() {}
-    //从socket缓存池中获取一片缓存，如果未连接，则返回空
-    BufferRaw::Ptr obtainBuffer();
-
-    /////////获取ip或端口///////////
-	string get_local_ip();
-    uint16_t get_local_port();
-	string get_peer_ip();
-	uint16_t get_peer_port();
 private:
 	void onSockConnect(const SockException &ex);
 	void onSockRecv(const Buffer::Ptr &pBuf);
 	void onSockSend();
 	void onSockErr(const SockException &ex);
 private:
-    spin_mutex _mutex;
-    Socket::Ptr _sock;
     std::shared_ptr<Timer> _managerTimer;
 };
 

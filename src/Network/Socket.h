@@ -411,65 +411,28 @@ public:
     int _flags;
 };
 
-//套接字以cout的方式写数据
-class SocketWriter {
+//套接字以cout的方式写数据等工具
+class SocketHelper {
 public:
-    SocketWriter(const Socket::Ptr &sock){
-        setSock(sock);
-    }
-    ~SocketWriter(){}
-
+    SocketHelper(const Socket::Ptr &sock);
+    virtual ~SocketHelper();
     //重新设置socket
-    void setSock(const Socket::Ptr &sock){
-        lock_guard<decltype(_mtx_sock)> lck(_mtx_sock);
-        _sock = sock;
-    }
-    //发送char *
-    virtual SocketWriter &operator << (const char *buf) {
-        lock_guard<decltype(_mtx_sock)> lck(_mtx_sock);
-        if(!_sock){
-            return *this;
-        }
-        _sock->send(buf,0,_flags);
-        return *this;
-    }
-    //发送字符串
-    virtual SocketWriter &operator << (const string &buf) {
-        lock_guard<decltype(_mtx_sock)> lck(_mtx_sock);
-        if(!_sock){
-            return *this;
-        }
-        _sock->send(buf,_flags);
-        return *this;
-    }
-    //发送字符串
-    virtual SocketWriter &operator << (string &&buf) {
-        lock_guard<decltype(_mtx_sock)> lck(_mtx_sock);
-        if(!_sock){
-            return *this;
-        }
-        _sock->send(std::move(buf),_flags);
-        return *this;
-    }
-    //发送Buffer对象
-    virtual SocketWriter &operator << (const Buffer::Ptr &buf) {
-        lock_guard<decltype(_mtx_sock)> lck(_mtx_sock);
-        if(!_sock){
-            return *this;
-        }
-        _sock->send(buf,_flags);
-        return *this;
-    }
+    void setSock(const Socket::Ptr &sock);
     //设置socket flags
-    virtual SocketWriter &operator << (const SocketFlags &flags) {
-        _flags = flags._flags;
-        return *this;
-    }
+    virtual SocketHelper &operator << (const SocketFlags &flags);
+    //////////////////operator << 系列函数//////////////////
+    //发送char *
+    virtual SocketHelper &operator << (const char *buf);
+    //发送字符串
+    virtual SocketHelper &operator << (const string &buf);
+    //发送字符串
+    virtual SocketHelper &operator << (string &&buf) ;
+    //发送Buffer对象
+    virtual SocketHelper &operator << (const Buffer::Ptr &buf) ;
 
     //发送其他类型是数据
     template<typename T>
-    SocketWriter &operator << (const T &buf) {
-        lock_guard<decltype(_mtx_sock)> lck(_mtx_sock);
+    SocketHelper &operator << (const T &buf) {
         if(!_sock){
             return *this;
         }
@@ -478,9 +441,25 @@ public:
         _sock->send(ss.str(),_flags);
         return *this;
     }
+
+    //////////////////send系列函数//////////////////
+    virtual int send(const string &buf);
+    virtual int send(string &&buf);
+    virtual int send(const char *buf, int size);
+    virtual int send(const Buffer::Ptr &buf);
+
+    ////////其他方法////////
+    //从缓存池中获取一片缓存
+    virtual BufferRaw::Ptr obtainBuffer();
+    //触发onError事件
+    virtual void shutdown();
+    /////////获取ip或端口///////////
+    string get_local_ip();
+    uint16_t get_local_port();
+    string get_peer_ip();
+    uint16_t get_peer_port();
 protected:
     int _flags = SOCKET_DEFAULE_FLAGS;
-    recursive_mutex _mtx_sock;
     Socket::Ptr _sock;
 };
 
