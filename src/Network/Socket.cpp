@@ -746,7 +746,6 @@ BufferRaw::Ptr SocketHelper::obtainBuffer() {
 void SocketHelper::shutdown() {
     if (_sock) {
         _sock->emitErr(SockException(Err_other, "self shutdown"));
-        _sock = nullptr;
     }
 }
 
