@@ -104,7 +104,6 @@ private:
 	inline Sigal_Type _handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf);
 
 	PipeWrap _pipe;
-	bool _exitLoop = false;
 	thread *_loopThread = nullptr;
 	thread::id _mainThreadId;
 	mutex _mtx_event_map;

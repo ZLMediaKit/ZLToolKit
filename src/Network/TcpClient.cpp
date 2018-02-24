@@ -45,10 +45,7 @@ void TcpClient::shutdown() {
 }
 
 bool TcpClient::alive() {
-    bool ret = false;
-    SYNC_TRACE([&](){
-        ret = _sock.operator bool();
-    });
+    bool ret = _sock.operator bool();
     return ret;
 }
 
