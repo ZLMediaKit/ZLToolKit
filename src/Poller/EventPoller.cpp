@@ -39,22 +39,17 @@ using namespace ZL::Thread;
 using namespace ZL::Network;
 
 #if defined(HAS_EPOLL)
-
-#include <sys/epoll.h>
-
-#define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
-                        | (((event) & Event_Write) ? EPOLLOUT : 0) \
-                        | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
-                        | (((event) & Event_LT) ?  0 : EPOLLET)
-
-#define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
-                            | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
-                            | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
-                            | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
+    #include <sys/epoll.h>
+    #define EPOLL_SIZE 1024
+    #define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
+                            | (((event) & Event_Write) ? EPOLLOUT : 0) \
+                            | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
+                            | (((event) & Event_LT) ?  0 : EPOLLET)
+    #define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
+                                | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
+                                | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
+                                | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #endif //HAS_EPOLL
-
-
-#define EPOLL_SIZE 1024
 
 namespace ZL {
 namespace Poller {
