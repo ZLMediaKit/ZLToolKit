@@ -99,7 +99,9 @@ EventPoller::~EventPoller() {
         close(_epoll_fd);
         _epoll_fd = -1;
     }
-
+    //退出前清理管道中的数据
+    _mainThreadId = this_thread::get_id();
+    handlePipeEvent();
     InfoL;
 }
 
