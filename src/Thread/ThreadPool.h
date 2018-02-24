@@ -169,7 +169,7 @@ private:
 	void run() {
 		ThreadPool::setPriority(_priority);
 		function<void(void)> task;
-		while (_avaible) {
+		while (true) {
 			if (!_queue.get_task(task)) {
                 //空任务，退出线程
                 break;
