@@ -95,10 +95,12 @@ EventPoller::~EventPoller() {
         _loopThread = nullptr;
     }
 
+#if defined(HAS_EPOLL)
     if (_epoll_fd != -1) {
         close(_epoll_fd);
         _epoll_fd = -1;
     }
+#endif //defined(HAS_EPOLL)
     //退出前清理管道中的数据
     _mainThreadId = this_thread::get_id();
     handlePipeEvent();
