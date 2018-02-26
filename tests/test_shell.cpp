@@ -44,7 +44,7 @@ public:
 		shutdown();
 	}
     int commit(const string &method,const string &path,const string &host) {
-		auto strGet = StrPrinter
+		string strGet = StrPrinter
 				<< method
 				<< " "
 				<< path
@@ -55,8 +55,7 @@ public:
 						"AppleWebKit/537.36 (KHTML, like Gecko) "
 						"Chrome/58.0.3029.110 Safari/537.36\r\n"
                 << "Accept-Encoding: gzip, deflate, sdch\r\n"
-                << "Accept-Language: zh-CN,zh;q=0.8,en;q=0.6\r\n\r\n"
-				<< endl;
+                << "Accept-Language: zh-CN,zh;q=0.8,en;q=0.6\r\n\r\n";
 		DebugL << "\r\n" << strGet;
         return send(strGet);
     }

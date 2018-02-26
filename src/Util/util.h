@@ -46,18 +46,21 @@ namespace Util {
 
 class _StrPrinter {
 public:
-	_StrPrinter() {
-	}
-	template<typename T>
-	_StrPrinter& operator <<(const T& data) {
-		ss << data;
-		return *this;
-	}
-	string operator <<(std::ostream&(*f)(std::ostream&)) const {
-		return ss.str();
-	}
+    _StrPrinter() {
+    }
+    template<typename T>
+    _StrPrinter& operator <<(const T& data) {
+        ss << data;
+        return *this;
+    }
+    operator string (){
+        return ss.str();
+    }
+    string operator <<(std::ostream&(*f)(std::ostream&)) const {
+        return ss.str();
+    }
 private:
-	stringstream ss;
+    stringstream ss;
 };
 
 #define StrPrinter _StrPrinter()

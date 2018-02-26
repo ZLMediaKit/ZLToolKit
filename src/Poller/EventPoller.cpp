@@ -58,7 +58,7 @@ EventPoller::EventPoller(bool enableSelfRun) {
 #if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
-        throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg() << endl);
+        throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg());
     }
 #endif //HAS_EPOLL
     initPoll();

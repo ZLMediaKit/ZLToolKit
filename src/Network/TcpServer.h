@@ -130,7 +130,7 @@ public:
 
         if (!_socket->listen(port, host.c_str(), backlog)) {
             //创建tcp监听失败，可能是由于端口占用或权限问题
-			string err = (StrPrinter << "listen on " << host << ":" << port << "] failed:" << get_uv_errmsg(true)).operator <<(endl);
+			string err = (StrPrinter << "listen on " << host << ":" << port << " failed:" << get_uv_errmsg(true));
 			throw std::runtime_error(err);
 		}
 

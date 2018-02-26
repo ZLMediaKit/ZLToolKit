@@ -34,7 +34,7 @@ using namespace ZL::Network;
 #define checkFD(fd) \
 	if (fd == -1) { \
 		clearFD(); \
-		throw runtime_error((StrPrinter << "create windows pipe failed:" << get_uv_errmsg()).operator<<(endl));\
+		throw runtime_error(StrPrinter << "create windows pipe failed:" << get_uv_errmsg());\
 	}
 
 #define closeFD(fd) \
@@ -60,7 +60,7 @@ PipeWrap::PipeWrap(){
 
 #else
 	if (pipe(_pipe_fd) == -1) {
-		throw runtime_error((StrPrinter << "create posix pipe failed:" << get_uv_errmsg()).operator<<(endl));\
+		throw runtime_error(StrPrinter << "create posix pipe failed:" << get_uv_errmsg());\
 	}
 #endif // defined(_WIN32)	
 	SockUtil::setNoBlocked(_pipe_fd[0],true);

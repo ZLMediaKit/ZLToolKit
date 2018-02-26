@@ -58,7 +58,7 @@ int main() {
 		while (i--) {
 			//在子进程每隔一秒把数据写入管道，共计发送10次
 			sleep(1);
-			auto msg = StrPrinter << "message " << i << " form subprocess:" << getpid() << endl;
+			string msg = StrPrinter << "message " << i << " form subprocess:" << getpid();
 			DebugL << "子进程发送:" << msg << endl;
 			pipe.send(msg.data(), msg.size());
 		}

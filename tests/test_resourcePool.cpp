@@ -54,7 +54,7 @@ void onRun(int threadNum){
 			InfoL << "thread " << threadNum << ":" << *obj_ptr;
 		}
         //标记该对象被本线程使用
-		obj_ptr->assign(StrPrinter << "keeped by thread:" << threadNum <<endl );
+		obj_ptr->assign(StrPrinter << "keeped by thread:" << threadNum );
 
         //随机休眠，打乱循环使用顺序
         usleep( 1000 * (rd()% 10));
