@@ -160,7 +160,8 @@ private:
         }
         //SessionMap中没有相关记录，那么_sessionMap更不可能有相关记录了；
         //所以_sessionMap::emplace肯定能成功
-        assert(_sessionMap->emplace(sessionId, session).second == true);
+        auto success = _sessionMap->emplace(sessionId, session).second;
+        assert(success == true);
 
         weak_ptr<TcpSession> weakSession(session);
 		//会话接收数据事件
