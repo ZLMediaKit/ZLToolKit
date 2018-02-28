@@ -260,7 +260,7 @@ inline bool EventPoller::handlePipeEvent() {
             _pipeBuffer.append(buf, nread);
             continue;
         }
-        err = get_uv_error();
+        err = get_uv_error(true);
     } while (err != UV_EAGAIN);
 
     bool ret = true;

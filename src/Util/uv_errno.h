@@ -514,8 +514,10 @@ const char* uv_err_name(int err);
 const char* uv_strerror(int err);
 
 int uv_translate_posix_error(int err);
-int get_uv_error(bool netErr = false);
-const char* get_uv_errmsg(bool netErr = false);
+//netErr参数在windows平台下才有效
+int get_uv_error(bool netErr = true);
+//netErr参数在windows平台下才有效
+const char* get_uv_errmsg(bool netErr = true);
 
 
 

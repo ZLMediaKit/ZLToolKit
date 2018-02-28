@@ -88,7 +88,7 @@ int PipeWrap::write(const void *buf, int n) {
 #else
 		ret = ::write(_pipe_fd[1],buf,n);
 #endif // defined(_WIN32)
-	} while (-1 == ret && UV_EINTR == get_uv_error());
+	} while (-1 == ret && UV_EINTR == get_uv_error(true));
 	return ret;
 }
 
@@ -100,7 +100,7 @@ int PipeWrap::read(void *buf, int n) {
 #else
 		ret = ::read(_pipe_fd[0], buf, n);
 #endif // defined(_WIN32)
-	} while (-1 == ret && UV_EINTR == get_uv_error());
+	} while (-1 == ret && UV_EINTR == get_uv_error(true));
 	return ret;
 }
 

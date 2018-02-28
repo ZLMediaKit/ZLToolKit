@@ -203,14 +203,10 @@ public:
     BufferRaw(uint32_t capacity = 0) {
         setCapacity(capacity);
     }
-    virtual ~BufferRaw() {
-        if(_data){
-            delete[] _data;
-        }
-    }
+    virtual ~BufferRaw() {}
     //在写入数据时请确保内存是否越界
     char *data() override {
-        return _data;
+        return _vec.data();
     }
     //有效数据大小
     uint32_t size() const override{
@@ -218,18 +214,17 @@ public:
     }
     //分配内存大小
     void setCapacity(uint32_t capacity){
-        if(_capacity >= capacity){
-            return;
+        if(capacity < _vec.capacity() / 2){
+            //如果重新请求的内存大小小于以前的一半就删除多余的内存
+            _vec.resize(capacity) ;
+        }else{
+            //否则就用reserve重新分配内存（不会删除可能多余的内存）
+            _vec.reserve(capacity);
         }
-        if(_data){
-            delete[] _data;
-        }
-        _data = new char[capacity];;
-        _capacity = capacity;
     }
     //设置有效数据大小
     void setSize(uint32_t size){
-        if(size > _capacity){
+        if(size > _vec.capacity()){
             throw std::invalid_argument("Buffer::setSize out of range");
         }
         _size = size;
@@ -240,13 +235,12 @@ public:
             size = strlen(data);
         }
         setCapacity(size);
-        memcpy(_data,data,size);
+        memcpy(_vec.data(),data,size);
         setSize(size);
     }
 private:
-    char *_data = nullptr;
+    vector<char> _vec;
     int _size = 0;
-    int _capacity = 0;
 };
 
 class Packet : public noncopyable

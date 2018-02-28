@@ -25,6 +25,10 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <string.h>
+#include <string>
+#include <unordered_map>
+#include <tuple>
+#include <mutex>
 #include "sockutil.h"
 #include "Util/util.h"
 #include "Util/logger.h"
@@ -146,18 +150,92 @@ int SockUtil::setSendBuf(int sock, int size) {
 	return ret;
 }
 
+
+
+class DnsCache {
+public:
+
+    static DnsCache &Instance(){
+        static DnsCache instance;
+        return instance;
+    }
+    bool getDomainIP(const char *host,sockaddr &addr,int expireSec = 60){
+        DnsItem item;
+        auto flag = getCacheDomainIP(host,item,expireSec);
+        if(!flag){
+            flag = getSystemDomainIP(host,item._addr);
+            if(flag){
+                setCacheDomainIP(host,item);
+            }
+        }
+        if(flag){
+            addr = item._addr;
+        }
+        return flag;
+    }
+private:
+    DnsCache(){}
+    ~DnsCache(){}
+
+    class DnsItem{
+    public:
+        sockaddr _addr;
+        time_t _create_time;
+    };
+
+    bool getCacheDomainIP(const char *host,DnsItem &item,int expireSec){
+        lock_guard<mutex> lck(_mtx);
+        auto it = _mapDns.find(host);
+        if(it == _mapDns.end()){
+            //没有记录
+            return false;
+        }
+        if(it->second._create_time + expireSec < time(NULL)){
+            //已过期
+            _mapDns.erase(it);
+            return false;
+        }
+        item = it->second;
+        return true;
+    }
+    void setCacheDomainIP(const char *host,DnsItem &item){
+        lock_guard<mutex> lck(_mtx);
+        item._create_time = time(NULL);
+        _mapDns[host] = item;
+    }
+
+    bool getSystemDomainIP(const char *host , sockaddr &item ){
+        struct addrinfo *answer=nullptr;
+        //阻塞式dns解析，可能被打断
+        int ret = -1;
+        do{
+            ret = getaddrinfo(host, NULL, NULL, &answer);
+        }while(ret == -1 && get_uv_error(true) == UV_EINTR) ;
+
+        if (!answer) {
+            WarnL << "域名解析失败:" << host;
+            return false;
+        }
+        item = *(answer->ai_addr);
+        freeaddrinfo(answer);
+        return true;
+    }
+private:
+    mutex _mtx;
+    unordered_map<string,DnsItem> _mapDns;
+};
+
 int SockUtil::connect(const char *host, uint16_t port,bool bAsync) {
-    
-#if defined (__APPLE__)
-    struct addrinfo *answer=nullptr;
-    int ret = getaddrinfo(host, NULL, NULL, &answer);
-    if (ret < 0 || !answer) {
-        WarnL << "域名解析失败:" << host;
+    sockaddr addr;
+    if(!DnsCache::Instance().getDomainIP(host,addr)){
+        //dns解析失败
         return -1;
     }
-    int sockfd= socket(answer->ai_family, SOCK_STREAM , IPPROTO_TCP);
+    //设置端口号
+    ((sockaddr_in *)&addr)->sin_port = htons(port);
+
+    int sockfd= socket(addr.sa_family, SOCK_STREAM , IPPROTO_TCP);
     if (sockfd < 0) {
-        freeaddrinfo(answer);
         WarnL << "创建套接字失败:" << host;
         return -1;
     }
@@ -167,48 +245,8 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync) {
     setSendBuf(sockfd);
     setRecvBuf(sockfd);
     setCloseWait(sockfd);
-    
-    int16_t n_port=htons(port);
-    memcpy(answer->ai_addr->sa_data, &n_port, 2);
-    ret = ::connect(sockfd, answer->ai_addr, sizeof(struct sockaddr));
-    freeaddrinfo(answer);   
-#else
-    struct hostent *hp = gethostbyname(host);
-    if (hp == NULL) {
-        WarnL << "域名解析失败:" << host;
-        return -1;
-    }
-    struct in_addr *addr = (in_addr*) hp->h_addr_list[0];
-    if (addr == NULL) {
-        //freehostent(hp);
-        WarnL << "域名解析失败:" << host;
-        return -1;
-    }
-    struct sockaddr_in servaddr;
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(port);
-    servaddr.sin_addr = *addr;
-    bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
-    //freehostent(hp);
-    
-    int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sockfd < 0) {
-        WarnL << "创建套接字失败:" << host;
-        return -1;
-    }
-    
-    setNoSigpipe(sockfd);
-    setNoBlocked(sockfd,bAsync);
-    setNoDelay(sockfd);
-    setSendBuf(sockfd);
-    setRecvBuf(sockfd);
-    setCloseWait(sockfd);
-    
-    int ret = ::connect(sockfd, (struct sockaddr *) &servaddr,
-                        sizeof(struct sockaddr));
-#endif //__APPLE__
 
-	if (ret == 0) {
+	if (::connect(sockfd, &addr, sizeof(struct sockaddr)) == 0) {
 		//同步连接成功
 		return sockfd;
 	}
