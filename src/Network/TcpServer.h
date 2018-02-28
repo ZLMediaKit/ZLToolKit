@@ -141,7 +141,12 @@ public:
 		}));
 		InfoL << "TCP Server listening on " << host << ":" << port;
 	}
-
+	 uint16_t getPort(){
+		 if(!_socket){
+			 return 0;
+		 }
+		 return _socket->get_local_port();
+	 }
 private:
     // 接收到客户端连接请求
     void onAcceptConnection(const Socket::Ptr & sock) {
