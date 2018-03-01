@@ -365,7 +365,8 @@ private:
     int onAccept(const SockFD::Ptr &pSock,int event);
     int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
     void onError(const SockFD::Ptr &pSock);
-    bool onWrite(const SockFD::Ptr &pSock, bool bMainThread);
+    void onCanWrite(const SockFD::Ptr &pSock);
+    bool sendData(const SockFD::Ptr &pSock, bool bMainThread);
     void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
 	void onFlushed(const SockFD::Ptr &pSock);
     void startWriteEvent(const SockFD::Ptr &pSock);
@@ -396,6 +397,7 @@ private:
     //发送超时时间10秒
     float _sendTimeOutSec = 10;
     ResourcePool<BufferRaw,MAX_SEND_PKT> _bufferPool;
+    atomic_bool _canSendSock;
 };
 
 class  SocketFlags{

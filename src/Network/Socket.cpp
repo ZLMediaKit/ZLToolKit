@@ -204,7 +204,7 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 			strongSelf->onRead(strongSock,!isUdp);
 		}
 		if (event & Event_Write) {
-			strongSelf->onWrite(strongSock,true);
+			strongSelf->onCanWrite(strongSock);
 		}
 	});
 }
@@ -342,9 +342,9 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 		_sendPktBuf.emplace_back(packet);
 	}while(0);
 
-	if(!packetSize){
-		//列队中没有数据，说明socket是空闲的，启动发送流程
-		if(!onWrite(sock,false)){
+	if(_canSendSock){
+		//该socket可写
+		if(!sendData(sock,false)){
             //发生错误
             return -1;
         }
@@ -496,24 +496,26 @@ uint16_t Socket::get_peer_port() {
 	return SockUtil::get_peer_port(_sockFd->rawFd());
 }
 
-bool Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread) {
-	decltype(_sendPktBuf) sendPktBuf_copy;
-	{
-		lock_guard<recursive_mutex> lck(_mtx_sendBuf);
-		auto sz = _sendPktBuf.size();
-		if (!sz) {
-			if (bMainThread) {
-				stopWriteEvent(pSock);
-				onFlushed(pSock);
-			}
-			return true;
-		}
-		sendPktBuf_copy.swap(_sendPktBuf);
-	}
+bool Socket::sendData(const SockFD::Ptr &pSock, bool bMainThread){
+    decltype(_sendPktBuf) sendPktBuf_copy;
+    {
+        lock_guard<recursive_mutex> lck(_mtx_sendBuf);
+        auto sz = _sendPktBuf.size();
+        if (!sz) {
+            if (bMainThread) {
+                //主线程触发该函数，那么该socket应该已经加入了可写事件的监听；
+                //那么在数据列队清空的情况下，我们需要关闭监听以免触发无意义的事件回调
+                stopWriteEvent(pSock);
+                onFlushed(pSock);
+            }
+            return true;
+        }
+        sendPktBuf_copy.swap(_sendPktBuf);
+    }
     int sockFd = pSock->rawFd();
-	while (!sendPktBuf_copy.empty()) {
-		auto &packet = sendPktBuf_copy.front();
-		int n = packet->send(sockFd);
+    while (!sendPktBuf_copy.empty()) {
+        auto &packet = sendPktBuf_copy.front();
+        int n = packet->send(sockFd);
         if(n > 0){
             //全部或部分发送成功
             _flushTicker.resetTime();
@@ -524,6 +526,7 @@ bool Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread) {
             }
             //部分发送成功
             if (!bMainThread) {
+                //如果该函数是主线程触发的，那么该socket应该已经加入了可写事件的监听，所以我们不需要再次加入监听
                 startWriteEvent(pSock);
             }
             break;
@@ -534,6 +537,7 @@ bool Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread) {
         if (err == UV_EAGAIN) {
             //等待下一次发送
             if(!bMainThread){
+                //如果该函数是主线程触发的，那么该socket应该已经加入了可写事件的监听，所以我们不需要再次加入监听
                 startWriteEvent(pSock);
             }
             break;
@@ -541,25 +545,43 @@ bool Socket::onWrite(const SockFD::Ptr &pSock,bool bMainThread) {
         //其他错误代码，发生异常
         onError(pSock);
         return false;
-	}
+    }
 
-	if (sendPktBuf_copy.empty()) {
+    if (sendPktBuf_copy.empty()) {
         //确保真正全部发送完毕
-		return onWrite(pSock,bMainThread);
-	}
+        return sendData(pSock,bMainThread);
+    }
     //未发送完毕则回滚数据
-	lock_guard<recursive_mutex> lck(_mtx_sendBuf);
-	_sendPktBuf.insert(_sendPktBuf.begin(), sendPktBuf_copy.begin(),sendPktBuf_copy.end());
-	return true;
+    lock_guard<recursive_mutex> lck(_mtx_sendBuf);
+    _sendPktBuf.insert(_sendPktBuf.begin(), sendPktBuf_copy.begin(),sendPktBuf_copy.end());
+    return true;
+}
+
+void Socket::onCanWrite(const SockFD::Ptr &pSock) {
+    bool empty;
+    {
+        lock_guard<recursive_mutex> lck(_mtx_sendBuf);
+        empty = _sendPktBuf.empty();
+    }
+    if(empty){
+        //数据已经清空了，我们停止监听可写事件
+        stopWriteEvent(pSock);
+    }else {
+        //我们尽量让其他线程来发送数据，不要占用主线程太多性能
+        //WarnL << "主线程发送数据";
+        sendData(pSock, true);
+    }
 }
 
 
 void Socket::startWriteEvent(const SockFD::Ptr &pSock) {
+    _canSendSock = false;
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error | Event_Write);
 }
 
 void Socket::stopWriteEvent(const SockFD::Ptr &pSock) {
+    _canSendSock = true;
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);
 }
