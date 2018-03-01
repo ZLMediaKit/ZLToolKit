@@ -335,7 +335,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
                 break;
 			}
             //可以主动丢包
-            WarnL << "socket send buffer overflow,previous data has been cleared.";
+            WarnL << "socket send buffer overflow:" << get_peer_ip() << " " << get_peer_port();
             //清空发送列队；第一个包数据发送可能不完整，我们需要一个包一个包完整的发送数据
             _sendPktBuf.erase(_sendPktBuf.begin() + 1, _sendPktBuf.end());
 		}
