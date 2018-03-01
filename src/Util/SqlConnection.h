@@ -50,9 +50,24 @@ namespace Util {
 
 class SqlConnection {
 public:
-	SqlConnection(const string &url, unsigned short port, const string &dbname,
-			const string &user, const string &password,const string &character = "utf8mb4");
-	virtual ~SqlConnection();
+    SqlConnection(const string &url, unsigned short port,
+                  const string &dbname, const string &username,
+                  const string &password, const string &character = "utf8mb4") {
+        mysql_init(&sql);
+        unsigned int timeout = 3;
+        mysql_options(&sql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
+        if (!mysql_real_connect(&sql, url.c_str(), username.c_str(),
+                                password.c_str(), dbname.c_str(), port, NULL, 0)) {
+            mysql_close(&sql);
+            throw runtime_error(string("mysql_real_connect:") + mysql_error(&sql));
+        }
+        my_bool reconnect = 1;
+        mysql_options(&sql, MYSQL_OPT_RECONNECT, &reconnect);
+        mysql_set_character_set(&sql, character.data());
+    }
+	virtual ~SqlConnection(){
+        mysql_close(&sql);
+    }
 
 	template<typename ...Args>
 	int64_t query(int64_t &rowId, const char *fmt, Args && ...arg) {
