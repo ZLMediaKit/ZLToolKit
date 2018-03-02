@@ -344,6 +344,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 
 	if(_canSendSock){
 		//该socket可写
+		//WarnL << "后台线程发送数据";
 		if(!sendData(sock,false)){
             //发生错误
             return -1;
@@ -569,18 +570,21 @@ void Socket::onCanWrite(const SockFD::Ptr &pSock) {
     }else {
         //我们尽量让其他线程来发送数据，不要占用主线程太多性能
         //WarnL << "主线程发送数据";
-        sendData(pSock, true);
-    }
+		sendData(pSock, true);
+		_canSendSock = true;
+	}
 }
 
 
 void Socket::startWriteEvent(const SockFD::Ptr &pSock) {
+    //FatalL;
     _canSendSock = false;
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error | Event_Write);
 }
 
 void Socket::stopWriteEvent(const SockFD::Ptr &pSock) {
+    //FatalL;
     _canSendSock = true;
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);

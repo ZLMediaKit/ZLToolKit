@@ -400,7 +400,7 @@ bool check_ip(string &address,const string &ip){
     if(ip != "127.0.0.1" && ip != "0.0.0.0") {
         /*获取一个有效IP*/
         address = ip;
-        if(address.find("172.") == 0 || address.find("10.") == 0 || address.find("192.") == 0){
+        if(address.find("172.") == 0 || address.find("192.") == 0){
             /*优先采用局域网地址，该地址很可能是wifi地址*/
             return true;
         }
