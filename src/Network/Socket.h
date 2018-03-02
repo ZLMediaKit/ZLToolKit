@@ -72,8 +72,7 @@ namespace Network {
 //默认socket最大缓存列队长度
 //譬如调用Socket::send若干次，那么这些数据可能并不会真正发送到网络
 //而是会缓存在Socket对象的缓存列队中
-//如果缓存列队长度达到了最大限制数，那么将会被清空
-//当然你也可以设置Socket不主动丢包，这样的话就会导致Socket::send返回0
+//如果缓存列队长度达到了最大限制数，那么调用Socket::send返回0
 #define MAX_SEND_PKT (64)
 
 #if defined(__APPLE__)
@@ -201,12 +200,18 @@ class BufferRaw : public Buffer{
 public:
     typedef std::shared_ptr<BufferRaw> Ptr;
     BufferRaw(uint32_t capacity = 0) {
-        setCapacity(capacity);
+        if(capacity){
+            setCapacity(capacity);
+        }
     }
-    virtual ~BufferRaw() {}
+    virtual ~BufferRaw() {
+        if(_data){
+            delete _data;
+        }
+    }
     //在写入数据时请确保内存是否越界
     char *data() override {
-        return _vec.data();
+        return _data;
     }
     //有效数据大小
     uint32_t size() const override{
@@ -214,17 +219,15 @@ public:
     }
     //分配内存大小
     void setCapacity(uint32_t capacity){
-        if(capacity < _vec.capacity() / 2){
-            //如果重新请求的内存大小小于以前的一半就删除多余的内存
-            _vec.resize(capacity) ;
-        }else{
-            //否则就用reserve重新分配内存（不会删除可能多余的内存）
-            _vec.reserve(capacity);
+        if(_data){
+            delete _data;
         }
+        _data = new char[capacity];
+        _capacity = capacity;
     }
     //设置有效数据大小
     void setSize(uint32_t size){
-        if(size > _vec.capacity()){
+        if(size > _capacity){
             throw std::invalid_argument("Buffer::setSize out of range");
         }
         _size = size;
@@ -235,11 +238,12 @@ public:
             size = strlen(data);
         }
         setCapacity(size);
-        memcpy(_vec.data(),data,size);
+        memcpy(_data,data,size);
         setSize(size);
     }
 private:
-    vector<char> _vec;
+    char *_data = nullptr;
+    int _capacity = 0;
     int _size = 0;
 };
 
@@ -349,14 +353,11 @@ public:
     //设置最大缓存列队长度
     //譬如调用Socket::send若干次，那么这些数据可能并不会真正发送到网络
     //而是会缓存在Socket对象的缓存列队中
-    //如果缓存列队长度达到了最大限制数，那么将会被清空
-    //当然你也可以设置Socket不主动丢包，这样的话就会导致Socket::send返回0
+    //如果缓存列队长度达到了最大限制数，那么调用Socket::send返回0
 	void setSendPktSize(uint32_t iPktSize);
-    //设置是否主动丢包，如果关闭主动丢包，那么调用Socket::send可能返回0
-    void setShouldDropPacket(bool dropPacket);
     //设置发送超时主动断开时间;默认10秒
     void setSendTimeOutSecond(float second);
-    //从缓存池中获取一片缓存
+    //获取一片缓存
     BufferRaw::Ptr obtainBuffer();
 private:
     void closeSock();
@@ -365,12 +366,12 @@ private:
     int onAccept(const SockFD::Ptr &pSock,int event);
     int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
     void onError(const SockFD::Ptr &pSock);
-    void onCanWrite(const SockFD::Ptr &pSock);
+    void onWriteAble(const SockFD::Ptr &pSock);
     bool sendData(const SockFD::Ptr &pSock, bool bMainThread);
     void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
 	void onFlushed(const SockFD::Ptr &pSock);
-    void startWriteEvent(const SockFD::Ptr &pSock);
-    void stopWriteEvent(const SockFD::Ptr &pSock);
+    void startWriteAbleEvent(const SockFD::Ptr &pSock);
+    void stopWriteAbleEvent(const SockFD::Ptr &pSock);
     bool sendTimeout();
     SockFD::Ptr makeSock(int sock);
     static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
@@ -392,11 +393,9 @@ private:
     Ticker _flushTicker;
     uint32_t _iMaxSendPktSize = MAX_SEND_PKT;
     atomic<bool> _enableRecv;
-    //默认网络底层可以主动丢包
-    bool _shouldDropPacket = true;
     //发送超时时间10秒
     float _sendTimeOutSec = 10;
-    ResourcePool<BufferRaw,MAX_SEND_PKT> _bufferPool;
+    //ResourcePool<BufferRaw,MAX_SEND_PKT> _bufferPool;
     atomic_bool _canSendSock;
 };
 

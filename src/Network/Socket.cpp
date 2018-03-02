@@ -204,7 +204,7 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 			strongSelf->onRead(strongSock,!isUdp);
 		}
 		if (event & Event_Write) {
-			strongSelf->onCanWrite(strongSock);
+			strongSelf->onWriteAble(strongSock);
 		}
 	});
 }
@@ -225,7 +225,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		}
 		struct sockaddr peerAddr;
 		socklen_t len = sizeof(struct sockaddr);
-        BufferRaw::Ptr buf = _bufferPool.obtain();
+        BufferRaw::Ptr buf = obtainBuffer();
 		buf->setCapacity(nread + 1);
 		do {
 			nread = recvfrom(sock, buf->data(), nread, 0, &peerAddr, &len);
@@ -286,7 +286,7 @@ int Socket::send(const char* buf, int size, int flags,struct sockaddr* peerAddr)
             return 0;
         }
     }
-    BufferRaw::Ptr ptr = _bufferPool.obtain();
+    BufferRaw::Ptr ptr = obtainBuffer();
     ptr->assign(buf,size);
     return send(ptr,flags,peerAddr);
 }
@@ -319,25 +319,17 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
     packet->setData(buf);
     packet->setFlag(flags);
     packet->setAddr(peerAddr);
-    //数据包个数
-	int packetSize;
 	do{//减小临界区
 		lock_guard<recursive_mutex> lck(_mtx_sendBuf);
-        packetSize = _sendPktBuf.size();
-		if (packetSize >= _iMaxSendPktSize) {
+		if (_sendPktBuf.size() >= _iMaxSendPktSize) {
 			if (sendTimeout()) {
                 //一定时间内没有任何数据发送成功，则主动断开socket
 				return -1;
 			}
-			if (!_shouldDropPacket) {
-				//未写入任何数据，(不能主动丢包)交给上层应用处理
-                ret = 0;
-                break;
-			}
-            //可以主动丢包
+            //未写入任何数据，交给上层应用处理（已经去除主动丢包的特性）
             WarnL << "socket send buffer overflow:" << get_peer_ip() << " " << get_peer_port();
-            //清空发送列队；第一个包数据发送可能不完整，我们需要一个包一个包完整的发送数据
-            _sendPktBuf.erase(_sendPktBuf.begin() + 1, _sendPktBuf.end());
+            ret = 0;
+            break;
 		}
 		_sendPktBuf.emplace_back(packet);
 	}while(0);
@@ -506,7 +498,7 @@ bool Socket::sendData(const SockFD::Ptr &pSock, bool bMainThread){
             if (bMainThread) {
                 //主线程触发该函数，那么该socket应该已经加入了可写事件的监听；
                 //那么在数据列队清空的情况下，我们需要关闭监听以免触发无意义的事件回调
-                stopWriteEvent(pSock);
+                stopWriteAbleEvent(pSock);
                 onFlushed(pSock);
             }
             return true;
@@ -528,7 +520,7 @@ bool Socket::sendData(const SockFD::Ptr &pSock, bool bMainThread){
             //部分发送成功
             if (!bMainThread) {
                 //如果该函数是主线程触发的，那么该socket应该已经加入了可写事件的监听，所以我们不需要再次加入监听
-                startWriteEvent(pSock);
+                startWriteAbleEvent(pSock);
             }
             break;
         }
@@ -539,7 +531,7 @@ bool Socket::sendData(const SockFD::Ptr &pSock, bool bMainThread){
             //等待下一次发送
             if(!bMainThread){
                 //如果该函数是主线程触发的，那么该socket应该已经加入了可写事件的监听，所以我们不需要再次加入监听
-                startWriteEvent(pSock);
+                startWriteAbleEvent(pSock);
             }
             break;
         }
@@ -558,7 +550,7 @@ bool Socket::sendData(const SockFD::Ptr &pSock, bool bMainThread){
     return true;
 }
 
-void Socket::onCanWrite(const SockFD::Ptr &pSock) {
+void Socket::onWriteAble(const SockFD::Ptr &pSock) {
     bool empty;
     {
         lock_guard<recursive_mutex> lck(_mtx_sendBuf);
@@ -566,24 +558,24 @@ void Socket::onCanWrite(const SockFD::Ptr &pSock) {
     }
     if(empty){
         //数据已经清空了，我们停止监听可写事件
-        stopWriteEvent(pSock);
+        stopWriteAbleEvent(pSock);
     }else {
         //我们尽量让其他线程来发送数据，不要占用主线程太多性能
         //WarnL << "主线程发送数据";
-		sendData(pSock, true);
-		_canSendSock = true;
+        _canSendSock = true;
+        sendData(pSock, true);
 	}
 }
 
 
-void Socket::startWriteEvent(const SockFD::Ptr &pSock) {
+void Socket::startWriteAbleEvent(const SockFD::Ptr &pSock) {
     //FatalL;
     _canSendSock = false;
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error | Event_Write);
 }
 
-void Socket::stopWriteEvent(const SockFD::Ptr &pSock) {
+void Socket::stopWriteAbleEvent(const SockFD::Ptr &pSock) {
     //FatalL;
     _canSendSock = true;
     int flag = _enableRecv ? Event_Read : 0;
@@ -620,17 +612,14 @@ int Socket::rawFD() const{
 
 void Socket::setSendPktSize(uint32_t iPktSize){
     _iMaxSendPktSize = iPktSize;
-    _bufferPool.reSize(iPktSize);
-}
-void Socket::setShouldDropPacket(bool dropPacket){
-    _shouldDropPacket = dropPacket;
+    //_bufferPool.reSize(iPktSize);
 }
 void Socket::setSendTimeOutSecond(float second){
     _sendTimeOutSec = second;
 }
 
 BufferRaw::Ptr Socket::obtainBuffer() {
-    return _bufferPool.obtain();
+    return std::make_shared<BufferRaw>() ;//_bufferPool.obtain();
 }
 
 ///////////////Packet/////////////////////
