@@ -206,7 +206,7 @@ public:
     }
     virtual ~BufferRaw() {
         if(_data){
-            delete _data;
+            delete [] _data;
         }
     }
     //在写入数据时请确保内存是否越界
