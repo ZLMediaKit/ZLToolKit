@@ -41,6 +41,7 @@ namespace ZL {
 namespace Network {
 
 Socket::Socket() {
+    _canSendSock = true;
 	_readCB = [](const Buffer::Ptr &buf,struct sockaddr *) {
 		WarnL << "Socket not set readCB";
 	};
