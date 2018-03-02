@@ -220,7 +220,7 @@ public:
     //分配内存大小
     void setCapacity(uint32_t capacity){
         if(_data){
-            delete _data;
+            delete [] _data;
         }
         _data = new char[capacity];
         _capacity = capacity;
