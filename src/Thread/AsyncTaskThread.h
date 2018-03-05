@@ -34,6 +34,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <condition_variable>
+#include <functional>
 #include "Util/util.h"
 
 using namespace std;

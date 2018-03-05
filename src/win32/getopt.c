@@ -173,8 +173,12 @@ static enum
 #if __STDC__ || defined(PROTO)
 extern char *getenv(const char *name);
 extern int  strcmp (const char *s1, const char *s2);
-extern int  strncmp(const char *s1, const char *s2, int n);
 
+#if defined(__MINGW32_MAJOR_VERSION)
+extern int  strncmp(const char *_Str1,const char *_Str2,size_t _MaxCount);
+#else
+extern int  strncmp(const char *s1, const char *s2, int n);
+#endif //
 static int my_strlen(const char *s);
 static char *my_index (const char *str, int chr);
 #else

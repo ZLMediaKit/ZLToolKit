@@ -25,11 +25,11 @@
 #define NETWORK_SOCKUTIL_H
 
 #if defined(_WIN32)
-#include <WinSock2.h>
-#include <ws2ipdef.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <Iphlpapi.h>
-#pragma comment (lib,"WS2_32")
-#pragma comment(lib,"Iphlpapi.lib") 
+#pragma comment (lib, "Ws2_32.lib")
+#pragma comment(lib,"Iphlpapi.lib")
 #else
 #include <netdb.h>
 #include <arpa/inet.h>
