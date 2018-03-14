@@ -69,11 +69,17 @@ namespace Network {
 
 //默认的socket flags:不触发SIGPIPE,非阻塞发送
 #define SOCKET_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
+    
 //默认socket最大缓存列队长度
 //譬如调用Socket::send若干次，那么这些数据可能并不会真正发送到网络
 //而是会缓存在Socket对象的缓存列队中
 //如果缓存列队长度达到了最大限制数，那么调用Socket::send返回0
-#define MAX_SEND_PKT (64)
+//我们设定最多缓存列队长度不受限制
+//这样发送列队的长度就完全由发送超时时间限制了
+#define MAX_SEND_PKT 0xFFFFFFFF
+
+//发送超时时间，如果在规定时间内一直没有发送数据成功，那么将触发onErr事件
+#define SEND_TIME_OUT_SEC 5
 
 #if defined(__APPLE__)
   #import "TargetConditionals.h"
@@ -393,8 +399,8 @@ private:
     Ticker _flushTicker;
     uint32_t _iMaxSendPktSize = MAX_SEND_PKT;
     atomic<bool> _enableRecv;
-    //发送超时时间10秒
-    float _sendTimeOutSec = 10;
+    //发送超时时间
+    float _sendTimeOutSec = SEND_TIME_OUT_SEC;
     //ResourcePool<BufferRaw,MAX_SEND_PKT> _bufferPool;
     atomic_bool _canSendSock;
 };

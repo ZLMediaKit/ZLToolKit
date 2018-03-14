@@ -310,7 +310,8 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 		lock_guard<spin_mutex> lck(_mtx_sockFd);
 		sock = _sockFd;
 	}
-	if (!sock) {
+	if (!sock || sendTimeout()) {
+        //如果已断开连接或者发送超时
 		return -1;
 	}
 
@@ -323,10 +324,6 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 	do{//减小临界区
 		lock_guard<recursive_mutex> lck(_mtx_sendBuf);
 		if (_sendPktBuf.size() >= _iMaxSendPktSize) {
-			if (sendTimeout()) {
-                //一定时间内没有任何数据发送成功，则主动断开socket
-				return -1;
-			}
             //未写入任何数据，交给上层应用处理（已经去除主动丢包的特性）
             WarnL << "socket send buffer overflow:" << get_peer_ip() << " " << get_peer_port();
             ret = 0;
@@ -583,7 +580,7 @@ void Socket::stopWriteAbleEvent(const SockFD::Ptr &pSock) {
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);
 }
 bool Socket::sendTimeout() {
-	if (_flushTicker.elapsedTime() > _sendTimeOutSec * 1000) {
+	if (_flushTicker.elapsedTime() > _sendTimeOutSec * 1000 && !_canSendSock) {
 		emitErr(SockException(Err_other, "Socket send timeout"));
 		_sendPktBuf.clear();
 		return true;
