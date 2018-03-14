@@ -70,16 +70,11 @@ namespace Network {
 //默认的socket flags:不触发SIGPIPE,非阻塞发送
 #define SOCKET_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
     
-//默认socket最大缓存列队长度
-//譬如调用Socket::send若干次，那么这些数据可能并不会真正发送到网络
-//而是会缓存在Socket对象的缓存列队中
-//如果缓存列队长度达到了最大限制数，那么调用Socket::send返回0
-//我们设定最多缓存列队长度不受限制
-//这样发送列队的长度就完全由发送超时时间限制了
-#define MAX_SEND_PKT 0xFFFFFFFF
-
 //发送超时时间，如果在规定时间内一直没有发送数据成功，那么将触发onErr事件
-#define SEND_TIME_OUT_SEC 5
+#define SEND_TIME_OUT_SEC 10
+    
+//缓存列队中数据最大保存秒数,默认最大保存5秒的数据
+#define SEND_BUF_MAX_SEC 5
 
 #if defined(__APPLE__)
   #import "TargetConditionals.h"
@@ -260,6 +255,8 @@ public:
     Packet(){}
     ~Packet(){  if(_addr) delete _addr;  }
 
+    void updateStamp();
+    uint32_t getElapsedSecond() const;
     void setAddr(const struct sockaddr *addr);
     void setFlag(int flag){ _flag = flag; }
     void setData(const Buffer::Ptr &data){
@@ -279,6 +276,7 @@ private:
     Buffer::Ptr _data;
     int _flag = 0;
     int _offset = 0;
+    uint32_t _stamp = 0;
 };
 
 //字符串缓存
@@ -356,15 +354,18 @@ public:
     //获取对方端口号
 	uint16_t get_peer_port();
 
-    //设置最大缓存列队长度
+    //设置缓存列队长度
     //譬如调用Socket::send若干次，那么这些数据可能并不会真正发送到网络
     //而是会缓存在Socket对象的缓存列队中
-    //如果缓存列队长度达到了最大限制数，那么调用Socket::send返回0
-	void setSendPktSize(uint32_t iPktSize);
+    //如果缓存列队中最老的数据包寿命超过最大限制，那么调用Socket::send将返回0
+	void setSendBufSecond(uint32_t second);
     //设置发送超时主动断开时间;默认10秒
-    void setSendTimeOutSecond(float second);
+    void setSendTimeOutSecond(uint32_t second);
     //获取一片缓存
     BufferRaw::Ptr obtainBuffer();
+    
+    //套接字是否忙，如果套接字写缓存已满则返回true
+    bool isSocketBusy() const;
 private:
     void closeSock();
     bool setPeerSock(int fd);
@@ -380,6 +381,7 @@ private:
     void stopWriteAbleEvent(const SockFD::Ptr &pSock);
     bool sendTimeout();
     SockFD::Ptr makeSock(int sock);
+    uint32_t getBufSecondLength();
     static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
 private:
     mutable spin_mutex _mtx_sockFd;
@@ -397,12 +399,11 @@ private:
     onAcceptCB _acceptCB;
     onFlush _flushCB;
     Ticker _flushTicker;
-    uint32_t _iMaxSendPktSize = MAX_SEND_PKT;
     atomic<bool> _enableRecv;
+    atomic<bool> _canSendSock;
     //发送超时时间
-    float _sendTimeOutSec = SEND_TIME_OUT_SEC;
-    //ResourcePool<BufferRaw,MAX_SEND_PKT> _bufferPool;
-    atomic_bool _canSendSock;
+    uint32_t _sendTimeOutSec = SEND_TIME_OUT_SEC;
+    uint32_t _sendBufSec = SEND_BUF_MAX_SEC;
 };
 
 class  SocketFlags{
@@ -459,6 +460,8 @@ public:
     uint16_t get_local_port();
     const string &get_peer_ip() const;
     uint16_t get_peer_port();
+    //套接字是否忙，如果套接字写缓存已满则返回true
+    bool isSocketBusy() const;
 protected:
     int _flags = SOCKET_DEFAULE_FLAGS;
     Socket::Ptr _sock;

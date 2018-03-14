@@ -300,7 +300,14 @@ int Socket::send(string &&buf, int flags,struct sockaddr* peerAddr) {
     BufferString::Ptr ptr(new BufferString(std::move(buf)));
     return send(ptr,flags,peerAddr);
 }
-
+    
+uint32_t Socket::getBufSecondLength(){
+    if(_sendPktBuf.empty()){
+        return 0;
+    }
+    return  _sendPktBuf.front()->getElapsedSecond();
+}
+    
 int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 	if(!buf->size()){
 		return 0;
@@ -310,7 +317,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 		lock_guard<spin_mutex> lck(_mtx_sockFd);
 		sock = _sockFd;
 	}
-	if (!sock || sendTimeout()) {
+	if (!sock ) {
         //如果已断开连接或者发送超时
 		return -1;
 	}
@@ -318,14 +325,20 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
     int ret = buf->size();
 
 	Packet::Ptr packet(new Packet);
+    packet->updateStamp();
     packet->setData(buf);
     packet->setFlag(flags);
     packet->setAddr(peerAddr);
 	do{//减小临界区
 		lock_guard<recursive_mutex> lck(_mtx_sendBuf);
-		if (_sendPktBuf.size() >= _iMaxSendPktSize) {
-            //未写入任何数据，交给上层应用处理（已经去除主动丢包的特性）
-            WarnL << "socket send buffer overflow:" << get_peer_ip() << " " << get_peer_port();
+        int bufSec = getBufSecondLength();
+		if (bufSec > _sendBufSec) {
+            if(sendTimeout()){
+                //一定时间内没有任何数据发送成功，则主动断开socket
+                return -1;
+            }
+            //缓存达到最大限制，未写入任何数据，交给上层应用处理（已经去除主动丢包的特性）
+            WarnL << "socket send buffer overflow:" << bufSec << " " << get_peer_ip() << " " << get_peer_port();
             ret = 0;
             break;
 		}
@@ -560,7 +573,6 @@ void Socket::onWriteAble(const SockFD::Ptr &pSock) {
     }else {
         //我们尽量让其他线程来发送数据，不要占用主线程太多性能
         //WarnL << "主线程发送数据";
-        _canSendSock = true;
         sendData(pSock, true);
 	}
 }
@@ -580,7 +592,7 @@ void Socket::stopWriteAbleEvent(const SockFD::Ptr &pSock) {
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);
 }
 bool Socket::sendTimeout() {
-	if (_flushTicker.elapsedTime() > _sendTimeOutSec * 1000 && !_canSendSock) {
+	if (_flushTicker.elapsedTime() > _sendTimeOutSec * 1000) {
 		emitErr(SockException(Err_other, "Socket send timeout"));
 		_sendPktBuf.clear();
 		return true;
@@ -608,11 +620,10 @@ int Socket::rawFD() const{
 }
 
 
-void Socket::setSendPktSize(uint32_t iPktSize){
-    _iMaxSendPktSize = iPktSize;
-    //_bufferPool.reSize(iPktSize);
+void Socket::setSendBufSecond(uint32_t second){
+    _sendBufSec = second;
 }
-void Socket::setSendTimeOutSecond(float second){
+void Socket::setSendTimeOutSecond(uint32_t second){
     _sendTimeOutSec = second;
 }
 
@@ -620,7 +631,16 @@ BufferRaw::Ptr Socket::obtainBuffer() {
     return std::make_shared<BufferRaw>() ;//_bufferPool.obtain();
 }
 
+bool Socket::isSocketBusy() const{
+    return !_canSendSock.load();
+}
 ///////////////Packet/////////////////////
+void Packet::updateStamp(){
+    _stamp = (uint32_t)time(NULL);
+}
+uint32_t Packet::getElapsedSecond() const{
+    return (uint32_t)time(NULL) - _stamp;
+}
 void Packet::setAddr(const struct sockaddr *addr){
     if (addr) {
         if (_addr) {
@@ -779,6 +799,13 @@ uint16_t SocketHelper::get_peer_port() {
     return _peer_port;
 }
 
+bool SocketHelper::isSocketBusy() const{
+    if (!_sock) {
+        return true;
+    }
+    return _sock->isSocketBusy();
+}
+    
 }  // namespace Network
 }  // namespace ZL
 
