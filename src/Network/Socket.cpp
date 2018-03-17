@@ -305,7 +305,7 @@ uint32_t Socket::getBufSecondLength(){
     if(_sendPktBuf.empty()){
         return 0;
     }
-    return _sendPktBuf.front()->getStamp() - _sendPktBuf.back()->getStamp();
+    return _sendPktBuf.back()->getStamp() - _sendPktBuf.front()->getStamp() ;
 }
     
 int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
