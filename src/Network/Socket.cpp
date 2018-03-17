@@ -639,7 +639,7 @@ void Packet::updateStamp(){
     _stamp = (uint32_t)time(NULL);
 }
 uint32_t Packet::getStamp() const{
-    return (uint32_t)time(NULL);
+    return _stamp;
 }
 void Packet::setAddr(const struct sockaddr *addr){
     if (addr) {
