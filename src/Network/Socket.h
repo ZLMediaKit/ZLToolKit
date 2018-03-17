@@ -256,7 +256,7 @@ public:
     ~Packet(){  if(_addr) delete _addr;  }
 
     void updateStamp();
-    uint32_t getElapsedSecond() const;
+    uint32_t getStamp() const;
     void setAddr(const struct sockaddr *addr);
     void setFlag(int flag){ _flag = flag; }
     void setData(const Buffer::Ptr &data){

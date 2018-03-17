@@ -305,7 +305,7 @@ uint32_t Socket::getBufSecondLength(){
     if(_sendPktBuf.empty()){
         return 0;
     }
-    return  _sendPktBuf.front()->getElapsedSecond();
+    return _sendPktBuf.front()->getStamp() - _sendPktBuf.back()->getStamp();
 }
     
 int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
@@ -638,8 +638,8 @@ bool Socket::isSocketBusy() const{
 void Packet::updateStamp(){
     _stamp = (uint32_t)time(NULL);
 }
-uint32_t Packet::getElapsedSecond() const{
-    return (uint32_t)time(NULL) - _stamp;
+uint32_t Packet::getStamp() const{
+    return (uint32_t)time(NULL);
 }
 void Packet::setAddr(const struct sockaddr *addr){
     if (addr) {
