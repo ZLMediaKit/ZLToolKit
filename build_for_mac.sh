@@ -6,7 +6,6 @@ brew install openssl
 cd ..
 git clone --depth=50 https://github.com/xiongziliang/ZLToolKit.git
 cd ZLToolKit
-git fetch origin develop:develop
 mkdir -p mac_build
 rm -rf ./build
 ln -s ./mac_build ./build
