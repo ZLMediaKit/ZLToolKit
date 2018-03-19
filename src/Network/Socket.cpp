@@ -332,7 +332,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 	do{//减小临界区
 		lock_guard<recursive_mutex> lck(_mtx_sendBuf);
         int bufSec = getBufSecondLength();
-		if (bufSec > _sendBufSec) {
+		if (bufSec >= _sendBufSec) {
             if(sendTimeout()){
                 //一定时间内没有任何数据发送成功，则主动断开socket
                 return -1;
