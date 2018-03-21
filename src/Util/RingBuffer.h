@@ -29,6 +29,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <condition_variable>
+#include <functional>
 
 using namespace std;
 
