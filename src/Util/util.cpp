@@ -196,8 +196,8 @@ vector<string> split(const string& s, const char *delim){
 		last = index + 1;
 		index = s.find_first_of(delim, last);
 	}
-	if (index - last > 0) {
-		ret.push_back(s.substr(last, index - last));
+	if (s.size() - last > 0) {
+		ret.push_back(s.substr(last));
 	}
 	return ret;
 }
