@@ -187,8 +187,8 @@ std::string &strToUpper(std::string &str)
 
 vector<string> split(const string& s, const char *delim){
 	vector<string> ret;
-	size_t last = 0;
-	size_t index = s.find_first_of(delim, last);
+	int last = 0;
+	int index = s.find_first_of(delim, last);
 	while (index != string::npos) {
 		if(index - last > 0){
 			ret.push_back(s.substr(last, index - last));
