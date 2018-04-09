@@ -238,7 +238,7 @@ inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size
                 (*cb)->operator()();
             }
             catch (std::exception &ex) {
-                FatalL << ex.what();
+                ErrorL << ex.what();
             }
             delete *cb;
         }

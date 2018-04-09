@@ -25,6 +25,7 @@
 #ifndef UTIL_LOGGER_H_
 #define UTIL_LOGGER_H_
 
+#include <stdio.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -47,19 +48,18 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Util {
 
-enum LogLevel {
-	LTrace = 0, LDebug, LInfo, LWarn, LError, LFatal,
-};
-static const char *LogLevelStr[] = { "trace", "debug", "info", "warn", "error",
-		"fatal" };
+typedef enum { LTrace = 0, LDebug, LInfo, LWarn, LError} LogLevel;
+static const char *LogLevelStr[] = { "T", "D", "I", "W", "E" };
 
 #define CLEAR_COLOR "\033[0m"
 #define UNDERLINE "\033[4m"
 
-static const char *COLOR[6][2] = { { "\033[44;37m", "\033[34m" }, {
-		"\033[42;37m", "\033[32m" }, { "\033[46;37m", "\033[36m" }, {
-		"\033[43;37m", "\033[33m" }, { "\033[45;37m", "\033[35m" }, {
-		"\033[41;37m", "\033[31m" } };
+static const char *COLOR[5][2] = {
+        {"\033[44;37m", "\033[34m" },
+        {"\033[42;37m", "\033[32m" },
+        {"\033[46;37m", "\033[36m" },
+        {"\033[43;37m", "\033[33m" },
+        {"\033[41;37m", "\033[31m" } };
 
 class Logger;
 class LogWriter;
@@ -70,41 +70,23 @@ class LogInfoMaker;
 typedef std::shared_ptr<LogInfo> LogInfo_ptr;
 class LogChannel {
 public:
-	LogChannel(const string& name, LogLevel level = LDebug,
-			const char* timeFormat = "%Y-%m-%d %H:%M:%S") :
-			_name(name), _level(level), _timeFormat(timeFormat) {
-	}
-	virtual ~LogChannel() {
-	}
+	LogChannel(const string& name, LogLevel level = LDebug) :_name(name), _level(level) {}
+	virtual ~LogChannel() {}
 	virtual void write(const LogInfo_ptr & stream)=0;
-	const string &name() const {
-		return _name;
-	}
-	LogLevel level() const {
-		return _level;
-	}
-	const string &timeFormat() const {
-		return _timeFormat;
-	}
-	void setLevel(LogLevel level) {
-		_level = level;
-	}
-	void setDateFormat(const char* format) {
-		_timeFormat = format;
-	}
+
+	const string &name() const { return _name; }
+	LogLevel level() const { return _level;}
+	void setLevel(LogLevel level) { _level = level; }
 protected:
 	string _name;
 	LogLevel _level;
-	string _timeFormat;
 };
 
 class LogWriter {
 public:
-	LogWriter() {
-	}
-	virtual ~LogWriter() {
-	}
-	virtual void write(const LogInfo_ptr &stream) =0;
+	LogWriter() {}
+	virtual ~LogWriter() {}
+	virtual void write(const LogInfo_ptr &stream) = 0;
 };
 
 class Logger {
@@ -122,10 +104,7 @@ public:
 		channels[channel->name()] = channel;
 	}
 	void del(const string& name) {
-		auto it = channels.find(name);
-		if (it != channels.end()) {
-			channels.erase(it);
-		}
+        channels.erase(name);
 	}
 	std::shared_ptr<LogChannel> get(const string& name){
 		auto it = channels.find(name);
@@ -155,10 +134,8 @@ public:
 		}
 	}
 protected:
-	Logger() {
-	}
-	~Logger() {
-	}
+	Logger() {}
+	~Logger() {}
 	// Non-copyable and non-movable
 	Logger(const Logger&); // = delete;
 	Logger(Logger&&); // = delete;
@@ -173,167 +150,159 @@ class LogInfo {
 public:
 	friend class LogInfoMaker;
 	friend class LogChannel;
-	void format(ostream& ost, const char *timeFormat = "%Y-%m-%d %H:%M:%S",
-			bool enableColor = true, bool enableDetail = true) {
-		if (!enableDetail && message.str().empty()) {
+
+	void format(ostream& ost,
+                bool enableColor = true,
+                bool enableDetail = true) {
+
+		if (!enableDetail && _message.str().empty()) {
 			//没有任何信息打印
 			return;
 		}
+
 		if (enableDetail) {
 			static string appName = exeName();
 #if defined(WIN32)
-			ost << appName <<"(" << GetCurrentProcessId() << ") " << file << " " << line << endl;
+			ost << appName <<"(" << GetCurrentProcessId() << ") " << _file << " " << _line << endl;
 #else
-			ost << appName <<"(" << getpid() << ") " << file << " " << line << endl;
+			ost << appName <<"(" << getpid() << ") " << _file << " " << _line << endl;
 #endif
 		}
+
 		if (enableColor) {
-			ost << COLOR[level][1];
+			ost << COLOR[_level][1];
 		}
-		if (timeFormat) {
-			ost << print(toLocal(ts), timeFormat);
-		}
-		ost << " [" << LogLevelStr[level] << "] ";
+
+		ost << printTime(_tv) << " " << LogLevelStr[_level] << " | ";
+
 		if (enableDetail) {
-			ost << function << " ";
+			ost << _function << " ";
 		}
-		ost << message.str();
+
+		ost << _message.str();
+
 		if (enableColor) {
 			ost << CLEAR_COLOR;
 		}
+
 		ost << endl;
 	}
 
-	LogLevel getLevel() const {
-		return level;
-	}
 
-	LogLevel level;
-	int line;
-	string file;
-	string function;
-	time_t ts;
-	ostringstream message;
-
+public:
+	LogLevel _level;
+	int _line;
+	string _file;
+	string _function;
+    timeval _tv;
+	ostringstream _message;
 private:
-	LogInfo(LogLevel _level, const char* _file, const char* _function,
-			int _line) :
-			level(_level), line(_line), file(_file), function(_function), ts(
-					::time(NULL)) {
+	LogInfo(LogLevel level,
+            const char* file,
+            const char* function,
+            int line) :
+            _level(level),
+            _line(line),
+            _file(file),
+            _function(function) {
+        gettimeofday(&_tv, NULL);
 	}
-	std::string print(const std::tm& dt, const char* fmt) {
-/*
-#if defined(__WIN32__)
-		// BOGUS hack done for VS2012: C++11 non-conformant since it SHOULD take a "const struct tm* "
-		// ref. C++11 standard: ISO/IEC 14882:2011, ? 27.7.1,
-		std::ostringstream oss;
-		oss << std::put_time(const_cast<std::tm*>(&dt), fmt);
-		return oss.str();
-
-#else    // LINUX
-*/
-		const size_t size = 1024;
-		char buffer[size];
-		auto success = std::strftime(buffer, size, fmt, &dt);
-		if (0 == success)
-			return string(fmt);
-		return buffer;
-//#endif
+	std::string printTime(const timeval &tv) {
+        struct tm* tm = localtime(&tv.tv_sec);
+        char buf[128];
+        snprintf(buf, sizeof(buf),"%d-%02d-%02d %02d:%02d:%02d.%03d",
+                1900 + tm->tm_year,
+                 1 + tm->tm_mon,
+                 tm->tm_mday,
+                 tm->tm_hour,
+                 tm->tm_min,
+                 tm->tm_sec,
+                 (int)(tv.tv_usec / 1000));
+        return buf;
 	}
-
-	std::tm toLocal(const std::time_t& time) {
-		std::tm tm_snapshot;
-
-#if defined(_WIN32)
-		localtime_s(&tm_snapshot, &time); // thread-safe?
-#else
-		localtime_r(&time, &tm_snapshot); // POSIX
-#endif //WIN32
-		return tm_snapshot;
-	}
-
 };
 
 class LogInfoMaker {
 public:
-	LogInfoMaker(LogLevel level, const char* file, const char* function,
-			int line) :
-			logInfo(new LogInfo(level, file, function, line)) {
+	LogInfoMaker(LogLevel level,
+                 const char* file,
+                 const char* function,
+                 int line) :
+            _logInfo(new LogInfo(level, file, function, line)) {
 	}
 	LogInfoMaker(LogInfoMaker &&that) {
-		this->logInfo = that.logInfo;
-		that.logInfo.reset();
+		_logInfo = that._logInfo;
+		that._logInfo.reset();
 	}
 	LogInfoMaker(const LogInfoMaker &that) {
-		this->logInfo = that.logInfo;
-		(const_cast<LogInfoMaker &>(that)).logInfo.reset();
+		_logInfo = that._logInfo;
+		(const_cast<LogInfoMaker &>(that))._logInfo.reset();
 	}
 	~LogInfoMaker() {
 		*this << endl;
 	}
 	template<typename T>
 	LogInfoMaker& operator <<(const T& data) {
-		if (!logInfo) {
+		if (!_logInfo) {
 			return *this;
 		}
-		logInfo->message << data;
+		_logInfo->_message << data;
 		return *this;
 	}
 
 	LogInfoMaker& operator <<(const char *data) {
-		if (!logInfo) {
+		if (!_logInfo) {
 			return *this;
 		}
 		if(data){
-			logInfo->message << data;
+            _logInfo->_message << data;
 		}
 		return *this;
 	}
 
 	LogInfoMaker& operator <<(ostream&(*f)(ostream&)) {
-		if (!logInfo) {
+		if (!_logInfo) {
 			return *this;
 		}
-		Logger::Instance().write(logInfo);
-		logInfo.reset();
+		Logger::Instance().write(_logInfo);
+        _logInfo.reset();
 		return *this;
 	}
 	void clear() {
-		logInfo.reset();
+        _logInfo.reset();
 	}
 private:
-	LogInfo_ptr logInfo;
+	LogInfo_ptr _logInfo;
 };
 
 class AsyncLogWriter: public LogWriter {
 public:
-	AsyncLogWriter() :
-			exit_flag(false) {
+	AsyncLogWriter() : _exit_flag(false) {
 		_thread.reset(new thread([this]() {this->run();}));
-
 	}
+
 	virtual ~AsyncLogWriter() {
-		exit_flag = true;
-		sem.post();
+		_exit_flag = true;
+		_sem.post();
 		_thread->join();
 		while (_pending.size()) {
 			auto &next = _pending.front();
 			realWrite(next);
 			_pending.pop_front();
 		}
-
 	}
+
 	virtual void write(const LogInfo_ptr &stream) {
 		{
 			lock_guard<mutex> lock(_mutex);
 			_pending.push_back(stream);
 		}
-		sem.post();
+		_sem.post();
 	}
 protected:
 	void run() {
-		while (!exit_flag) {
-			sem.wait();
+		while (!_exit_flag) {
+			_sem.wait();
 			{
 				lock_guard<mutex> lock(_mutex);
 				if (_pending.size()) {
@@ -349,51 +318,56 @@ protected:
 			chn.second->write(stream);
 		}
 	}
-	bool exit_flag;
+protected:
+    bool _exit_flag;
 	std::shared_ptr<thread> _thread;
 	deque<LogInfo_ptr> _pending;
-	semaphore sem;
+	semaphore _sem;
 	mutex _mutex;
 };
 
 class ConsoleChannel: public LogChannel {
 public:
-	ConsoleChannel(const string& name, LogLevel level = LDebug,
-			const char* timeFormat = "%Y-%m-%d %H:%M:%S") :
-			LogChannel(name, level, timeFormat) {
-	}
-	virtual ~ConsoleChannel() {
-	}
+	ConsoleChannel(const string& name,
+                   LogLevel level = LDebug) :
+            LogChannel(name, level) {}
+
+    virtual ~ConsoleChannel() {}
+
 	virtual void write(const LogInfo_ptr &logInfo) override{
-		if (level() > logInfo->getLevel()) {
+		if (level() > logInfo->_level) {
 			return;
 		}
-		logInfo->format(std::cout, timeFormat().c_str(), true);
+		logInfo->format(std::cout, true);
 	}
 };
 
 class FileChannel: public LogChannel {
 public:
-	FileChannel(const string& name, const string& path, LogLevel level = LDebug,
-			const char* timeFormat = "%Y-%m-%d %H:%M:%S") :
-			LogChannel(name, level, timeFormat), _path(path) {
-	}
-	virtual ~FileChannel() {
+	FileChannel(const string& name,
+                const string& path,
+                LogLevel level = LDebug) :
+            LogChannel(name, level), _path(path) {}
+
+    virtual ~FileChannel() {
 		close();
 	}
+
 	virtual void write(const std::shared_ptr<LogInfo> &stream) override {
-		if (level() > stream->getLevel()) {
+		if (level() > stream->_level) {
 			return;
 		}
 		if (!_fstream.is_open()) {
 			open();
 		}
-		stream->format(_fstream, timeFormat().c_str(), false);
+		stream->format(_fstream, false);
 	}
+
 	void setPath(const string& path) {
 		_path = path;
 		open();
 	}
+
 	const string &path() const {
 		return _path;
 	}
@@ -414,7 +388,8 @@ protected:
 	virtual void close() {
 		_fstream.close();
 	}
-	ofstream _fstream;
+protected:
+    ofstream _fstream;
 	string _path;
 };
 
@@ -423,7 +398,6 @@ protected:
 #define InfoL LogInfoMaker(LInfo, __FILE__,__FUNCTION__, __LINE__)
 #define WarnL LogInfoMaker(LWarn,__FILE__, __FUNCTION__, __LINE__)
 #define ErrorL LogInfoMaker(LError,__FILE__, __FUNCTION__, __LINE__)
-#define FatalL LogInfoMaker(LFatal,__FILE__, __FUNCTION__, __LINE__)
 
 } /* namespace util */
 } /* namespace ZL */

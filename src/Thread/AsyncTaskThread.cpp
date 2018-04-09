@@ -99,7 +99,7 @@ void AsyncTaskThread::DoTask() {
 			try {
 				flag = info->task();
 			} catch (std::exception &ex) {
-				FatalL << ex.what();
+				ErrorL << ex.what();
 			}
 			if (!flag) {
 				it = TaskNeedDo.erase(it);
