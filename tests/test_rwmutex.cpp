@@ -45,7 +45,7 @@ void onRead(int index){
 		g_mutex.lock(false);//获取读取锁
 		if( g_iWritingCount.load() !=0 ){
 			//如果有线程正在写入，说明测试失败，读写锁没有达到设计预期
-			FatalL << "test failed!" << endl;
+			ErrorL << "test failed!" << endl;
 			abort();
 		}
 		++g_iReadingCount; //读取线程数量加1
@@ -64,7 +64,7 @@ void onWrite(int index){
 		g_mutex.lock(true);//获取写入锁
 		if(g_iReadingCount.load() != 0 || g_iWritingCount.load() !=0 ){
 			//获取写入锁时这时不应该有其他线程在读写，否则测试失败
-			FatalL << "test failed!" << endl;
+			ErrorL << "test failed!" << endl;
 			abort();
 		}
 		++g_iWritingCount; //写入线程数加1

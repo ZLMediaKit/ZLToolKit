@@ -283,7 +283,7 @@ inline bool EventPoller::handlePipeEvent() {
 void EventPoller::initPoll() {
 #if defined(HAS_EPOLL)
     if (addEvent(_pipe.readFD(), Event_Read | Event_Error, [](int event) {}) == -1) {
-        FatalL << "epoll添加管道失败" << endl;
+        ErrorL << "epoll添加管道失败" << endl;
         std::runtime_error("epoll添加管道失败");
     }
 #endif //HAS_EPOLL

@@ -579,14 +579,14 @@ void Socket::onWriteAble(const SockFD::Ptr &pSock) {
 
 
 void Socket::startWriteAbleEvent(const SockFD::Ptr &pSock) {
-    //FatalL;
+    //ErrorL;
     _canSendSock = false;
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error | Event_Write);
 }
 
 void Socket::stopWriteAbleEvent(const SockFD::Ptr &pSock) {
-    //FatalL;
+    //ErrorL;
     _canSendSock = true;
     int flag = _enableRecv ? Event_Read : 0;
 	EventPoller::Instance().modifyEvent(pSock->rawFd(), flag | Event_Error);

@@ -54,7 +54,7 @@ int main() {
     InfoL << "object float:" << TestLog((float)3.12345678)  << endl;
     WarnL << "object double:" << TestLog((double)4.12345678901234567)  << endl;
     ErrorL << "object void *:" << TestLog((void *)0x12345678) << endl;
-    FatalL << "object string:" << TestLog("test string") << endl;
+    ErrorL << "object string:" << TestLog("test string") << endl;
 
 
     //这是ostream原生支持的数据类型
@@ -64,7 +64,7 @@ int main() {
 	WarnL << "double:" << (double)4.12345678901234567  << endl;
 	ErrorL << "void *:" << (void *)0x12345678 << endl;
     //根据RAII的原理，此处不需要输入 endl，也会在被函数栈pop时打印log
-	FatalL << "without endl!";
+	ErrorL << "without endl!";
 
 	Logger::Destory();
 	return 0;

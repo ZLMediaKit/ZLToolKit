@@ -88,7 +88,7 @@ int main(int argc,char *argv[]) {
 	}
 
 #else
-	FatalL << "ENABLE_OPENSSL 宏未打开";
+	ErrorL << "ENABLE_OPENSSL 宏未打开";
 #endif //ENABLE_OPENSSL
 
 

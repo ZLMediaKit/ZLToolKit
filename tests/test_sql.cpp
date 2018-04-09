@@ -53,7 +53,7 @@ int main() {
 	SqlPool::Instance().Init(sql_ip,sql_port,dbname,user,password/*,character*/);
 #else
     //由于需要编译器对可变参数模板的支持，所以gcc5.0以下一般都不支持，否则编译报错
-    FatalL << "your compiler does not support variable parameter templates!" << endl;
+    ErrorL << "your compiler does not support variable parameter templates!" << endl;
     return -1;
 #endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
 
@@ -84,7 +84,7 @@ int main() {
 	//如果SqlWriter 的 "<<" 操作符后面紧跟SqlPool::SqlRetType类型，则说明是同步操作并等待结果
 	//如果紧跟std::endl ,则是异步操作，在后台线程完成sql操作。
 #else
-	FatalL << "ENABLE_MYSQL not defined!" << endl;
+	ErrorL << "ENABLE_MYSQL not defined!" << endl;
     return -1;
 #endif//ENABLE_MYSQL
 
