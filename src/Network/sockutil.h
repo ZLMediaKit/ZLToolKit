@@ -77,7 +77,7 @@ public:
 	static int setReuseable(int sockFd, bool on = true);
 	static int setBroadcast(int sockFd, bool on = true);
 	static int setKeepAlive(int sockFd, bool on = true);
-
+	static bool getDomainIP(const char *host,uint16_t port,sockaddr &addr);
 	//组播相关
 	static int setMultiTTL(int sockFd, uint8_t ttl = 64);
 	static int setMultiIF(int sockFd, const char *strLocalIp);

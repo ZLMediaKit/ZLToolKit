@@ -225,6 +225,15 @@ private:
     unordered_map<string,DnsItem> _mapDns;
 };
 
+
+bool SockUtil::getDomainIP(const char *host,uint16_t port,sockaddr &addr){
+	bool flag = DnsCache::Instance().getDomainIP(host,addr);
+	if(flag){
+		((sockaddr_in *)&addr)->sin_port = htons(port);
+	}
+	return flag;
+}
+
 int SockUtil::connect(const char *host, uint16_t port,bool bAsync) {
     sockaddr addr;
     if(!DnsCache::Instance().getDomainIP(host,addr)){

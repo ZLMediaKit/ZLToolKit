@@ -456,9 +456,9 @@ public:
     //触发onError事件
     virtual void shutdown();
     /////////获取ip或端口///////////
-    const string &get_local_ip() const;
+    const string &get_local_ip();
     uint16_t get_local_port();
-    const string &get_peer_ip() const;
+    const string &get_peer_ip();
     uint16_t get_peer_port();
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
