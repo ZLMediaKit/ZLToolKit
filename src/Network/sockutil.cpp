@@ -226,7 +226,7 @@ private:
 };
 
 
-bool SockUtil::getDomainIP(const char *host,uint16_t port,sockaddr &addr){
+bool SockUtil::getDomainIP(const char *host,uint16_t port,struct sockaddr &addr){
 	bool flag = DnsCache::Instance().getDomainIP(host,addr);
 	if(flag){
 		((sockaddr_in *)&addr)->sin_port = htons(port);
