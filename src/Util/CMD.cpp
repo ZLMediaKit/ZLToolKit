@@ -121,7 +121,7 @@ void OptionParser::operator ()(mINI &allArg, int argc, char *argv[],const std::s
             }
         }
     }
-    if(allArg.empty() && _map_options.size() > 1){
+    if(allArg.empty() && _map_options.size() > 1 && !_enableEmptyArgs){
         _helper(stream,"");
         return;
     }

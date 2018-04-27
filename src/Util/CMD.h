@@ -89,8 +89,9 @@ private:
 class OptionParser {
 public:
     typedef function< void(const std::shared_ptr<ostream> &,mINI &)> OptionCompleted;
-    OptionParser(const OptionCompleted &_cb = nullptr) {
+    OptionParser(const OptionCompleted &_cb = nullptr,bool enableEmptyArgs = true) {
         _onCompleted = _cb;
+        _enableEmptyArgs = enableEmptyArgs;
         _helper = Option('h', "help", Option::ArgNone, nullptr, false, "打印此信息",
                          [this](const std::shared_ptr<ostream> &stream,const string &arg)->bool {
             static const char *argsType[] = {"无参","有参","选参"};
@@ -181,6 +182,7 @@ private:
     OptionCompleted _onCompleted;
     Option _helper;
     static mutex s_mtx_opt;
+    bool _enableEmptyArgs;
 };
 
 class CMD :public mINI{
