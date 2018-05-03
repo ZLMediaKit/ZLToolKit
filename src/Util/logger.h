@@ -208,7 +208,7 @@ private:
         gettimeofday(&_tv, NULL);
 	}
 	std::string printTime(const timeval &tv) {
-        struct tm* tm = localtime(&tv.tv_sec);
+        struct tm* tm = localtime((time_t *)&tv.tv_sec);
         char buf[128];
         snprintf(buf, sizeof(buf),"%d-%02d-%02d %02d:%02d:%02d.%03d",
                 1900 + tm->tm_year,
