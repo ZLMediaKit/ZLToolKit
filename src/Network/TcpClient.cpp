@@ -39,12 +39,7 @@ void TcpClient::shutdown() {
         if(!strongSelf){
             return;
         }
-        if(_sock){
-            _sock->setOnErr(nullptr);
-            _sock->setOnRead(nullptr);
-            _sock->setOnFlush(nullptr);
-            setSock(nullptr);
-        }
+        setSock(nullptr);
         _managerTimer.reset();
     });
 }
@@ -79,26 +74,36 @@ void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOut
 void TcpClient::onSockConnect(const SockException &ex) {
 	if(!ex && _sock) {
         weak_ptr<TcpClient> weakSelf = shared_from_this();
-        _sock->setOnErr([weakSelf](const SockException &ex) {
+        auto sock_ptr = _sock.get();
+        _sock->setOnErr([weakSelf,sock_ptr](const SockException &ex) {
 			auto strongSelf = weakSelf.lock();
 			if (!strongSelf) {
 				return;
 			}
+			if(sock_ptr != strongSelf->_sock.get()){
+                return;
+			}
             strongSelf->onSockErr(ex);
 		});
-        _sock->setOnFlush([weakSelf]() {
+        _sock->setOnFlush([weakSelf,sock_ptr]() {
 			auto strongSelf = weakSelf.lock();
 			if (!strongSelf) {
 				return false;
 			}
+            if(sock_ptr != strongSelf->_sock.get()){
+                return false;
+            }
             strongSelf->onSockSend();
 			return true;
 		});
-        _sock->setOnRead([weakSelf](const Buffer::Ptr &pBuf, struct sockaddr *addr) {
+        _sock->setOnRead([weakSelf,sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr *addr) {
 			auto strongSelf = weakSelf.lock();
 			if (!strongSelf) {
 				return;
 			}
+            if(sock_ptr != strongSelf->_sock.get()){
+                return;
+            }
             strongSelf->onSockRecv(pBuf);
 		});
         _managerTimer.reset(new Timer(2,[weakSelf](){
