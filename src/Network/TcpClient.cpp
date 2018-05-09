@@ -39,7 +39,12 @@ void TcpClient::shutdown() {
         if(!strongSelf){
             return;
         }
-        SocketHelper::setSock(nullptr);
+        if(_sock){
+            _sock->setOnErr(nullptr);
+            _sock->setOnRead(nullptr);
+            _sock->setOnFlush(nullptr);
+            setSock(nullptr);
+        }
         _managerTimer.reset();
     });
 }
