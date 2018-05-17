@@ -33,12 +33,7 @@ TcpClient::~TcpClient() {
 }
 
 void TcpClient::shutdown() {
-    weak_ptr<TcpClient> weakSelf = shared_from_this();
-    ASYNC_TRACE([weakSelf,this](){
-        auto strongSelf = weakSelf.lock();
-        if(!strongSelf){
-            return;
-        }
+    SYNC_TRACE([&](){
         setSock(nullptr);
         _managerTimer.reset();
     });
