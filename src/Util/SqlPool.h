@@ -78,13 +78,14 @@ public:
 		return 0;
 	}
 
-	template<typename ...Args>
-	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const char *fmt,
+	template<typename Row,typename ...Args>
+	int64_t query(int64_t &rowID,vector<Row> &ret, const char *fmt,
 			Args && ...arg) {
 		return _query(rowID,ret, fmt, std::forward<Args>(arg)...);
 	}
 
-	int64_t query(int64_t &rowID,vector<vector<string>> &ret, const string &sql) {
+	template<typename Row>
+	int64_t query(int64_t &rowID,vector<Row> &ret, const string &sql) {
 		return _query(rowID,ret, sql.c_str());
 	}
 	static const string &escape(const string &str) {
@@ -219,7 +220,8 @@ public:
 	void operator <<(std::ostream&(*f)(std::ostream&)) {
 		SqlPool::Instance().query(sqlstream << endl);
 	}
-	int64_t operator <<(vector<vector<string>> &ret) {
+	template <typename Row>
+	int64_t operator <<(vector<Row> &ret) {
 		affectedRows = SqlPool::Instance().query(rowId,ret, sqlstream << endl);
 		if(affectedRows < 0 && throwAble){
 			throw std::runtime_error("operate database failed");

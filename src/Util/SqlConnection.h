@@ -91,7 +91,7 @@ public:
 		return mysql_affected_rows(&sql);
 	}
 	template<typename ...Args>
-	int64_t query(int64_t &rowId,vector<vector<string>> &ret, const char *fmt,
+	int64_t query(int64_t &rowId,vector<vector<string> > &ret, const char *fmt,
 			Args && ...arg) {
 		check();
 		string tmp = queryString(fmt, std::forward<Args>(arg)...);
@@ -112,6 +112,35 @@ public:
 			auto &back = ret.back();
 			for (unsigned int i = 0; i < column; i++) {
 				back.emplace_back(row[i] ? row[i] : "");
+			}
+		}
+		mysql_free_result(res);
+		rowId=mysql_insert_id(&sql);
+		return mysql_affected_rows(&sql);
+	}
+
+	template<typename Map,typename ...Args>
+	int64_t query(int64_t &rowId,vector<Map> &ret, const char *fmt, Args && ...arg) {
+		check();
+		string tmp = queryString(fmt, std::forward<Args>(arg)...);
+		if (mysql_query(&sql, tmp.c_str())) {
+			WarnL << mysql_error(&sql)  << ":" << tmp << endl;
+			return -1;
+		}
+		ret.clear();
+		MYSQL_RES *res = mysql_store_result(&sql);
+		if (!res) {
+			rowId=mysql_insert_id(&sql);
+			return mysql_affected_rows(&sql);
+		}
+		MYSQL_ROW row;
+		unsigned int column = mysql_num_fields(res);
+		MYSQL_FIELD *fields = mysql_fetch_fields(res);
+		while ((row = mysql_fetch_row(res)) != NULL) {
+			ret.emplace_back();
+			auto &back = ret.back();
+			for (unsigned int i = 0; i < column; i++) {
+				back[string(fields[i].name,fields[i].name_length)] = (row[i] ? row[i] : "");
 			}
 		}
 		mysql_free_result(res);
