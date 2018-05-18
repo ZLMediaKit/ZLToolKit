@@ -166,11 +166,11 @@ void setExePath(const string &path){
 }
 string exeDir(){
 	auto path = exePath();
-	return path.substr(0, path.find_last_of('/') + 1);
+	return path.substr(0, path.rfind('/') + 1);
 }
 string exeName(){
 	auto path = exePath();
-	return path.substr(path.find_last_of('/') + 1);
+	return path.substr(path.rfind('/') + 1);
 }
 // string转小写
 std::string &strToLower(std::string &str)

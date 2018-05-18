@@ -265,7 +265,7 @@ void get_file_path(const char *path, const char *file_name, char *file_path) {
 bool  File::rm_empty_dir(const char *path){
 	if(!is_dir(path)){
 		string superDir = path;
-		superDir = superDir.substr(0, superDir.find_last_of('/') + 1);
+		superDir = superDir.substr(0, superDir.rfind('/') + 1);
 		if(superDir == path){
 			return false;
 		}
