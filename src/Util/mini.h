@@ -55,7 +55,7 @@ public:
 			if (line.size() >= 3 && line.front() == '[' && line.back() == ']') {
 				tag = trim(line.substr(1, line.size() - 2));
 			} else {
-				auto at = line.find_first_of('=');
+				auto at = line.find('=');
 				symbol = trim(tag + "." + line.substr(0, at));
 				(*this)[symbol] = (at == string::npos ? string() : trim(line.substr(at + 1)));
 			}

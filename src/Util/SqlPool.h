@@ -183,7 +183,7 @@ public:
 
 	template<typename T>
 	SqlStream& operator <<(const T& data) {
-		auto pos = sql.find_first_of('?', startPos);
+		auto pos = sql.find('?', startPos);
 		if (pos == string::npos) {
 			return *this;
 		}

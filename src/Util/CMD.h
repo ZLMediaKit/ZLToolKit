@@ -216,17 +216,18 @@ public:
 protected:
     std::shared_ptr<OptionParser> _parser;
 private:
-    //注意：当字符串为空时，也会返回一个空字符串
-    void split(const string& s, const char *delim, vector<variant> &ret) {
-        size_t last = 0;
-        size_t index = s.find_first_of(delim, last);
+    void split(const string& s, const char *delim,vector<variant> &ret){
+        int last = 0;
+        int index = s.find(delim, last);
         while (index != string::npos) {
-            ret.push_back(s.substr(last, index - last));
-            last = index + 1;
-            index = s.find_first_of(delim, last);
+            if(index - last > 0){
+                ret.push_back(s.substr(last, index - last));
+            }
+            last = index + strlen(delim);
+            index = s.find(delim, last);
         }
-        if (index - last > 0) {
-            ret.push_back(s.substr(last, index - last));
+        if (s.size() - last > 0) {
+            ret.push_back(s.substr(last));
         }
     }
 };

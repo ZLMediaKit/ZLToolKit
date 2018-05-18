@@ -188,13 +188,13 @@ std::string &strToUpper(std::string &str)
 vector<string> split(const string& s, const char *delim){
 	vector<string> ret;
 	int last = 0;
-	int index = s.find_first_of(delim, last);
+	int index = s.find(delim, last);
 	while (index != string::npos) {
 		if(index - last > 0){
 			ret.push_back(s.substr(last, index - last));
 		}
-		last = index + 1;
-		index = s.find_first_of(delim, last);
+		last = index + strlen(delim);
+		index = s.find(delim, last);
 	}
 	if (s.size() - last > 0) {
 		ret.push_back(s.substr(last));
