@@ -557,7 +557,11 @@ bool Socket::sendData(const SockFD::Ptr &pSock, bool bMainThread){
     }
     //未发送完毕则回滚数据
     lock_guard<recursive_mutex> lck(_mtx_sendBuf);
-    _sendPktBuf.insert(_sendPktBuf.begin(), sendPktBuf_copy.begin(),sendPktBuf_copy.end());
+    if(_sendPktBuf.empty()){
+        _sendPktBuf.swap(sendPktBuf_copy);
+    }else{
+        _sendPktBuf.insert(_sendPktBuf.begin(), sendPktBuf_copy.begin(),sendPktBuf_copy.end());
+    }
     return true;
 }
 
