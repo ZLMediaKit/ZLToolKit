@@ -197,6 +197,9 @@ public:
 	const string& operator <<(std::ostream&(*f)(std::ostream&)) const {
 		return sql;
 	}
+	operator string (){
+		return sql;
+	}
 private:
 	stringstream str_tmp;
 	string sql;
