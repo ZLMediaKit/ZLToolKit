@@ -314,7 +314,7 @@ public:
 	virtual ~Socket();
 
     //创建tcp客户端，url可以是ip或域名
-	void connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec = 5);
+	void connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec = 5,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
     //创建tcp监听
     bool listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
     //创建udp套接字,udp是无连接的，所以可以作为服务器和客户端；port为0则随机分配端口

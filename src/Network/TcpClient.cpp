@@ -44,6 +44,11 @@ bool TcpClient::alive() {
     return ret;
 }
 
+void TcpClient::setNetAdapter(const string &localIp){
+    _netAdapter = localIp;
+}
+
+
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
     weak_ptr<TcpClient> weakSelf = shared_from_this();
     ASYNC_TRACE([strUrl,iPort,fTimeOutSec,weakSelf,this](){
@@ -63,7 +68,7 @@ void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOut
                 }
                 strongSelf->onSockConnect(err);
             }
-        }, fTimeOutSec);
+        }, fTimeOutSec,_netAdapter.data(),0);
     });
 }
 void TcpClient::onSockConnect(const SockException &ex) {

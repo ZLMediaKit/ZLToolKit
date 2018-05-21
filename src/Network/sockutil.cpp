@@ -234,7 +234,7 @@ bool SockUtil::getDomainIP(const char *host,uint16_t port,struct sockaddr &addr)
 	return flag;
 }
 
-int SockUtil::connect(const char *host, uint16_t port,bool bAsync) {
+int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *localIp ,uint16_t localPort) {
     sockaddr addr;
     if(!DnsCache::Instance().getDomainIP(host,addr)){
         //dns解析失败
@@ -248,12 +248,19 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync) {
         WarnL << "创建套接字失败:" << host;
         return -1;
     }
-    setNoSigpipe(sockfd);
+
+	setReuseable(sockfd);
+	setNoSigpipe(sockfd);
     setNoBlocked(sockfd, bAsync);
     setNoDelay(sockfd);
     setSendBuf(sockfd);
     setRecvBuf(sockfd);
     setCloseWait(sockfd);
+
+	if(bindSock(sockfd,localIp,localPort) == -1){
+		close(sockfd);
+		return -1;
+	}
 
 	if (::connect(sockfd, &addr, sizeof(struct sockaddr)) == 0) {
 		//同步连接成功
@@ -278,18 +285,11 @@ int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
 	setReuseable(sockfd);
 	setNoBlocked(sockfd);
 
-	//设置监听参数
-	struct sockaddr_in servaddr;
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(port);
-	servaddr.sin_addr.s_addr = inet_addr(localIp);
-	bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
-	//绑定监听
-    if (::bind(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1) {
-		WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+	if(bindSock(sockfd,localIp,port) == -1){
 		close(sockfd);
 		return -1;
 	}
+
 	//开始监听
 	if (::listen(sockfd, backLog) == -1) {
 		WarnL << "开始监听失败:" << get_uv_errmsg(true);
@@ -477,6 +477,20 @@ string SockUtil::get_peer_ip(int fd) {
 	return "0.0.0.0";
 }
 
+int SockUtil::bindSock(int sockFd,const char *ifr_ip,uint16_t port){
+	struct sockaddr_in servaddr;
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_port = htons(port);
+	servaddr.sin_addr.s_addr = inet_addr(ifr_ip);
+	bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
+	//绑定监听
+	if (::bind(sockFd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1) {
+		WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+		return -1;
+	}
+	return 0;
+}
+
 int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
 	int sockfd = -1;
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
@@ -489,18 +503,11 @@ int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
 	setSendBuf(sockfd);
 	setRecvBuf(sockfd);
 	setCloseWait(sockfd);
-//设置监听参数
-	struct sockaddr_in servaddr;
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(port);
-	servaddr.sin_addr.s_addr = inet_addr(localIp);
-	bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
-//绑定监听
-    if (::bind(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1) {
-		WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+
+	if(bindSock(sockfd,localIp,port) == -1){
 		close(sockfd);
 		return -1;
-	}
+    }
 	return sockfd;
 }
 

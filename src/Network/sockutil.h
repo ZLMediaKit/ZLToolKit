@@ -66,9 +66,11 @@ int close(int fd);
 //套接字工具类，封装了socket、网络的一些基本操作
 class SockUtil {
 public:
-	static int connect(const char *host, uint16_t port, bool bAsync = true);
+	static int connect(const char *host, uint16_t port, bool bAsync = true,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
 	static int listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
 	static int bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0");
+	static int bindSock(int sockFd,const char *localIp,uint16_t port);
+
 	static int setNoDelay(int sockFd, bool on = true);
 	static int setNoSigpipe(int sock);
 	static int setNoBlocked(int sock, bool noblock = true);

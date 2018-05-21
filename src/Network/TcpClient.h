@@ -52,6 +52,8 @@ public:
     void shutdown() override ;
     //是否与服务器连接中
     bool alive();
+    //设置网卡适配器
+    void setNetAdapter(const string &localIp);
 protected:
     //连接服务器结果回调
     virtual void onConnect(const SockException &ex) {}
@@ -70,6 +72,7 @@ private:
 	void onSockErr(const SockException &ex);
 private:
     std::shared_ptr<Timer> _managerTimer;
+    string _netAdapter = "0.0.0.0";
 };
 
 } /* namespace Network */
