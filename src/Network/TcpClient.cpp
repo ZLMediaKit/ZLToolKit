@@ -33,10 +33,18 @@ TcpClient::~TcpClient() {
 }
 
 void TcpClient::shutdown() {
-    SYNC_TRACE([&](){
-        setSock(nullptr);
-        _managerTimer.reset();
-    });
+    try {
+        weak_ptr<TcpClient> weakSelf = shared_from_this();
+        ASYNC_TRACE([weakSelf](){
+            auto strongSelf = weakSelf.lock();
+            if(!strongSelf){
+                return;
+            }
+            strongSelf->setSock(nullptr);
+            strongSelf->_managerTimer.reset();
+        });
+    }catch (std::exception &ex){
+    }
 }
 
 bool TcpClient::alive() {
@@ -45,7 +53,14 @@ bool TcpClient::alive() {
 }
 
 void TcpClient::setNetAdapter(const string &localIp){
-    _netAdapter = localIp;
+    weak_ptr<TcpClient> weakSelf = shared_from_this();
+    ASYNC_TRACE([weakSelf,localIp](){
+        auto strongSelf = weakSelf.lock();
+        if(!strongSelf){
+            return;
+        }
+        strongSelf->_netAdapter = localIp;
+    });
 }
 
 
