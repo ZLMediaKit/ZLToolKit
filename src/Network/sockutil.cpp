@@ -425,7 +425,7 @@ string SockUtil::get_local_ip() {
         return check_ip(address,ip);
     });
     return address;
-#elif defined(WIN32)
+#elif defined(_WIN32)
     string address = "127.0.0.1";
 	for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
 		IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);

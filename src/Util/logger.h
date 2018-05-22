@@ -162,7 +162,7 @@ public:
 
 		if (enableDetail) {
 			static string appName = exeName();
-#if defined(WIN32)
+#if defined(_WIN32)
 			ost << appName <<"(" << GetCurrentProcessId() << ") " << _file << " " << _line << endl;
 #else
 			ost << appName <<"(" << getpid() << ") " << _file << " " << _line << endl;
