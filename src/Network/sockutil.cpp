@@ -22,22 +22,18 @@
  * SOFTWARE.
  */
 #include <stdio.h>
-#include <sys/types.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ifaddrs.h>
+#include <sys/types.h>
+#include <mutex>
 #include <string>
 #include <unordered_map>
-#include <tuple>
-#include <mutex>
 #include "sockutil.h"
 #include "Util/util.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
 #include "Util/onceToken.h"
-
-#if defined (__APPLE__)
-#include <ifaddrs.h>
-#endif
 
 using namespace std;
 using namespace ZL::Util;
@@ -46,19 +42,19 @@ namespace ZL {
 namespace Network {
 
 #if defined(_WIN32)
-static onceToken g_token([]() {
-    WORD wVersionRequested = MAKEWORD(2, 2);
-    WSADATA wsaData;
-    WSAStartup(wVersionRequested, &wsaData);
-}, []() {
-    WSACleanup();
-});
-int ioctl(int fd, long cmd, u_long *ptr) {
-    return ioctlsocket(fd, cmd, ptr);
-}
-int close(int fd) {
-    return closesocket(fd);
-}
+	static onceToken g_token([]() {
+		WORD wVersionRequested = MAKEWORD(2, 2);
+		WSADATA wsaData;
+		WSAStartup(wVersionRequested, &wsaData);
+	}, []() {
+		WSACleanup();
+	});
+	int ioctl(int fd, long cmd, u_long *ptr) {
+		return ioctlsocket(fd, cmd, ptr);
+	}
+	int close(int fd) {
+		return closesocket(fd);
+	}
 #endif // defined(_WIN32)
 
 int SockUtil::setCloseWait(int sockFd, int second) {
@@ -328,104 +324,75 @@ string SockUtil::get_local_ip(int fd) {
 }
 
 
-
-#if defined(__APPLE__)
-template<typename FUN>
-void for_each_netAdapter_apple(FUN &&fun){ //type: struct ifaddrs *
-    struct ifaddrs *interfaces = NULL;
-    struct ifaddrs *adapter = NULL;
-    // retrieve the current interfaces - returns 0 on success
-    if (getifaddrs(&interfaces) == 0) {
-        // Loop through linked list of interfaces
-        adapter = interfaces;
-        while(adapter) {
-            if(adapter->ifa_addr->sa_family == AF_INET) {
-                if(fun(adapter)){
-                    break;
-                }
-            }
-            adapter = adapter->ifa_next;
-        }
-        // Free memory
-        freeifaddrs(interfaces);
-    }
-}
-#endif //defined(__APPLE__)
-
 #if defined(_WIN32)
-template<typename FUN>
-void for_each_netAdapter_win32(FUN && fun) { //type: PIP_ADAPTER_INFO
-    unsigned long nSize = sizeof(IP_ADAPTER_INFO);
-    PIP_ADAPTER_INFO adapterList = (PIP_ADAPTER_INFO)new char[nSize];
-    int nRet = GetAdaptersInfo(adapterList, &nSize);
-    if (ERROR_BUFFER_OVERFLOW == nRet) {
-        delete[] adapterList;
-        adapterList = (PIP_ADAPTER_INFO)new char[nSize];
-        nRet = GetAdaptersInfo(adapterList, &nSize);
-    }
-    auto adapterPtr = adapterList;
-    while (adapterPtr && ERROR_SUCCESS == nRet) {
-        if (fun(adapterPtr)) {
-            break;
-        }
-        adapterPtr = adapterPtr->Next;
-    }
-    //释放内存空间
-    delete[] adapterList;
-}
+	template<typename FUN>
+	void for_each_netAdapter_win32(FUN && fun) { //type: PIP_ADAPTER_INFO
+		unsigned long nSize = sizeof(IP_ADAPTER_INFO);
+		PIP_ADAPTER_INFO adapterList = (PIP_ADAPTER_INFO)new char[nSize];
+		int nRet = GetAdaptersInfo(adapterList, &nSize);
+		if (ERROR_BUFFER_OVERFLOW == nRet) {
+			delete[] adapterList;
+			adapterList = (PIP_ADAPTER_INFO)new char[nSize];
+			nRet = GetAdaptersInfo(adapterList, &nSize);
+		}
+		auto adapterPtr = adapterList;
+		while (adapterPtr && ERROR_SUCCESS == nRet) {
+			if (fun(adapterPtr)) {
+				break;
+			}
+			adapterPtr = adapterPtr->Next;
+		}
+		//释放内存空间
+		delete[] adapterList;
+	}
+#else
+	template<typename FUN>
+	void for_each_netAdapter_posix(FUN &&fun){ //type: struct ifaddrs *
+		struct ifaddrs *interfaces = NULL;
+		struct ifaddrs *adapter = NULL;
+		if (getifaddrs(&interfaces) == 0) {
+			adapter = interfaces;
+			while(adapter) {
+				if(adapter->ifa_addr->sa_family == AF_INET) {
+					if(fun(adapter)){
+						break;
+					}
+				}
+				adapter = adapter->ifa_next;
+			}
+			freeifaddrs(interfaces);
+		}
+	}
 #endif //defined(_WIN32)
 
-#if !defined(_WIN32) && !defined(__APPLE__)
-template<typename FUN>
-void for_each_netAdapter_posix(FUN &&fun){ //type: struct ifreq *
-	struct ifconf ifconf;
-	char buf[512];
-	//初始化ifconf
-	ifconf.ifc_len = 512;
-	ifconf.ifc_buf = buf;
-    int sockfd = ::socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockfd < 0) {
-		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
-		return;
-	}
-	if (-1 == ioctl(sockfd, SIOCGIFCONF, &ifconf)) {    //获取所有接口信息
-		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
-		close(sockfd);
-		return;
-	}
-	close(sockfd);
-	//接下来一个一个的获取IP地址
-	struct ifreq * adapter = (struct ifreq*) buf;
-	for (int i = (ifconf.ifc_len / sizeof(struct ifreq)); i > 0; --i,++adapter) {
-	    if(fun(adapter)){
-	        break;
-        }
-	}
-}
-#endif //!defined(_WIN32) && !defined(__APPLE__)
-
-        
 bool check_ip(string &address,const string &ip){
     if(ip != "127.0.0.1" && ip != "0.0.0.0") {
         /*获取一个有效IP*/
         address = ip;
-        if(address.find("172.") == 0 || address.find("192.") == 0){
-            /*优先采用局域网地址，该地址很可能是wifi地址*/
-            return true;
-        }
+		uint32_t addressInNetworkOrder = htonl(inet_addr(ip.data()));
+		if(/*(addressInNetworkOrder >= 0x0A000000 && addressInNetworkOrder < 0x0E000000) ||*/
+		   (addressInNetworkOrder >= 0xAC100000 && addressInNetworkOrder < 0xAC200000) ||
+		   (addressInNetworkOrder >= 0xC0A80000 && addressInNetworkOrder < 0xC0A90000)){
+			//A类私有IP地址：
+			//10.0.0.0～10.255.255.255
+			//B类私有IP地址：
+			//172.16.0.0～172.31.255.255
+			//C类私有IP地址：
+			//192.168.0.0～192.168.255.255
+			//如果是私有地址 说明在nat内部
+
+            /* 优先采用局域网地址，该地址很可能是wifi地址
+			 * 一般来说,无线路由器分配的地址段是BC类私有ip地址
+			 * 而A类地址多用于蜂窝移动网络
+			 */
+			return true;
+		}
     }
     return false;
 }
 
 string SockUtil::get_local_ip() {
-#if defined(__APPLE__)
-    string address = "127.0.0.1";
-    for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
-        return check_ip(address,ip);
-    });
-    return address;
-#elif defined(_WIN32)
+#if defined(_WIN32)
     string address = "127.0.0.1";
 	for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
 		IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
@@ -441,10 +408,10 @@ string SockUtil::get_local_ip() {
 	return address;
 #else
 	string address = "127.0.0.1";
-    for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
-        return check_ip(address,ip);
-    });
+	for_each_netAdapter_posix([&](struct ifaddrs *adapter){
+		string ip = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+		return check_ip(address,ip);
+	});
 	return address;
 #endif
 }
@@ -525,19 +492,37 @@ uint16_t SockUtil::get_peer_port(int fd) {
 	return 0;
 }
 
-string SockUtil::get_ifr_name(const char *localIp){
-#if defined(__APPLE__)
-    string ret = "en0";
-    for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
-        if(ip == localIp) {
-            ret = adapter->ifa_name;
-            return true;
+string SockUtil::get_ifr_ip(const char *ifrName){
+#if defined(_WIN32)
+	string ret;
+    for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
+        IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
+        while (ipAddr){
+            if (strcmp(ifrName,adapter->AdapterName) == 0){
+                //ip匹配到了
+                ret.assign(ipAddr->IpAddress.String);
+                return true;
+            }
+            ipAddr = ipAddr->Next;
         }
         return false;
     });
     return ret;
-#elif defined(_WIN32)
+#else
+	string ret;
+	for_each_netAdapter_posix([&](struct ifaddrs *adapter){
+		if(strcmp(adapter->ifa_name,ifrName) == 0) {
+			ret = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+			return true;
+		}
+		return false;
+	});
+	return ret;
+#endif
+}
+
+string SockUtil::get_ifr_name(const char *localIp){
+#if defined(_WIN32)
     string ret = "en0";
     for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
         IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
@@ -553,32 +538,22 @@ string SockUtil::get_ifr_name(const char *localIp){
     });
     return ret;
 #else
-    string ret = "en0";
-    for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
-        if(ip == localIp) {
-            ret = adapter->ifr_name;
-            return true;
-        }
-        return false;
-    });
-    return ret;
+	string ret = "en0";
+	for_each_netAdapter_posix([&](struct ifaddrs *adapter){
+		string ip = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+		if(ip == localIp) {
+			ret = adapter->ifa_name;
+			return true;
+		}
+		return false;
+	});
+	return ret;
 #endif
 }
 
 
 string SockUtil::get_ifr_mask(const char* ifrName) {
-#if defined(__APPLE__)
-    string ret;
-    for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        if(strcmp(ifrName,adapter->ifa_name) == 0) {
-            ret = inet_ntoa(((struct sockaddr_in *)adapter->ifa_netmask)->sin_addr);
-            return true;
-        }
-        return false;
-    });
-    return ret;
-#elif defined(_WIN32)
+#if defined(_WIN32)
     string ret;
 	for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
 		if (strcmp(ifrName,adapter->AdapterName) == 0){
@@ -592,37 +567,20 @@ string SockUtil::get_ifr_mask(const char* ifrName) {
 	});
 	return ret;
 #else
-	int sockFd;
-	struct ifreq ifr_mask;
-	sockFd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockFd == -1) {
-		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
-		return "";
-	}
-	memset(&ifr_mask, 0, sizeof(ifr_mask));
-	strncpy(ifr_mask.ifr_name, ifrName, sizeof(ifr_mask.ifr_name) - 1);
-	if ((ioctl(sockFd, SIOCGIFNETMASK, &ifr_mask)) < 0) {
-		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
-		close(sockFd);
-		return "";
-	}
-	close(sockFd);
-	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
+	string ret;
+	for_each_netAdapter_posix([&](struct ifaddrs *adapter){
+		if(strcmp(ifrName,adapter->ifa_name) == 0) {
+			ret = inet_ntoa(((struct sockaddr_in *)adapter->ifa_netmask)->sin_addr);
+			return true;
+		}
+		return false;
+	});
+	return ret;
 #endif // defined(_WIN32)
 }
 
 string SockUtil::get_ifr_brdaddr(const char *ifrName){
-#if defined(__APPLE__)
-    string ret;
-    for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        if(strcmp(ifrName,adapter->ifa_name) == 0){
-            ret = inet_ntoa(((struct sockaddr_in*) adapter->ifa_broadaddr)->sin_addr);
-            return true;
-        }
-        return false;
-    });
-    return ret;
-#elif defined(_WIN32)
+#if defined(_WIN32)
 	string ret;
 	for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
 		if (strcmp(ifrName, adapter->AdapterName) == 0) {
@@ -637,22 +595,15 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
 	});
 	return ret;
 #else
-    int sockFd;
-	struct ifreq ifr_mask;
-	sockFd = socket( AF_INET, SOCK_STREAM, 0);
-	if (sockFd == -1) {
-		WarnL << "创建套接字失败:" << get_uv_errmsg(true);
-		return "";
-	}
-	memset(&ifr_mask, 0, sizeof(ifr_mask));
-	strncpy(ifr_mask.ifr_name, ifrName, sizeof(ifr_mask.ifr_name) - 1);
-	if ((ioctl(sockFd, SIOCGIFBRDADDR, &ifr_mask)) < 0) {
-		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
-		close(sockFd);
-		return "";
-	}
-	close(sockFd);
-	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
+	string ret;
+	for_each_netAdapter_posix([&](struct ifaddrs *adapter){
+		if(strcmp(ifrName,adapter->ifa_name) == 0){
+			ret = inet_ntoa(((struct sockaddr_in*) adapter->ifa_broadaddr)->sin_addr);
+			return true;
+		}
+		return false;
+	});
+	return ret;
 #endif
 }
 
@@ -790,21 +741,6 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
 	clearMulticastAllSocketOption(sockFd);
 	return ret;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 }  // namespace Network

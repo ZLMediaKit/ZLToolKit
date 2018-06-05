@@ -98,6 +98,8 @@ public:
 	static string get_peer_ip(int fd);
 	static uint16_t get_peer_port(int fd);
 
+	//获取网卡ip
+	static string get_ifr_ip(const char *ifrName);
     //获取网卡名
 	static string get_ifr_name(const char *localIp);
     //根据网卡名获取子网掩码
