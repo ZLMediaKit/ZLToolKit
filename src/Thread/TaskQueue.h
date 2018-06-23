@@ -31,7 +31,6 @@
 #include <mutex>
 #include <functional>
 #include "List.h"
-#include "spin_mutex.h"
 #include "semaphore.h"
 
 using namespace std;
@@ -86,7 +85,7 @@ private:
     //在i5-6200U单线程环境下，执行1000万个任务时，分别耗时1.3，2.4，1.8秒左右
     //所以此处我们替换成性能最好的List模板
 	List<function<void(void)> > _queue;
-	mutable spin_mutex _mutex;
+	mutable mutex _mutex;
 	semaphore _sem;
 };
 

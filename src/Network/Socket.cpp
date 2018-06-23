@@ -59,7 +59,7 @@ Socket::~Socket() {
 }
 
 void Socket::setOnRead(const onReadCB &cb) {
-	lock_guard<spin_mutex> lck(_mtx_read);
+	lock_guard<mutex> lck(_mtx_read);
 	if (cb) {
 		_readCB = cb;
 	} else {
@@ -69,7 +69,7 @@ void Socket::setOnRead(const onReadCB &cb) {
 	}
 }
 void Socket::setOnErr(const onErrCB &cb) {
-	lock_guard<spin_mutex> lck(_mtx_err);
+	lock_guard<mutex> lck(_mtx_err);
 	if (cb) {
 		_errCB = cb;
 	} else {
@@ -79,7 +79,7 @@ void Socket::setOnErr(const onErrCB &cb) {
 	}
 }
 void Socket::setOnAccept(const onAcceptCB &cb) {
-	lock_guard<spin_mutex> lck(_mtx_accept);
+	lock_guard<mutex> lck(_mtx_accept);
 	if (cb) {
 		_acceptCB = cb;
 	} else {
@@ -89,7 +89,7 @@ void Socket::setOnAccept(const onAcceptCB &cb) {
 	}
 }
 void Socket::setOnFlush(const onFlush &cb) {
-	lock_guard<spin_mutex> lck(_mtx_flush);
+	lock_guard<mutex> lck(_mtx_flush);
 	if (cb) {
 		_flushCB = cb;
 	} else {
@@ -135,7 +135,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 		connectCB(err);
 		return false;
 	}));
-	lock_guard<spin_mutex> lck(_mtx_sockFd);
+	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = sockFD;
 }
 
@@ -249,7 +249,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		buf->data()[nread] = '\0';
 		buf->setSize(nread);
 
-        lock_guard<spin_mutex> lck(_mtx_read);
+        lock_guard<mutex> lck(_mtx_read);
         _readCB(buf, &peerAddr);
 	}
     return 0;
@@ -259,7 +259,7 @@ void Socket::onError(const SockFD::Ptr &pSock) {
 }
 bool Socket::emitErr(const SockException& err) {
 	{
-		lock_guard<spin_mutex> lck(_mtx_sockFd);
+		lock_guard<mutex> lck(_mtx_sockFd);
 		if (!_sockFd) {
             //防止多次触发onErr事件
 			return false;
@@ -272,7 +272,7 @@ bool Socket::emitErr(const SockException& err) {
 			return;
 		}
 
-        lock_guard<spin_mutex> lck(strongSelf->_mtx_err);
+        lock_guard<mutex> lck(strongSelf->_mtx_err);
         strongSelf->_errCB(err);
 	});
 	closeSock();
@@ -314,7 +314,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 	}
 	SockFD::Ptr sock;
 	{
-		lock_guard<spin_mutex> lck(_mtx_sockFd);
+		lock_guard<mutex> lck(_mtx_sockFd);
 		sock = _sockFd;
 	}
 	if (!sock ) {
@@ -360,7 +360,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
     bool flag;
     {
-        lock_guard<spin_mutex> lck(_mtx_flush);
+        lock_guard<mutex> lck(_mtx_flush);
         flag = _flushCB();
     }
 	if (!flag) {
@@ -370,7 +370,7 @@ void Socket::onFlushed(const SockFD::Ptr &pSock) {
 
 void Socket::closeSock() {
 	_conTimer.reset();
-	lock_guard<spin_mutex> lck(_mtx_sockFd);
+	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd.reset();
 }
 
@@ -396,7 +396,7 @@ bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
 		WarnL << "开始Poll监听失败";
 		return false;
 	}
-	lock_guard<spin_mutex> lck(_mtx_sockFd);
+	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = pSock;
 	return true;
 }
@@ -411,7 +411,7 @@ bool Socket::bindUdpSock(const uint16_t port, const char* localIp) {
 		WarnL << "开始Poll监听失败";
 		return false;
 	}
-	lock_guard<spin_mutex> lck(_mtx_sockFd);
+	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = pSock;
 	return true;
 }
@@ -443,7 +443,7 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 
 			Socket::Ptr peerSock(new Socket());
 			if(peerSock->setPeerSock(peerfd)){
-                lock_guard<spin_mutex> lck(_mtx_accept);
+                lock_guard<mutex> lck(_mtx_accept);
                 _acceptCB(peerSock);
 			}
 		}
@@ -462,13 +462,13 @@ bool Socket::setPeerSock(int sock) {
 		WarnL << "开始Poll监听失败";
 		return false;
 	}
-	lock_guard<spin_mutex> lck(_mtx_sockFd);
+	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = pSock;
 	return true;
 }
 
 string Socket::get_local_ip() {
-    lock_guard<spin_mutex> lck(_mtx_sockFd);
+    lock_guard<mutex> lck(_mtx_sockFd);
 	if (!_sockFd) {
 		return "";
 	}
@@ -476,7 +476,7 @@ string Socket::get_local_ip() {
 }
 
 uint16_t Socket::get_local_port() {
-    lock_guard<spin_mutex> lck(_mtx_sockFd);
+    lock_guard<mutex> lck(_mtx_sockFd);
 	if (!_sockFd) {
 		return 0;
 	}
@@ -485,7 +485,7 @@ uint16_t Socket::get_local_port() {
 }
 
 string Socket::get_peer_ip() {
-    lock_guard<spin_mutex> lck(_mtx_sockFd);
+    lock_guard<mutex> lck(_mtx_sockFd);
 	if (!_sockFd) {
 		return "";
 	}
@@ -493,7 +493,7 @@ string Socket::get_peer_ip() {
 }
 
 uint16_t Socket::get_peer_port() {
-    lock_guard<spin_mutex> lck(_mtx_sockFd);
+    lock_guard<mutex> lck(_mtx_sockFd);
 	if (!_sockFd) {
 		return 0;
 	}
@@ -616,7 +616,7 @@ SockFD::Ptr Socket::makeSock(int sock){
 }
 
 int Socket::rawFD() const{
-    lock_guard<spin_mutex> lck(_mtx_sockFd);
+    lock_guard<mutex> lck(_mtx_sockFd);
     if(!_sockFd){
         return -1;
     }

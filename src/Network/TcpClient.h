@@ -25,12 +25,12 @@
 #ifndef NETWORK_TCPCLIENT_H
 #define NETWORK_TCPCLIENT_H
 
+#include <mutex>
 #include <memory>
 #include <functional>
 #include "Socket.h"
 #include "Util/TimeTicker.h"
 #include "Thread/WorkThreadPool.h"
-#include "Thread/spin_mutex.h"
 
 using namespace std;
 using namespace ZL::Util;

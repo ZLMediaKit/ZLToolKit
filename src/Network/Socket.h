@@ -39,7 +39,6 @@
 #include "Util/ResourcePool.h"
 #include "Poller/Timer.h"
 #include "Network/sockutil.h"
-#include "Thread/spin_mutex.h"
 
 using namespace std;
 using namespace ZL::Util;
@@ -384,16 +383,16 @@ private:
     uint32_t getBufSecondLength();
     static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
 private:
-    mutable spin_mutex _mtx_sockFd;
+    mutable mutex _mtx_sockFd;
     SockFD::Ptr _sockFd;
     recursive_mutex _mtx_sendBuf;
     deque<Packet::Ptr> _sendPktBuf;
     /////////////////////
     std::shared_ptr<Timer> _conTimer;
-    spin_mutex _mtx_read;
-    spin_mutex _mtx_err;
-    spin_mutex _mtx_accept;
-    spin_mutex _mtx_flush;
+    mutex _mtx_read;
+    mutex _mtx_err;
+    mutex _mtx_accept;
+    mutex _mtx_flush;
     onReadCB _readCB;
     onErrCB _errCB;
     onAcceptCB _acceptCB;

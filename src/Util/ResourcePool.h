@@ -31,7 +31,6 @@
 #include <atomic>
 #include <functional>
 #include <unordered_set>
-#include "Thread/spin_mutex.h"
 #include "Thread/List.h"
 
 using namespace ZL::Thread;
@@ -145,7 +144,7 @@ private:
 		List<C*> objs;
 		unordered_set<C*> quitSet;
 		function<C*(void)> allotter;
-		spin_mutex _mutex;
+		mutex _mutex;
 		int poolsize;
 	};
 	std::shared_ptr<_ResourcePool> pool;
