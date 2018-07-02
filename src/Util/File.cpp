@@ -109,66 +109,6 @@ int closedir(DIR *d) {
 namespace ZL {
 namespace Util {
 
-// 可读普通文件
-bool File::isrfile(const char *path) {
-	struct stat buf;
-	int cc = stat(path, &buf);
-	if (cc == -1) {
-		//获取文件信息失败
-		WarnL << get_uv_errmsg();
-		return false;
-	}
-	//获取文件信息成功
-	if ((buf.st_mode & S_IFMT) != S_IFREG) {
-		//S_IFMT   0170000    文件类型的位遮罩
-		//S_IFREG 0100000     一般文件
-		//如果不是一般普通文件
-		return false;
-	}
-#if defined(_WIN32)
-	return true;
-#else
-	if (buf.st_mode & S_IROTH) {
-		//S_IROTH 其他用户的读权限
-		//如果其他用户可读该文件,那所有用户都可以读该文件
-		return true;
-	}
-	if (buf.st_mode & S_IRGRP) {
-		//S_IRGRP 文件所有者同组用户的读权限
-		//如果该文件创建者规定同组用户可以读该文件
-		/*用来取得执行目前进程有效组识别码。
-		 *有效的组识别码用来决定进程执行时组的权限。返回有效的组识别码。
-		 */
-		unsigned int egid = getegid(); //get-group-id
-		if (egid == buf.st_gid) {
-			//如果程序启动者与文件创建者是同一组用户
-			return true;
-		}
-	}
-	if (buf.st_mode & S_IRUSR) {
-		//S_IRUSR 文件所有者的读权限
-		//如果该文件创建者规定创建者可以读该文件
-		/*	用来取得执行目前进程有效的用户识别码。
-		 * 有效的用户识别码用来决定进程执行的权限，
-		 * 借由此改变此值，进程可以获得额外的权限。
-		 * 倘若执行文件的setID位已被设置，该文件执行时，
-		 * 其进程的euid值便会设成该文件所有者的uid。
-		 * 例如，执行文件/usr/bin/passwd的权限为-r-s--x--x，
-		 * 其s位即为setID（SUID）位，
-		 * 而当任何用户在执行passwd时其有效的用户识别码会被设成passwd所有者的uid值，
-		 * 即root的uid值（0）。返回有效的用户识别码。
-		 */
-		unsigned int euid = geteuid(); //get-group-id
-		if (euid == buf.st_uid) {
-			//如果程序启动者与文件创建者是同一组用户
-			return true;
-		}
-	}
-	return false;
-#endif // defined(_WIN32)
-
-}
-
 FILE *File::createfile_file(const char *file, const char *mode) {
 	std::string path = file;
 	std::string dir;
@@ -261,17 +201,6 @@ void get_file_path(const char *path, const char *file_name, char *file_path) {
 		strcat(file_path, "/");
 	}
 	strcat(file_path, file_name);
-}
-bool  File::rm_empty_dir(const char *path){
-	if(!is_dir(path)){
-		string superDir = path;
-		superDir = superDir.substr(0, superDir.rfind('/') + 1);
-		if(superDir == path){
-			return false;
-		}
-		return rm_empty_dir(superDir.data());
-	}
-	return rmdir(path) == 0;
 }
 void File::delete_file(const char *path) {
 	DIR *dir;

@@ -72,8 +72,6 @@ namespace Util {
 
 class File {
 public:
-	// 可读普通文件
-	static bool isrfile(const char *path) ;
 	//新建文件，目录文件夹自动生成
 	static bool createfile_path(const char *file, unsigned int mod);
 	static FILE *createfile_file(const char *file,const char *mode);
@@ -85,7 +83,6 @@ public:
 	static bool is_special_dir(const char *path);
 	//删除目录或文件
 	static void delete_file(const char *path) ;
-	static bool rm_empty_dir(const char *path);
 private:
 	File();
 	virtual ~File();
