@@ -62,9 +62,9 @@ public:
 		}
 #else
 		_count += n;
-		while (n--) {
+		do{
 			_condition.notify_one();
-		}
+		}while(--n);
 #endif
 
 	}

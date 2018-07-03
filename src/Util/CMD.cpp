@@ -43,6 +43,11 @@ static onceToken s_token([](){
 }, nullptr);
 
 
+CMDRegister &CMDRegister::Instance(){
+    static CMDRegister instance;
+    return instance;
+}
+
 void OptionParser::operator ()(mINI &allArg, int argc, char *argv[],const std::shared_ptr<ostream> &stream) {
     vector<struct option> vec_longOpt;
     string str_shortOpt;

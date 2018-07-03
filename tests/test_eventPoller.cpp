@@ -35,8 +35,8 @@ int main() {
 	//设置日志系统
 	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
-	//主线程为自轮询类型，不需要调用runLoop
-	EventPoller::Instance(true);
+	//非阻塞式执行runLoop
+	EventPoller::Instance().runLoop(false);
 
 	Ticker timeTicker;//计时器
 	TraceL << "main thread id:" << this_thread::get_id();

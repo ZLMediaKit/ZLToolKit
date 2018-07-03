@@ -22,44 +22,19 @@
  * SOFTWARE.
  */
 
-#include <vector>
-#include <iostream>
-#include "WorkThreadPool.h"
-#include "Util/logger.h"
+#include "ThreadPool.h"
 
 using namespace ZL::Util;
 
 namespace ZL {
 namespace Thread {
 
-WorkThreadPool &WorkThreadPool::Instance() {
-	static WorkThreadPool *intance(new WorkThreadPool());
-	return *intance;
-}
-void WorkThreadPool::Destory(){
-	delete &(WorkThreadPool::Instance());
-}
-	
-WorkThreadPool::WorkThreadPool(int _threadnum) :
-		threadnum(_threadnum), threadPos(-1), threads(0) {
-	for (int i = 0; i < threadnum; i++) {
-		threads.emplace_back(new ThreadPool(1, ThreadPool::PRIORITY_HIGHEST));
-	}
+ThreadPool &ThreadPool::Instance() {
+    //单例模式
+    static ThreadPool instance(thread::hardware_concurrency());
+    return instance;
 }
 
-WorkThreadPool::~WorkThreadPool() {
-	InfoL;
-	for(auto &thread : threads){
-		thread->wait();
-	}
-}
-
-std::shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
-	if (++threadPos >= threadnum) {
-		threadPos = 0;
-	}
-	return threads[threadPos.load()];
-}
 } /* namespace Thread */
 } /* namespace ZL */
 

@@ -51,7 +51,7 @@ string getIP(struct sockaddr *addr){
 int main() {
     //设置程序退出信号处理函数
 	signal(SIGINT, [](int){exitProgram = true;});
-	EventPoller::Instance(true);//主线程为自轮询类型，不需要调用runLoop
+	EventPoller::Instance().runLoop(false);//非阻塞式执行runLoop
     //设置日志系统
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());

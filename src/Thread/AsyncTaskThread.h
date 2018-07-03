@@ -59,13 +59,8 @@ public:
 	~AsyncTaskThread();
 	void DoTaskDelay(uint64_t type, uint64_t millisecond, const function<bool()> &func);
 	void CancelTask(uint64_t type);
-	static AsyncTaskThread &Instance(uint32_t millisecond_sleep = TASK_INTERVAL) {
-		static AsyncTaskThread *instance(new AsyncTaskThread(millisecond_sleep));
-		return *instance;
-	}
-	static void Destory(){
-		delete &AsyncTaskThread::Instance();
-	}
+	static AsyncTaskThread &Instance(uint32_t millisecond_sleep = TASK_INTERVAL);
+	static void Destory();
 private:
 	recursive_mutex _mtx;
 	unordered_multimap<uint64_t, std::shared_ptr<TaskInfo> > taskMap;

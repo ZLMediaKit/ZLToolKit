@@ -38,7 +38,7 @@ using namespace ZL::Thread;
 bool g_bExitFlag = false;
 
 //大小为50的循环池
-ResourcePool<string,50> g_pool;
+ResourcePool<string> g_pool;
 
 //后台线程任务
 void onRun(int threadNum){
@@ -67,7 +67,7 @@ int main() {
     //初始化日志
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
-
+	g_pool.setSize(50);
 	//获取一个对象,该对象将被主线程持有，并且不会被后台线程获取并赋值
 	auto reservedObj = g_pool.obtain();
     //在主线程赋值该对象

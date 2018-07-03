@@ -41,25 +41,16 @@ using namespace ZL::Thread;
 
 namespace ZL {
 namespace Util {
-template<int poolSize = 10>
-class _SqlPool {
+class SqlPool {
 public:
-	typedef ResourcePool<SqlConnection, poolSize> PoolType;
+	typedef ResourcePool<SqlConnection> PoolType;
 	typedef vector<vector<string> > SqlRetType;
-	static _SqlPool &Instance() {
-		static _SqlPool *pool(new _SqlPool());
-		return *pool;
-	}
-	static void Destory(){
-		delete &Instance();
-	}
-	void reSize(int size) {
-		if (size < 0) {
-			return;
-		}
-		poolsize = size;
-		pool->reSize(size);
-		threadPool.reset(new ThreadPool(poolsize));
+
+	static SqlPool &Instance();
+	static void Destory();
+
+	void setSize(int size) {
+		pool->setSize(size);
 	}
 	template<typename ...Args>
 	void Init(Args && ...arg) {
@@ -91,7 +82,7 @@ public:
 	static const string &escape(const string &str) {
 		try {
 			//捕获创建对象异常
-			_SqlPool::Instance().pool->obtain()->escape(
+			SqlPool::Instance().pool->obtain()->escape(
 					const_cast<string &>(str));
 		} catch (exception &e) {
 			WarnL << e.what() << endl;
@@ -100,14 +91,11 @@ public:
 	}
 
 private:
-	_SqlPool() :
-			threadPool(new ThreadPool(poolSize)), asyncTaskThread(10 * 1000) {
-		poolsize = poolSize;
-		asyncTaskThread.DoTaskDelay(reinterpret_cast<uint64_t>(this), 30 * 1000,
-				[this]() {
-					flushError();
-					return true;
-				});
+	SqlPool() : threadPool(new ThreadPool(1)) {
+		AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this), 30 * 1000,[this]() {
+			flushError();
+			return true;
+		});
 	}
 	inline void doQuery(const string &str,int tryCnt = 3) {
 		auto lam = [this,str,tryCnt]() {
@@ -146,30 +134,27 @@ private:
 			doQuery(query.sql_str,query.tryCnt);
 		}
 	}
-	virtual ~_SqlPool() {
-		asyncTaskThread.CancelTask(reinterpret_cast<uint64_t>(this));
+	~SqlPool() {
+		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
 		flushError();
 		threadPool.reset();
 		pool.reset();
 		InfoL;
 	}
-	std::shared_ptr<ThreadPool> threadPool;
-	mutex error_query_mutex;
-	class sqlQuery
-	{
-	public:
+
+private:
+	struct sqlQuery {
 		sqlQuery(const string &sql,int cnt):sql_str(sql),tryCnt(cnt){}
 		string sql_str;
 		int tryCnt = 0;
 	} ;
-	deque<sqlQuery> error_query;
 
+	deque<sqlQuery> error_query;
+	std::shared_ptr<ThreadPool> threadPool;
+	mutex error_query_mutex;
 	std::shared_ptr<PoolType> pool;
-	AsyncTaskThread asyncTaskThread;
-	unsigned int poolsize;
 }
 ;
-typedef _SqlPool<1> SqlPool;
 
 class SqlStream {
 public:

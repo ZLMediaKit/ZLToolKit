@@ -93,13 +93,10 @@ class Logger {
 public:
 	friend class LogWriter;
 	friend class AsyncLogWriter;
-	static Logger& Instance() {
-		static Logger *logger(new Logger());
-		return *logger;
-	}
-	static void Destory() {
-		delete &Logger::Instance();
-	}
+
+	static Logger& Instance();
+	static void Destory();
+
 	void add(const std::shared_ptr<LogChannel> &channel) {
 		channels[channel->name()] = channel;
 	}

@@ -22,44 +22,23 @@
  * SOFTWARE.
  */
 
-#include <vector>
-#include <iostream>
-#include "WorkThreadPool.h"
-#include "Util/logger.h"
 
-using namespace ZL::Util;
+#include "SqlPool.h"
 
+#if defined(ENABLE_MYSQL)
 namespace ZL {
-namespace Thread {
+namespace Util {
 
-WorkThreadPool &WorkThreadPool::Instance() {
-	static WorkThreadPool *intance(new WorkThreadPool());
-	return *intance;
+SqlPool &SqlPool::Instance() {
+	static SqlPool *pool(new SqlPool());
+	return *pool;
 }
-void WorkThreadPool::Destory(){
-	delete &(WorkThreadPool::Instance());
-}
-	
-WorkThreadPool::WorkThreadPool(int _threadnum) :
-		threadnum(_threadnum), threadPos(-1), threads(0) {
-	for (int i = 0; i < threadnum; i++) {
-		threads.emplace_back(new ThreadPool(1, ThreadPool::PRIORITY_HIGHEST));
-	}
+void SqlPool::Destory(){
+	delete &Instance();
 }
 
-WorkThreadPool::~WorkThreadPool() {
-	InfoL;
-	for(auto &thread : threads){
-		thread->wait();
-	}
-}
+} /* namespace mysql */
+} /* namespace im */
 
-std::shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
-	if (++threadPos >= threadnum) {
-		threadPos = 0;
-	}
-	return threads[threadPos.load()];
-}
-} /* namespace Thread */
-} /* namespace ZL */
+#endif// defined(ENABLE_MYSQL)
 

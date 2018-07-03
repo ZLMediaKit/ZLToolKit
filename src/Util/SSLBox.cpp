@@ -21,16 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
- 
-#if defined(ENABLE_OPENSSL)
+#include "SSLBox.h"
 
+#if defined(ENABLE_OPENSSL)
 #include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
-#include "SSLBox.h"
 #include "Util/util.h"
 
 #define SSL_BUF_SIZE 1024*4
@@ -230,6 +229,19 @@ void SSL_Box::flush() {
 	}
 }
 
+
+
 } /* namespace Util */
 } /* namespace ZL */
 #endif //ENABLE_OPENSSL
+
+namespace ZL {
+namespace Util {
+
+SSL_Initor &SSL_Initor::Instance() {
+    static SSL_Initor obj;
+    return obj;
+}
+
+} /* namespace Util */
+} /* namespace ZL */

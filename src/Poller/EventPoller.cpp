@@ -54,46 +54,55 @@ using namespace ZL::Network;
 namespace ZL {
 namespace Poller {
 
-EventPoller::EventPoller(bool enableSelfRun) {
+EventPoller &EventPoller::Instance() {
+    static EventPoller *instance(new EventPoller());
+    return *instance;
+}
+void EventPoller::Destory() {
+    delete &EventPoller::Instance();
+}
+
+EventPoller::EventPoller() {
 #if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
         throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg());
     }
-#endif //HAS_EPOLL
-    initPoll();
-    if (enableSelfRun) {
-        _loopThread = new thread(&EventPoller::runLoop, this);
-        _mainThreadId = _loopThread->get_id();
-    } else {
-        _mainThreadId = this_thread::get_id();
+
+    if (addEvent(_pipe.readFD(), Event_Read | Event_Error, [](int event) {}) == -1) {
+        throw std::runtime_error("epoll添加管道失败");
     }
+#endif //HAS_EPOLL
+
+    _mainThreadId = this_thread::get_id();
 }
 
 inline int EventPoller::sigalPipe(uint64_t type, uint64_t i64_size, uint64_t *buf) {
-    uint64_t *pipeBuf = new uint64_t[2 + i64_size];
+    uint64_t pipeBuf[2 + i64_size];
     pipeBuf[0] = type;
     pipeBuf[1] = i64_size;
     if (i64_size) {
         memcpy(pipeBuf + 2, buf, i64_size * sizeof(uint64_t));
     }
     auto ret = _pipe.write(pipeBuf, (2 + i64_size) * sizeof(uint64_t));
-    delete[] pipeBuf;
     return ret;
 }
 
 void EventPoller::shutdown() {
     sigalPipe(Sig_Exit);
+    if (_loopThread) {
+        try {
+            _loopThread->join();
+        }catch (std::exception &ex){
+            WarnL << ex.what();
+        }
+        delete _loopThread;
+        _loopThread = nullptr;
+    }
 }
 
 EventPoller::~EventPoller() {
     shutdown();
-
-    if (_loopThread) {
-        _loopThread->join();
-        delete _loopThread;
-        _loopThread = nullptr;
-    }
 
 #if defined(HAS_EPOLL)
     if (_epoll_fd != -1) {
@@ -236,8 +245,7 @@ inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size
             PollAsyncCB **cb = (PollAsyncCB **) buf;
             try {
                 (*cb)->operator()();
-            }
-            catch (std::exception &ex) {
+            } catch (std::exception &ex) {
                 ErrorL << ex.what();
             }
             delete *cb;
@@ -280,129 +288,130 @@ inline bool EventPoller::handlePipeEvent() {
     return ret;
 }
 
-void EventPoller::initPoll() {
-#if defined(HAS_EPOLL)
-    if (addEvent(_pipe.readFD(), Event_Read | Event_Error, [](int event) {}) == -1) {
-        ErrorL << "epoll添加管道失败" << endl;
-        std::runtime_error("epoll添加管道失败");
+
+void EventPoller::runLoop(bool blocked) {
+    if (!_mtx_runing.try_lock()) {
+        throw std::runtime_error("EventPoller::runLoop is running!");
     }
-#endif //HAS_EPOLL
-}
-
-void EventPoller::runLoop() {
-    _mainThreadId = this_thread::get_id();
-    ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
+    _mtx_runing.unlock();
+    if (blocked) {
+        lock_guard<mutex> lck(_mtx_runing);
+        _mainThreadId = this_thread::get_id();
+        ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
 #if defined(HAS_EPOLL)
-    struct epoll_event events[EPOLL_SIZE];
-    while (true) {
-        int nfds = epoll_wait(_epoll_fd, events, EPOLL_SIZE, -1);
-        TimeTicker();
-        if (nfds == -1) {
-            WarnL << "epoll_wait() interrupted:" << get_uv_errmsg();
-            continue;
-        }
-
-        for (int i = 0; i < nfds; ++i) {
-            struct epoll_event &ev = events[i];
-            int fd = ev.data.fd;
-            int event = toPoller(ev.events);
-            if (fd == _pipe.readFD()) {
-                //inner pipe event
-                if (event & Event_Error) {
-                    WarnL << "Poller 异常退出监听。";
-                    return;
-                }
-                if (!handlePipeEvent()) {
-                    InfoL << "Poller 退出监听。";
-                    return;
-                }
+        struct epoll_event events[EPOLL_SIZE];
+        while (true) {
+            int nfds = epoll_wait(_epoll_fd, events, EPOLL_SIZE, -1);
+            TimeTicker();
+            if (nfds == -1) {
+                WarnL << "epoll_wait() interrupted:" << get_uv_errmsg();
                 continue;
             }
-            // other event
-            PollEventCB eventCb;
-            {
-                lock_guard<mutex> lck(_mtx_event_map);
-                auto it = _event_map.find(fd);
-                if (it == _event_map.end()) {
-                    WarnL << "未找到Poll事件回调对象!";
-                    epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+
+            for (int i = 0; i < nfds; ++i) {
+                struct epoll_event &ev = events[i];
+                int fd = ev.data.fd;
+                int event = toPoller(ev.events);
+                if (fd == _pipe.readFD()) {
+                    //inner pipe event
+                    if (event & Event_Error) {
+                        WarnL << "Poller 异常退出监听。";
+                        return;
+                    }
+                    if (!handlePipeEvent()) {
+                        InfoL << "Poller 退出监听。";
+                        return;
+                    }
                     continue;
                 }
-                eventCb = it->second;
+                // other event
+                PollEventCB eventCb;
+                {
+                    lock_guard<mutex> lck(_mtx_event_map);
+                    auto it = _event_map.find(fd);
+                    if (it == _event_map.end()) {
+                        WarnL << "未找到Poll事件回调对象!";
+                        epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                        continue;
+                    }
+                    eventCb = it->second;
+                }
+                eventCb(event);
             }
-            eventCb(event);
         }
-    }
 #else
-    int ret, maxFd;
-    FdSet Set_read, Set_write, Set_err;
-    list<unordered_map<int, Poll_Record>::value_type> listCB;
-    while (true) {
-        Set_read.fdZero();
-        Set_write.fdZero();
-        Set_err.fdZero();
-        Set_read.fdSet(_pipe.readFD()); //监听管道可读事件
-        maxFd = _pipe.readFD();
-        {
-            lock_guard<mutex> lck(_mtx_event_map);
-            for (auto &pr : _event_map) {
-                if (pr.first > maxFd) {
-                    maxFd = pr.first;
-                }
-                if (pr.second.event & Event_Read) {
-                    Set_read.fdSet(pr.first);//监听管道可读事件
-                }
-                if (pr.second.event & Event_Write) {
-                    Set_write.fdSet(pr.first);//监听管道可写事件
-                }
-                if (pr.second.event & Event_Error) {
-                    Set_err.fdSet(pr.first);//监听管道错误事件
+        int ret, maxFd;
+        FdSet Set_read, Set_write, Set_err;
+        list<unordered_map<int, Poll_Record>::value_type> listCB;
+        while (true) {
+            Set_read.fdZero();
+            Set_write.fdZero();
+            Set_err.fdZero();
+            Set_read.fdSet(_pipe.readFD()); //监听管道可读事件
+            maxFd = _pipe.readFD();
+            {
+                lock_guard<mutex> lck(_mtx_event_map);
+                for (auto &pr : _event_map) {
+                    if (pr.first > maxFd) {
+                        maxFd = pr.first;
+                    }
+                    if (pr.second.event & Event_Read) {
+                        Set_read.fdSet(pr.first);//监听管道可读事件
+                    }
+                    if (pr.second.event & Event_Write) {
+                        Set_write.fdSet(pr.first);//监听管道可写事件
+                    }
+                    if (pr.second.event & Event_Error) {
+                        Set_err.fdSet(pr.first);//监听管道错误事件
+                    }
                 }
             }
-        }
-        ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
-        if (ret < 1) {
-            WarnL << "select() interrupted:" << get_uv_errmsg();
-            continue;
-        }
-
-        if (Set_read.isSet(_pipe.readFD())) {
-            //判断有否监听操作
-            if (!handlePipeEvent()) {
-                InfoL << "EventPoller exiting...";
-                break;
-            }
-            if (ret == 1) {
-                //没有其他事件
+            ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
+            if (ret < 1) {
+                WarnL << "select() interrupted:" << get_uv_errmsg();
                 continue;
             }
-        }
 
-        {
-            lock_guard<mutex> lck(_mtx_event_map);
-            for (auto &pr : _event_map) {
-                int event = 0;
-                if (Set_read.isSet(pr.first)) {
-                    event |= Event_Read;
+            if (Set_read.isSet(_pipe.readFD())) {
+                //判断有否监听操作
+                if (!handlePipeEvent()) {
+                    InfoL << "EventPoller exiting...";
+                    break;
                 }
-                if (Set_write.isSet(pr.first)) {
-                    event |= Event_Write;
-                }
-                if (Set_err.isSet(pr.first)) {
-                    event |= Event_Error;
-                }
-                if (event != 0) {
-                    pr.second.attach = event;
-                    listCB.push_back(pr);
+                if (ret == 1) {
+                    //没有其他事件
+                    continue;
                 }
             }
+
+            {
+                lock_guard<mutex> lck(_mtx_event_map);
+                for (auto &pr : _event_map) {
+                    int event = 0;
+                    if (Set_read.isSet(pr.first)) {
+                        event |= Event_Read;
+                    }
+                    if (Set_write.isSet(pr.first)) {
+                        event |= Event_Write;
+                    }
+                    if (Set_err.isSet(pr.first)) {
+                        event |= Event_Error;
+                    }
+                    if (event != 0) {
+                        pr.second.attach = event;
+                        listCB.push_back(pr);
+                    }
+                }
+            }
+            for (auto &pr : listCB) {
+                pr.second();
+            }
+            listCB.clear();
         }
-        for (auto &pr : listCB) {
-            pr.second();
-        }
-        listCB.clear();
-    }
 #endif //HAS_EPOLL
+    }else{
+        _loopThread = new thread(&EventPoller::runLoop, this, true);
+    }
 }
 
 }  // namespace Poller

@@ -49,10 +49,8 @@ public:
 	};
 
 	virtual ~NoticeCenter(){}
-	static NoticeCenter &Instance(){
-		static NoticeCenter instance;
-		return instance;
-	}
+	static NoticeCenter &Instance();
+
 	template<typename ...ArgsType>
 	bool emitEvent(const char *strEvent,ArgsType &&...args){
 		lock_guard<recursive_mutex> lck(_mtxListener);

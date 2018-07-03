@@ -238,10 +238,7 @@ class CMDRegister
 public:
     CMDRegister() {};
     virtual ~CMDRegister(){};
-    static CMDRegister &Instance(){
-        static CMDRegister instance;
-        return instance;
-    }
+    static CMDRegister &Instance();
     void clear(){
         lock_guard<recursive_mutex> lck(_mtxCMD);
         _mapCMD.clear();

@@ -177,7 +177,7 @@ int main(int argc,char *argv[]){
     static onceToken s_token([](){
         Logger::Instance().add(std::shared_ptr<ConsoleChannel>(new ConsoleChannel("stdcout",LTrace)));
         Logger::Instance().setWriter(std::shared_ptr<LogWriter>(new AsyncLogWriter()));
-        EventPoller::Instance(true);
+        EventPoller::Instance().runLoop(false);
 
     },[](){
         CMDRegister::Instance().clear();

@@ -43,13 +43,8 @@ public:
 	WorkThreadPool(int threadnum = thread::hardware_concurrency());
 	virtual ~WorkThreadPool();
 	std::shared_ptr<ThreadPool> &getWorkThread();
-	static WorkThreadPool &Instance() {
-		static WorkThreadPool *intance(new WorkThreadPool());
-		return *intance;
-	}
-	static void Destory(){
-		delete &(WorkThreadPool::Instance());
-	}
+	static WorkThreadPool &Instance();
+	static void Destory();
 private:
 	int threadnum;
 	atomic<int> threadPos;

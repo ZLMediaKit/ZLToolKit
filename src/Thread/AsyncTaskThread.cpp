@@ -31,6 +31,15 @@ using namespace ZL::Util;
 
 namespace ZL {
 namespace Thread {
+
+AsyncTaskThread &AsyncTaskThread::Instance(uint32_t millisecond_sleep) {
+	static AsyncTaskThread *instance(new AsyncTaskThread(millisecond_sleep));
+	return *instance;
+}
+void AsyncTaskThread::Destory(){
+	delete &AsyncTaskThread::Instance();
+}
+
 AsyncTaskThread::AsyncTaskThread(uint64_t _millisecond_sleep) {
 	millisecond_sleep = _millisecond_sleep;
 	threadExit = false;

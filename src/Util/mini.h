@@ -94,10 +94,9 @@ public:
 		auto dmp = dump();
 		out.write(dmp.data(),dmp.size());
 	}
-	static mINI_basic &Instance(){
-		static mINI_basic instance;
-		return instance;
-	}
+
+	static mINI_basic &Instance();
+
 private:
 	vector<string> tokenize(const string &self, const string &chars) const {
 		vector<string> tokens(1);

@@ -53,10 +53,7 @@ class SessionMap {
 public:
     friend class TcpServer;
     //单例
-    static SessionMap &Instance(){
-        static SessionMap instance;
-        return instance;
-    }
+    static SessionMap &Instance();
     //获取Session
     TcpSession::Ptr get(const string &tag){
         lock_guard<mutex> lck(_mtx_session);

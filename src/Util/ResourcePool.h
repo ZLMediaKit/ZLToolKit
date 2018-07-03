@@ -39,7 +39,7 @@ namespace ZL {
 namespace Util {
 using namespace std;
 
-template<typename C, int poolSize = 10>
+template<typename C>
 class ResourcePool {
 public:
 	typedef std::shared_ptr<C> ValuePtr;
@@ -52,7 +52,7 @@ public:
 		pool.reset(new _ResourcePool(std::forward<ArgTypes>(args)...));
 	}
 #endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
-	void reSize(int size) {
+	void setSize(int size) {
 		pool->setSize(size);
 	}
 	ValuePtr obtain() {
@@ -67,46 +67,44 @@ private:
 	public:
 		typedef std::shared_ptr<C> ValuePtr;
 		_ResourcePool() {
-			poolsize = poolSize;
-			allotter = []()->C* {
+			_allotter = []()->C* {
 				return new C();
 			};
 		}
 #if (!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 		template<typename ...ArgTypes>
 		_ResourcePool(ArgTypes &&...args) {
-			poolsize = poolSize;
-			allotter = [args...]()->C* {
+			_allotter = [args...]()->C* {
 				return new C(args...);
 			};
 		}
 #endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 		virtual ~_ResourcePool(){
 			std::lock_guard<decltype(_mutex)> lck(_mutex);
-//			for(auto &ptr : objs){
+//			for(auto &ptr : _objs){
 //				delete ptr;
 //			}
-			objs.for_each([](C *ptr){
+			_objs.for_each([](C *ptr){
 				delete ptr;
 			});
 		}
 		void setSize(int size) {
-			poolsize = size;
+			_poolsize = size;
 		}
 		ValuePtr obtain() {
 			std::lock_guard<decltype(_mutex)> lck(_mutex);
 			C *ptr = nullptr;
-			if (objs.size() == 0) {
-				ptr = allotter();
+			if (_objs.size() == 0) {
+				ptr = _allotter();
 			} else {
-				ptr = objs.front();
-				objs.pop_front();
+				ptr = _objs.front();
+				_objs.pop_front();
 			}
 			return ValuePtr(ptr, Deleter(this->shared_from_this()));
 		}
 		void quit(const ValuePtr &ptr) {
 			std::lock_guard<decltype(_mutex)> lck(_mutex);
-			quitSet.emplace(ptr.get());
+			_quitSet.emplace(ptr.get());
 		}
 	private:
 		class Deleter {
@@ -128,24 +126,24 @@ private:
 	private:
 		void recycle(C *obj) {
 			std::lock_guard<decltype(_mutex)> lck(_mutex);
-			auto it = quitSet.find(obj);
-			if (it != quitSet.end()) {
+			auto it = _quitSet.find(obj);
+			if (it != _quitSet.end()) {
 				delete obj;
-				quitSet.erase(it);
+				_quitSet.erase(it);
 				return;
 			}
-			if ((int)objs.size() >= poolsize) {
+			if ((int)_objs.size() >= _poolsize) {
 				delete obj;
 				return;
 			}
-			objs.emplace_back(obj);
+			_objs.emplace_back(obj);
 		}
-
-		List<C*> objs;
-		unordered_set<C*> quitSet;
-		function<C*(void)> allotter;
+    private:
+		List<C*> _objs;
+		unordered_set<C*> _quitSet;
+		function<C*(void)> _allotter;
 		mutex _mutex;
-		int poolsize;
+		int _poolsize = 8;
 	};
 	std::shared_ptr<_ResourcePool> pool;
 };

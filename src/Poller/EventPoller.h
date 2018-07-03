@@ -78,15 +78,11 @@ typedef struct {
 
 class EventPoller {
 public:
-	EventPoller(bool enableSelfRun = false);
+	EventPoller();
 	virtual ~EventPoller();
-	static EventPoller &Instance(bool enableSelfRun = false) {
-        static EventPoller *instance(new EventPoller(enableSelfRun));
-		return *instance;
-	}
-	static void Destory() {
-		delete &EventPoller::Instance();
-	}
+	static EventPoller &Instance();
+	static void Destory();
+
 	int addEvent(int fd, int event, const PollEventCB &eventCb);
 	int delEvent(int fd, const PollDelCB &delCb = nullptr);
 	int modifyEvent(int fd, int event);
@@ -94,7 +90,7 @@ public:
 	void async(const PollAsyncCB &asyncCb);
 	void sync(const PollSyncCB &syncCb);
 
-	void runLoop();
+	void runLoop(bool blocked = true);
 	void shutdown();
 	bool isMainThread();
 private:
@@ -102,11 +98,12 @@ private:
 	inline int sigalPipe(uint64_t type, uint64_t i64_size = 0, uint64_t *buf = NULL);
 	inline bool handlePipeEvent();
 	inline Sigal_Type _handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf);
-
+private:
 	PipeWrap _pipe;
 	thread *_loopThread = nullptr;
 	thread::id _mainThreadId;
 	mutex _mtx_event_map;
+	mutex _mtx_runing;
 #if defined(HAS_EPOLL)
 	int _epoll_fd = -1;
 	unordered_map<int, PollEventCB> _event_map;

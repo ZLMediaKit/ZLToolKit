@@ -58,7 +58,7 @@ int main() {
 #endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
 
     //建议数据库连接池大小设置跟CPU个数一致(大一点为佳)
-	SqlPool::Instance().reSize(3 + thread::hardware_concurrency());
+	SqlPool::Instance().setSize(3 + thread::hardware_concurrency());
 
 	//sql查询结果保存对象
 	SqlPool::SqlRetType sqlRet;

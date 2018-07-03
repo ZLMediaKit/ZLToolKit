@@ -111,11 +111,9 @@ public:
     uint64_t size() const{
         return _queue.size();
     }
-	static ThreadPool &Instance() {
-		//单例模式
-		static ThreadPool instance(thread::hardware_concurrency());
-		return instance;
-	}
+
+	static ThreadPool &Instance();
+
 	static bool setPriority(Priority priority = PRIORITY_NORMAL,
 			thread::native_handle_type threadId = 0) {
 		// set priority

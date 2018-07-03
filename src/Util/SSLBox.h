@@ -74,10 +74,7 @@ namespace Util {
 class SSL_Initor {
 public:
 	friend class SSL_Box;
-	static SSL_Initor &Instance() {
-		static SSL_Initor obj;
-		return obj;
-	}
+	static SSL_Initor &Instance();
 	void loadServerPem(const char *keyAndCA_pem, const char *import_pwd = "");
 	void loadClientPem(const char *keyAndCA_pem, const char *import_pwd = "");
 private:
@@ -132,12 +129,13 @@ private:
 class SSL_Initor {
 public:
 	friend class SSL_Box;
-	static SSL_Initor &Instance() {
-		static SSL_Initor obj;
-		return obj;
-	}
-	void loadServerPem(const char *keyAndCA_pem, const char *import_pwd = ""){};
-	void loadClientPem(const char *keyAndCA_pem, const char *import_pwd = ""){};
+	static SSL_Initor &Instance();
+	void loadServerPem(const char *keyAndCA_pem, const char *import_pwd = ""){
+        WarnL << "openssl disabled!";
+	};
+	void loadClientPem(const char *keyAndCA_pem, const char *import_pwd = ""){
+        WarnL << "openssl disabled!";
+	};
 private:
 	SSL_Initor(){};
 	~SSL_Initor(){};
