@@ -23,9 +23,8 @@
  */
 
 
-#include "SqlPool.h"
-
 #if defined(ENABLE_MYSQL)
+#include "SqlPool.h"
 namespace ZL {
 namespace Util {
 
