@@ -135,7 +135,7 @@ public:
 			return false;
 		}
 		static int Priorities[] = { Min, Min + (Max - Min) / 4, Min
-			+ (Max - Min) / 2, Min + (Max - Min) / 4, Max };
+			+ (Max - Min) / 2, Min + (Max - Min) * 3/ 4, Max };
 
 		if (threadId == 0) {
 			threadId = pthread_self();
