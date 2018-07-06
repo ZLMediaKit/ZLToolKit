@@ -241,6 +241,14 @@ public:
         memcpy(_data,data,size);
         setSize(size);
     }
+    //添加数据
+    void append(const char* data, uint32_t len = 0) {
+        if (len <= 0) {
+            len = strlen(data);
+        }
+        setSize(size() + len);
+        strncat(_data, data, len);
+    }
 private:
     char *_data = nullptr;
     int _capacity = 0;

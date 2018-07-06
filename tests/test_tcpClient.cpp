@@ -60,15 +60,15 @@ protected:
 	}
     virtual void onManager() override{
 		//定时发送数据到服务器
-        BufferRaw::Ptr buf = obtainBuffer();
-        if(buf){
-            buf->assign("[BufferRaw]\0");
-            (*this) << SocketFlags(SOCKET_DEFAULE_FLAGS | FLAG_MORE)
-                    << _nTick++ << " "
-                    << 3.14 << " "
-                    << string("string") << " "
-                    <<(Buffer::Ptr &)buf;
-        }
+//        BufferRaw::Ptr buf = obtainBuffer();
+//        if(buf){
+//            buf->assign("[BufferRaw]\0");
+//            (*this) << SocketFlags(SOCKET_DEFAULE_FLAGS | FLAG_MORE)
+//                    << _nTick++ << " "
+//                    << 3.14 << " "
+//                    << string("string") << " "
+//                    <<(Buffer::Ptr &)buf;
+//        }
 	}
 private:
 	int _nTick = 0;
@@ -84,7 +84,9 @@ int main() {
     {
         TestClient::Ptr client(new TestClient());//必须使用智能指针
         client->connect();//连接服务器
-        EventPoller::Instance().runLoop();//主线程事件轮询
+		client->send("....");
+//		client->shutdown();
+		EventPoller::Instance().runLoop();//主线程事件轮询
     }
 
 	EventPoller::Destory();

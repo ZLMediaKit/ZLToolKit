@@ -34,6 +34,7 @@ using namespace ZL::Network;
 
 class EchoSession: public TcpSession {
 public:
+	std::string data;
 	EchoSession(const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock) :
 			TcpSession(th, sock) {
 	}
@@ -43,6 +44,14 @@ public:
 	virtual void onRecv(const Buffer::Ptr &buf) override{
 		//处理客户端发送过来的数据
 		TraceL << buf->data();
+		if (data.empty()) {
+			data = buf->data();
+		} else {
+			data = data + std::string(buf->data());
+		}
+
+		InfoL << buf->size();
+		InfoL << "data: " << data;
 		//把数据回显至客户端
         *(this) << "recved " << buf->size() << ": " << buf;
 	}

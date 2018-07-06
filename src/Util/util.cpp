@@ -128,6 +128,28 @@ string hexdump(const void *buf, size_t len) {
 	return ret;
 }
 
+void _Int2Chars(char *out_ch, int in_i) {
+	if (!out_ch) {
+		return;
+	}
+
+	out_ch[3] = (char)(in_i & 0xff);
+	out_ch[2] = (char)((in_i >> 8) & 0xff);
+	out_ch[1] = (char)((in_i >> 16) & 0xff);
+	out_ch[0] = (char)((in_i >> 24) & 0xff);
+}
+
+int _Chars2Int(char *in_ch) {
+	if (!in_ch) {
+		return 0;
+	}
+	int result = (int)in_ch[3] & 0xff;
+	result |= (((int)in_ch[2] << 8) & 0xff00);
+	result |= (((int)in_ch[1] << 16) & 0xff0000);
+	result |= (((int)in_ch[0] << 24) & 0xff000000);
+	return result;
+}
+
 static string _exePath("./");
 string exePath() {
 	char buffer[PATH_MAX * 2 + 1] = {0};
