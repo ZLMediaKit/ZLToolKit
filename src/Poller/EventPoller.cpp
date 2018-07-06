@@ -78,13 +78,21 @@ EventPoller::EventPoller() {
 }
 
 inline int EventPoller::sigalPipe(uint64_t type, uint64_t i64_size, uint64_t *buf) {
+#if defined(_WIN32)
+    uint64_t *pipeBuf = new uint64_t[2 + i64_size];
+#else
     uint64_t pipeBuf[2 + i64_size];
+#endif
     pipeBuf[0] = type;
     pipeBuf[1] = i64_size;
     if (i64_size) {
         memcpy(pipeBuf + 2, buf, i64_size * sizeof(uint64_t));
     }
     auto ret = _pipe.write(pipeBuf, (2 + i64_size) * sizeof(uint64_t));
+
+#if defined(_WIN32)
+    delete [] pipeBuf;
+#endif
     return ret;
 }
 
