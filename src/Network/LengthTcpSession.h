@@ -16,35 +16,71 @@ namespace ZL {
 namespace Network {
 
     class LengthTcpSession : public TcpSession {
+    private:
+        void handle_buffer(char* buffer, int size) {
+            if (size >= STAMP_LENGTH) {
+                if (stamp_ptr->size() < stamp_ptr->capacity()) {
+                    stamp_ptr->append(buffer, stamp_ptr->capacity() - stamp_ptr->size());
+                    buffer +=(stamp_ptr->capacity() - stamp_ptr->size());
+                }
+                int stamp = _Chars2Int(stamp_ptr->data());
+                int buffer_len = strlen(buffer);
+                if (data_ptr->capacity() == 0) {
+                    data_ptr->setCapacity(stamp);
+                    if (buffer_len == stamp) {
+                        data_ptr->append(buffer, stamp);
+                        onRecvOnePacket(data_ptr);
+                        stamp_ptr->setCapacity(STAMP_LENGTH);
+                        return;
+                    } else if (buffer_len < stamp) {
+                        data_ptr->append(buffer, buffer_len);
+                        return;
+                    } else if (buffer_len > stamp) {
+                        data_ptr->append(buffer, stamp);
+                        buffer += stamp;
+                        onRecvOnePacket(data_ptr);
+                        stamp_ptr->setCapacity(STAMP_LENGTH);
+                        handle_buffer(buffer, strlen(buffer));
+                    }
+                } else if (data_ptr->capacity() == stamp) {
+                    int need_len = data_ptr->capacity() - data_ptr->size();
+                    if (buffer_len == need_len) {
+                        data_ptr->append(buffer, need_len);
+                        onRecvOnePacket(data_ptr);
+                        stamp_ptr->setCapacity(STAMP_LENGTH);
+                        return;
+                    } else if (buffer_len < need_len) {
+                        data_ptr->append(buffer, buffer_len);
+                        return;
+                    } else if (buffer_len > need_len) {
+                        data_ptr->append(buffer, need_len);
+                        buffer += need_len;
+                        onRecvOnePacket(data_ptr);
+                        stamp_ptr->setCapacity(STAMP_LENGTH);
+                        handle_buffer(buffer, strlen(buffer));
+                    }
+                } else {
+                    throw invalid_argument("data capacity is invalid.");
+                }
+            } else {
+                // TODO
+            }
+
+        }
     public:
         BufferRaw::Ptr stamp_ptr;
         BufferRaw::Ptr data_ptr;
         const unsigned int STAMP_LENGTH = sizeof(unsigned int);
-        unsigned int packet_len = 0;
 
         LengthTcpSession(const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock) :
         TcpSession(th, sock) {
             stamp_ptr = obtainBuffer();
+            stamp_ptr->setCapacity(STAMP_LENGTH);
             data_ptr = obtainBuffer();
         }
 
         virtual void onRecv(const Buffer::Ptr &buf) override {
-            char* buffer = buf->data();
-            int buffer_len = strlen(buffer);
-            if (packet_len == 0) {
-                int stamp_size = _Chars2Int(buffer);
-                data_ptr->setCapacity(stamp_size);
-                while (buffer_len >= 0) {
-
-                }
-            } else if (packet_len > 0) {
-
-
-            } else {
-                throw invalid_argument("packet length is invalid, because it less than 0");
-            }
-
-            buffer = nullptr;
+            handle_buffer(buf->data(), buf->size());
         }
 
         virtual void onError(const SockException &err) override {

@@ -217,6 +217,10 @@ public:
     uint32_t size() const override{
         return _size;
     }
+    //容量大小
+    uint32_t capacity() const {
+        return _capacity;
+    }
     //分配内存大小
     void setCapacity(uint32_t capacity){
         if(_data){
