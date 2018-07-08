@@ -17,7 +17,13 @@ namespace Network {
 
     class LengthTcpSession : public TcpSession {
     private:
+        BufferRaw::Ptr stamp_ptr;
+        BufferRaw::Ptr data_ptr;
+        const unsigned int STAMP_LENGTH = sizeof(unsigned int);
+        const short ONE = 1;
         void handle_buffer(char* buffer, int size) {
+            if (size <=0) return;
+
             if (size >= STAMP_LENGTH) {
                 if (stamp_ptr->size() < stamp_ptr->capacity()) {
                     stamp_ptr->append(buffer, stamp_ptr->capacity() - stamp_ptr->size());
@@ -63,14 +69,25 @@ namespace Network {
                     throw invalid_argument("data capacity is invalid.");
                 }
             } else {
-                // TODO
+                // 每次处理一个字节的方式来处理小于{@param STAMP_LENGTH}的字节流
+                if (stamp_ptr->size() < stamp_ptr->capacity()) {
+                    stamp_ptr->append(buffer, ONE);
+                    buffer += ONE;
+                    handle_buffer(buffer, strlen(buffer));
+                }
+                // 判断buffer是否还有需要处理的字节流
+                if (strlen(buffer) == 0)
+                    return;
+                data_ptr->append(buffer, ONE);
+                buffer += ONE;
+                if (data_ptr->size() == data_ptr->capacity()) {
+                    onRecvOnePacket(data_ptr);
+                }
+                handle_buffer(buffer, strlen(buffer));
             }
 
         }
     public:
-        BufferRaw::Ptr stamp_ptr;
-        BufferRaw::Ptr data_ptr;
-        const unsigned int STAMP_LENGTH = sizeof(unsigned int);
 
         LengthTcpSession(const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock) :
         TcpSession(th, sock) {
