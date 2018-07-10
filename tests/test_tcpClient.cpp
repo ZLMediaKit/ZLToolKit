@@ -23,6 +23,7 @@
  */
 #include <signal.h>
 #include <iostream>
+#include <Network/LengthTcpSession.h>
 #include "Util/logger.h"
 #include "Network/TcpClient.h"
 using namespace std;
@@ -51,7 +52,13 @@ protected:
 	}
 	virtual void onSend() override{
 		//发送阻塞后，缓存清空事件
-		DebugL;
+		DebugL << "onSend";
+		if (_sock->isSocketBusy()) {
+			InfoL << "socket busy";
+		} else {
+			InfoL << "socket not busy";
+//			shutdown();
+		}
 	}
 	virtual void onErr(const SockException &ex) override{
 		//断开连接事件，一般是EOF
@@ -74,6 +81,14 @@ private:
 	int _nTick = 0;
 };
 
+void packet_buffer(BufferRaw::Ptr& ptr, const string& data) {
+    int data_len = data.size();
+    char* t_data_len = (char*)malloc(sizeof(unsigned int));
+    _Int2Chars(t_data_len, data_len);
+    ptr->setCapacity(sizeof(unsigned int) + data_len);
+    ptr->append(t_data_len, sizeof(unsigned int));
+    ptr->append(data.c_str(), data_len);
+}
 
 int main() {
     signal(SIGINT, [](int) { EventPoller::Instance().shutdown(); });// 设置退出信号
@@ -84,7 +99,26 @@ int main() {
     {
         TestClient::Ptr client(new TestClient());//必须使用智能指针
         client->connect();//连接服务器
-		client->send("....");
+
+        BufferRaw::Ptr ptr = std::make_shared<BufferRaw>();
+        packet_buffer(ptr, ".");
+
+        client->send(ptr);
+//        client->shutdown();
+        /*char* buffer = ptr->data();
+        int stamp = _Chars2Int(buffer);
+        InfoL << stamp;
+        int size = ptr->size();
+        int fragment = 3;
+        for (int i = 0; i < size; i += fragment) {
+            ThreadPool::Instance().sync([&]() {
+                client->send(buffer, fragment);
+                buffer += fragment;
+                usleep(1000);
+            });
+        }*/
+
+
 //		client->shutdown();
 		EventPoller::Instance().runLoop();//主线程事件轮询
     }

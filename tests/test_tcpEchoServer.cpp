@@ -23,6 +23,7 @@
  */
 #include <signal.h>
 #include <iostream>
+#include <Network/LengthTcpSession.h>
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Network/TcpServer.h"
@@ -81,6 +82,9 @@ int main() {
 
 	TcpServer::Ptr server(new TcpServer());
 	server->start<EchoSession>(9000);//监听9000端口
+	
+	TcpServer::Ptr server1(new TcpServer());
+	server1->start<LengthTcpSession>(9001);
 
 	EventPoller::Instance().runLoop();//主线程事件轮询
 

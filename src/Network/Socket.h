@@ -226,7 +226,7 @@ public:
         if(_data){
             delete [] _data;
         }
-        _data = new char[capacity];
+        _data = new char[capacity + 1];
         _capacity = capacity;
     }
     //设置有效数据大小
@@ -250,8 +250,11 @@ public:
         if (len <= 0) {
             len = strlen(data);
         }
+        uint32_t old_size = size();
         setSize(size() + len);
-        strncat(_data, data, len);
+        memcpy(_data + old_size, data, len);
+//        const char* end = "\0";
+//        strncpy(_data + 1, end, 1);
     }
 private:
     char *_data = nullptr;
