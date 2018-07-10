@@ -29,11 +29,11 @@ namespace ZL {
 namespace Util {
 
 Logger& Logger::Instance() {
-	static Logger *logger(new Logger());
+	static Logger::Ptr logger(new Logger());
 	return *logger;
 }
 void Logger::Destory() {
-	delete &Logger::Instance();
+
 }
 
 } /* namespace util */
