@@ -53,7 +53,7 @@ AsyncTaskThread::~AsyncTaskThread() {
 		delete taskThread;
 		taskThread = NULL;
 	}
-	InfoL;
+	//InfoL;
 }
 
 void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,const function<bool()> &func) {
