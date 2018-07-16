@@ -23,6 +23,7 @@
  */
 #include <signal.h>
 #include <iostream>
+#include <Network/LengthTcpSession.h>
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Network/TcpServer.h"
@@ -34,6 +35,7 @@ using namespace ZL::Network;
 
 class EchoSession: public TcpSession {
 public:
+	std::string data;
 	EchoSession(const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock) :
 			TcpSession(th, sock) {
 	}
@@ -43,6 +45,14 @@ public:
 	virtual void onRecv(const Buffer::Ptr &buf) override{
 		//处理客户端发送过来的数据
 		TraceL << buf->data();
+		if (data.empty()) {
+			data = buf->data();
+		} else {
+			data = data + std::string(buf->data());
+		}
+
+		InfoL << buf->size();
+		InfoL << "data: " << data;
 		//把数据回显至客户端
         *(this) << "recved " << buf->size() << ": " << buf;
 	}
@@ -72,6 +82,9 @@ int main() {
 
 	TcpServer::Ptr server(new TcpServer());
 	server->start<EchoSession>(9000);//监听9000端口
+	
+	TcpServer::Ptr server1(new TcpServer());
+	server1->start<LengthTcpSession>(9001);
 
 	EventPoller::Instance().runLoop();//主线程事件轮询
 

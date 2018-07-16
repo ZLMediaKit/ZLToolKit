@@ -217,12 +217,16 @@ public:
     uint32_t size() const override{
         return _size;
     }
+    //容量大小
+    uint32_t capacity() const {
+        return _capacity;
+    }
     //分配内存大小
     void setCapacity(uint32_t capacity){
         if(_data){
             delete [] _data;
         }
-        _data = new char[capacity];
+        _data = new char[capacity + 1];
         _capacity = capacity;
     }
     //设置有效数据大小
@@ -240,6 +244,17 @@ public:
         setCapacity(size);
         memcpy(_data,data,size);
         setSize(size);
+    }
+    //添加数据
+    void append(const char* data, uint32_t len = 0) {
+        if (len <= 0) {
+            len = strlen(data);
+        }
+        uint32_t old_size = size();
+        setSize(size() + len);
+        memcpy(_data + old_size, data, len);
+//        const char* end = "\0";
+//        strncpy(_data + 1, end, 1);
     }
 private:
     char *_data = nullptr;

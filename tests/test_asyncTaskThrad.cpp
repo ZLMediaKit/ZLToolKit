@@ -33,19 +33,55 @@ using namespace std;
 using namespace ZL::Util;
 using namespace ZL::Poller;
 
+class A {
+public:
+	int m_num;
+
+	A() {
+		std::cout << "construct A" << std::endl;
+	}
+
+	~A() {
+		std::cout << "Deconstruct A" << std::endl;
+	}
+
+	inline int operator++() {
+		return m_num++;
+	}
+
+	inline A& operator+(const A& b) {
+		this->m_num = this->m_num + b.m_num;
+		return *this;
+	}
+
+};
+
 
 int main() {
+
 	//设置程序退出信号处理函数
-	signal(SIGINT, [](int){EventPoller::Instance().shutdown();});
+	signal(SIGINT, [](int){
+		EventPoller::Instance().shutdown();
+	});
 	//设置日志系统
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	std::shared_ptr<int> pCount1(new int(0));
+
+	std::shared_ptr<A> aCount2 = std::make_shared<A>();
+
+	std::shared_ptr<A> aCount1 = std::make_shared<A>();
+
+	aCount2 = aCount1;
+
+	std::cout << "aCount2: " << aCount2.use_count() << std::endl;
+
 	//设置一个定时任务，任务标记为1
-	AsyncTaskThread::Instance().DoTaskDelay(1,1000,[pCount1](){
+	AsyncTaskThread::Instance().DoTaskDelay(1,1000,[pCount1, aCount1](){
 		//该任务是打印一段日志，每隔1秒执行一次
 		DebugL << "timer type 1:" << ++(*pCount1);
+		DebugL << "timer type 1, A: " << ++(*aCount1);
 		return true;//返回true代表下次(1秒后)再次持续该任务，否则停止重复
 	});
 
@@ -57,15 +93,19 @@ int main() {
 	});
 
 	//创建一个任务5秒后执行
-	AsyncTaskThread::Instance().DoTaskDelay(2,5000,[](){
+	AsyncTaskThread::Instance().DoTaskDelay(2,5000,[aCount1](){
 		//取消所有标记为1的任务
 		AsyncTaskThread::Instance().CancelTask(1);
+
+		DebugL << "aCount1 user count: "<< aCount1.use_count();
 		DebugL << "all timer was canceled after 5 second";
+		raise(SIGINT);
+
 		return false;//该任务只执行一次
 	});
-
+	InfoL << "Before runLoop";
 	EventPoller::Instance().runLoop();//主线程事件轮询
-
+	InfoL << "After runLoop";
 	//程序开始退出，做些清理工作
 	EventPoller::Destory();
 	Logger::Destory();

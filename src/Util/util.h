@@ -80,7 +80,8 @@ std::string trim(std::string &&s,const string &chars=" \r\n\t");
 std::string &strToLower(std::string &str);
 // string转大写
 std::string &strToUpper(std::string &str);
-
+void _Int2Chars(char *out_ch, int in_i);
+int _Chars2Int(char *in_ch);
 
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));
