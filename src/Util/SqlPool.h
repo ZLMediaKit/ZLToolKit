@@ -50,6 +50,7 @@ public:
 	static void Destory();
 
 	void setSize(int size) {
+		checkInited();
 		pool->setSize(size);
 	}
 	template<typename ...Args>
@@ -80,10 +81,10 @@ public:
 		return _query(rowID,ret, sql.c_str());
 	}
 	static const string &escape(const string &str) {
+		SqlPool::Instance().checkInited();
 		try {
 			//捕获创建对象异常
-			SqlPool::Instance().pool->obtain()->escape(
-					const_cast<string &>(str));
+			SqlPool::Instance().pool->obtain()->escape(const_cast<string &>(str));
 		} catch (exception &e) {
 			WarnL << e.what() << endl;
 		}
@@ -111,6 +112,7 @@ private:
 	}
 	template<typename ...Args>
 	inline int64_t _query(int64_t &rowID,Args &&...arg) {
+		checkInited();
 		typename PoolType::ValuePtr mysql;
 		try {
 			//捕获执行异常
@@ -141,7 +143,11 @@ private:
 		pool.reset();
 		InfoL;
 	}
-
+	void checkInited(){
+		if(!pool){
+			throw std::runtime_error("请先调用SqlPool::Init初始化数据库连接池");
+		}
+	}
 private:
 	struct sqlQuery {
 		sqlQuery(const string &sql,int cnt):sql_str(sql),tryCnt(cnt){}
@@ -149,6 +155,7 @@ private:
 		int tryCnt = 0;
 	} ;
 
+private:
 	deque<sqlQuery> error_query;
 	std::shared_ptr<ThreadPool> threadPool;
 	mutex error_query_mutex;
