@@ -114,6 +114,7 @@ public:
 				session->onError(SockException(Err_other,"Tcp server shutdown!"));
 			});
 		}
+		_sessionMap->clear();
 		TraceL << "clean tcp server completed!";
 	}
 
