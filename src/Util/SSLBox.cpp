@@ -104,7 +104,7 @@ SSL_Initor::~SSL_Initor() {
 	ERR_clear_error();
 	ERR_remove_state(0);
 	CRYPTO_set_locking_callback(NULL);
-	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
+	//sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
 	CRYPTO_cleanup_all_ex_data();
 	CONF_modules_unload(1);
 	CONF_modules_free();
