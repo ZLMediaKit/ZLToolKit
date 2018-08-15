@@ -59,7 +59,7 @@ public:
 			return false;
 		}
 		for(auto &pr : it0->second){
-			typedef function<void(ArgsType &&...)> funType;
+			typedef function<void(decltype(std::forward<ArgsType>(args))...)> funType;
 			funType *obj = (funType *)(pr.second.get());
 			try{
 				(*obj)(std::forward<ArgsType>(args)...);
@@ -106,6 +106,10 @@ public:
 		}
 	}
 
+	void clearAll(){
+        lock_guard<recursive_mutex> lck(_mtxListener);
+        _mapListener.clear();
+    }
 private:
 	NoticeCenter(){}
 	recursive_mutex _mtxListener;
