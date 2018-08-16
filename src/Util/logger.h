@@ -115,7 +115,7 @@ public:
     }
 
     void setWriter(const std::shared_ptr<LogWriter> &writer) {
-        _writer = _writer;
+        _writer = writer;
     }
 
     void write(const LogInfoPtr &stream) {
