@@ -225,12 +225,12 @@ void EventPoller::sync(const PollAsyncCB &syncCb) {
     sem.wait();
 }
 
-void EventPoller::async(const PollAsyncCB &asyncCb) {
+void EventPoller::async(const PollAsyncCB &asyncCb,bool may_sync) {
     TimeTicker();
     if (!asyncCb) {
         return;
     }
-    if (_mainThreadId == this_thread::get_id()) {
+    if (may_sync && _mainThreadId == this_thread::get_id()) {
         asyncCb();
         return;
     }
