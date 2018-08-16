@@ -56,13 +56,13 @@ public:
     virtual string getIdentifier() const;
     //在TcpSession绑定的线程中异步排队执行任务
 	template <typename T>
-	void async(T &&task) {
-		_th->async(std::forward<T>(task));
+	void async(T &&task,bool may_sync = true) {
+		_th->async(std::forward<T>(task),may_sync);
 	}
     //在TcpSession绑定的线程中最高优先级异步执行任务
     template <typename T>
-	void async_first(T &&task) {
-		_th->async_first(std::forward<T>(task));
+	void async_first(T &&task,bool may_sync = true) {
+		_th->async_first(std::forward<T>(task),may_sync);
 	}
     //安全的脱离TcpServer并触发onError事件
     void safeShutdown();

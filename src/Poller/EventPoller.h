@@ -87,7 +87,7 @@ public:
 	int delEvent(int fd, const PollDelCB &delCb = nullptr);
 	int modifyEvent(int fd, int event);
 
-	void async(const PollAsyncCB &asyncCb);
+	void async(const PollAsyncCB &asyncCb,bool may_sync = true);
 	void sync(const PollSyncCB &syncCb);
 
 	void runLoop(bool blocked = true);

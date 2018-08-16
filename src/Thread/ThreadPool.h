@@ -60,11 +60,11 @@ public:
 
 	//把任务打入线程池并异步执行
 	template <typename T>
-	bool async(T &&task) {
+	bool async(T &&task,bool may_sync = true) {
 		if (!_avaible) {
 			return false;
 		}
-		if (_thread_group.is_this_thread_in()) {
+		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
 			_queue.push_task(std::forward<T>(task));
@@ -72,11 +72,11 @@ public:
 		return true;
 	}
 	template <typename T>
-	bool async_first(T &&task) {
+	bool async_first(T &&task,bool may_sync = true) {
 		if (!_avaible) {
 			return false;
 		}
-		if (_thread_group.is_this_thread_in()) {
+		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
 			_queue.push_task_first(std::forward<T>(task));
