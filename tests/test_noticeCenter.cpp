@@ -47,13 +47,13 @@ int main() {
 	//addListener方法第一个参数是标签，用来删除监听时使用
 	//需要注意的是监听回调的参数列表个数类型需要与emitEvent广播时的完全一致，否则会有无法预知的错误
 	NoticeCenter::Instance().addListener(0,NOTICE_NAME1,
-			[](int a,const char *b,double c,string &d){
+			[](int &a,const char * &b,double &c,string &d){
 		DebugL << a << " " << b << " " << c << " " << d;
 	});
 
 	//监听NOTICE_NAME2事件
 	NoticeCenter::Instance().addListener(0,NOTICE_NAME2,
-			[](string &d,double c,const char *b,int a){
+			[](string &d,double &c,const char *&b,int &a){
 		DebugL << a << " " << b << " " << c << " " << d;
 	});
 	int a = 0;
