@@ -28,12 +28,12 @@
 namespace ZL {
 namespace Util {
 
+static Logger::Ptr logger(new Logger());
 Logger& Logger::Instance() {
-	static Logger::Ptr logger(new Logger());
 	return *logger;
 }
 void Logger::Destory() {
-
+	logger.reset();
 }
 
 } /* namespace util */

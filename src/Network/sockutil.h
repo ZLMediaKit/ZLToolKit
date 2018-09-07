@@ -40,6 +40,8 @@
 #include <netinet/tcp.h>
 #endif // defined(_WIN32)
 
+#include <map>
+#include <vector>
 #include <string>
 #include <string.h>
 #include <stdint.h>
@@ -91,6 +93,7 @@ public:
 
 	static int getSockError(int sockFd);
 	static int setCloseWait(int sockFd, int second = 0);
+	static vector<map<string,string> > getInterfaceList();
 
 	static string get_local_ip(int fd);
 	static string get_local_ip();
@@ -108,6 +111,7 @@ public:
 	static string get_ifr_brdaddr(const char *ifrName);
     //是否为同一网段
 	static bool in_same_lan(const char *myIp, const char *dsrIp);
+
 };
 
 }  // namespace Network

@@ -98,10 +98,14 @@ typedef enum {
 class SockException: public std::exception {
 public:
 	SockException(ErrCode errCode = Err_success,
-                  const string &errMsg = "") {
-		_errMsg = errMsg;
-		_errCode = errCode;
-	}
+                   const string &errMsg = "",
+                   int customCode = 0) {
+        _errMsg = errMsg;
+        _errCode = errCode;
+        _customCode = customCode;
+
+    }
+
     //重置错误
 	void reset(ErrCode errCode, const string &errMsg) {
 		_errMsg = errMsg;

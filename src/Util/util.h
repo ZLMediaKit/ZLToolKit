@@ -44,22 +44,23 @@ using namespace std;
 namespace ZL {
 namespace Util {
 
-class _StrPrinter : public stringstream {
+class _StrPrinter : public string {
 public:
     _StrPrinter() {}
 
     template<typename T>
-    _StrPrinter& operator <<(const T& data) {
-        ((stringstream &)(*this)) << data;
+    _StrPrinter& operator <<(T && data) {
+        _stream << std::forward<T>(data);
+        this->string::operator=(_stream.str());
         return *this;
     }
 
-    operator string (){
-        return str();
-    }
     string operator <<(std::ostream&(*f)(std::ostream&)) const {
-        return str();
+        return *this;
     }
+
+private:
+    stringstream _stream;
 };
 
 #define StrPrinter _StrPrinter()

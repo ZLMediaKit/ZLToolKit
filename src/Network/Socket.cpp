@@ -177,11 +177,11 @@ SockException Socket::getSockErr(const SockFD::Ptr &sock, bool tryErrno) {
 	case UV_EAGAIN:
 		return SockException(Err_success, "success");
 	case UV_ECONNREFUSED:
-		return SockException(Err_refused, uv_strerror(error));
+		return SockException(Err_refused, uv_strerror(error),error);
 	case UV_ETIMEDOUT:
-		return SockException(Err_timeout, uv_strerror(error));
+		return SockException(Err_timeout, uv_strerror(error),error);
 	default:
-		return SockException(Err_other, uv_strerror(error));
+		return SockException(Err_other, uv_strerror(error),error);
 	}
 }
 bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {

@@ -458,6 +458,40 @@ string SockUtil::get_local_ip() {
 #endif
 }
 
+vector<map<string,string> > SockUtil::getInterfaceList(){
+	vector<map<string,string> > ret;
+#if defined(__APPLE__)
+    for_each_netAdapter_apple([&](struct ifaddrs *adapter){
+        map<string,string> obj;
+        obj["ip"] = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+        obj["name"] = adapter->ifa_name;
+        ret.emplace_back(std::move(obj));
+        return false;
+    });
+#elif defined(_WIN32)
+	for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
+		IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
+		while (ipAddr) {
+			map<string,string> obj;
+			obj["ip"] = ipAddr->IpAddress.String;
+			obj["name"] = adapter->AdapterName
+			ret.emplace_back(std::move(obj));
+			ipAddr = ipAddr->Next;
+		}
+		return false;
+	});
+#else
+	for_each_netAdapter_posix([&](struct ifreq *adapter){
+		map<string,string> obj;
+		obj["ip"] = inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+		obj["name"] = adapter->ifr_name;
+		ret.emplace_back(std::move(obj));
+		return false;
+	});
+#endif
+	return ret;
+};
+
 uint16_t SockUtil::get_local_port(int fd) {
 	struct sockaddr addr;
 	struct sockaddr_in* addr_v4;
@@ -650,7 +684,7 @@ string SockUtil::get_ifr_mask(const char* ifrName) {
 	memset(&ifr_mask, 0, sizeof(ifr_mask));
 	strncpy(ifr_mask.ifr_name, ifrName, sizeof(ifr_mask.ifr_name) - 1);
 	if ((ioctl(sockFd, SIOCGIFNETMASK, &ifr_mask)) < 0) {
-		WarnL << "ioctl 失败:" << get_uv_errmsg(true);
+		WarnL << "ioctl 失败:" << ifrName << " " << get_uv_errmsg(true);
 		close(sockFd);
 		return "";
 	}

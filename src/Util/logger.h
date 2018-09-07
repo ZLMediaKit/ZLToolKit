@@ -96,6 +96,7 @@ public:
 
     static Logger &Instance();
     static void Destory();
+    Logger() {}
     ~Logger() {}
 
     void add(const std::shared_ptr<LogChannel> &channel) {
@@ -133,7 +134,6 @@ public:
     }
 
 private:
-    Logger() {}
     // Non-copyable and non-movable
     Logger(const Logger &); // = delete;
     Logger(Logger &&); // = delete;
