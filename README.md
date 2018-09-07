@@ -1,14 +1,12 @@
 # 一个基于C++11简单易用的轻量级网络编程框架
-平台|编译状态
-----|-------
-Linux | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
-macOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_mac)
-iOS | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_ios)
-Android | [![Build Status](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKt-build_for_android)
-Windows | 已经完成移植
+[![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
 
-## 项目初衷
-多年的编程经历让我接触过多种网络开源库，譬如libevent、libev、libuv、boost.asio等等。这些开源框架有些是用C语言开发的，里面包含了各种难以阅读层层嵌套佶屈聱牙的宏，学习起来非常费力；有些使用起来又不甚方便，代码被切割成碎片零零碎碎；有些虽然使用简单，但是却非常宏大，牵涉各种代码，配置复杂，很难交叉编译。由于作者既从事过linux服务器编程又有jni、ios的编程经历，所以一直以来在寻求既能在服务器端高效运行又能在嵌入式平台方便开发的方法，但是一直没有找到比较合适的方案；于是作者大约在一年前开始整理多年的工作成果积累，抽取经过时间检验证明稳定有效的代码并且参考其他成熟的框架形成了这个项目。后面在我使用该项目（初期版本）用于实际开发，一路林林总总遇到了很多问题，但是在后面几个月不间断的调试、测试、修正、优化等过程中项目代码逐渐沉淀稳定，经过长时高强度的测试之后我把代码提交到github形成了这个项目。
+## 项目特点
+- 基于C++11开发，避免使用裸指针，代码稳定可靠；同时跨平台移植简单方便，代码清晰简洁。
+- 使用epoll+线程池+异步网络IO模式开发，并发性能优越。
+- 代码经过大量的稳定性、性能测试，可满足商用服务器项目。
+- 支持linux、macos、ios、android、windows平台
+- 了解更多:[ZLMediaKit](https://github.com/xiongziliang/ZLMediaKit)
 
 ## 特性
 - 网络库
@@ -17,9 +15,7 @@ Windows | 已经完成移植
   - 对套接字多种操作的封装。
 - 线程库
   - 使用线程实现的简单易用的定时器。
-  - 读写锁。
-  - 信号量的封装（ios下用条件变量实现）。
-  - 自旋锁。
+  - 信号量。
   - 线程组。
   - 简单易用的线程池，可以异步或同步执行任务，支持functional 和 lambad表达式。
 - 工具库
@@ -33,10 +29,6 @@ Windows | 已经完成移植
   - 简单易用的ssl加解密黑盒，支持多线程。
   - 其他一些有用的工具。
   - 命令行解析工具，可以很便捷的实现可配置应用程序
- 
-## 警告
-该分支为开发分支，代码可能极度不稳定！
-
 
 ## 编译(Linux)
 - 我的编译环境
