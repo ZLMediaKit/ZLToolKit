@@ -44,7 +44,7 @@ class WorkThreadPool :
         public TaskExecutorGetter{
 public:
 	typedef std::shared_ptr<WorkThreadPool> Ptr;
-	TaskExecutor::Ptr getExecutor() override;
+	const TaskExecutor::Ptr& getExecutor() const override;
     ~WorkThreadPool();
 
     static WorkThreadPool &Instance();
@@ -53,7 +53,7 @@ private:
     WorkThreadPool(int threadnum = thread::hardware_concurrency());
 private:
 	int threadnum;
-	atomic<int> threadPos;
+	mutable atomic<int> threadPos;
 	vector <TaskExecutor::Ptr > threads;
 };
 

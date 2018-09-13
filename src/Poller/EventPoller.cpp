@@ -55,15 +55,11 @@ using namespace ZL::Network;
 namespace ZL {
 namespace Poller {
 
-static EventPoller::Ptr s_instance;
 EventPoller &EventPoller::Instance() {
-    static onceToken s_token([](){
-        s_instance.reset(new EventPoller);
-    });
-    return *s_instance;
+    return *(EventPollerPool::Instance().getFirstPoller());
 }
 void EventPoller::Destory() {
-    s_instance.reset();
+    Instance().shutdown();
 }
 
 EventPoller::EventPoller() {
@@ -125,7 +121,7 @@ EventPoller::~EventPoller() {
     //退出前清理管道中的数据
     _mainThreadId = this_thread::get_id();
     handlePipeEvent();
-    InfoL;
+    InfoL << this;
 }
 
 int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
@@ -304,12 +300,21 @@ inline bool EventPoller::handlePipeEvent() {
 
 
 void EventPoller::runLoop(bool blocked) {
-    if (!_mtx_runing.try_lock()) {
-        throw std::runtime_error("EventPoller::runLoop is running!");
-    }
-    _mtx_runing.unlock();
     if (blocked) {
-        lock_guard<mutex> lck(_mtx_runing);
+        onceToken token([this](){
+            //获取锁
+            _mtx_runing.lock();
+        },[this](){
+            //释放锁并标记已经执行过runLoop
+            _loopRunned = true;
+            _mtx_runing.unlock();
+        });
+
+        if(_loopRunned){
+            //runLoop已经被执行过了，不能执行两次
+            return;
+        }
+
         _mainThreadId = this_thread::get_id();
         ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
 #if defined(HAS_EPOLL)
@@ -333,7 +338,6 @@ void EventPoller::runLoop(bool blocked) {
                         return;
                     }
                     if (!handlePipeEvent()) {
-                        InfoL << "Poller 退出监听。";
                         return;
                     }
                     continue;
@@ -389,7 +393,6 @@ void EventPoller::runLoop(bool blocked) {
             if (Set_read.isSet(_pipe.readFD())) {
                 //判断有否监听操作
                 if (!handlePipeEvent()) {
-                    InfoL << "EventPoller exiting...";
                     break;
                 }
                 if (ret == 1) {
@@ -455,11 +458,15 @@ EventPollerPool::~EventPollerPool() {
     threads.clear();
 }
 
-TaskExecutor::Ptr EventPollerPool::getExecutor() {
+const TaskExecutor::Ptr& EventPollerPool::getExecutor() const{
     if (++threadPos >= threadnum) {
         threadPos = 0;
     }
     return threads[threadPos.load()];
+}
+
+EventPoller::Ptr EventPollerPool::getFirstPoller() const{
+    return dynamic_pointer_cast<EventPoller>(threads.front());
 }
 
 }  // namespace Poller

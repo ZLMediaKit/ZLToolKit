@@ -97,7 +97,10 @@ public:
     static Logger &Instance();
     static void Destory();
     Logger() {}
-    ~Logger() {}
+    ~Logger() {
+        _writer.reset();
+        _channels.clear();
+    }
 
     void add(const std::shared_ptr<LogChannel> &channel) {
         _channels[channel->name()] = channel;
@@ -323,6 +326,7 @@ protected:
     inline void realWrite(const LogInfoPtr &stream) {
         auto strongLogger = _logger.lock();
         if(!strongLogger){
+            stream->format(cout);
             return;
         }
         strongLogger->writeChannels(stream);

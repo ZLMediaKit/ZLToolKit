@@ -32,7 +32,7 @@ public:
 class TaskExecutorGetter {
 public:
     typedef shared_ptr<TaskExecutorGetter> Ptr;
-    virtual TaskExecutor::Ptr getExecutor() = 0;
+    virtual const TaskExecutor::Ptr& getExecutor() const = 0;
 };
 
 }//Thread

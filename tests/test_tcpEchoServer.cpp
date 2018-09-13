@@ -78,8 +78,8 @@ int main() {
 	server.reset();//销毁服务器
 	//TcpServer 依赖线程池，需要销毁
 	WorkThreadPool::Destory();
-	EventPollerPool::Destory();
 	EventPoller::Destory();
+	EventPollerPool::Destory();
 	Logger::Destory();
 	return 0;
 }

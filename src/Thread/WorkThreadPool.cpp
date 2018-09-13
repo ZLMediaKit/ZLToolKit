@@ -58,7 +58,7 @@ WorkThreadPool::~WorkThreadPool() {
 	threads.clear();
 }
 
-TaskExecutor::Ptr WorkThreadPool::getExecutor() {
+const TaskExecutor::Ptr& WorkThreadPool::getExecutor() const {
 	if (++threadPos >= threadnum) {
 		threadPos = 0;
 	}

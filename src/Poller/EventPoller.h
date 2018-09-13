@@ -113,6 +113,7 @@ private:
 	unordered_map<int, Poll_Record> _event_map;
 #endif //HAS_EPOLL
 	string _pipeBuffer;
+	bool _loopRunned = false;
 };
 
 
@@ -125,12 +126,13 @@ public:
 
 	static EventPollerPool &Instance();
 	static void Destory();
-	TaskExecutor::Ptr getExecutor() override ;
+	EventPoller::Ptr getFirstPoller() const;
+	const TaskExecutor::Ptr& getExecutor() const override ;
 private:
 	EventPollerPool(int threadnum = thread::hardware_concurrency());
 private:
 	int threadnum;
-	atomic<int> threadPos;
+	mutable atomic<int> threadPos;
 	vector <TaskExecutor::Ptr > threads;
 };
 
