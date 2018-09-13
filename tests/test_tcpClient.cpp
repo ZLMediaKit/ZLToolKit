@@ -35,7 +35,9 @@ public:
 	typedef std::shared_ptr<TestClient> Ptr;
 	TestClient():TcpClient(nullptr, nullptr) {
 	}
-	~TestClient(){}
+	~TestClient(){
+		DebugL;
+	}
 	void connect(){
 		//这里改成实际服务器地址
 		startConnect("127.0.0.1",9000);

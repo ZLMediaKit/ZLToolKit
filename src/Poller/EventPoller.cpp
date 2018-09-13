@@ -60,6 +60,7 @@ EventPoller &EventPoller::Instance() {
 }
 void EventPoller::Destory() {
     Instance().shutdown();
+    EventPollerPool::Destory();
 }
 
 EventPoller::EventPoller() {

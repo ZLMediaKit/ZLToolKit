@@ -61,10 +61,11 @@ public:
 			sem_post(&_sem);
 		}
 #else
+		unique_lock<mutex> lock(_mutex);
 		_count += n;
 		do{
-			_condition.notify_one();
-		}while(--n);
+            _condition.notify_one();
+        }while(--n);
 #endif
 
 	}
@@ -72,8 +73,8 @@ public:
 #if defined(HAVE_SEM)
 		sem_wait(&_sem);
 #else
-        while (_count == 0) {
-			unique_lock<mutex> lock(_mutex);
+		unique_lock<mutex> lock(_mutex);
+		while (_count == 0) {
 			_condition.wait(lock);
 		}
 		--_count;
@@ -83,7 +84,7 @@ private:
 #if defined(HAVE_SEM)
 	sem_t _sem;
 #else
-	atomic_int _count;
+	int _count;
 	mutex _mutex;
 	condition_variable_any _condition;
 #endif
