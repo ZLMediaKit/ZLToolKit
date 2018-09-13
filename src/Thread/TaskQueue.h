@@ -39,24 +39,21 @@ namespace ZL {
 namespace Thread {
 
 //实现了一个基于函数对象的任务列队，该列队是线程安全的，任务列队任务数由信号量控制
+template<typename T>
 class TaskQueue {
 public:
-	TaskQueue() {
-	}
 	//打入任务至列队
-	template <typename T>
-	void push_task(T &&task_func) {
+	void push_task(const T &task_func) {
 		{
 			lock_guard<decltype(_mutex)> lock(_mutex);
-			_queue.emplace_back(std::forward<T>(task_func));
+			_queue.emplace_back(task_func);
 		}
 		_sem.post();
 	}
-	template <typename T>
-	void push_task_first(T &&task_func) {
+	void push_task_first(const T &task_func) {
 		{
             lock_guard<decltype(_mutex)> lock(_mutex);
-			_queue.emplace_front(std::forward<T>(task_func));
+			_queue.emplace_front(task_func);
 		}
 		_sem.post();
 	}
@@ -65,7 +62,7 @@ public:
 		_sem.post(n);
 	}
 	//从列队获取一个任务，由执行线程执行
-	bool get_task(function<void(void)> &tsk) {
+	bool get_task(T &tsk) {
 		_sem.wait();
         lock_guard<decltype(_mutex)> lock(_mutex);
 		if (_queue.size() == 0) {
@@ -84,7 +81,7 @@ private:
     //经过对比List,std::list,std::deque三种容器发现，
     //在i5-6200U单线程环境下，执行1000万个任务时，分别耗时1.3，2.4，1.8秒左右
     //所以此处我们替换成性能最好的List模板
-	List<function<void(void)> > _queue;
+	List<T> _queue;
 	mutable mutex _mutex;
 	semaphore _sem;
 };

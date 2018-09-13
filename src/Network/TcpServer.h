@@ -86,15 +86,53 @@ private:
 
 //TCP服务器，可配置的；配置通过TcpSession::attachServer方法传递给会话对象
 //该对象是非线程安全的，务必在主线程中操作
-class TcpServer : public mINI {
+class TcpServer : public mINI , public std::enable_shared_from_this<TcpServer>{
 public:
 	typedef std::shared_ptr<TcpServer> Ptr;
     typedef unordered_map<string, TcpSession::Ptr > SessionMapType;
 
-    TcpServer() {
-		_socket.reset(new Socket());
-		_sessionMap.reset(new SessionMapType);
-        _socket->setOnAccept( bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
+    /**
+     * 原先的方式是网络事件、数据读取在poller循环中触发，但是处理在后台线程中执行
+     * 目前提供两种方式创建TcpServer
+     * 1:executorGetter 为WorkThreadPool类型
+     * 2:executorGetter 为EventPollerPool类型
+     *
+     * 方式1：
+     * 		此种方式创建的Tcp服务器，所有网络事件会在poller循环中触发，
+     * 		但是数据的读取、处理等事件会在后台线程中触发
+     * 		所以这种方式跟最初方式相比，poller轮询线程负担更小，网路吞吐量更大
+     * 		但是这种方式存在poller线程切换到后台线程的过程，可能性能不是最佳
+     *
+     * 方式2：
+     * 		此种方式创建的Tcp服务器，父文件描述符的accept事件在poller循环中触发
+     * 		但是子文件描述符的所有事件、数据读取、数据处理都是在从WorkThreadPool中获取的poller线程中执行
+     * 		所以这种方式跟最初方式相比，网络事件的触发会派发到多个poller线程中执行
+     * 		这种方式网络吞吐量最大
+     *
+     * 综上，推荐方式2
+     * 构造方式参考为 : std::make_shared<TcpServer>(nullptr,nullptr);
+     *
+     * @param executorGetter 任务执行器获取器
+     * @param poller 事件轮询器
+     */
+    TcpServer(const TaskExecutorGetter::Ptr executorGetter /*= nullptr*/,
+			  const EventPoller::Ptr &poller /*= nullptr*/ ) {
+		_executorGetter = executorGetter;
+		if(!_executorGetter){
+			_executorGetter = EventPollerPool::Instance().shared_from_this();
+		}
+		_poller = poller;
+		if(!_poller){
+			_poller = dynamic_pointer_cast<EventPoller>(_executorGetter->getExecutor());
+			if(!_poller){
+				_poller = EventPoller::Instance().shared_from_this();
+			}
+		}
+
+		_executor = _poller;
+		_socket.reset(new Socket(_poller,_executor));
+        _socket->setOnAccept(bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
+		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection, this, placeholders::_1, placeholders::_2));
     }
 
 	~TcpServer() {
@@ -104,7 +142,7 @@ public:
 		_socket.reset();
 
         //务必通知TcpSession已从TcpServer脱离
-		for (auto &pr : *_sessionMap) {
+		for (auto &pr : _sessionMap) {
             //从全局的map中移除记录
             SessionMap::Instance().remove(pr.first);
 
@@ -114,7 +152,7 @@ public:
 				session->onError(SockException(Err_other,"Tcp server shutdown!"));
 			});
 		}
-		_sessionMap->clear();
+		_sessionMap.clear();
 		TraceL << "clean tcp server completed!";
 	}
 
@@ -122,8 +160,8 @@ public:
     template <typename SessionType>
 	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
         //TcpSession创建器，通过它创建不同类型的服务器
-        _sessionMaker = [](const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock){
-            return std::make_shared<SessionType>(th,sock);
+        _sessionMaker = [](const Socket::Ptr &sock){
+            return std::make_shared<SessionType>(sock);
         };
 
         if (!_socket->listen(port, host.c_str(), backlog)) {
@@ -136,7 +174,7 @@ public:
 		_timer.reset(new Timer(2, [this]()->bool {
 			this->onManagerSession();
 			return true;
-		}));
+		},_executor));
 		InfoL << "TCP Server listening on " << host << ":" << port;
 	}
 	 uint16_t getPort(){
@@ -146,10 +184,21 @@ public:
 		 return _socket->get_local_port();
 	 }
 private:
+	Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &,const TaskExecutor::Ptr &){
+    	//获取任务执行器
+    	auto executor = _executorGetter->getExecutor();
+    	//该任务执行器可能是ThreadPool也可能是EventPoller
+		EventPoller::Ptr poller = dynamic_pointer_cast<EventPoller>(executor);
+		if(!poller){
+			//如果executor不是EventPoller，那么赋值为TcpServer的poller
+			poller = _poller;
+		}
+		return std::make_shared<Socket>(poller,executor);
+    }
     // 接收到客户端连接请求
     void onAcceptConnection(const Socket::Ptr & sock) {
         //创建一个TcpSession;这里实现创建不同的服务会话实例
-		auto session = _sessionMaker(WorkThreadPool::Instance().getWorkThread(), sock);
+		auto session = _sessionMaker(sock);
         //把本服务器的配置传递给TcpSession
         session->attachServer(*this);
 
@@ -163,7 +212,7 @@ private:
         }
         //SessionMap中没有相关记录，那么_sessionMap更不可能有相关记录了；
         //所以_sessionMap::emplace肯定能成功
-        auto success = _sessionMap->emplace(sessionId, session).second;
+        auto success = _sessionMap.emplace(sessionId, session).second;
         assert(success == true);
 
         weak_ptr<TcpSession> weakSession(session);
@@ -175,39 +224,36 @@ private:
 				//会话对象已释放
 				return;
 			}
-			//在会话线程中执行onRecv操作
-			strongSession->async([weakSession,buf]() {
-				auto strongSession=weakSession.lock();
-				if(!strongSession) {
-					return;
-				}
-				strongSession->onRecv(buf);
-			});
+			strongSession->onRecv(buf);
 		});
 
-        auto sessionMapTmp = _sessionMap;
-        //会话接收到错误事件
-		sock->setOnErr([weakSession,sessionId,sessionMapTmp](const SockException &err){
+		weak_ptr<TcpServer> weakSelf = shared_from_this();
+		//会话接收到错误事件
+		sock->setOnErr([weakSelf,weakSession,sessionId](const SockException &err){
+			//移除掉会话
+            SessionMap::Instance().remove(sessionId);
+			auto strongSelf = weakSelf.lock();
+			if(strongSelf){
+				strongSelf->_executor->async([weakSelf,sessionId](){
+					auto strongSelf = weakSelf.lock();
+					if(!strongSelf){
+						return;
+					}
+					strongSelf->_sessionMap.erase(sessionId);
+				});
+			}
+
 			//获取会话强应用
 			auto strongSession=weakSession.lock();
-			//移除掉会话
-			sessionMapTmp->erase(sessionId);
-            SessionMap::Instance().remove(sessionId);
-            if(!strongSession) {
-				//会话对象已释放
-				return;
-			}
-			//在会话线程中执行onError操作
-			strongSession->async_first([strongSession,err]() {
-                //传递强指针是为了确保onError在脱离TCPServer后一定会执行
+            if(strongSession) {
 				strongSession->onError(err);
-			});
+			}
 		});
 	}
 
     //定时管理Session
 	void onManagerSession() {
-		for (auto &pr : *_sessionMap) {
+		for (auto &pr : _sessionMap) {
 			weak_ptr<TcpSession> weakSession = pr.second;
 			pr.second->async([weakSession]() {
 				auto strongSession=weakSession.lock();
@@ -219,10 +265,14 @@ private:
 		}
 	}
 private:
+    EventPoller::Ptr _poller;
+	TaskExecutor::Ptr _executor;
+	TaskExecutorGetter::Ptr _executorGetter;
+
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
-    std::shared_ptr<SessionMapType > _sessionMap;
-    function<TcpSession::Ptr(const std::shared_ptr<ThreadPool> &, const Socket::Ptr &)> _sessionMaker;
+	SessionMapType _sessionMap;
+    function<TcpSession::Ptr(const Socket::Ptr &)> _sessionMaker;
 };
 
 } /* namespace Network */

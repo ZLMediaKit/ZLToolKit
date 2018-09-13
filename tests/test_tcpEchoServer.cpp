@@ -34,8 +34,8 @@ using namespace ZL::Network;
 
 class EchoSession: public TcpSession {
 public:
-	EchoSession(const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock) :
-			TcpSession(th, sock) {
+	EchoSession(const Socket::Ptr &sock) :
+			TcpSession(sock) {
 	}
 	virtual ~EchoSession() {
 		DebugL;
@@ -70,7 +70,7 @@ int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	TcpServer::Ptr server(new TcpServer());
+	TcpServer::Ptr server(new TcpServer(nullptr, nullptr));
 	server->start<EchoSession>(9000);//监听9000端口
 
 	EventPoller::Instance().runLoop();//主线程事件轮询
@@ -78,6 +78,7 @@ int main() {
 	server.reset();//销毁服务器
 	//TcpServer 依赖线程池，需要销毁
 	WorkThreadPool::Destory();
+	EventPollerPool::Destory();
 	EventPoller::Destory();
 	Logger::Destory();
 	return 0;

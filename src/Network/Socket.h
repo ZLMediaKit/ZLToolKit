@@ -38,6 +38,7 @@
 #include "Util/TimeTicker.h"
 #include "Util/ResourcePool.h"
 #include "Poller/Timer.h"
+#include "Poller/EventPoller.h"
 #include "Network/sockutil.h"
 
 using namespace std;
@@ -157,8 +158,9 @@ class SockFD : public noncopyable
 {
 public:
 	typedef std::shared_ptr<SockFD> Ptr;
-	SockFD(int sock){
+	SockFD(int sock,const EventPoller::Ptr &poller){
 		_sock = sock;
+        _poller = poller;
 	}
 	virtual ~SockFD(){
         ::shutdown(_sock, SHUT_RDWR);
@@ -166,7 +168,7 @@ public:
         unsetSocketOfIOS(_sock);
 #endif //OS_IPHONE
         int fd =  _sock;
-        EventPoller::Instance().delEvent(fd,[fd](bool){
+        _poller->delEvent(fd,[fd](bool){
             close(fd);
         });
 	}
@@ -180,6 +182,7 @@ public:
 	}
 private:
 	int _sock;
+    EventPoller::Ptr _poller;
 #if defined (OS_IPHONE)
 	void *readStream=NULL;
 	void *writeStream=NULL;
@@ -300,7 +303,8 @@ private:
 };
 
 //异步IO套接字对象，线程安全的
-class Socket: public std::enable_shared_from_this<Socket> , public noncopyable {
+class Socket: public std::enable_shared_from_this<Socket> ,
+              public noncopyable{
 public:
     typedef std::shared_ptr<Socket> Ptr;
     //接收数据回调
@@ -312,8 +316,11 @@ public:
 	//socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
     typedef function<bool()> onFlush;
+    //在接收到连接请求前，拦截Socket默认生成方式
+    typedef function<Ptr(const EventPoller::Ptr &poller,const TaskExecutor::Ptr &executor)> onBeforeAcceptCB;
 
-	Socket();
+    Socket(const EventPoller::Ptr &poller/*= nullptr*/,
+           const TaskExecutor::Ptr &executor /*= nullptr*/);
 	virtual ~Socket();
 
     //创建tcp客户端，url可以是ip或域名
@@ -333,6 +340,9 @@ public:
     //socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
 	void setOnFlush(const onFlush &cb);
+
+	//设置Socket生成拦截器
+    void setOnBeforeAccept(const onBeforeAcceptCB &cb);
 
     ////////////线程安全的数据发送，udp套接字请传入peerAddr，否则置空////////////
     //发送裸指针数据，内部会把数据拷贝至内部缓存列队，如果要避免数据拷贝，可以调用send(const Buffer::Ptr &buf...）接口
@@ -369,6 +379,9 @@ public:
     
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
+
+    const TaskExecutor::Ptr &getExecutor() const;
+    const EventPoller::Ptr &getPoller() const;
 private:
     void closeSock();
     bool setPeerSock(int fd);
@@ -388,6 +401,8 @@ private:
     static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
 private:
     mutable mutex _mtx_sockFd;
+    EventPoller::Ptr _poller;
+    TaskExecutor::Ptr _executor;
     SockFD::Ptr _sockFd;
     recursive_mutex _mtx_sendBuf;
     deque<Packet::Ptr> _sendPktBuf;
@@ -397,10 +412,12 @@ private:
     mutex _mtx_err;
     mutex _mtx_accept;
     mutex _mtx_flush;
+    mutex _mtx_beforeAccept;
     onReadCB _readCB;
     onErrCB _errCB;
     onAcceptCB _acceptCB;
     onFlush _flushCB;
+    onBeforeAcceptCB _beforeAcceptCB;
     Ticker _flushTicker;
     atomic<bool> _enableRecv;
     atomic<bool> _canSendSock;
@@ -417,12 +434,13 @@ public:
 };
 
 //套接字以cout的方式写数据等工具
-class SocketHelper {
+class SocketHelper : public TaskExecutor{
 public:
     SocketHelper(const Socket::Ptr &sock);
     virtual ~SocketHelper();
     //重新设置socket
     void setSock(const Socket::Ptr &sock);
+    void setExecutor(const TaskExecutor::Ptr &excutor);
     //设置socket flags
     virtual SocketHelper &operator << (const SocketFlags &flags);
     //////////////////operator << 系列函数//////////////////
@@ -465,10 +483,16 @@ public:
     uint16_t get_peer_port();
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
+
+    bool async(const Task &task, bool may_sync = true) override;
+    bool async_first(const Task &task, bool may_sync = true) override;
+    bool sync(const Task &task) override;
+    bool sync_first(const Task &task) override;
 protected:
     int _flags = SOCKET_DEFAULE_FLAGS;
     Socket::Ptr _sock;
 private:
+    TaskExecutor::Ptr _executor;
     string _local_ip;
     uint16_t _local_port = 0;
     string _peer_ip;

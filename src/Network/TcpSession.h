@@ -38,11 +38,13 @@ using namespace ZL::Thread;
 namespace ZL {
 namespace Network {
 
-class TcpSession: public std::enable_shared_from_this<TcpSession> , public SocketHelper {
+class TcpSession:
+		public std::enable_shared_from_this<TcpSession> ,
+		public SocketHelper{
 public:
     typedef std::shared_ptr<TcpSession> Ptr;
 
-	TcpSession(const std::shared_ptr<ThreadPool> &th, const Socket::Ptr &sock);
+	TcpSession(const Socket::Ptr &sock);
 	virtual ~TcpSession();
     //接收数据入口
 	virtual void onRecv(const Buffer::Ptr &) = 0;
@@ -54,20 +56,8 @@ public:
     virtual void attachServer(const mINI &ini){};
     //作为该TcpSession的唯一标识符
     virtual string getIdentifier() const;
-    //在TcpSession绑定的线程中异步排队执行任务
-	template <typename T>
-	void async(T &&task,bool may_sync = true) {
-		_th->async(std::forward<T>(task),may_sync);
-	}
-    //在TcpSession绑定的线程中最高优先级异步执行任务
-    template <typename T>
-	void async_first(T &&task,bool may_sync = true) {
-		_th->async_first(std::forward<T>(task),may_sync);
-	}
     //安全的脱离TcpServer并触发onError事件
     void safeShutdown();
-private:
-    std::shared_ptr<ThreadPool> _th;
 };
 
 

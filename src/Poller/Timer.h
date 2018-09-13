@@ -38,10 +38,12 @@ namespace Poller {
 
 class Timer {
 public:
-    Timer(float second,const function<bool()> &cb);
+    Timer(float second,
+          const function<bool()> &cb,
+          const TaskExecutor::Ptr &executor/* = nullptr*/);
     virtual ~Timer();
 private:
-    std::shared_ptr<bool> canceled;
+    std::shared_ptr<bool> _canceled;
 };
 
 }  // namespace Poller

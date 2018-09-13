@@ -41,10 +41,13 @@ namespace Network {
 
 
 //Tcp客户端，接口线程安全的
-class TcpClient : public std::enable_shared_from_this<TcpClient> , public SocketHelper{
+class TcpClient :
+        public std::enable_shared_from_this<TcpClient> ,
+        public SocketHelper{
 public:
 	typedef std::shared_ptr<TcpClient> Ptr;
-	TcpClient();
+	TcpClient(const EventPoller::Ptr &poller /*= nullptr*/,
+              const TaskExecutor::Ptr &executor /*= nullptr*/);
 	virtual ~TcpClient();
     //开始连接服务器，strUrl可以是域名或ip
     void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
@@ -72,6 +75,8 @@ private:
 	void onSockErr(const SockException &ex);
 private:
     std::shared_ptr<Timer> _managerTimer;
+    EventPoller::Ptr _poller;
+    TaskExecutor::Ptr _executor;
     string _netAdapter = "0.0.0.0";
 };
 

@@ -26,35 +26,39 @@
 #include <iostream>
 #include "WorkThreadPool.h"
 #include "Util/logger.h"
+#include "Util/onceToken.h"
+#include "ThreadPool.h"
 
 using namespace ZL::Util;
 
 namespace ZL {
 namespace Thread {
 
+static WorkThreadPool::Ptr s_instance;
+
 WorkThreadPool &WorkThreadPool::Instance() {
-	static WorkThreadPool *intance(new WorkThreadPool());
-	return *intance;
+	static onceToken s_token([](){
+		s_instance.reset(new WorkThreadPool);
+	});
+	return *s_instance;
 }
 void WorkThreadPool::Destory(){
-	delete &(WorkThreadPool::Instance());
+	s_instance.reset();
 }
 	
 WorkThreadPool::WorkThreadPool(int _threadnum) :
 		threadnum(_threadnum), threadPos(-1), threads(0) {
 	for (int i = 0; i < threadnum; i++) {
-		threads.emplace_back(new ThreadPool(1, ThreadPool::PRIORITY_HIGHEST));
+		threads.emplace_back(std::make_shared<ThreadPool>(1, ThreadPool::PRIORITY_HIGHEST));
 	}
 }
 
 WorkThreadPool::~WorkThreadPool() {
 	InfoL;
-	for(auto &thread : threads){
-		thread->wait();
-	}
+	threads.clear();
 }
 
-std::shared_ptr<ThreadPool> &WorkThreadPool::getWorkThread() {
+TaskExecutor::Ptr WorkThreadPool::getExecutor() {
 	if (++threadPos >= threadnum) {
 		threadPos = 0;
 	}

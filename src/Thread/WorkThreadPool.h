@@ -31,24 +31,30 @@
 #include <atomic>
 #include <iostream>
 #include <unordered_map>
-#include "ThreadPool.h"
+#include "TaskExecutor.h"
 
 using namespace std;
 
 namespace ZL {
 namespace Thread {
 
-class WorkThreadPool {
+
+class WorkThreadPool :
+        public std::enable_shared_from_this<WorkThreadPool> ,
+        public TaskExecutorGetter{
 public:
-	WorkThreadPool(int threadnum = thread::hardware_concurrency());
-	virtual ~WorkThreadPool();
-	std::shared_ptr<ThreadPool> &getWorkThread();
-	static WorkThreadPool &Instance();
-	static void Destory();
+	typedef std::shared_ptr<WorkThreadPool> Ptr;
+	TaskExecutor::Ptr getExecutor() override;
+    ~WorkThreadPool();
+
+    static WorkThreadPool &Instance();
+    static void Destory();
+private:
+    WorkThreadPool(int threadnum = thread::hardware_concurrency());
 private:
 	int threadnum;
 	atomic<int> threadPos;
-	vector <std::shared_ptr<ThreadPool> > threads;
+	vector <TaskExecutor::Ptr > threads;
 };
 
 } /* namespace Thread */

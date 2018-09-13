@@ -44,20 +44,23 @@ public:
 	thread_group() {
 	}
 	~thread_group() {
-		for (auto &th : threads) {
+		for (auto &th : _threads) {
 			delete th.second;
 		}
 	}
 
 	bool is_this_thread_in() {
-		auto it = threads.find(this_thread::get_id());
-		return it != threads.end();
+		auto thread_id = this_thread::get_id();
+		if(_thread_id == thread_id){
+			return true;
+		}
+		return _threads.find(thread_id) != _threads.end();
 	}
 
 	bool is_thread_in(thread* thrd) {
 		if (thrd) {
-			auto it = threads.find(thrd->get_id());
-			return it != threads.end();
+			auto it = _threads.find(thrd->get_id());
+			return it != _threads.end();
 		} else {
 			return false;
 		}
@@ -65,44 +68,35 @@ public:
 
 	template<typename F>
 	thread* create_thread(F threadfunc) {
-		thread  *new_thread=new thread(threadfunc);
-		threads[new_thread->get_id()] = new_thread;
-		return new_thread;
-	}
-
-	void add_thread(thread* thrd) {
-		if (thrd) {
-			if (is_thread_in(thrd)) {
-				throw runtime_error(
-						"thread_group: trying to add a duplicated thread");
-			}
-			threads[thrd->get_id()] = thrd;
-		}
+		auto thread_new =new thread(threadfunc);
+		_thread_id = thread_new->get_id();
+		_threads[_thread_id] = thread_new;
+		return thread_new;
 	}
 
 	void remove_thread(thread* thrd) {
-		auto it = threads.find(thrd->get_id());
-		if (it != threads.end()) {
-			threads.erase(it);
+		auto it = _threads.find(thrd->get_id());
+		if (it != _threads.end()) {
+			_threads.erase(it);
 		}
 	}
 	void join_all() {
 		if (is_this_thread_in()) {
 			throw runtime_error("thread_group: trying joining itself");
-			return;
 		}
-		for (auto &it : threads) {
+		for (auto &it : _threads) {
 			if (it.second->joinable()) {
 				it.second->join(); //等待线程主动退出
 			}
 		}
+		_threads.clear();
 	}
 	size_t size() {
-		return threads.size();
+		return _threads.size();
 	}
 private:
-	unordered_map<thread::id, thread*> threads;
-
+	unordered_map<thread::id, thread*> _threads;
+	thread::id _thread_id;
 };
 
 } /* namespace Thread */

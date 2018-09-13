@@ -27,12 +27,18 @@
 namespace ZL {
 namespace Poller {
 
-Timer::Timer(float second, const function<bool()> &cb)
+Timer::Timer(float second,
+			 const function<bool()> &cb,
+			 const TaskExecutor::Ptr &executor)
 {
-	canceled.reset(new bool);
-	std::weak_ptr<bool> canceledWeak = canceled;
-	AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this),second * 1000,[this,cb,canceledWeak](){
-		ASYNC_TRACE([this,cb,canceledWeak]() {
+	_canceled.reset(new bool);
+	TaskExecutor::Ptr executor_tmp = executor;
+	if(!executor_tmp){
+		executor_tmp = EventPoller::Instance().shared_from_this();
+	}
+	std::weak_ptr<bool> canceledWeak = _canceled;
+	AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this),second * 1000,[this,cb,canceledWeak,executor_tmp](){
+		executor_tmp->async([this,cb,canceledWeak]() {
 			auto canceledStrog = canceledWeak.lock();
 			if(!canceledStrog){
 				AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));

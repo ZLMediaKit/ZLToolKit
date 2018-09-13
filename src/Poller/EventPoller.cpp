@@ -31,6 +31,7 @@
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
+#include "Util/onceToken.h"
 #include "Thread/ThreadPool.h"
 #include "Network/sockutil.h"
 
@@ -54,12 +55,15 @@ using namespace ZL::Network;
 namespace ZL {
 namespace Poller {
 
+static EventPoller::Ptr s_instance;
 EventPoller &EventPoller::Instance() {
-    static EventPoller *instance(new EventPoller());
-    return *instance;
+    static onceToken s_token([](){
+        s_instance.reset(new EventPoller);
+    });
+    return *s_instance;
 }
 void EventPoller::Destory() {
-    delete &EventPoller::Instance();
+    s_instance.reset();
 }
 
 EventPoller::EventPoller() {
@@ -212,10 +216,10 @@ int EventPoller::modifyEvent(int fd, int event) {
 #endif //HAS_EPOLL
 }
 
-void EventPoller::sync(const PollAsyncCB &syncCb) {
+bool EventPoller::sync(const TaskExecutor::Task &syncCb) {
     TimeTicker();
     if (!syncCb) {
-        return;
+        return false;
     }
     semaphore sem;
     async([&]() {
@@ -223,24 +227,26 @@ void EventPoller::sync(const PollAsyncCB &syncCb) {
         sem.post();
     });
     sem.wait();
+    return true;
 }
 
-void EventPoller::async(const PollAsyncCB &asyncCb,bool may_sync) {
+bool EventPoller::async(const TaskExecutor::Task &asyncCb,bool may_sync) {
     TimeTicker();
     if (!asyncCb) {
-        return;
+        return false;
     }
     if (may_sync && _mainThreadId == this_thread::get_id()) {
         asyncCb();
-        return;
+        return true;
     }
     std::shared_ptr<Ticker> pTicker(new Ticker(5, "wake up main thread", WarnL, true));
     auto lam = [asyncCb, pTicker]() {
         const_cast<std::shared_ptr<Ticker> &>(pTicker).reset();
         asyncCb();
     };
-    uint64_t buf[1] = {(uint64_t) (new PollAsyncCB(lam))};
+    uint64_t buf[1] = {(uint64_t) (new TaskExecutor::Task(lam))};
     sigalPipe(Sig_Async, 1, buf);
+    return true;
 }
 
 bool EventPoller::isMainThread() {
@@ -250,7 +256,7 @@ bool EventPoller::isMainThread() {
 inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf) {
     switch (type) {
         case Sig_Async: {
-            PollAsyncCB **cb = (PollAsyncCB **) buf;
+            TaskExecutor::Task **cb = (TaskExecutor::Task **) buf;
             try {
                 (*cb)->operator()();
             } catch (std::exception &ex) {
@@ -420,6 +426,40 @@ void EventPoller::runLoop(bool blocked) {
     }else{
         _loopThread = new thread(&EventPoller::runLoop, this, true);
     }
+}
+
+
+static EventPollerPool::Ptr s_pool_instance;
+
+EventPollerPool &EventPollerPool::Instance() {
+    static onceToken s_token([](){
+        s_pool_instance.reset(new EventPollerPool);
+    });
+    return *s_pool_instance;
+}
+void EventPollerPool::Destory(){
+    s_pool_instance.reset();
+}
+
+EventPollerPool::EventPollerPool(int _threadnum) :
+        threadnum(_threadnum), threadPos(-1), threads(0) {
+    for (int i = 0; i < threadnum; i++) {
+        auto poller = std::make_shared<EventPoller>();
+        poller->runLoop(false);
+        threads.emplace_back(poller);
+    }
+}
+
+EventPollerPool::~EventPollerPool() {
+    InfoL;
+    threads.clear();
+}
+
+TaskExecutor::Ptr EventPollerPool::getExecutor() {
+    if (++threadPos >= threadnum) {
+        threadPos = 0;
+    }
+    return threads[threadPos.load()];
 }
 
 }  // namespace Poller

@@ -24,16 +24,21 @@
 
 
 #include "logger.h"
+#include "onceToken.h"
 
 namespace ZL {
 namespace Util {
 
-static Logger::Ptr logger(new Logger());
+static Logger::Ptr s_logger;
+
 Logger& Logger::Instance() {
-	return *logger;
+	static onceToken s_token([](){
+		s_logger.reset(new Logger);
+	});
+	return *s_logger;
 }
 void Logger::Destory() {
-	logger.reset();
+	s_logger.reset();
 }
 
 } /* namespace util */

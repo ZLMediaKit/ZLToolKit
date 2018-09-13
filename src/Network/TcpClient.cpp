@@ -26,7 +26,17 @@
 namespace ZL {
 namespace Network {
 
-TcpClient::TcpClient() : SocketHelper(nullptr) {
+TcpClient::TcpClient(const EventPoller::Ptr &poller,
+                     const TaskExecutor::Ptr &executor) : SocketHelper(nullptr) {
+    _poller = poller;
+    if(!_poller){
+        _poller = EventPoller::Instance().shared_from_this();
+    }
+    _executor = executor;
+    if(!_executor){
+        _executor = _poller;
+    }
+    setExecutor(_executor);
 }
 
 TcpClient::~TcpClient() {
@@ -35,7 +45,7 @@ TcpClient::~TcpClient() {
 void TcpClient::shutdown() {
     try {
         weak_ptr<TcpClient> weakSelf = shared_from_this();
-        ASYNC_TRACE([weakSelf](){
+        async([weakSelf](){
             auto strongSelf = weakSelf.lock();
             if(!strongSelf){
                 return;
@@ -54,7 +64,7 @@ bool TcpClient::alive() {
 
 void TcpClient::setNetAdapter(const string &localIp){
     weak_ptr<TcpClient> weakSelf = shared_from_this();
-    ASYNC_TRACE([weakSelf,localIp](){
+    async([weakSelf,localIp](){
         auto strongSelf = weakSelf.lock();
         if(!strongSelf){
             return;
@@ -66,13 +76,13 @@ void TcpClient::setNetAdapter(const string &localIp){
 
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
     weak_ptr<TcpClient> weakSelf = shared_from_this();
-    ASYNC_TRACE([strUrl,iPort,fTimeOutSec,weakSelf,this](){
+    async([strUrl,iPort,fTimeOutSec,weakSelf,this](){
         auto strongSelf = weakSelf.lock();
         if(!strongSelf){
             return;
         }
         shutdown();
-        SocketHelper::setSock(std::make_shared<Socket>());
+        SocketHelper::setSock(std::make_shared<Socket>(_poller,_executor));
 
         weak_ptr<TcpClient> weakSelf = shared_from_this();
         _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
@@ -128,7 +138,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
             }
             strongSelf->onManager();
             return true;
-        }));
+        },_executor));
 	}
     onConnect(ex);
 }

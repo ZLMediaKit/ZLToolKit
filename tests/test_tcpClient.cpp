@@ -33,7 +33,7 @@ using namespace ZL::Network;
 class TestClient: public TcpClient {
 public:
 	typedef std::shared_ptr<TestClient> Ptr;
-	TestClient() {
+	TestClient():TcpClient(nullptr, nullptr) {
 	}
 	virtual ~TestClient(){}
 	void connect(){

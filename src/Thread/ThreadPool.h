@@ -30,6 +30,7 @@
 #include <vector>
 #include "threadgroup.h"
 #include "TaskQueue.h"
+#include "TaskExecutor.h"
 #include "Util/util.h"
 #include "Util/logger.h"
 
@@ -37,7 +38,8 @@ using namespace ZL::Util;
 
 namespace ZL {
 namespace Thread {
-class ThreadPool {
+
+class ThreadPool : public TaskExecutor{
 public:
 	enum Priority {
 		PRIORITY_LOWEST = 0,
@@ -59,32 +61,29 @@ public:
 	}
 
 	//把任务打入线程池并异步执行
-	template <typename T>
-	bool async(T &&task,bool may_sync = true) {
+	bool async(const Task &task,bool may_sync = true) override {
 		if (!_avaible) {
 			return false;
 		}
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			_queue.push_task(std::forward<T>(task));
+			_queue.push_task(task);
 		}
 		return true;
 	}
-	template <typename T>
-	bool async_first(T &&task,bool may_sync = true) {
+	bool async_first(const Task &task,bool may_sync = true) override{
 		if (!_avaible) {
 			return false;
 		}
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			_queue.push_task_first(std::forward<T>(task));
+			_queue.push_task_first(task);
 		}
 		return true;
 	}
-	template <typename T>
-	bool sync(T &&task){
+	bool sync(const Task &task) override{
 		semaphore sem;
 		bool flag = async([&](){
 			task();
@@ -95,8 +94,7 @@ public:
 		}
 		return flag;
 	}
-	template <typename T>
-	bool sync_first(T &&task) {
+	bool sync_first(const Task &task) override{
 		semaphore sem;
 		bool flag = async_first([&]() {
 			task();
@@ -158,7 +156,7 @@ public:
         _thread_group.join_all();
     }
 private:
-	TaskQueue _queue;
+	TaskQueue<TaskExecutor::Task> _queue;
 	thread_group _thread_group;
 	int _thread_num;
 	volatile bool _avaible;
@@ -166,7 +164,7 @@ private:
 private:
 	void run() {
 		ThreadPool::setPriority(_priority);
-		function<void(void)> task;
+		TaskExecutor::Task task;
 		while (true) {
 			if (!_queue.get_task(task)) {
                 //空任务，退出线程

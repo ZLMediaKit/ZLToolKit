@@ -33,9 +33,11 @@
 #include "PipeWrap.h"
 #include "Util/logger.h"
 #include "Util/util.h"
+#include "Thread/TaskExecutor.h"
 
 using namespace std;
 using namespace ZL::Util;
+using namespace ZL::Thread;
 
 
 #if defined(__linux__)
@@ -59,8 +61,6 @@ typedef enum {
 
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
-typedef function<void(void)> PollAsyncCB;
-typedef PollAsyncCB PollSyncCB;
 
 #ifndef  HAS_EPOLL
 typedef struct {
@@ -76,8 +76,10 @@ typedef struct {
 } Poll_Record;
 #endif //HAS_EPOLL
 
-class EventPoller {
+class EventPoller : public TaskExecutor , public std::enable_shared_from_this<EventPoller> {
 public:
+	typedef std::shared_ptr<EventPoller> Ptr;
+
 	EventPoller();
 	virtual ~EventPoller();
 	static EventPoller &Instance();
@@ -87,8 +89,8 @@ public:
 	int delEvent(int fd, const PollDelCB &delCb = nullptr);
 	int modifyEvent(int fd, int event);
 
-	void async(const PollAsyncCB &asyncCb,bool may_sync = true);
-	void sync(const PollSyncCB &syncCb);
+	bool async(const TaskExecutor::Task &task, bool may_sync = true) override ;
+	bool sync(const TaskExecutor::Task &task) override;
 
 	void runLoop(bool blocked = true);
 	void shutdown();
@@ -113,14 +115,26 @@ private:
 	string _pipeBuffer;
 };
 
-#define ASYNC_TRACE(...) {\
-							/*TraceL;*/\
-							EventPoller::Instance().async(__VA_ARGS__);\
-						}
-#define SYNC_TRACE(...) {\
-							/*TraceL;*/\
-							EventPoller::Instance().sync(__VA_ARGS__);\
-						}
+
+class EventPollerPool :
+		public std::enable_shared_from_this<EventPollerPool> ,
+		public TaskExecutorGetter {
+public:
+	typedef std::shared_ptr<EventPollerPool> Ptr;
+	~EventPollerPool();
+
+	static EventPollerPool &Instance();
+	static void Destory();
+	TaskExecutor::Ptr getExecutor() override ;
+private:
+	EventPollerPool(int threadnum = thread::hardware_concurrency());
+private:
+	int threadnum;
+	atomic<int> threadPos;
+	vector <TaskExecutor::Ptr > threads;
+};
+
+
 
 }  // namespace Poller
 }  // namespace ZL

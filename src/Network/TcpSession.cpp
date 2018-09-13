@@ -29,8 +29,7 @@
 namespace ZL {
 namespace Network {
 
-TcpSession::TcpSession( const std::shared_ptr<ThreadPool> &th,
-                        const Socket::Ptr &sock) : _th(th),SocketHelper(sock) {
+TcpSession::TcpSession(const Socket::Ptr &sock) : SocketHelper(sock) {
 }
 
 TcpSession::~TcpSession() {
@@ -49,7 +48,6 @@ void TcpSession::safeShutdown(){
         }
     });
 }
-
 
 } /* namespace Session */
 } /* namespace ZL */
