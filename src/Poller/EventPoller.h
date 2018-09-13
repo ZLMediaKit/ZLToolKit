@@ -81,7 +81,7 @@ public:
 	typedef std::shared_ptr<EventPoller> Ptr;
 
 	EventPoller();
-	virtual ~EventPoller();
+	~EventPoller();
 	static EventPoller &Instance();
 	static void Destory();
 

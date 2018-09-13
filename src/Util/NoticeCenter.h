@@ -45,10 +45,10 @@ public:
 	{
 	public:
 		InterruptException():std::runtime_error("InterruptException"){}
-		virtual ~InterruptException(){}
+		~InterruptException(){}
 	};
 
-	virtual ~NoticeCenter(){}
+	~NoticeCenter(){}
 	static NoticeCenter &Instance();
 
 	template<typename ...ArgsType>

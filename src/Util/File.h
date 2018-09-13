@@ -85,7 +85,7 @@ public:
 	static void delete_file(const char *path) ;
 private:
 	File();
-	virtual ~File();
+	~File();
 };
 
 } /* namespace Util */

@@ -44,7 +44,7 @@ public:
 		minMs = _minMs;
 		where = _where;
 	}
-	virtual ~Ticker() {
+	~Ticker() {
 		int64_t tm = getNowTime() - begin;
 		if (tm > minMs) {
 			stream << where << " take time:" << tm << endl;
@@ -84,7 +84,7 @@ public:
 		resetMs = _resetMs;
 		ticker.resetTime();
 	}
-	virtual ~SmoothTicker() {
+	~SmoothTicker() {
 	}
 	uint64_t elapsedTime() {
 		auto nowTime = ticker.elapsedTime();

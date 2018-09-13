@@ -79,7 +79,7 @@ public:
 	AsyncTaskHelper(uint64_t millisecond,const function<bool()> &task){
 		AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this),millisecond,task);
 	}
-	virtual ~AsyncTaskHelper(){
+	~AsyncTaskHelper(){
 		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
 	}
 };

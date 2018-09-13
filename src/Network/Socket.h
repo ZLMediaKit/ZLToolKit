@@ -162,7 +162,7 @@ public:
 		_sock = sock;
         _poller = poller;
 	}
-	virtual ~SockFD(){
+	~SockFD(){
         ::shutdown(_sock, SHUT_RDWR);
 #if defined (OS_IPHONE)
         unsetSocketOfIOS(_sock);
@@ -211,7 +211,7 @@ public:
             setCapacity(capacity);
         }
     }
-    virtual ~BufferRaw() {
+    ~BufferRaw() {
         if(_data){
             delete [] _data;
         }
@@ -291,7 +291,7 @@ public:
     typedef std::shared_ptr<BufferString> Ptr;
     BufferString(const string &data):_data(data) {}
     BufferString(string &&data):_data(std::move(data)){}
-    virtual ~BufferString() {}
+    ~BufferString() {}
     char *data() override {
         return const_cast<char *>(_data.data());
     }
@@ -321,7 +321,7 @@ public:
 
     Socket(const EventPoller::Ptr &poller/*= nullptr*/,
            const TaskExecutor::Ptr &executor /*= nullptr*/);
-	virtual ~Socket();
+	~Socket();
 
     //创建tcp客户端，url可以是ip或域名
 	void connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec = 5,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
@@ -437,7 +437,7 @@ public:
 class SocketHelper : public TaskExecutor{
 public:
     SocketHelper(const Socket::Ptr &sock);
-    virtual ~SocketHelper();
+    ~SocketHelper();
     //重新设置socket
     void setSock(const Socket::Ptr &sock);
     void setExecutor(const TaskExecutor::Ptr &excutor);

@@ -79,7 +79,7 @@ private:
 			};
 		}
 #endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
-		virtual ~_ResourcePool(){
+		~_ResourcePool(){
 			std::lock_guard<decltype(_mutex)> lck(_mutex);
 //			for(auto &ptr : _objs){
 //				delete ptr;

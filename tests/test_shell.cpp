@@ -36,7 +36,7 @@ class TestClient: public TcpClient {
 public:
     typedef std::shared_ptr<TestClient> Ptr;
     TestClient() : TcpClient(nullptr, nullptr){}
-    virtual ~TestClient(){}
+    ~TestClient(){}
     void connect(const string &strUrl, uint16_t iPort,float fTimeoutSec){
         startConnect(strUrl,iPort,fTimeoutSec);
     }
@@ -131,7 +131,7 @@ public:
 
 	}
 
-	virtual ~CMD_http() {}
+	~CMD_http() {}
 
 	const char *description() const override {
 		return "http测试客户端";

@@ -65,7 +65,7 @@ public:
         mysql_options(&sql, MYSQL_OPT_RECONNECT, &reconnect);
         mysql_set_character_set(&sql, character.data());
     }
-	virtual ~SqlConnection(){
+	~SqlConnection(){
         mysql_close(&sql);
     }
 

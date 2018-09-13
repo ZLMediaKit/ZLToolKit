@@ -51,7 +51,7 @@ public:
 			curpos = _buffer->ringKeyPos;
 			useBuffer = _useBuffer;
 		}
-		virtual ~RingReader() {
+		~RingReader() {
 			auto strongBuffer = buffer.lock();
 			if (strongBuffer) {
 				strongBuffer->release(this);
@@ -139,7 +139,7 @@ public:
 		ringPos = 0;
 		ringKeyPos = 0;
 	}
-	virtual ~RingBuffer() {
+	~RingBuffer() {
 		decltype(readerMap) mapCopy;
 		{
 			lock_guard<recursive_mutex> lck(mtx_reader);

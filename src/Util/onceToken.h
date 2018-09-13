@@ -41,7 +41,7 @@ public:
 		}
 		onDestructed = _onDestructed;
 	}
-	virtual ~onceToken() {
+	~onceToken() {
 		if (onDestructed) {
 			onDestructed();
 		}

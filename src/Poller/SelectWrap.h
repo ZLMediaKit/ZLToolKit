@@ -32,7 +32,7 @@ class FdSet
 {
 public:
 	FdSet();
-	virtual ~FdSet();
+	~FdSet();
 	void fdZero();
 	void fdSet(int fd);
 	void fdClr(int fd);

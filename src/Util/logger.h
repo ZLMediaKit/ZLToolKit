@@ -290,7 +290,7 @@ public:
         _logger = Logger::Instance().shared_from_this();
     }
 
-    virtual ~AsyncLogWriter() {
+    ~AsyncLogWriter() {
         _exit_flag = true;
         _sem.post();
         _thread->join();
@@ -344,7 +344,7 @@ public:
                    LogLevel level = LDebug) :
             LogChannel(name, level) {}
 
-    virtual ~ConsoleChannel() {}
+    ~ConsoleChannel() {}
 
     virtual void write(const LogInfoPtr &logInfo) override {
         if (level() > logInfo->_level) {
@@ -361,7 +361,7 @@ public:
                 LogLevel level = LDebug) :
             LogChannel(name, level), _path(path) {}
 
-    virtual ~FileChannel() {
+    ~FileChannel() {
         close();
     }
 

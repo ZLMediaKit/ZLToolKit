@@ -37,7 +37,7 @@ public:
 	EchoSession(const Socket::Ptr &sock) :
 			TcpSession(sock) {
 	}
-	virtual ~EchoSession() {
+	~EchoSession() {
 		DebugL;
 	}
 	virtual void onRecv(const Buffer::Ptr &buf) override{
@@ -73,7 +73,8 @@ int main() {
 	TcpServer::Ptr server(new TcpServer(nullptr, nullptr));
 	server->start<EchoSession>(9000);//监听9000端口
 
-	EventPoller::Instance().runLoop();//主线程事件轮询
+	sleep(1);
+	//EventPoller::Instance().runLoop();//主线程事件轮询
 
 	server.reset();//销毁服务器
 	//TcpServer 依赖线程池，需要销毁

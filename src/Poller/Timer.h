@@ -41,7 +41,7 @@ public:
     Timer(float second,
           const function<bool()> &cb,
           const TaskExecutor::Ptr &executor/* = nullptr*/);
-    virtual ~Timer();
+    ~Timer();
 private:
     std::shared_ptr<bool> _canceled;
 };

@@ -17,6 +17,7 @@ public:
     typedef function<void()> Task;
     typedef shared_ptr<TaskExecutor> Ptr;
 
+    virtual ~TaskExecutor(){}
     //把任务打入线程池并异步执行
     virtual bool async(const Task &task, bool may_sync = true) = 0;
     virtual bool async_first(const Task &task, bool may_sync = true) {

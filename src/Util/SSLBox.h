@@ -91,7 +91,7 @@ private:
 class SSL_Box {
 public:
 	SSL_Box(bool isServer = true, bool enable = true);
-	virtual ~SSL_Box();
+	~SSL_Box();
 
 	//收到密文后，调用此函数解密
 	void onRecv(const char *data, uint32_t data_len);
@@ -149,7 +149,7 @@ public:
 			WarnL << "openssl disabled!";
 		}
 	};
-	virtual ~SSL_Box(){};
+	~SSL_Box(){};
 
 	//收到密文后，调用此函数解密
 	void onRecv(const char *data, uint32_t data_len){

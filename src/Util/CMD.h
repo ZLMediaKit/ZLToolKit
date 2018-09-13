@@ -71,7 +71,7 @@ public:
         _des = des;
         _cb = cb;
     }
-    virtual ~Option() {}
+    ~Option() {}
     bool operator()(const std::shared_ptr<ostream> &stream, const string &arg){
         return _cb ? _cb(stream,arg): true;
     }
@@ -145,7 +145,7 @@ public:
         });
         (*this) << _helper;
     }
-    virtual ~OptionParser() {
+    ~OptionParser() {
     }
 
     OptionParser &operator <<(Option &&option) {
@@ -237,7 +237,7 @@ class CMDRegister
 {
 public:
     CMDRegister() {};
-    virtual ~CMDRegister(){};
+    ~CMDRegister(){};
     static CMDRegister &Instance();
     void clear(){
         lock_guard<recursive_mutex> lck(_mtxCMD);
@@ -345,7 +345,7 @@ public:
             return true;
         });
     }
-    virtual ~CMD_help() {}
+    ~CMD_help() {}
 
     const char *description() const override {
         return "打印帮助信息";
@@ -356,7 +356,7 @@ class ExitException : public std::exception
 {
 public:
     ExitException(){}
-    virtual ~ExitException(){}
+    ~ExitException(){}
 
 };
 
@@ -368,7 +368,7 @@ public:
             throw ExitException();
         }));
     }
-    virtual ~CMD_exit() {}
+    ~CMD_exit() {}
 
     const char *description() const override {
         return "退出shell";
@@ -387,7 +387,7 @@ public:
             clear(stream);
         }));
     }
-    virtual ~CMD_clear(){}
+    ~CMD_clear(){}
     const char *description() const {
         return "清空屏幕输出";
     }

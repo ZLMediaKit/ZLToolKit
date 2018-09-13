@@ -40,7 +40,7 @@ class ListNode
 {
 public:
     friend class List<T>;
-    virtual ~ListNode(){}
+    ~ListNode(){}
 
     ListNode(T &&data):_data(std::forward<T>(data)){}
     ListNode(const T &data):_data(data){}
@@ -58,7 +58,7 @@ class List {
 public:
     typedef ListNode<T> NodeType;
     List(){}
-    virtual ~List(){
+    ~List(){
         auto ptr = _front;
         auto last = ptr;
         while(ptr){

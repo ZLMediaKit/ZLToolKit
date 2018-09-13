@@ -34,10 +34,15 @@ using namespace ZL::Network;
 
 namespace ZL {
 namespace Poller {
-Pipe::Pipe(const function<void(int size, const char *buf)> &onRead) {
+Pipe::Pipe(const function<void(int size, const char *buf)> &onRead,
+		   const EventPoller::Ptr &poller) {
+	_poller = poller;
+	if(!_poller){
+		_poller = EventPoller::Instance().shared_from_this();
+	}
 	_pipe.reset(new PipeWrap);
 	auto pipeCopy = _pipe;
-	EventPoller::Instance().addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {
+	_poller->addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {
 #if defined(_WIN32)
 		unsigned long nread = 1024;
 #else
@@ -65,7 +70,7 @@ Pipe::Pipe(const function<void(int size, const char *buf)> &onRead) {
 Pipe::~Pipe() {
 	if (_pipe) {
 		auto pipeCopy = _pipe;
-		EventPoller::Instance().delEvent(pipeCopy->readFD(), [pipeCopy](bool success) {});
+		_poller->delEvent(pipeCopy->readFD(), [pipeCopy](bool success) {});
 	}
 }
 void Pipe::send(const char *buf, int size) {
