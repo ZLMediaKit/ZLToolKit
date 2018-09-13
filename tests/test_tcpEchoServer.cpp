@@ -73,8 +73,7 @@ int main() {
 	TcpServer::Ptr server(new TcpServer(nullptr, nullptr));
 	server->start<EchoSession>(9000);//监听9000端口
 
-	sleep(1);
-	//EventPoller::Instance().runLoop();//主线程事件轮询
+	EventPoller::Instance().runLoop();//主线程事件轮询
 
 	server.reset();//销毁服务器
 	//TcpServer 依赖线程池，需要销毁
