@@ -96,7 +96,6 @@ public:
 
     static Logger &Instance();
     static void Destory();
-    Logger() {}
     ~Logger() {
         _writer.reset();
         _channels.clear();
@@ -137,6 +136,7 @@ public:
     }
 
 private:
+    Logger() {}
     // Non-copyable and non-movable
     Logger(const Logger &); // = delete;
     Logger(Logger &&); // = delete;
@@ -289,7 +289,7 @@ private:
 class AsyncLogWriter : public LogWriter {
 public:
     AsyncLogWriter() : _exit_flag(false) {
-        _thread.reset(new thread([this]() { this->run(); }));
+        _thread = std::make_shared<thread>([this]() { this->run(); });
         _logger = Logger::Instance().shared_from_this();
     }
 

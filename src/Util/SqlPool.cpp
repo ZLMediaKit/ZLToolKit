@@ -24,16 +24,24 @@
 
 
 #if defined(ENABLE_MYSQL)
+
+#include <memory>
+#include "onceToken.h"
 #include "SqlPool.h"
+using namespace std;
+
 namespace ZL {
 namespace Util {
 
+static shared_ptr<SqlPool>	s_instance;
 SqlPool &SqlPool::Instance() {
-	static SqlPool *pool(new SqlPool());
-	return *pool;
+	static onceToken s_token([](){
+		s_instance.reset(new SqlPool);
+	});
+	return *s_instance;
 }
 void SqlPool::Destory(){
-	delete &Instance();
+	s_instance.reset();
 }
 
 } /* namespace mysql */

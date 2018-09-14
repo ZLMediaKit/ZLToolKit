@@ -63,9 +63,11 @@ public:
 #else
 		unique_lock<mutex> lock(_mutex);
 		_count += n;
-		do{
-            _condition.notify_one();
-        }while(--n);
+		if(n == 1){
+			_condition.notify_one();
+		}else{
+			_condition.notify_all();
+		}
 #endif
 
 	}

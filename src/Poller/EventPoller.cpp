@@ -236,7 +236,7 @@ bool EventPoller::async(const TaskExecutor::Task &asyncCb,bool may_sync) {
         asyncCb();
         return true;
     }
-    std::shared_ptr<Ticker> pTicker(new Ticker(5, "wake up main thread", WarnL, true));
+    std::shared_ptr<Ticker> pTicker = std::make_shared<Ticker>(5, "wake up main thread", WarnL, true);
     auto lam = [asyncCb, pTicker]() {
         const_cast<std::shared_ptr<Ticker> &>(pTicker).reset();
         asyncCb();
@@ -468,6 +468,10 @@ const TaskExecutor::Ptr& EventPollerPool::getExecutor() const{
 
 EventPoller::Ptr EventPollerPool::getFirstPoller() const{
     return dynamic_pointer_cast<EventPoller>(threads.front());
+}
+
+EventPoller::Ptr EventPollerPool::getPoller() const {
+    return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
 }  // namespace Poller

@@ -31,10 +31,10 @@ Timer::Timer(float second,
 			 const function<bool()> &cb,
 			 const TaskExecutor::Ptr &executor)
 {
-	_canceled.reset(new bool);
+	_canceled = std::make_shared<bool>();
 	TaskExecutor::Ptr executor_tmp = executor;
 	if(!executor_tmp){
-		executor_tmp = EventPoller::Instance().shared_from_this();
+		executor_tmp =  EventPollerPool::Instance().getPoller();
 	}
 	std::weak_ptr<bool> canceledWeak = _canceled;
 	AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this),second * 1000,[this,cb,canceledWeak,executor_tmp](){

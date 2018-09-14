@@ -159,7 +159,7 @@ public:
 	std::shared_ptr<RingReader> attach(bool useBuffer = false) {
 #endif //ENABLE_RING_USEBUF
 
-		std::shared_ptr<RingReader> ptr(new RingReader(this->shared_from_this(),useBuffer));
+		std::shared_ptr<RingReader> ptr = std::make_shared<RingReader>(this->shared_from_this(),useBuffer);
 		std::weak_ptr<RingReader> weakPtr = ptr;
 		lock_guard<recursive_mutex> lck(mtx_reader);
 		readerMap.emplace(ptr.get(),weakPtr);

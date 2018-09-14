@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include "Util/logger.h"
+#include "Util/onceToken.h"
 #include "AsyncTaskThread.h"
 
 using namespace std;
@@ -32,12 +33,16 @@ using namespace ZL::Util;
 namespace ZL {
 namespace Thread {
 
+static std::shared_ptr<AsyncTaskThread> s_instance;
+
 AsyncTaskThread &AsyncTaskThread::Instance(uint32_t millisecond_sleep) {
-	static AsyncTaskThread *instance(new AsyncTaskThread(millisecond_sleep));
-	return *instance;
+	static onceToken s_token([&](){
+		s_instance = std::make_shared<AsyncTaskThread>(millisecond_sleep);
+	});
+	return *s_instance;
 }
 void AsyncTaskThread::Destory(){
-	delete &AsyncTaskThread::Instance();
+	s_instance.reset();
 }
 
 AsyncTaskThread::AsyncTaskThread(uint64_t _millisecond_sleep) {
@@ -58,7 +63,7 @@ AsyncTaskThread::~AsyncTaskThread() {
 
 void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,const function<bool()> &func) {
 	lock_guard<recursive_mutex> lck(_mtx);
-	std::shared_ptr<TaskInfo> info(new TaskInfo);
+	std::shared_ptr<TaskInfo> info = std::make_shared<TaskInfo>();
 	info->type = type;
 	info->timeLine = millisecond + getNowTime();
 	info->task = func;

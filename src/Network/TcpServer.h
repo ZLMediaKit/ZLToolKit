@@ -123,16 +123,13 @@ public:
 		}
 		_poller = poller;
 		if(!_poller){
-			_poller = dynamic_pointer_cast<EventPoller>(_executorGetter->getExecutor());
-			if(!_poller){
-				_poller = EventPoller::Instance().shared_from_this();
-			}
+			_poller =  EventPollerPool::Instance().getPoller();
 		}
 
 		_executor = _poller;
-		_socket.reset(new Socket(_poller,_executor));
+		_socket = std::make_shared<Socket>(_poller,_executor);
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
-		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection, this, placeholders::_1, placeholders::_2));
+		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection, this));
     }
 
 	~TcpServer() {
@@ -171,10 +168,10 @@ public:
 		}
 
         //新建一个定时器定时管理这些tcp会话
-		_timer.reset(new Timer(2, [this]()->bool {
+		_timer = std::make_shared<Timer>(2, [this]()->bool {
 			this->onManagerSession();
 			return true;
-		},_executor));
+		},_executor);
 		InfoL << "TCP Server listening on " << host << ":" << port;
 	}
 	 uint16_t getPort(){
@@ -184,7 +181,7 @@ public:
 		 return _socket->get_local_port();
 	 }
 private:
-	Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &,const TaskExecutor::Ptr &){
+	Socket::Ptr onBeforeAcceptConnection(){
     	//获取任务执行器
     	auto executor = _executorGetter->getExecutor();
     	//该任务执行器可能是ThreadPool也可能是EventPoller

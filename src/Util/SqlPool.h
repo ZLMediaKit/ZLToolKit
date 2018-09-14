@@ -49,6 +49,14 @@ public:
 	static SqlPool &Instance();
 	static void Destory();
 
+	~SqlPool() {
+		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
+		flushError();
+		threadPool.reset();
+		pool.reset();
+		InfoL;
+	}
+	
 	void setSize(int size) {
 		checkInited();
 		pool->setSize(size);
@@ -136,13 +144,7 @@ private:
 			doQuery(query.sql_str,query.tryCnt);
 		}
 	}
-	~SqlPool() {
-		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
-		flushError();
-		threadPool.reset();
-		pool.reset();
-		InfoL;
-	}
+
 	void checkInited(){
 		if(!pool){
 			throw std::runtime_error("请先调用SqlPool::Init初始化数据库连接池");

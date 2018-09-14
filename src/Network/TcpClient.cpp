@@ -30,7 +30,7 @@ TcpClient::TcpClient(const EventPoller::Ptr &poller,
                      const TaskExecutor::Ptr &executor) : SocketHelper(nullptr) {
     _poller = poller;
     if(!_poller){
-        _poller = EventPoller::Instance().shared_from_this();
+        _poller = EventPollerPool::Instance().getPoller();
     }
     _executor = executor;
     if(!_executor){
@@ -131,14 +131,14 @@ void TcpClient::onSockConnect(const SockException &ex) {
             }
             strongSelf->onSockRecv(pBuf);
 		});
-        _managerTimer.reset(new Timer(2,[weakSelf](){
+        _managerTimer = std::make_shared<Timer>(2,[weakSelf](){
             auto strongSelf = weakSelf.lock();
             if (!strongSelf) {
                 return false;
             }
             strongSelf->onManager();
             return true;
-        },_executor));
+        },_executor);
 	}
     onConnect(ex);
 }

@@ -62,7 +62,7 @@ public:
         _argType = argType;
         if(argType != ArgNone){
             if(defaultValue){
-                _defaultValue.reset(new string(defaultValue));
+                _defaultValue = std::make_shared<string>(defaultValue);
             }
             if(!_defaultValue && mustExist){
                 _mustExist = true;
@@ -338,7 +338,7 @@ private:
 class CMD_help: public CMD {
 public:
     CMD_help(){
-        _parser.reset( new OptionParser(nullptr));
+        _parser = std::make_shared<OptionParser>(nullptr);
         (*_parser) << Option('c', "cmd", Option::ArgNone, nullptr ,false,"列出所有命令",
                              [](const std::shared_ptr<ostream> &stream,const string &arg) {
             CMDRegister::Instance().printHelp(stream);
@@ -364,9 +364,9 @@ public:
 class CMD_exit: public CMD {
 public:
     CMD_exit(){
-        _parser.reset( new OptionParser([](const std::shared_ptr<ostream> &,mINI &){
+        _parser = std::make_shared<OptionParser>([](const std::shared_ptr<ostream> &,mINI &){
             throw ExitException();
-        }));
+        });
     }
     ~CMD_exit() {}
 
@@ -383,9 +383,9 @@ class CMD_clear : public CMD
 {
 public:
     CMD_clear(){
-        _parser.reset(new OptionParser([this](const std::shared_ptr<ostream> &stream,mINI &args){
+        _parser = std::make_shared<OptionParser>([this](const std::shared_ptr<ostream> &stream,mINI &args){
             clear(stream);
-        }));
+        });
     }
     ~CMD_clear(){}
     const char *description() const {

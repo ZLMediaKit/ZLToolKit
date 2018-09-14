@@ -44,7 +44,7 @@ Socket::Socket(const EventPoller::Ptr &poller,
 			   const TaskExecutor::Ptr &executor) {
 	_poller = poller;
 	if(!_poller){
-		_poller = EventPoller::Instance().shared_from_this();
+		_poller = EventPollerPool::Instance().getPoller();
 	}
 	_executor = executor;
 	if(!_executor){
@@ -132,7 +132,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 	auto sockFD = makeSock(sock);
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	weak_ptr<SockFD> weakSock = sockFD;
-	shared_ptr<bool> bTriggered(new bool(false));//回调被触发过
+	shared_ptr<bool> bTriggered = std::make_shared<bool>(false);//回调被触发过
 
 	auto result = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
 		auto strongSelf = weakSelf.lock();
@@ -156,7 +156,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 		return;
 	}
 
-	_conTimer.reset(new Timer(timeoutSec, [weakSelf,weakSock,connectCB,bTriggered]() {
+	_conTimer = std::make_shared<Timer>(timeoutSec, [weakSelf,weakSock,connectCB,bTriggered]() {
 		auto strongSelf = weakSelf.lock();
 		auto strongSock = weakSock.lock();
 		if(!strongSelf || !strongSock || *bTriggered) {
@@ -167,7 +167,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 		strongSelf->emitErr(err);
 		connectCB(err);
 		return false;
-	},_executor));
+	},_executor);
 	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = sockFD;
 }
@@ -329,12 +329,12 @@ int Socket::send(const char* buf, int size, int flags,struct sockaddr* peerAddr)
     return send(ptr,flags,peerAddr);
 }
 int Socket::send(const string &buf, int flags, struct sockaddr* peerAddr) {
-    BufferString::Ptr ptr(new BufferString(buf));
+    BufferString::Ptr ptr = std::make_shared<BufferString>(buf);
     return send(ptr,flags,peerAddr);
 }
 
 int Socket::send(string &&buf, int flags,struct sockaddr* peerAddr) {
-    BufferString::Ptr ptr(new BufferString(std::move(buf)));
+    BufferString::Ptr ptr = std::make_shared<BufferString>(std::move(buf));
     return send(ptr,flags,peerAddr);
 }
     
@@ -361,7 +361,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 
     int ret = buf->size();
 
-	Packet::Ptr packet(new Packet);
+	Packet::Ptr packet = std::make_shared<Packet>();
     packet->updateStamp();
     packet->setData(buf);
     packet->setFlag(flags);
@@ -492,7 +492,7 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 				peerSock = _beforeAcceptCB(_poller,_executor);
 			}
 			if(!peerSock){
-				peerSock.reset(new Socket(_poller,_executor));
+				peerSock = std::make_shared<Socket>(_poller,_executor);
 			}
 			if(peerSock->setPeerSock(peerfd)){
                 lock_guard<mutex> lck(_mtx_accept);

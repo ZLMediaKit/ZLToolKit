@@ -58,12 +58,11 @@ public:
 	}
 
 	bool is_thread_in(thread* thrd) {
-		if (thrd) {
-			auto it = _threads.find(thrd->get_id());
-			return it != _threads.end();
-		} else {
+		if (!thrd) {
 			return false;
 		}
+		auto it = _threads.find(thrd->get_id());
+		return it != _threads.end();
 	}
 
 	template<typename F>

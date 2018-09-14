@@ -437,7 +437,7 @@ public:
 class SocketHelper : public TaskExecutor{
 public:
     SocketHelper(const Socket::Ptr &sock);
-    ~SocketHelper();
+    virtual ~SocketHelper();
     //重新设置socket
     void setSock(const Socket::Ptr &sock);
     void setExecutor(const TaskExecutor::Ptr &excutor);

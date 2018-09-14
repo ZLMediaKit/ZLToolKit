@@ -49,7 +49,7 @@ public:
 #if (!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 	template<typename ...ArgTypes>
 	ResourcePool(ArgTypes &&...args) {
-		pool.reset(new _ResourcePool(std::forward<ArgTypes>(args)...));
+		pool = std::make_shared<_ResourcePool>(std::forward<ArgTypes>(args)...);
 	}
 #endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
 	void setSize(int size) {

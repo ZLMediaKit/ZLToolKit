@@ -38,9 +38,9 @@ Pipe::Pipe(const function<void(int size, const char *buf)> &onRead,
 		   const EventPoller::Ptr &poller) {
 	_poller = poller;
 	if(!_poller){
-		_poller = EventPoller::Instance().shared_from_this();
+		_poller =  EventPollerPool::Instance().getPoller();
 	}
-	_pipe.reset(new PipeWrap);
+	_pipe = std::make_shared<PipeWrap>();
 	auto pipeCopy = _pipe;
 	_poller->addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {
 #if defined(_WIN32)

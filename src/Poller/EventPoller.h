@@ -127,6 +127,7 @@ public:
 	static EventPollerPool &Instance();
 	static void Destory();
 	EventPoller::Ptr getFirstPoller() const;
+	EventPoller::Ptr getPoller() const;
 	const TaskExecutor::Ptr& getExecutor() const override ;
 private:
 	EventPollerPool(int threadnum = thread::hardware_concurrency());
