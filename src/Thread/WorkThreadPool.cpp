@@ -42,43 +42,10 @@ WorkThreadPool &WorkThreadPool::Instance() {
 	});
 	return *s_instance;
 }
-
-void WorkThreadPool::wait()  {
-	for (auto &th : _threads){
-		th->wait();
-	}
-}
-
-void WorkThreadPool::shutdown() {
-	for (auto &th : _threads){
-		th->shutdown();
-	}
-}
 void WorkThreadPool::Destory(){
-	s_instance.reset();
+    s_instance.reset();
 }
 
-	
-WorkThreadPool::WorkThreadPool(int _threadnum) :
-		_threadnum(_threadnum), _threadPos(-1), _threads(0) {
-	for (int i = 0; i < _threadnum; i++) {
-		_threads.emplace_back(std::make_shared<ThreadPool>(1, ThreadPool::PRIORITY_HIGHEST));
-	}
-}
-
-WorkThreadPool::~WorkThreadPool() {
-	InfoL;
-	shutdown();
-	wait();
-	_threads.clear();
-}
-
-const TaskExecutor::Ptr& WorkThreadPool::getExecutor() const {
-	if (++_threadPos >= _threadnum) {
-		_threadPos = 0;
-	}
-	return _threads[_threadPos.load()];
-}
 
 
 } /* namespace Thread */

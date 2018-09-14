@@ -451,47 +451,14 @@ void EventPollerPool::Destory(){
     s_pool_instance.reset();
 }
 
-EventPollerPool::EventPollerPool(int _threadnum) :
-        threadnum(_threadnum), threadPos(-1), threads(0) {
-    for (int i = 0; i < threadnum; i++) {
-        auto poller = std::make_shared<EventPoller>();
-        poller->runLoop(false);
-        threads.emplace_back(poller);
-    }
+EventPoller::Ptr EventPollerPool::getFirstPoller(){
+    return dynamic_pointer_cast<EventPoller>(_threads.front());
 }
 
-EventPollerPool::~EventPollerPool() {
-    InfoL;
-    shutdown();
-    wait();
-    threads.clear();
-}
-
-const TaskExecutor::Ptr& EventPollerPool::getExecutor() const{
-    if (++threadPos >= threadnum) {
-        threadPos = 0;
-    }
-    return threads[threadPos.load()];
-}
-
-EventPoller::Ptr EventPollerPool::getFirstPoller() const{
-    return dynamic_pointer_cast<EventPoller>(threads.front());
-}
-
-EventPoller::Ptr EventPollerPool::getPoller() const {
+EventPoller::Ptr EventPollerPool::getPoller(){
     return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
-void EventPollerPool::wait() {
-    for (auto &th : threads){
-        th->wait();
-    }
-}
-void EventPollerPool::shutdown() {
-    for (auto &th : threads){
-        th->shutdown();
-    }
-}
 
 }  // namespace Poller
 }  // namespace ZL

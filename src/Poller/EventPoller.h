@@ -121,24 +121,17 @@ private:
 
 class EventPollerPool :
 		public std::enable_shared_from_this<EventPollerPool> ,
-		public TaskExecutorGetter {
+		public TaskExecutorGetterImp<EventPoller> {
 public:
 	typedef std::shared_ptr<EventPollerPool> Ptr;
-	~EventPollerPool();
+	~EventPollerPool(){};
 
 	static EventPollerPool &Instance();
 	static void Destory();
-	EventPoller::Ptr getFirstPoller() const;
-	EventPoller::Ptr getPoller() const;
-	const TaskExecutor::Ptr& getExecutor() const override ;
-    void wait() override;
-    void shutdown() override;
+	EventPoller::Ptr getFirstPoller();
+	EventPoller::Ptr getPoller();
 private:
-	EventPollerPool(int threadnum = thread::hardware_concurrency());
-private:
-	int threadnum;
-	mutable atomic<int> threadPos;
-	vector <TaskExecutor::Ptr > threads;
+	EventPollerPool(){};
 };
 
 

@@ -31,7 +31,7 @@
 #include <atomic>
 #include <iostream>
 #include <unordered_map>
-#include "TaskExecutor.h"
+#include "ThreadPool.h"
 
 using namespace std;
 
@@ -40,22 +40,14 @@ namespace Thread {
 
 class WorkThreadPool :
         public std::enable_shared_from_this<WorkThreadPool> ,
-        public TaskExecutorGetter{
+        public TaskExecutorGetterImp<ThreadPool>{
 public:
 	typedef std::shared_ptr<WorkThreadPool> Ptr;
-	const TaskExecutor::Ptr& getExecutor() const override;
-    ~WorkThreadPool();
-
+    ~WorkThreadPool(){};
     static WorkThreadPool &Instance();
     static void Destory();
-	void wait() override;
-    void shutdown() override;
 private:
-    WorkThreadPool(int threadnum = thread::hardware_concurrency());
-private:
-	int _threadnum;
-	mutable atomic<int> _threadPos;
-	vector <TaskExecutor::Ptr > _threads;
+    WorkThreadPool(){};
 };
 
 } /* namespace Thread */
