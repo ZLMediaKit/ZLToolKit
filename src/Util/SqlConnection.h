@@ -53,57 +53,57 @@ public:
     SqlConnection(const string &url, unsigned short port,
                   const string &dbname, const string &username,
                   const string &password, const string &character = "utf8mb4") {
-        mysql_init(&sql);
+        mysql_init(&_sql);
         unsigned int timeout = 3;
-        mysql_options(&sql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
-        if (!mysql_real_connect(&sql, url.c_str(), username.c_str(),
+        mysql_options(&_sql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
+        if (!mysql_real_connect(&_sql, url.c_str(), username.c_str(),
                                 password.c_str(), dbname.c_str(), port, NULL, 0)) {
-            mysql_close(&sql);
-            throw runtime_error(string("mysql_real_connect:") + mysql_error(&sql));
+            mysql_close(&_sql);
+            throw runtime_error(string("mysql_real_connect:") + mysql_error(&_sql));
         }
         my_bool reconnect = 1;
-        mysql_options(&sql, MYSQL_OPT_RECONNECT, &reconnect);
-        mysql_set_character_set(&sql, character.data());
+        mysql_options(&_sql, MYSQL_OPT_RECONNECT, &reconnect);
+        mysql_set_character_set(&_sql, character.data());
     }
 	~SqlConnection(){
-        mysql_close(&sql);
+        mysql_close(&_sql);
     }
 
 	template<typename ...Args>
 	int64_t query(int64_t &rowId, const char *fmt, Args && ...arg) {
 		check();
 		string tmp = queryString(fmt, std::forward<Args>(arg)...);
-		if (mysql_query(&sql, tmp.c_str())) {
-			WarnL << mysql_error(&sql) << ":" << tmp << endl;
+		if (mysql_query(&_sql, tmp.c_str())) {
+			WarnL << mysql_error(&_sql) << ":" << tmp << endl;
 			return -1;
 		}
-		rowId=mysql_insert_id(&sql);
-		return mysql_affected_rows(&sql);
+		rowId=mysql_insert_id(&_sql);
+		return mysql_affected_rows(&_sql);
 	}
 
 	int64_t query(int64_t &rowId,const char *str) {
 		check();
-		if (mysql_query(&sql, str)) {
-			WarnL << mysql_error(&sql) << ":" << str << endl;
+		if (mysql_query(&_sql, str)) {
+			WarnL << mysql_error(&_sql) << ":" << str << endl;
 			return -1;
 		}
-		rowId=mysql_insert_id(&sql);
-		return mysql_affected_rows(&sql);
+		rowId=mysql_insert_id(&_sql);
+		return mysql_affected_rows(&_sql);
 	}
 	template<typename ...Args>
 	int64_t query(int64_t &rowId,vector<vector<string> > &ret, const char *fmt,
 			Args && ...arg) {
 		check();
 		string tmp = queryString(fmt, std::forward<Args>(arg)...);
-		if (mysql_query(&sql, tmp.c_str())) {
-			WarnL << mysql_error(&sql)  << ":" << tmp << endl;
+		if (mysql_query(&_sql, tmp.c_str())) {
+			WarnL << mysql_error(&_sql)  << ":" << tmp << endl;
 			return -1;
 		}
 		ret.clear();
-		MYSQL_RES *res = mysql_store_result(&sql);
+		MYSQL_RES *res = mysql_store_result(&_sql);
 		if (!res) {
-			rowId=mysql_insert_id(&sql);
-			return mysql_affected_rows(&sql);
+			rowId=mysql_insert_id(&_sql);
+			return mysql_affected_rows(&_sql);
 		}
 		MYSQL_ROW row;
 		unsigned int column = mysql_num_fields(res);
@@ -115,23 +115,23 @@ public:
 			}
 		}
 		mysql_free_result(res);
-		rowId=mysql_insert_id(&sql);
-		return mysql_affected_rows(&sql);
+		rowId=mysql_insert_id(&_sql);
+		return mysql_affected_rows(&_sql);
 	}
 
 	template<typename Map,typename ...Args>
 	int64_t query(int64_t &rowId,vector<Map> &ret, const char *fmt, Args && ...arg) {
 		check();
 		string tmp = queryString(fmt, std::forward<Args>(arg)...);
-		if (mysql_query(&sql, tmp.c_str())) {
-			WarnL << mysql_error(&sql)  << ":" << tmp << endl;
+		if (mysql_query(&_sql, tmp.c_str())) {
+			WarnL << mysql_error(&_sql)  << ":" << tmp << endl;
 			return -1;
 		}
 		ret.clear();
-		MYSQL_RES *res = mysql_store_result(&sql);
+		MYSQL_RES *res = mysql_store_result(&_sql);
 		if (!res) {
-			rowId=mysql_insert_id(&sql);
-			return mysql_affected_rows(&sql);
+			rowId=mysql_insert_id(&_sql);
+			return mysql_affected_rows(&_sql);
 		}
 		MYSQL_ROW row;
 		unsigned int column = mysql_num_fields(res);
@@ -144,20 +144,20 @@ public:
 			}
 		}
 		mysql_free_result(res);
-		rowId=mysql_insert_id(&sql);
-		return mysql_affected_rows(&sql);
+		rowId=mysql_insert_id(&_sql);
+		return mysql_affected_rows(&_sql);
 	}
 	int64_t query(int64_t &rowId,vector<vector<string>> &ret, const char *str) {
 		check();
-		if (mysql_query(&sql, str)) {
-			WarnL << mysql_error(&sql)  << ":" << str << endl;
+		if (mysql_query(&_sql, str)) {
+			WarnL << mysql_error(&_sql)  << ":" << str << endl;
 			return -1;
 		}
 		ret.clear();
-		MYSQL_RES *res = mysql_store_result(&sql);
+		MYSQL_RES *res = mysql_store_result(&_sql);
 		if (!res) {
-			rowId=mysql_insert_id(&sql);
-			return mysql_affected_rows(&sql);
+			rowId=mysql_insert_id(&_sql);
+			return mysql_affected_rows(&_sql);
 		}
 		MYSQL_ROW row;
 		unsigned int column = mysql_num_fields(res);
@@ -169,8 +169,8 @@ public:
 			}
 		}
 		mysql_free_result(res);
-		rowId=mysql_insert_id(&sql);
-		return mysql_affected_rows(&sql);
+		rowId=mysql_insert_id(&_sql);
+		return mysql_affected_rows(&_sql);
 	}
 	template<typename ...Args>
 	static string queryString(const char *fmt, Args && ...arg) {
@@ -187,15 +187,15 @@ public:
 	}
 	string &escape(string &str) {
 		char *out = new char[str.length() * 2 + 1];
-		mysql_real_escape_string(&sql, out, str.c_str(), str.size());
+		mysql_real_escape_string(&_sql, out, str.c_str(), str.size());
 		str.assign(out);
 		delete [] out;
 		return str;
 	}
 private:
-	MYSQL sql;
+	MYSQL _sql;
 	inline void check() {
-		if (mysql_ping(&sql) != 0) {
+		if (mysql_ping(&_sql) != 0) {
 			throw runtime_error("MYSQL连接异常!");
 		}
 	}

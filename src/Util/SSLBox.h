@@ -101,28 +101,28 @@ public:
 	//设置解密后获取明文的回调
 	template<typename F>
 	void setOnDecData(F &&fun) {
-		onDec = std::forward<F>(fun);
+		_onDec = std::forward<F>(fun);
 	}
 
 	//设置加密后获取密文的回调
 	template<typename F>
 	void setOnEncData(F &&fun) {
-		onEnc = std::forward<F>(fun);;
+		_onEnc = std::forward<F>(fun);;
 	}
 	void shutdown();
 private:
-	bool isServer;
-	bool enable;
-	bool sendHandshake;
-	SSL *ssl;
-	BIO *read_bio, *write_bio;
-	function<void(const char *data, uint32_t len)> onDec;
-	function<void(const char *data, uint32_t len)> onEnc;
-	std::string _bufferOut;
 	void flush();
 	void flushWriteBio(char *buf, int bufsize);
 	void flushReadBio(char *buf, int bufsize);
-
+private:
+	bool _isServer;
+	bool _enable;
+	bool _sendHandshake;
+	SSL *_ssl;
+	BIO *_read_bio, *_write_bio;
+	function<void(const char *data, uint32_t len)> _onDec;
+	function<void(const char *data, uint32_t len)> _onEnc;
+	std::string _bufferOut;
 };
 
 #else
@@ -153,28 +153,28 @@ public:
 
 	//收到密文后，调用此函数解密
 	void onRecv(const char *data, uint32_t data_len){
-		onDec(data,data_len);
+		_onDec(data,data_len);
 	};
 	//需要加密明文调用此函数
 	void onSend(const char *data, uint32_t data_len){
-		onEnc(data,data_len);
+		_onEnc(data,data_len);
 	};
 
 	//设置解密后获取明文的回调
 	template<typename F>
 	void setOnDecData(F &&fun) {
-		onDec = std::forward<F>(fun);
+		_onDec = std::forward<F>(fun);
 	}
 
 	//设置加密后获取密文的回调
 	template<typename F>
 	void setOnEncData(F &&fun) {
-		onEnc = std::forward<F>(fun);;
+		_onEnc = std::forward<F>(fun);;
 	}
 	void shutdown(){};
 private:
-	function<void(const char *data, uint32_t len)> onDec;
-	function<void(const char *data, uint32_t len)> onEnc;
+	function<void(const char *data, uint32_t len)> _onDec;
+	function<void(const char *data, uint32_t len)> _onEnc;
 };
 #endif //defined(ENABLE_OPENSSL)
 

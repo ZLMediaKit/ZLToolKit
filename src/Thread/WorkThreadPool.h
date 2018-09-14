@@ -38,7 +38,6 @@ using namespace std;
 namespace ZL {
 namespace Thread {
 
-
 class WorkThreadPool :
         public std::enable_shared_from_this<WorkThreadPool> ,
         public TaskExecutorGetter{
@@ -49,12 +48,14 @@ public:
 
     static WorkThreadPool &Instance();
     static void Destory();
+	void wait() override;
+    void shutdown() override;
 private:
     WorkThreadPool(int threadnum = thread::hardware_concurrency());
 private:
-	int threadnum;
-	mutable atomic<int> threadPos;
-	vector <TaskExecutor::Ptr > threads;
+	int _threadnum;
+	mutable atomic<int> _threadPos;
+	vector <TaskExecutor::Ptr > _threads;
 };
 
 } /* namespace Thread */

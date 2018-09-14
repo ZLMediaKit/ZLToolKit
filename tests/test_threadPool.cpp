@@ -26,7 +26,7 @@
 #include "Util/logger.h"
 #include "Util/onceToken.h"
 #include "Util/TimeTicker.h"
-#include "Thread/ThreadPool.h"
+#include "Thread/WorkThreadPool.h"
 
 using namespace std;
 using namespace ZL::Util;
@@ -49,7 +49,7 @@ int main() {
 	timeTicker.resetTime();//计时器重置计时
 
 	//后台线程异步执行一个任务
-	ThreadPool::Instance().async([](){
+	WorkThreadPool::Instance().getExecutor()->async([](){
 		sleep(1);//该任务是休眠一秒并打印log
 		DebugL << "async thread id:" << this_thread::get_id() << endl;
 	});
@@ -61,7 +61,7 @@ int main() {
 	timeTicker.resetTime();//计时器重置计时
 
 	//同步执行任务，将等待任务执行完毕
-	ThreadPool::Instance().sync([](){
+	WorkThreadPool::Instance().getExecutor()->sync([](){
 		sleep(1);
 		InfoL << "sync thread id:" << this_thread::get_id()<< endl;
 	});
@@ -72,7 +72,7 @@ int main() {
 	sleep(UINT32_MAX);//sleep会被Ctl+C打断，可以正常退出程序
 
 	//等待线程池退出
-	ThreadPool::Instance().wait();
+	WorkThreadPool::Destory();
 	DebugL << "exited!" << endl;
 	Logger::Destory();
 	return 0;

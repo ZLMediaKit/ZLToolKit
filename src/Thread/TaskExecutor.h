@@ -27,12 +27,19 @@ public:
     virtual bool sync_first(const Task &task) {
         return sync(task);
     };
+    //等待线程退出
+    virtual void wait() = 0;
+    virtual void shutdown() = 0;
+    //任务个数
+    virtual uint64_t size() = 0;
 };
 
 class TaskExecutorGetter {
 public:
     typedef shared_ptr<TaskExecutorGetter> Ptr;
     virtual const TaskExecutor::Ptr& getExecutor() const = 0;
+    virtual void wait() = 0;
+    virtual void shutdown() = 0;
 };
 
 }//Thread

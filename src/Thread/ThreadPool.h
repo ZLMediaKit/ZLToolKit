@@ -50,21 +50,21 @@ public:
 	};
 
 	//num:线程池线程个数
-	ThreadPool(int num, Priority priority = PRIORITY_NORMAL,bool autoRun = true) :
-			_thread_num(num), _avaible(true), _priority(priority) {
+	ThreadPool(int num = 1,
+			   Priority priority = PRIORITY_HIGHEST,
+			   bool autoRun = true) :
+			_thread_num(num), _priority(priority) {
         if(autoRun){
             start();
         }
 	}
 	~ThreadPool() {
+		shutdown();
 		wait();
 	}
 
 	//把任务打入线程池并异步执行
 	bool async(const Task &task,bool may_sync = true) override {
-		if (!_avaible) {
-			return false;
-		}
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
@@ -73,9 +73,6 @@ public:
 		return true;
 	}
 	bool async_first(const Task &task,bool may_sync = true) override{
-		if (!_avaible) {
-			return false;
-		}
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
@@ -106,11 +103,17 @@ public:
 		return flag;
 	}
 
-    uint64_t size() const{
+	void wait() override{
+		_thread_group.join_all();
+	}
+
+    uint64_t size() override{
         return _queue.size();
     }
 
-	static ThreadPool &Instance();
+    void shutdown() override{
+		_queue.push_exit(_thread_num);
+	}
 
 	static bool setPriority(Priority priority = PRIORITY_NORMAL,
 			thread::native_handle_type threadId = 0) {
@@ -149,18 +152,7 @@ public:
             _thread_group.create_thread(bind(&ThreadPool::run, this));
         }
     }
-    //同步等待线程池执行完所有任务并退出
-    void wait() {
-        _avaible = false;
-        _queue.push_exit(_thread_num);
-        _thread_group.join_all();
-    }
-private:
-	TaskQueue<TaskExecutor::Task> _queue;
-	thread_group _thread_group;
-	int _thread_num;
-	volatile bool _avaible;
-	Priority _priority;
+
 private:
 	void run() {
 		ThreadPool::setPriority(_priority);
@@ -178,6 +170,11 @@ private:
             }
 		}
 	}
+private:
+	TaskQueue<TaskExecutor::Task> _queue;
+	thread_group _thread_group;
+	int _thread_num;
+	Priority _priority;
 };
 
 } /* namespace Thread */

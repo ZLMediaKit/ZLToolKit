@@ -46,17 +46,17 @@ void AsyncTaskThread::Destory(){
 }
 
 AsyncTaskThread::AsyncTaskThread(uint64_t _millisecond_sleep) {
-	millisecond_sleep = _millisecond_sleep;
-	threadExit = false;
-	taskThread = new thread(&AsyncTaskThread::DoTask, this);
+	_millisecond_sleep = _millisecond_sleep;
+	_threadExit = false;
+	_taskThread = new thread(&AsyncTaskThread::DoTask, this);
 }
 AsyncTaskThread::~AsyncTaskThread() {
-	if (taskThread != NULL) {
-		threadExit = true;
-		cond.notify_one();
-		taskThread->join();
-		delete taskThread;
-		taskThread = NULL;
+	if (_taskThread != NULL) {
+		_threadExit = true;
+		_cond.notify_one();
+		_taskThread->join();
+		delete _taskThread;
+		_taskThread = NULL;
 	}
 	//InfoL;
 }
@@ -68,16 +68,16 @@ void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,const func
 	info->timeLine = millisecond + getNowTime();
 	info->task = func;
 	info->tickTime = millisecond;
-	taskMap.emplace(type, info);
-	needCancel.erase(type);
-	if (taskMap.size() == 1) {
-		cond.notify_one();
+	_taskMap.emplace(type, info);
+	_needCancel.erase(type);
+	if (_taskMap.size() == 1) {
+		_cond.notify_one();
 	}
 }
 void AsyncTaskThread::CancelTask(uint64_t type) {
 	lock_guard<recursive_mutex> lck(_mtx);
-	taskMap.erase(type);
-	needCancel.emplace(type);
+	_taskMap.erase(type);
+	_needCancel.emplace(type);
 }
 inline uint64_t AsyncTaskThread::getNowTime() {
 	struct timeval tv;
@@ -86,20 +86,20 @@ inline uint64_t AsyncTaskThread::getNowTime() {
 }
 void AsyncTaskThread::DoTask() {
 	deque <std::shared_ptr<TaskInfo> > TaskNeedDo;
-	while (!threadExit) {
+	while (!_threadExit) {
 		unique_lock<recursive_mutex> lck(_mtx);
-		if (taskMap.size() != 0) {
-			cond.wait_for(lck, chrono::milliseconds(millisecond_sleep));
+		if (_taskMap.size() != 0) {
+			_cond.wait_for(lck, chrono::milliseconds(_millisecond_sleep));
 		} else {
-			cond.wait_for(lck, chrono::hours(24));
+			_cond.wait_for(lck, chrono::hours(24));
 		}
 		//获取需要执行的任务
-		for (auto it = taskMap.begin(); it != taskMap.end();) {
+		for (auto it = _taskMap.begin(); it != _taskMap.end();) {
 			auto &info = it->second;
 			uint64_t now = getNowTime();
 			if (now > info->timeLine) {
 				TaskNeedDo.push_back(info);
-				it = taskMap.erase(it);
+				it = _taskMap.erase(it);
 				continue;
 			}
 			it++;
@@ -126,11 +126,11 @@ void AsyncTaskThread::DoTask() {
 		_mtx.lock();
 		//循环任务
 		for (auto &task : TaskNeedDo) {
-			if (needCancel.find(task->type) == needCancel.end()) {
-				taskMap.emplace(task->type, task);
+			if (_needCancel.find(task->type) == _needCancel.end()) {
+				_taskMap.emplace(task->type, task);
 			}
 		}
-		needCancel.clear();
+		_needCancel.clear();
 		TaskNeedDo.clear();
 	}
 }

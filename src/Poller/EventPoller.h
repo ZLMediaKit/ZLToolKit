@@ -93,8 +93,10 @@ public:
 	bool sync(const TaskExecutor::Task &task) override;
 
 	void runLoop(bool blocked = true);
-	void shutdown();
+	void shutdown() override;
 	bool isMainThread();
+    void wait() override ;
+	uint64_t size() override;
 private:
 	void initPoll();
 	inline int sigalPipe(uint64_t type, uint64_t i64_size = 0, uint64_t *buf = NULL);
@@ -129,6 +131,8 @@ public:
 	EventPoller::Ptr getFirstPoller() const;
 	EventPoller::Ptr getPoller() const;
 	const TaskExecutor::Ptr& getExecutor() const override ;
+    void wait() override;
+    void shutdown() override;
 private:
 	EventPollerPool(int threadnum = thread::hardware_concurrency());
 private:

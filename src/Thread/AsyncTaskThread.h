@@ -62,15 +62,16 @@ public:
 	static AsyncTaskThread &Instance(uint32_t millisecond_sleep = TASK_INTERVAL);
 	static void Destory();
 private:
-	recursive_mutex _mtx;
-	unordered_multimap<uint64_t, std::shared_ptr<TaskInfo> > taskMap;
-	unordered_set<uint64_t> needCancel;
-	inline uint64_t getNowTime();
-	thread *taskThread;
 	void DoTask();
-	atomic_bool threadExit;
-	condition_variable_any cond;
-	uint64_t millisecond_sleep;
+	inline uint64_t getNowTime();
+private:
+	recursive_mutex _mtx;
+	unordered_multimap<uint64_t, std::shared_ptr<TaskInfo> > _taskMap;
+	unordered_set<uint64_t> _needCancel;
+	thread *_taskThread;
+	atomic_bool _threadExit;
+	condition_variable_any _cond;
+	uint64_t _millisecond_sleep;
 };
 
 class AsyncTaskHelper

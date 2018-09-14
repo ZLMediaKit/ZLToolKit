@@ -35,15 +35,15 @@ namespace Util {
 class onceToken {
 public:
 	typedef function<void(void)> task;
-	onceToken(const task &onConstructed, const task &_onDestructed = nullptr) {
+	onceToken(const task &onConstructed, const task &onDestructed = nullptr) {
 		if (onConstructed) {
 			onConstructed();
 		}
-		onDestructed = _onDestructed;
+		_onDestructed = onDestructed;
 	}
 	~onceToken() {
-		if (onDestructed) {
-			onDestructed();
+		if (_onDestructed) {
+			_onDestructed();
 		}
 	}
 private:
@@ -52,7 +52,7 @@ private:
 	onceToken(onceToken &&);
 	onceToken &operator =(const onceToken &);
 	onceToken &operator =(onceToken &&);
-	task onDestructed;
+	task _onDestructed;
 };
 
 } /* namespace Util */

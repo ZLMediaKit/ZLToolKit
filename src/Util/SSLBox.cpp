@@ -136,28 +136,28 @@ inline std::string SSL_Initor::getLastError(){
 		return "No error";
 }
 SSL_Box::SSL_Box(bool _isServer, bool _enable) :
-		ssl(nullptr), read_bio(nullptr), write_bio(nullptr) {
-	isServer = _isServer;
-	enable = _enable;
-	ssl = SSL_new(isServer ?SSL_Initor::Instance().ssl_server :SSL_Initor::Instance().ssl_client);
-	read_bio = BIO_new(BIO_s_mem());
-	write_bio = BIO_new(BIO_s_mem());
-	SSL_set_bio(ssl, read_bio, write_bio);
-	isServer ? SSL_set_accept_state(ssl) : SSL_set_connect_state(ssl);
-	sendHandshake = false;
+		_ssl(nullptr), _read_bio(nullptr), _write_bio(nullptr) {
+	_isServer = _isServer;
+	_enable = _enable;
+	_ssl = SSL_new(_isServer ?SSL_Initor::Instance().ssl_server :SSL_Initor::Instance().ssl_client);
+	_read_bio = BIO_new(BIO_s_mem());
+	_write_bio = BIO_new(BIO_s_mem());
+	SSL_set_bio(_ssl, _read_bio, _write_bio);
+	_isServer ? SSL_set_accept_state(_ssl) : SSL_set_connect_state(_ssl);
+	_sendHandshake = false;
 }
 
 SSL_Box::~SSL_Box() {
-	if (ssl) {
-		SSL_free(ssl);
-		ssl = nullptr;
+	if (_ssl) {
+		SSL_free(_ssl);
+		_ssl = nullptr;
 	}
 	ERR_clear_error();
 	ERR_remove_state(0);
 }
 
 void SSL_Box::shutdown() {
-	int ret = SSL_shutdown(ssl);
+	int ret = SSL_shutdown(_ssl);
 	if (ret != 1) {
 		ErrorL << "SSL shutdown failed:"<< ERR_reason_error_string(ERR_get_error()) << endl;
 	} else {
@@ -165,26 +165,26 @@ void SSL_Box::shutdown() {
 	}
 }
 void SSL_Box::onRecv(const char* data, uint32_t data_len) {
-	if (!enable) {
-		if (onDec) {
-			onDec(data, data_len);
+	if (!_enable) {
+		if (_onDec) {
+			_onDec(data, data_len);
 		}
 		return;
 	}
-	BIO_write(read_bio, data, data_len);
+	BIO_write(_read_bio, data, data_len);
 	flush();
 }
 
 void SSL_Box::onSend(const char* data, uint32_t data_len) {
-	if (!enable) {
-		if (onEnc) {
-			onEnc(data, data_len);
+	if (!_enable) {
+		if (_onEnc) {
+			_onEnc(data, data_len);
 		}
 		return;
 	}
-	if (!isServer && !sendHandshake) {
-		sendHandshake = true;
-		SSL_do_handshake(ssl);
+	if (!_isServer && !_sendHandshake) {
+		_sendHandshake = true;
+		SSL_do_handshake(_ssl);
 	}
 	_bufferOut.append(data, data_len);
 	flush();
@@ -192,10 +192,10 @@ void SSL_Box::onSend(const char* data, uint32_t data_len) {
 void SSL_Box::flushWriteBio(char *buf, int bufsize) {
 	int nread = 0;
 	//write to socket
-	while ((nread = BIO_read(write_bio, buf, bufsize)) > 0) {
-		if (onEnc) {
+	while ((nread = BIO_read(_write_bio, buf, bufsize)) > 0) {
+		if (_onEnc) {
 			//send
-			onEnc(buf, nread);
+			_onEnc(buf, nread);
 		}
 	}
 }
@@ -203,10 +203,10 @@ void SSL_Box::flushWriteBio(char *buf, int bufsize) {
 void SSL_Box::flushReadBio(char *buf, int bufsize) {
 	int nread = 0;
 	//recv from bio
-	while ((nread = SSL_read(ssl, buf, bufsize)) > 0) {
-		if (onDec) {
+	while ((nread = SSL_read(_ssl, buf, bufsize)) > 0) {
+		if (_onDec) {
 			//recv
-			onDec(buf, nread);
+			_onDec(buf, nread);
 		}
 	}
 }
@@ -216,14 +216,14 @@ void SSL_Box::flush() {
 	flushReadBio(buffer, sizeof(buffer));
 	flushWriteBio(buffer, sizeof(buffer));
 	//write to bio
-	if (SSL_is_init_finished(ssl) && _bufferOut.size()) {
-		nread = SSL_write(ssl, _bufferOut.data(), _bufferOut.size());
+	if (SSL_is_init_finished(_ssl) && _bufferOut.size()) {
+		nread = SSL_write(_ssl, _bufferOut.data(), _bufferOut.size());
 		if (nread >= 0) {
 			//success
 			_bufferOut.clear();
 			flushWriteBio(buffer, sizeof(buffer));
 		} else {
-			int error = SSL_get_error(ssl, nread);
+			int error = SSL_get_error(_ssl, nread);
 			ErrorL << "ssl error:" << error << endl;
 		}
 	}

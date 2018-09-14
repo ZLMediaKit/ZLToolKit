@@ -112,7 +112,7 @@ void EventPoller::shutdown() {
 
 EventPoller::~EventPoller() {
     shutdown();
-
+    wait();
 #if defined(HAS_EPOLL)
     if (_epoll_fd != -1) {
         close(_epoll_fd);
@@ -122,6 +122,7 @@ EventPoller::~EventPoller() {
     //退出前清理管道中的数据
     _mainThreadId = this_thread::get_id();
     handlePipeEvent();
+
     InfoL << this;
 }
 
@@ -299,7 +300,9 @@ inline bool EventPoller::handlePipeEvent() {
     return ret;
 }
 
-
+void EventPoller::wait() {
+    lock_guard<mutex> lck(_mtx_runing);
+}
 void EventPoller::runLoop(bool blocked) {
     if (blocked) {
         onceToken token([this](){
@@ -432,9 +435,12 @@ void EventPoller::runLoop(bool blocked) {
     }
 }
 
+uint64_t EventPoller::size() {
+    return 0;
+}
 
+///////////////////////////////////////////////
 static EventPollerPool::Ptr s_pool_instance;
-
 EventPollerPool &EventPollerPool::Instance() {
     static onceToken s_token([](){
         s_pool_instance.reset(new EventPollerPool);
@@ -456,6 +462,8 @@ EventPollerPool::EventPollerPool(int _threadnum) :
 
 EventPollerPool::~EventPollerPool() {
     InfoL;
+    shutdown();
+    wait();
     threads.clear();
 }
 
@@ -472,6 +480,17 @@ EventPoller::Ptr EventPollerPool::getFirstPoller() const{
 
 EventPoller::Ptr EventPollerPool::getPoller() const {
     return dynamic_pointer_cast<EventPoller>(getExecutor());
+}
+
+void EventPollerPool::wait() {
+    for (auto &th : threads){
+        th->wait();
+    }
+}
+void EventPollerPool::shutdown() {
+    for (auto &th : threads){
+        th->shutdown();
+    }
 }
 
 }  // namespace Poller

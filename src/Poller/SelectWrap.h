@@ -37,7 +37,7 @@ public:
 	void fdSet(int fd);
 	void fdClr(int fd);
 	bool isSet(int fd);
-	void *ptr;
+	void *_ptr;
 private:
 };
 

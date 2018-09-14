@@ -883,16 +883,16 @@ bool SocketHelper::isSocketBusy() const{
     return _sock->isSocketBusy();
 }
 
-bool SocketHelper::async(const Task &task, bool may_sync) {
+bool SocketHelper::async(const TaskExecutor::Task &task, bool may_sync) {
 	return _executor->async(task,may_sync);
 };
-bool SocketHelper::async_first(const Task &task, bool may_sync) {
+bool SocketHelper::async_first(const TaskExecutor::Task &task, bool may_sync) {
 	return _executor->async_first(task,may_sync);
 };
-bool SocketHelper::sync(const Task &task) {
+bool SocketHelper::sync(const TaskExecutor::Task &task) {
 	return _executor->sync(task);
 };
-bool SocketHelper::sync_first(const Task &task) {
+bool SocketHelper::sync_first(const TaskExecutor::Task &task) {
 	return _executor->sync_first(task);
 };
 

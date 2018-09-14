@@ -434,7 +434,7 @@ public:
 };
 
 //套接字以cout的方式写数据等工具
-class SocketHelper : public TaskExecutor{
+class SocketHelper {
 public:
     SocketHelper(const Socket::Ptr &sock);
     virtual ~SocketHelper();
@@ -484,10 +484,10 @@ public:
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
 
-    bool async(const Task &task, bool may_sync = true) override;
-    bool async_first(const Task &task, bool may_sync = true) override;
-    bool sync(const Task &task) override;
-    bool sync_first(const Task &task) override;
+    bool async(const TaskExecutor::Task &task, bool may_sync = true);
+    bool async_first(const TaskExecutor::Task &task, bool may_sync = true);
+    bool sync(const TaskExecutor::Task &task) ;
+    bool sync_first(const TaskExecutor::Task &task);
 protected:
     int _flags = SOCKET_DEFAULE_FLAGS;
     Socket::Ptr _sock;
