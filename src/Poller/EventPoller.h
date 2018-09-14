@@ -131,11 +131,7 @@ public:
 	EventPoller::Ptr getFirstPoller();
 	EventPoller::Ptr getPoller();
 private:
-	EventPollerPool() : TaskExecutorGetterImp([](){
-		auto ret = std::make_shared<EventPoller>();
-		ret->runLoop(false);
-		return ret;
-	}){};
+	EventPollerPool() ;
 };
 
 

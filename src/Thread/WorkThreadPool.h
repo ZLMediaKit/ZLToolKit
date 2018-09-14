@@ -47,9 +47,7 @@ public:
     static WorkThreadPool &Instance();
     static void Destory();
 private:
-    WorkThreadPool(): TaskExecutorGetterImp([](){
-		return std::make_shared<ThreadPool>( 1,ThreadPool::PRIORITY_HIGHEST, true);
-	}){};
+    WorkThreadPool();
 };
 
 } /* namespace Thread */

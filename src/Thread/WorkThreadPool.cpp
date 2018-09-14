@@ -46,6 +46,9 @@ void WorkThreadPool::Destory(){
     s_instance.reset();
 }
 
+WorkThreadPool::WorkThreadPool(): TaskExecutorGetterImp([](){
+	return std::make_shared<ThreadPool>( 1,ThreadPool::PRIORITY_HIGHEST, true);
+}){}
 
 
 } /* namespace Thread */

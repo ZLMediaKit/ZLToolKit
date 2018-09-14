@@ -459,6 +459,12 @@ EventPoller::Ptr EventPollerPool::getPoller(){
     return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
+EventPollerPool::EventPollerPool(): TaskExecutorGetterImp([](){
+    auto ret = std::make_shared<EventPoller>();
+    ret->runLoop(false);
+    return ret;
+}){}
+
 
 }  // namespace Poller
 }  // namespace ZL
