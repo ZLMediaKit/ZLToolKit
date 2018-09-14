@@ -490,17 +490,31 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 
 			Socket::Ptr peerSock ;
 			{
+			    //拦截默认的Socket构造行为，
+                //在TcpServer中，默认的行为是子Socket的网络事件会派发到其他poll线程
+                //这样就可以发挥最大的网络性能
 				lock_guard<mutex> lck(_mtx_beforeAccept);
 				peerSock = _beforeAcceptCB(_poller,_executor);
 			}
+
 			if(!peerSock){
+			    //此处是默认构造行为，也就是子Socket
+                //共用父Socket的poll线程以及事件执行线程
 				peerSock = std::make_shared<Socket>(_poller,_executor);
 			}
-			{
+
+            //设置好fd,以备在TcpSession的构造函数中可以正常访问该fd
+            auto sockFD = peerSock->setPeerSock(peerfd);
+
+            {
 				lock_guard<mutex> lck(_mtx_accept);
+				//在accept事件中，TcpServer对象会创建TcpSession对象并绑定该Socket的相关事件(onRead/onErr)
+				//所以在这之前千万不能就把peerfd加入poll监听
 				_acceptCB(peerSock);
 			}
-			if(!peerSock->setPeerSock(peerfd)){
+			//把该peerfd加入poll监听，这个时候可能会触发其数据接收事件
+			if(!peerSock->attachEvent(sockFD, false)){
+                //加入poll监听失败，我们通知TcpServer该Socket无效
 				peerSock->emitErr(SockException(Err_eof,"attachEvent failed"), true);
 			}
 		}
@@ -512,16 +526,13 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 		}
 	}
 }
-bool Socket::setPeerSock(int sock) {
+
+SockFD::Ptr Socket::setPeerSock(int sock) {
 	closeSock();
-	auto pSock = makeSock(sock);
-	if(!attachEvent(pSock,false)){
-		WarnL << "开始Poll监听失败";
-		return false;
-	}
+    auto pSock = makeSock(sock);
 	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = pSock;
-	return true;
+	return pSock;
 }
 
 string Socket::get_local_ip() {

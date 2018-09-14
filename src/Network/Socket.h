@@ -384,7 +384,7 @@ public:
     const EventPoller::Ptr &getPoller() const;
 private:
     void closeSock();
-    bool setPeerSock(int fd);
+    SockFD::Ptr setPeerSock(int fd);
 	bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
     int onAccept(const SockFD::Ptr &pSock,int event);
     int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
