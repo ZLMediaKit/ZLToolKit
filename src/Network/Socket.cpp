@@ -496,9 +496,12 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			if(!peerSock){
 				peerSock = std::make_shared<Socket>(_poller,_executor);
 			}
-			if(peerSock->setPeerSock(peerfd)){
-                lock_guard<mutex> lck(_mtx_accept);
-                _acceptCB(peerSock);
+			{
+				lock_guard<mutex> lck(_mtx_accept);
+				_acceptCB(peerSock);
+			}
+			if(!peerSock->setPeerSock(peerfd)){
+				peerSock->emitErr(SockException(Err_eof,"attachEvent failed"), true);
 			}
 		}
 
