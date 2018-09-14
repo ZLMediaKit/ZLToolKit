@@ -33,36 +33,37 @@ namespace Util {
 
 class Ticker {
 public:
-	Ticker(int64_t _minMs = 0, const char *_where = "",
-			LogInfoMaker && _stream = LogInfoMaker(LWarn, __FILE__, "", __LINE__),bool printLog=false) :
-			stream(_stream) {
+	Ticker(int64_t minMs = 0,
+		   const char *where = "",
+		   LogInfoMaker && stream = LogInfoMaker(LWarn, __FILE__, "", __LINE__),
+		   bool printLog=false):_stream(stream) {
 		if(!printLog){
-			stream.clear();
+			_stream.clear();
 		}
-		begin = getNowTime();
-		created = begin;
-		minMs = _minMs;
-		where = _where;
+		_begin = getNowTime();
+		_created = _begin;
+		_minMs = minMs;
+		_where = where;
 	}
 	~Ticker() {
-		int64_t tm = getNowTime() - begin;
-		if (tm > minMs) {
-			stream << where << " take time:" << tm << endl;
+		int64_t tm = getNowTime() - _begin;
+		if (tm > _minMs) {
+			_stream << _where << " take time:" << tm << endl;
 		} else {
-			stream.clear();
+			_stream.clear();
 		}
 	}
 	uint64_t elapsedTime() {
-		stream.clear();
-		return getNowTime() - begin;
+		_stream.clear();
+		return getNowTime() - _begin;
 	}
 	uint64_t createdTime() {
-		stream.clear();
-		return getNowTime() - created;
+		_stream.clear();
+		return getNowTime() - _created;
 	}
 	void resetTime() {
-		stream.clear();
-		begin = getNowTime();
+		_stream.clear();
+		_begin = getNowTime();
 	}
 
 private:
@@ -71,49 +72,50 @@ private:
 		gettimeofday(&tv, NULL);
 		return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	}
-	uint64_t begin;
-	uint64_t created;
-	LogInfoMaker stream;
-	const char *where;
-	int64_t minMs;
+private:
+	uint64_t _begin;
+	uint64_t _created;
+	LogInfoMaker _stream;
+	const char *_where;
+	int64_t _minMs;
 
 };
 class SmoothTicker {
 public:
-	SmoothTicker(uint64_t _resetMs = 10000) {
-		resetMs = _resetMs;
-		ticker.resetTime();
+	SmoothTicker(uint64_t resetMs = 10000) {
+		_resetMs = resetMs;
+		_ticker.resetTime();
 	}
 	~SmoothTicker() {
 	}
 	uint64_t elapsedTime() {
-		auto nowTime = ticker.elapsedTime();
-		if (firstTime == 0) {
-			firstTime = nowTime;
-			lastTime = nowTime;
-			pktCount = 0;
+		auto nowTime = _ticker.elapsedTime();
+		if (_firstTime == 0) {
+			_firstTime = nowTime;
+			_lastTime = nowTime;
+			_pktCount = 0;
 			return nowTime;
 		}
-		uint64_t elapseTime = (nowTime - firstTime);
-		uint64_t retTime = lastTime + elapseTime / ++pktCount;
-		lastTime = retTime;
+		uint64_t elapseTime = (nowTime - _firstTime);
+		uint64_t retTime = _lastTime + elapseTime / ++_pktCount;
+		_lastTime = retTime;
 		if (elapseTime > 10000) {
-			firstTime = 0;
+			_firstTime = 0;
 		}
 		return retTime;
 	}
     void resetTime(){
-        firstTime = 0;
-        pktCount = 0;
-        lastTime = 0;
-        ticker.resetTime();
+		_firstTime = 0;
+		_pktCount = 0;
+		_lastTime = 0;
+		_ticker.resetTime();
     }
 private:
-	uint64_t firstTime = 0;
-	uint64_t pktCount = 0;
-	uint64_t lastTime = 0;
-	uint64_t resetMs;
-	Ticker ticker;
+	uint64_t _firstTime = 0;
+	uint64_t _pktCount = 0;
+	uint64_t _lastTime = 0;
+	uint64_t _resetMs;
+	Ticker _ticker;
 };
 
 #if defined(_DEBUG)

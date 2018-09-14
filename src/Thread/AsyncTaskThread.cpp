@@ -45,8 +45,8 @@ void AsyncTaskThread::Destory(){
 	s_instance.reset();
 }
 
-AsyncTaskThread::AsyncTaskThread(uint64_t _millisecond_sleep) {
-	_millisecond_sleep = _millisecond_sleep;
+AsyncTaskThread::AsyncTaskThread(uint64_t millisecond_sleep) {
+	_millisecond_sleep = millisecond_sleep;
 	_threadExit = false;
 	_taskThread = new thread(&AsyncTaskThread::DoTask, this);
 }

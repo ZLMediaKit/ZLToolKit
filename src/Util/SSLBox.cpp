@@ -135,10 +135,10 @@ inline std::string SSL_Initor::getLastError(){
 	} else
 		return "No error";
 }
-SSL_Box::SSL_Box(bool _isServer, bool _enable) :
+SSL_Box::SSL_Box(bool isServer, bool enable) :
 		_ssl(nullptr), _read_bio(nullptr), _write_bio(nullptr) {
-	_isServer = _isServer;
-	_enable = _enable;
+	_isServer = isServer;
+	_enable = enable;
 	_ssl = SSL_new(_isServer ?SSL_Initor::Instance().ssl_server :SSL_Initor::Instance().ssl_client);
 	_read_bio = BIO_new(BIO_s_mem());
 	_write_bio = BIO_new(BIO_s_mem());

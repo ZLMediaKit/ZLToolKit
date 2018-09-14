@@ -251,7 +251,7 @@ bool EventPoller::isMainThread() {
     return _mainThreadId == this_thread::get_id();
 }
 
-inline Sigal_Type EventPoller::_handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf) {
+inline Sigal_Type EventPoller::handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf) {
     switch (type) {
         case Sig_Async: {
             TaskExecutor::Task **cb = (TaskExecutor::Task **) buf;
@@ -292,7 +292,7 @@ inline bool EventPoller::handlePipeEvent() {
             break;
         }
         uint64_t *ptr = (uint64_t *) (_pipeBuffer.data()) + 2;
-        if (Sig_Exit == _handlePipeEvent(type, slinceSize, ptr)) {
+        if (Sig_Exit == handlePipeEvent(type, slinceSize, ptr)) {
             ret = false;
         }
         _pipeBuffer.erase(0, slinceByte);

@@ -128,7 +128,7 @@ string hexdump(const void *buf, size_t len) {
 	return ret;
 }
 
-static string _exePath("./");
+static string s_exePath("./");
 string exePath() {
 	char buffer[PATH_MAX * 2 + 1] = {0};
 	int n = -1;
@@ -145,7 +145,7 @@ string exePath() {
 
 	string filePath;
 	if (n <= 0) {
-		filePath = _exePath;
+		filePath = s_exePath;
 	} else {
 		filePath = buffer;
 	}
@@ -162,7 +162,7 @@ string exePath() {
 	return filePath;
 }
 void setExePath(const string &path){
-    _exePath=path;
+    s_exePath=path;
 }
 string exeDir(){
 	auto path = exePath();

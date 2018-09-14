@@ -167,8 +167,8 @@ private:
 
 class SqlStream {
 public:
-	SqlStream(const char *_sql) :
-			_sql(_sql) {
+	SqlStream(const char *sql) :
+			_sql(sql) {
 		_startPos = 0;
 	}
 	~SqlStream() {
@@ -202,8 +202,8 @@ private:
 
 class SqlWriter {
 public:
-	SqlWriter(const char *_sql,bool _throwAble = true) :
-			_sqlstream(_sql),_throwAble(_throwAble) {
+	SqlWriter(const char *sql,bool throwAble = true) :
+			_sqlstream(sql),_throwAble(throwAble) {
 	}
 	~SqlWriter() {
 

@@ -67,8 +67,8 @@ typedef struct {
 	Poll_Event event;
 	PollEventCB callBack;
 	int attach;
-	void operator()(int _event) const{
-		callBack(_event);
+	void operator()(int event) const{
+		callBack(event);
 	}
 	void operator()() const{
 		callBack(attach);
@@ -101,7 +101,7 @@ private:
 	void initPoll();
 	inline int sigalPipe(uint64_t type, uint64_t i64_size = 0, uint64_t *buf = NULL);
 	inline bool handlePipeEvent();
-	inline Sigal_Type _handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf);
+	inline Sigal_Type handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf);
 private:
 	PipeWrap _pipe;
 	thread *_loopThread = nullptr;

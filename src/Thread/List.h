@@ -45,8 +45,8 @@ public:
     ListNode(T &&data):_data(std::forward<T>(data)){}
     ListNode(const T &data):_data(data){}
 
-    template <class... _Args>
-    ListNode(_Args&&... __args):_data(std::forward<_Args>(__args)...){}
+    template <class... Args>
+    ListNode(Args&&... args):_data(std::forward<Args>(args)...){}
 private:
     T _data;
     ListNode *next = nullptr;
@@ -81,9 +81,9 @@ public:
         return _size;
     }
 
-    template <class... _Args>
-    void emplace_front(_Args&&... __args){
-        NodeType *node = new NodeType(std::forward<_Args>(__args)...);
+    template <class... Args>
+    void emplace_front(Args&&... args){
+        NodeType *node = new NodeType(std::forward<Args>(args)...);
         if(!_front){
             _front = node;
             _back = node;
@@ -95,9 +95,9 @@ public:
         }
     }
 
-    template <class... _Args>
-    void emplace_back(_Args&&... __args){
-        NodeType *node = new NodeType(std::forward<_Args>(__args)...);
+    template <class...Args>
+    void emplace_back(Args&&... args){
+        NodeType *node = new NodeType(std::forward<Args>(args)...);
         if(!_back){
             _back = node;
             _front = node;

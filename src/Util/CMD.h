@@ -89,8 +89,8 @@ private:
 class OptionParser {
 public:
     typedef function< void(const std::shared_ptr<ostream> &,mINI &)> OptionCompleted;
-    OptionParser(const OptionCompleted &_cb = nullptr,bool enableEmptyArgs = true) {
-        _onCompleted = _cb;
+    OptionParser(const OptionCompleted &cb = nullptr,bool enableEmptyArgs = true) {
+        _onCompleted = cb;
         _enableEmptyArgs = enableEmptyArgs;
         _helper = Option('h', "help", Option::ArgNone, nullptr, false, "打印此信息",
                          [this](const std::shared_ptr<ostream> &stream,const string &arg)->bool {
