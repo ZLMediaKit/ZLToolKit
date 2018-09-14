@@ -49,7 +49,6 @@ public:
     template <typename FUN>
     TaskExecutorGetterImp(FUN &&fun,int threadnum = thread::hardware_concurrency()){
         _threadnum = threadnum;
-        _threadPos = -1;
         for (int i = 0; i < _threadnum; i++) {
             _threads.emplace_back(fun());
         }
@@ -62,10 +61,17 @@ public:
     }
 
     TaskExecutor::Ptr getExecutor() override{
-        if (++_threadPos >= _threadnum) {
-            _threadPos = 0;
+        TaskExecutor::Ptr ret = _threads.front();
+        auto minSize = ret->size();
+        //获取任务数最少的线程
+        for(auto &th : _threads){
+            auto size = th->size();
+            if(size < minSize){
+                minSize = size;
+                ret = th;
+            }
         }
-        return _threads[_threadPos.load()];
+        return ret;
     }
 
     void wait() override{
@@ -80,7 +86,6 @@ public:
     }
 protected:
     int _threadnum;
-    mutable atomic<int> _threadPos;
     vector <TaskExecutor::Ptr > _threads;
 };
 
