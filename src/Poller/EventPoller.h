@@ -33,6 +33,7 @@
 #include "PipeWrap.h"
 #include "Util/logger.h"
 #include "Util/util.h"
+#include "Thread/List.h"
 #include "Thread/TaskExecutor.h"
 
 using namespace std;
@@ -53,11 +54,6 @@ typedef enum {
 	Event_Error = 1 << 2, //错误事件
 	Event_LT    = 1 << 3,//水平触发
 } Poll_Event;
-
-typedef enum {
-	Sig_Exit = 0, //关闭监听
-	Sig_Async, //异步
-} Sigal_Type;
 
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
@@ -90,7 +86,9 @@ public:
 	int modifyEvent(int fd, int event);
 
 	bool async(const TaskExecutor::Task &task, bool may_sync = true) override ;
+    bool async_first(const TaskExecutor::Task &task, bool may_sync = true) override ;
 	bool sync(const TaskExecutor::Task &task) override;
+    bool sync_first(const TaskExecutor::Task &task) override;
 
 	void runLoop(bool blocked = true);
 	void shutdown() override;
@@ -98,24 +96,34 @@ public:
     void wait() override ;
 	uint64_t size() override;
 private:
-	void initPoll();
-	inline int sigalPipe(uint64_t type, uint64_t i64_size = 0, uint64_t *buf = NULL);
-	inline bool handlePipeEvent();
-	inline Sigal_Type handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf);
+	bool onPipeEvent();
+    bool async_l(const TaskExecutor::Task &task, bool may_sync = true,bool first = false) ;
+    bool sync_l(const TaskExecutor::Task &task,bool first = false);
 private:
-	PipeWrap _pipe;
+    class ExitException : public std::exception{
+    public:
+        ExitException(){}
+        ~ExitException(){}
+    };
+private:
+    PipeWrap _pipe;
+
 	thread *_loopThread = nullptr;
 	thread::id _mainThreadId;
-	mutex _mtx_event_map;
-	mutex _mtx_runing;
+
+    mutex _mtx_event_map;
 #if defined(HAS_EPOLL)
 	int _epoll_fd = -1;
 	unordered_map<int, PollEventCB> _event_map;
 #else
 	unordered_map<int, Poll_Record> _event_map;
 #endif //HAS_EPOLL
-	string _pipeBuffer;
-	bool _loopRunned = false;
+
+    mutex _mtx_runing;
+    bool _loopRunned = false;
+
+    List<TaskExecutor::Task> _list_task;
+    mutex _mtx_task;
 };
 
 

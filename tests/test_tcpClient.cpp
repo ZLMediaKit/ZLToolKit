@@ -34,8 +34,10 @@ class TestClient: public TcpClient {
 public:
 	typedef std::shared_ptr<TestClient> Ptr;
 	TestClient():TcpClient(nullptr, nullptr) {
+		DebugL;
 	}
 	~TestClient(){
+		cout << __FUNCTION__ << endl;
 		DebugL;
 	}
 	void connect(){

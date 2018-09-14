@@ -36,9 +36,11 @@ class EchoSession: public TcpSession {
 public:
 	EchoSession(const Socket::Ptr &sock) :
 			TcpSession(sock) {
+		DebugL;
 	}
 	~EchoSession() {
 		DebugL;
+		cout << __FUNCTION__ << endl;
 	}
 	virtual void onRecv(const Buffer::Ptr &buf) override{
 		//处理客户端发送过来的数据
@@ -76,10 +78,7 @@ int main() {
 	EventPoller::Instance().runLoop();//主线程事件轮询
 
 	server.reset();//销毁服务器
-	//TcpServer 依赖线程池，需要销毁
-	WorkThreadPool::Destory();
 	EventPoller::Destory();
-	EventPollerPool::Destory();
 	Logger::Destory();
 	return 0;
 }

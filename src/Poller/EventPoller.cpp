@@ -64,6 +64,9 @@ void EventPoller::Destory() {
 }
 
 EventPoller::EventPoller() {
+    SockUtil::setNoBlocked(_pipe.readFD());
+    SockUtil::setNoBlocked(_pipe.writeFD());
+
 #if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
@@ -78,27 +81,11 @@ EventPoller::EventPoller() {
     _mainThreadId = this_thread::get_id();
 }
 
-inline int EventPoller::sigalPipe(uint64_t type, uint64_t i64_size, uint64_t *buf) {
-#if defined(_WIN32)
-    uint64_t *pipeBuf = new uint64_t[2 + i64_size];
-#else
-    uint64_t pipeBuf[2 + i64_size];
-#endif
-    pipeBuf[0] = type;
-    pipeBuf[1] = i64_size;
-    if (i64_size) {
-        memcpy(pipeBuf + 2, buf, i64_size * sizeof(uint64_t));
-    }
-    auto ret = _pipe.write(pipeBuf, (2 + i64_size) * sizeof(uint64_t));
-
-#if defined(_WIN32)
-    delete [] pipeBuf;
-#endif
-    return ret;
-}
 
 void EventPoller::shutdown() {
-    sigalPipe(Sig_Exit);
+    async_first([](){
+        throw ExitException();
+    });
     if (_loopThread) {
         try {
             _loopThread->join();
@@ -121,8 +108,7 @@ EventPoller::~EventPoller() {
 #endif //defined(HAS_EPOLL)
     //退出前清理管道中的数据
     _mainThreadId = this_thread::get_id();
-    handlePipeEvent();
-
+    onPipeEvent();
     InfoL << this;
 }
 
@@ -214,36 +200,59 @@ int EventPoller::modifyEvent(int fd, int event) {
 #endif //HAS_EPOLL
 }
 
-bool EventPoller::sync(const TaskExecutor::Task &syncCb) {
+bool EventPoller::sync(const TaskExecutor::Task &task) {
+    return sync_l(task, false);
+}
+
+bool EventPoller::sync_first(const TaskExecutor::Task &task) {
+    return sync_l(task, true);
+}
+bool EventPoller::sync_l(const TaskExecutor::Task &task,bool first){
     TimeTicker();
-    if (!syncCb) {
+    if (!task) {
         return false;
     }
     semaphore sem;
-    async([&]() {
-        syncCb();
+    async_l([&]() {
+        task();
         sem.post();
-    });
+    }, true,first);
     sem.wait();
     return true;
 }
 
-bool EventPoller::async(const TaskExecutor::Task &asyncCb,bool may_sync) {
+bool EventPoller::async(const TaskExecutor::Task &task, bool may_sync) {
+    return async_l(task,may_sync, false);
+}
+bool EventPoller::async_first(const TaskExecutor::Task &task, bool may_sync) {
+    return async_l(task,may_sync, true);
+}
+
+bool EventPoller::async_l(const TaskExecutor::Task &task,bool may_sync, bool first) {
     TimeTicker();
-    if (!asyncCb) {
+    if (!task) {
         return false;
     }
     if (may_sync && _mainThreadId == this_thread::get_id()) {
-        asyncCb();
+        task();
         return true;
     }
     std::shared_ptr<Ticker> pTicker = std::make_shared<Ticker>(5, "wake up main thread", WarnL, true);
-    auto lam = [asyncCb, pTicker]() {
+    auto lam = [task, pTicker]() {
         const_cast<std::shared_ptr<Ticker> &>(pTicker).reset();
-        asyncCb();
+        task();
     };
-    uint64_t buf[1] = {(uint64_t) (new TaskExecutor::Task(lam))};
-    sigalPipe(Sig_Async, 1, buf);
+
+    {
+        lock_guard<mutex> lck(_mtx_task);
+        if(first){
+            _list_task.emplace_front(std::move(lam));
+        }else{
+            _list_task.emplace_back(std::move(lam));
+        }
+    }
+    //写数据到管道,唤醒主线程
+    _pipe.write("",1);
     return true;
 }
 
@@ -251,53 +260,34 @@ bool EventPoller::isMainThread() {
     return _mainThreadId == this_thread::get_id();
 }
 
-inline Sigal_Type EventPoller::handlePipeEvent(uint64_t type, uint64_t i64_size, uint64_t *buf) {
-    switch (type) {
-        case Sig_Async: {
-            TaskExecutor::Task **cb = (TaskExecutor::Task **) buf;
-            try {
-                (*cb)->operator()();
-            } catch (std::exception &ex) {
-                ErrorL << ex.what();
-            }
-            delete *cb;
-        }
-            break;
-        default:
-            break;
-    }
-    return (Sigal_Type) type;
-}
-
-inline bool EventPoller::handlePipeEvent() {
+inline bool EventPoller::onPipeEvent() {
     TimeTicker();
-    int nread;
     char buf[1024];
     int err = 0;
     do {
-        nread = _pipe.read(buf, sizeof(buf));
-        if (nread > 0) {
-            _pipeBuffer.append(buf, nread);
+        if (_pipe.read(buf, sizeof(buf)) > 0) {
             continue;
         }
         err = get_uv_error(true);
     } while (err != UV_EAGAIN);
 
-    bool ret = true;
-    while (_pipeBuffer.size() >= 2 * sizeof(uint64_t)) {
-        uint64_t type = *((uint64_t *) _pipeBuffer.data());
-        uint64_t slinceSize = *((uint64_t *) (_pipeBuffer.data()) + 1);
-        uint64_t slinceByte = (2 + slinceSize) * sizeof(uint64_t);
-        if (slinceByte > _pipeBuffer.size()) {
-            break;
-        }
-        uint64_t *ptr = (uint64_t *) (_pipeBuffer.data()) + 2;
-        if (Sig_Exit == handlePipeEvent(type, slinceSize, ptr)) {
-            ret = false;
-        }
-        _pipeBuffer.erase(0, slinceByte);
+    decltype(_list_task) listCopy;
+    {
+        lock_guard<mutex> lck(_mtx_task);
+        listCopy.swap(_list_task);
     }
-    return ret;
+
+    bool catchExitException = false;
+    listCopy.for_each([&](const TaskExecutor::Task &task){
+        try {
+            task();
+        }catch (ExitException &ex){
+            catchExitException = true;
+        }catch (std::exception &ex){
+            ErrorL << ex.what();
+        }
+    });
+    return !catchExitException;
 }
 
 void EventPoller::wait() {
@@ -396,7 +386,7 @@ void EventPoller::runLoop(bool blocked) {
 
             if (Set_read.isSet(_pipe.readFD())) {
                 //判断有否监听操作
-                if (!handlePipeEvent()) {
+                if (!onPipeEvent()) {
                     break;
                 }
                 if (ret == 1) {
@@ -438,6 +428,7 @@ void EventPoller::runLoop(bool blocked) {
 uint64_t EventPoller::size() {
     return 0;
 }
+
 
 ///////////////////////////////////////////////
 static EventPollerPool::Ptr s_pool_instance;

@@ -59,6 +59,9 @@ public:
     typedef ListNode<T> NodeType;
     List(){}
     ~List(){
+        clear();
+    }
+    void clear(){
         auto ptr = _front;
         auto last = ptr;
         while(ptr){
@@ -67,7 +70,6 @@ public:
             delete last;
         }
     }
-
     template <typename  FUN>
     void for_each(FUN &&fun){
         auto ptr = _front;
@@ -126,6 +128,21 @@ public:
         --_size;
     }
 
+    void swap(List &other){
+        NodeType *tmp_node;
+
+        tmp_node = _front;
+        _front = other._front;
+        other._front = tmp_node;
+
+        tmp_node = _back;
+        _back = other._back;
+        other._back = tmp_node;
+
+        uint64_t tmp_size = _size;
+        _size = other._size;
+        other._size = tmp_size;
+    }
 private:
     NodeType *_front = nullptr;
     NodeType *_back = nullptr;
