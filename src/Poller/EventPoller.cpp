@@ -331,7 +331,7 @@ void EventPoller::runLoop(bool blocked) {
                         WarnL << "Poller 异常退出监听。";
                         return;
                     }
-                    if (!handlePipeEvent()) {
+                    if (!onPipeEvent()) {
                         return;
                     }
                     continue;
