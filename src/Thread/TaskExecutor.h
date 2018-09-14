@@ -70,6 +70,9 @@ public:
                 minSize = size;
                 ret = th;
             }
+            if(size ==0){
+                break;
+            }
         }
         return ret;
     }

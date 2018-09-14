@@ -295,7 +295,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 void Socket::onError(const SockFD::Ptr &pSock) {
 	emitErr(getSockErr(pSock));
 }
-bool Socket::emitErr(const SockException& err) {
+bool Socket::emitErr(const SockException& err,bool close) {
 	{
 		lock_guard<mutex> lck(_mtx_sockFd);
 		if (!_sockFd) {
@@ -312,7 +312,9 @@ bool Socket::emitErr(const SockException& err) {
 		lock_guard<mutex> lck(strongSelf->_mtx_err);
 		strongSelf->_errCB(err);
 	});
-	closeSock();
+    if(close){
+        closeSock();
+    }
 	return true;
 }
 
