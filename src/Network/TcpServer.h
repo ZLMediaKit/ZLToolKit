@@ -141,15 +141,6 @@ public:
 		for (auto &pr : _sessionMap) {
             //从全局的map中移除记录
             SessionMap::Instance().remove(pr.first);
-
-			weak_ptr<TcpSession> weakSession = pr.second;
-			pr.second->async_first([weakSession]() {
-                //遍历触发onError事件，确保脱离TcpServer时都能知晓
-				auto strongSession = weakSession.lock();
-				if(strongSession){
-					strongSession->onError(SockException(Err_other,"Tcp server shutdown!"));
-				}
-			});
 		}
 		_sessionMap.clear();
 		TraceL << "clean tcp server completed!";
@@ -159,8 +150,19 @@ public:
     template <typename SessionType>
 	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
         //TcpSession创建器，通过它创建不同类型的服务器
-        _sessionMaker = [](const Socket::Ptr &sock){
-            return std::make_shared<SessionType>(sock);
+        weak_ptr<Socket> weakSock = _socket;
+        _sessionMaker = [weakSock](const Socket::Ptr &sock){
+			std::shared_ptr<SessionType> ret(new SessionType(sock),[weakSock](SessionType *ptr){
+				if(!ptr) {
+                    return;
+                }
+                if(!weakSock.lock()){
+					//本服务器已经销毁
+                    ptr->onError(SockException(Err_other,"Tcp server shutdown!"));
+                }
+                delete ptr;
+			});
+			return ret;
         };
 
         if (!_socket->listen(port, host.c_str(), backlog)) {
