@@ -44,6 +44,13 @@ class TcpSession:
 public:
     typedef std::shared_ptr<TcpSession> Ptr;
 
+	TcpSession(const Socket::Ptr &pSock);
+
+	/**
+	 * 过期接口,为了兼容老代码而保留
+	 * @param pTh
+	 * @param pSock
+	 */
 	TcpSession(const TaskExecutor::Ptr &pTh, const Socket::Ptr &pSock);
 	virtual ~TcpSession();
     //接收数据入口
