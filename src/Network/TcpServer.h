@@ -114,8 +114,8 @@ public:
      * @param executorGetter 任务执行器获取器
      * @param poller 事件轮询器
      */
-    TcpServer(const TaskExecutorGetter::Ptr executorGetter /*= nullptr*/,
-			  const EventPoller::Ptr &poller /*= nullptr*/ ) {
+    TcpServer(const TaskExecutorGetter::Ptr executorGetter = nullptr,
+			  const EventPoller::Ptr &poller = nullptr ) {
 		_executorGetter = executorGetter;
 		if(!_executorGetter){
 			_executorGetter = EventPollerPool::Instance().shared_from_this();
@@ -152,7 +152,7 @@ public:
         //TcpSession创建器，通过它创建不同类型的服务器
         weak_ptr<Socket> weakSock = _socket;
         _sessionMaker = [weakSock](const Socket::Ptr &sock){
-			std::shared_ptr<SessionType> ret(new SessionType(sock),[weakSock](SessionType *ptr){
+			std::shared_ptr<SessionType> ret(new SessionType(nullptr,sock),[weakSock](SessionType *ptr){
 				if(!ptr) {
                     return;
                 }

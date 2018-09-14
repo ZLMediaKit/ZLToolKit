@@ -760,6 +760,11 @@ void SocketHelper::setExecutor(const TaskExecutor::Ptr &excutor){
 	}
 }
 
+TaskExecutor::Ptr SocketHelper::getExecutor(){
+    return _executor;
+}
+
+
 //设置socket flags
 SocketHelper &SocketHelper::operator<<(const SocketFlags &flags) {
     _flags = flags._flags;

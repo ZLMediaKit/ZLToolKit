@@ -29,7 +29,7 @@
 namespace ZL {
 namespace Network {
 
-TcpSession::TcpSession(const Socket::Ptr &sock) : SocketHelper(sock) {
+TcpSession::TcpSession(const TaskExecutor::Ptr &, const Socket::Ptr &sock) : SocketHelper(sock) {
 }
 
 TcpSession::~TcpSession() {

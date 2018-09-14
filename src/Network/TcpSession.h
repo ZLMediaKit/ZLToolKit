@@ -44,7 +44,7 @@ class TcpSession:
 public:
     typedef std::shared_ptr<TcpSession> Ptr;
 
-	TcpSession(const Socket::Ptr &sock);
+	TcpSession(const TaskExecutor::Ptr &pTh, const Socket::Ptr &pSock);
 	virtual ~TcpSession();
     //接收数据入口
 	virtual void onRecv(const Buffer::Ptr &) = 0;

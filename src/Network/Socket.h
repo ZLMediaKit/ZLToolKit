@@ -319,8 +319,8 @@ public:
     //在接收到连接请求前，拦截Socket默认生成方式
     typedef function<Ptr(const EventPoller::Ptr &poller,const TaskExecutor::Ptr &executor)> onBeforeAcceptCB;
 
-    Socket(const EventPoller::Ptr &poller/*= nullptr*/,
-           const TaskExecutor::Ptr &executor /*= nullptr*/);
+    Socket(const EventPoller::Ptr &poller = nullptr,
+           const TaskExecutor::Ptr &executor = nullptr);
 	~Socket();
 
     //创建tcp客户端，url可以是ip或域名
@@ -441,6 +441,7 @@ public:
     //重新设置socket
     void setSock(const Socket::Ptr &sock);
     void setExecutor(const TaskExecutor::Ptr &excutor);
+    TaskExecutor::Ptr getExecutor();
     //设置socket flags
     virtual SocketHelper &operator << (const SocketFlags &flags);
     //////////////////operator << 系列函数//////////////////
