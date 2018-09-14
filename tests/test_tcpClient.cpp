@@ -37,7 +37,6 @@ public:
 		DebugL;
 	}
 	~TestClient(){
-		cout << __FUNCTION__ << endl;
 		DebugL;
 	}
 	void connect(){

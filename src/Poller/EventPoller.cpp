@@ -426,7 +426,8 @@ void EventPoller::runLoop(bool blocked) {
 }
 
 uint64_t EventPoller::size() {
-    return 0;
+    lock_guard<mutex> lck(_mtx_task);
+    return _list_task.size();
 }
 
 

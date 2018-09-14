@@ -40,7 +40,6 @@ public:
 	}
 	~EchoSession() {
 		DebugL;
-		cout << __FUNCTION__ << endl;
 	}
 	virtual void onRecv(const Buffer::Ptr &buf) override{
 		//处理客户端发送过来的数据

@@ -142,10 +142,13 @@ public:
             //从全局的map中移除记录
             SessionMap::Instance().remove(pr.first);
 
-            auto session = pr.second;
-            session->async_first([session]() {
+			weak_ptr<TcpSession> weakSession = pr.second;
+			pr.second->async_first([weakSession]() {
                 //遍历触发onError事件，确保脱离TcpServer时都能知晓
-				session->onError(SockException(Err_other,"Tcp server shutdown!"));
+				auto strongSession = weakSession.lock();
+				if(strongSession){
+					strongSession->onError(SockException(Err_other,"Tcp server shutdown!"));
+				}
 			});
 		}
 		_sessionMap.clear();
