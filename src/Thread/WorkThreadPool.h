@@ -40,14 +40,16 @@ namespace Thread {
 
 class WorkThreadPool :
         public std::enable_shared_from_this<WorkThreadPool> ,
-        public TaskExecutorGetterImp<ThreadPool>{
+        public TaskExecutorGetterImp{
 public:
 	typedef std::shared_ptr<WorkThreadPool> Ptr;
     ~WorkThreadPool(){};
     static WorkThreadPool &Instance();
     static void Destory();
 private:
-    WorkThreadPool(){};
+    WorkThreadPool(): TaskExecutorGetterImp([](){
+		return std::make_shared<ThreadPool>( 1,ThreadPool::PRIORITY_HIGHEST, true);
+	}){};
 };
 
 } /* namespace Thread */

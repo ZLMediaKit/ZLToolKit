@@ -44,14 +44,14 @@ public:
 };
 
 
-template <typename T>
 class TaskExecutorGetterImp : public TaskExecutorGetter{
 public:
-    TaskExecutorGetterImp(int threadnum = thread::hardware_concurrency()){
+    template <typename FUN>
+    TaskExecutorGetterImp(FUN &&fun,int threadnum = thread::hardware_concurrency()){
         _threadnum = threadnum;
         _threadPos = -1;
         for (int i = 0; i < _threadnum; i++) {
-            _threads.emplace_back(std::make_shared<T>());
+            _threads.emplace_back(fun());
         }
     }
 
@@ -78,11 +78,10 @@ public:
             th->shutdown();
         }
     }
-
 protected:
     int _threadnum;
     mutable atomic<int> _threadPos;
-    vector <std::shared_ptr<T> > _threads;
+    vector <TaskExecutor::Ptr > _threads;
 };
 
 }//Thread

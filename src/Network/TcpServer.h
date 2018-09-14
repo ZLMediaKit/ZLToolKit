@@ -89,7 +89,6 @@ private:
 class TcpServer : public mINI , public std::enable_shared_from_this<TcpServer>{
 public:
 	typedef std::shared_ptr<TcpServer> Ptr;
-    typedef unordered_map<string, TcpSession::Ptr > SessionMapType;
 
     /**
      * 原先的方式是网络事件、数据读取在poller循环中触发，但是处理在后台线程中执行
@@ -258,7 +257,7 @@ private:
 					return;
 				}
 				strongSession->onManager();
-			});
+			}, false);
 		}
 	}
 private:
@@ -268,7 +267,7 @@ private:
 
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
-	SessionMapType _sessionMap;
+	unordered_map<string, TcpSession::Ptr > _sessionMap;
     function<TcpSession::Ptr(const Socket::Ptr &)> _sessionMaker;
 };
 

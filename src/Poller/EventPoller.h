@@ -121,7 +121,7 @@ private:
 
 class EventPollerPool :
 		public std::enable_shared_from_this<EventPollerPool> ,
-		public TaskExecutorGetterImp<EventPoller> {
+		public TaskExecutorGetterImp {
 public:
 	typedef std::shared_ptr<EventPollerPool> Ptr;
 	~EventPollerPool(){};
@@ -131,7 +131,11 @@ public:
 	EventPoller::Ptr getFirstPoller();
 	EventPoller::Ptr getPoller();
 private:
-	EventPollerPool(){};
+	EventPollerPool() : TaskExecutorGetterImp([](){
+		auto ret = std::make_shared<EventPoller>();
+		ret->runLoop(false);
+		return ret;
+	}){};
 };
 
 
