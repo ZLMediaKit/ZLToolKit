@@ -69,12 +69,12 @@ public:
 			}
 		}
 		void setReadCB(const function<void(const T &)> &cb) {
-			lock_guard<recursive_mutex> lck(_mtxCB);
+			lock_guard<mutex> lck(_mtxCB);
 			_readCB = cb;
 			reset();
 		}
 		void setDetachCB(const function<void()> &cb) {
-			lock_guard<recursive_mutex> lck(_mtxCB);
+			lock_guard<mutex> lck(_mtxCB);
 			if (!cb) {
 				_detachCB = []() {};
 			} else {
@@ -92,7 +92,7 @@ public:
         
 	private:
 		void onRead(const T &data) {
-			lock_guard<recursive_mutex> lck(_mtxCB);
+			lock_guard<mutex> lck(_mtxCB);
 			if(!_readCB){
 				return;
 			}
@@ -107,7 +107,7 @@ public:
 			}
 		}
 		void onDetach() const {
-			lock_guard<recursive_mutex> lck(_mtxCB);
+			lock_guard<mutex> lck(_mtxCB);
 			_detachCB();
 		}
 		//读环形缓冲
@@ -124,7 +124,7 @@ public:
 		function<void(const T &)> _readCB ;
 		function<void(void)> _detachCB = []() {};
 		weak_ptr<RingBuffer> _buffer;
-		mutable recursive_mutex _mtxCB;
+		mutable mutex _mtxCB;
 		int _curpos;
 		bool _useBuffer;
 	};
@@ -143,7 +143,7 @@ public:
 	~RingBuffer() {
 		decltype(_readerMap) mapCopy;
 		{
-			lock_guard<recursive_mutex> lck(_mtx_reader);
+			lock_guard<mutex> lck(_mtx_reader);
 			mapCopy.swap(_readerMap);
 		}
 		for (auto &pr : mapCopy) {
@@ -162,7 +162,7 @@ public:
 
 		std::shared_ptr<RingReader> ptr = std::make_shared<RingReader>(this->shared_from_this(),useBuffer);
 		std::weak_ptr<RingReader> weakPtr = ptr;
-		lock_guard<recursive_mutex> lck(_mtx_reader);
+		lock_guard<mutex> lck(_mtx_reader);
 		_readerMap.emplace(ptr.get(),weakPtr);
 		return ptr;
 	}
@@ -175,7 +175,7 @@ public:
         }
         _ringPos = next(_ringPos);
 
-        lock_guard<recursive_mutex> lck(_mtx_reader);
+        lock_guard<mutex> lck(_mtx_reader);
 		for (auto &pr : _readerMap) {
 			auto reader = pr.second.lock();
 			if(reader){
@@ -184,7 +184,7 @@ public:
 		}
 	}
 	int readerCount(){
-		lock_guard<recursive_mutex> lck(_mtx_reader);
+		lock_guard<mutex> lck(_mtx_reader);
 		return _readerMap.size();
 	}
 private:
@@ -198,7 +198,7 @@ private:
 	int _lastKeyCnt = 0;
     bool _canReSize = false;
 
-	recursive_mutex _mtx_reader;
+	mutex _mtx_reader;
 	unordered_map<void *,std::weak_ptr<RingReader> > _readerMap;
 
 private:
@@ -212,7 +212,7 @@ private:
 	}
 
 	void release(RingReader *reader) {
-		lock_guard<recursive_mutex> lck(_mtx_reader);
+		lock_guard<mutex> lck(_mtx_reader);
 		_readerMap.erase(reader);
 	}
 	void computeBestSize(bool isKey){
@@ -239,7 +239,7 @@ private:
 		_ringPos = 0;
 		_ringKeyPos = 0;
 
-		lock_guard<recursive_mutex> lck(_mtx_reader);
+		lock_guard<mutex> lck(_mtx_reader);
 		for (auto &pr : _readerMap) {
 			auto reader = pr.second.lock();
 			if(reader){
