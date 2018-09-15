@@ -7,7 +7,12 @@
 
 #include <memory>
 #include <functional>
+#include "List.h"
+#include "Util/util.h"
+
 using namespace std;
+using namespace ZL::Util;
+
 
 namespace ZL {
 namespace Thread {
@@ -91,6 +96,93 @@ protected:
     int _threadnum;
     vector <TaskExecutor::Ptr > _threads;
 };
+
+class ThreadLoadCounter {
+public:
+    ThreadLoadCounter(){
+        _last_sleep_time = _last_wake_time = getCurrentMicrosecond();
+    }
+    ~ThreadLoadCounter(){}
+
+    //进入休眠
+    void startSleep(){
+        _sleeping = true;
+
+        auto current_time = getCurrentMicrosecond();
+        auto run_time = current_time - _last_wake_time;
+        _last_sleep_time = current_time;
+
+        time_record rcd = {run_time, false};
+        _time_list.emplace_back(std::move(rcd));
+        countCpuLoad(5 * 1000 * 1000,1024);
+    }
+    //休眠唤醒
+    void sleepWakeUp(){
+        _sleeping = false;
+
+        auto current_time = getCurrentMicrosecond();
+        auto sleep_time = current_time - _last_sleep_time;
+        _last_wake_time = current_time;
+
+        time_record rcd = {sleep_time, true};
+        _time_list.emplace_back(std::move(rcd));
+        countCpuLoad(5 * 1000 * 1000,1024);
+    }
+
+    //cpu负载量
+    int load(){
+        return _cpu_load;
+    }
+
+private:
+    inline static uint64_t getCurrentMicrosecond() {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return tv.tv_sec * 1000 * 1000 + tv.tv_usec;
+    }
+
+    void countCpuLoad(uint64_t max_time, uint64_t max_size){
+        uint64_t totalSleepTime = 0;
+        uint64_t totalRunTime = 0;
+
+        _time_list.for_each([&](const time_record& rcd){
+            if(rcd.sleep){
+                totalSleepTime += rcd.time;
+            }else{
+                totalRunTime += rcd.time;
+            }
+        });
+
+        if(_sleeping){
+            totalSleepTime += (getCurrentMicrosecond() - _last_sleep_time);
+        }else{
+            totalRunTime += (getCurrentMicrosecond() - _last_wake_time);
+        }
+
+        uint64_t totalTime = totalRunTime + totalSleepTime;
+
+        _cpu_load = totalRunTime * 100 / totalTime;
+
+        while(totalTime > max_time && _time_list.size() != 0 && _time_list.size() > max_size){
+            time_record &rcd = _time_list.front();
+            totalTime -= rcd.time;
+            _time_list.pop_front();
+        }
+    }
+
+private:
+    typedef struct {
+        uint64_t time;
+        bool sleep;
+    } time_record;
+private:
+    uint64_t _last_sleep_time;
+    uint64_t _last_wake_time;
+    List<time_record> _time_list;
+    bool _sleeping = true;
+    int _cpu_load;
+};
+
 
 }//Thread
 }//ZL
