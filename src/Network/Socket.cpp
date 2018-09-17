@@ -134,21 +134,35 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 	weak_ptr<SockFD> weakSock = sockFD;
 	shared_ptr<bool> bTriggered = std::make_shared<bool>(false);//回调被触发过
 
-	auto result = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
-		auto strongSelf = weakSelf.lock();
-		if(!strongSelf || *bTriggered) {
-			return;
-		}
-		*bTriggered = true;
-		strongSelf->_executor->async([weakSelf,weakSock,connectCB](){
+	int result;
+	if(_poller == _executor){
+		result = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
 			auto strongSelf = weakSelf.lock();
 			auto strongSock = weakSock.lock();
-			if(!strongSelf || !strongSock) {
+			if(!strongSelf || !strongSock ||  *bTriggered) {
 				return;
 			}
+			*bTriggered = true;
 			strongSelf->onConnected(strongSock,connectCB);
 		});
-	});
+	}else{
+		result = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
+			auto strongSelf = weakSelf.lock();
+			if(!strongSelf || *bTriggered) {
+				return;
+			}
+			*bTriggered = true;
+			strongSelf->_executor->async([weakSelf,weakSock,connectCB](){
+				auto strongSelf = weakSelf.lock();
+				auto strongSock = weakSock.lock();
+				if(!strongSelf || !strongSock) {
+					return;
+				}
+				strongSelf->onConnected(strongSock,connectCB);
+			});
+		});
+	}
+
 	if(result == -1){
 		WarnL << "开始Poll监听失败";
 		SockException err(Err_other,"开始Poll监听失败");
@@ -221,14 +235,10 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	weak_ptr<SockFD> weakSock = pSock;
 	_enableRecv = true;
-	return -1 != _poller->addEvent(pSock->rawFd(),
-			Event_Read | Event_Error | Event_Write,
-			[weakSelf,weakSock,isUdp](int event) {
-		auto strongSelf = weakSelf.lock();
-		if(!strongSelf) {
-			return;
-		}
-		strongSelf->_executor->async([weakSelf,weakSock,isUdp,event](){
+
+	int result;
+	if(_poller == _executor){
+		result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write, [weakSelf,weakSock,isUdp](int event) {
 			auto strongSelf = weakSelf.lock();
 			auto strongSock = weakSock.lock();
 			if(!strongSelf || !strongSock) {
@@ -245,7 +255,33 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 				strongSelf->onWriteAble(strongSock);
 			}
 		});
-	});
+	}else{
+		result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write, [weakSelf,weakSock,isUdp](int event) {
+			auto strongSelf = weakSelf.lock();
+			if(!strongSelf) {
+				return;
+			}
+			strongSelf->_executor->async([weakSelf,weakSock,isUdp,event](){
+				auto strongSelf = weakSelf.lock();
+				auto strongSock = weakSock.lock();
+				if(!strongSelf || !strongSock) {
+					return;
+				}
+				if (event & Event_Error) {
+					strongSelf->onError(strongSock);
+					return;
+				}
+				if (event & Event_Read) {
+					strongSelf->onRead(strongSock,!isUdp);
+				}
+				if (event & Event_Write) {
+					strongSelf->onWriteAble(strongSock);
+				}
+			});
+		});
+	}
+
+	return -1 != result;
 }
 
 int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
@@ -423,12 +459,9 @@ bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
 	weak_ptr<SockFD> weakSock = pSock;
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	_enableRecv = true;
-	auto result = _poller->addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
-		auto strongSelf = weakSelf.lock();
-		if(!strongSelf) {
-			return;
-		}
-		strongSelf->_executor->async([weakSelf,weakSock,event](){
+	int result;
+	if(_poller == _executor){
+		result = _poller->addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
 			auto strongSelf = weakSelf.lock();
 			auto strongSock = weakSock.lock();
 			if(!strongSelf || !strongSock) {
@@ -436,7 +469,22 @@ bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
 			}
 			strongSelf->onAccept(strongSock,event);
 		});
-	});
+	} else{
+		result = _poller->addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
+			auto strongSelf = weakSelf.lock();
+			if(!strongSelf) {
+				return;
+			}
+			strongSelf->_executor->async([weakSelf,weakSock,event](){
+				auto strongSelf = weakSelf.lock();
+				auto strongSock = weakSock.lock();
+				if(!strongSelf || !strongSock) {
+					return;
+				}
+				strongSelf->onAccept(strongSock,event);
+			});
+		});
+	}
 
 	if(result == -1){
 		WarnL << "开始Poll监听失败";
