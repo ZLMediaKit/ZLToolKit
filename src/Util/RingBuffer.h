@@ -176,10 +176,13 @@ public:
         _ringPos = next(_ringPos);
 
         lock_guard<mutex> lck(_mtx_reader);
-		for (auto &pr : _readerMap) {
-			auto reader = pr.second.lock();
+		for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
+			auto reader = it->second.lock();
 			if(reader){
 				reader->onRead(in);
+				++it;
+			}else{
+				it = _readerMap.erase(it);
 			}
 		}
 	}
@@ -212,8 +215,10 @@ private:
 	}
 
 	void release(RingReader *reader) {
-		lock_guard<mutex> lck(_mtx_reader);
-		_readerMap.erase(reader);
+		if(_mtx_reader.try_lock()){
+			_readerMap.erase(reader);
+			_mtx_reader.unlock();
+		}
 	}
 	void computeBestSize(bool isKey){
         if(!_canReSize || _besetSize){
