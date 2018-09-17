@@ -94,7 +94,6 @@ public:
 	void shutdown() override;
 	bool isMainThread();
     void wait() override ;
-	uint64_t size() override;
 private:
 	bool onPipeEvent();
     bool async_l(const TaskExecutor::Task &task, bool may_sync = true,bool first = false) ;

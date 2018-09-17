@@ -314,7 +314,10 @@ void EventPoller::runLoop(bool blocked) {
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         while (true) {
+            startSleep();
             int nfds = epoll_wait(_epoll_fd, events, EPOLL_SIZE, -1);
+            sleepWakeUp();
+
             TimeTicker();
             if (nfds == -1) {
                 WarnL << "epoll_wait() interrupted:" << get_uv_errmsg();
@@ -378,7 +381,9 @@ void EventPoller::runLoop(bool blocked) {
                     }
                 }
             }
+            startSleep();
             ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
+            sleepWakeUp();
             if (ret < 1) {
                 WarnL << "select() interrupted:" << get_uv_errmsg();
                 continue;
@@ -423,11 +428,6 @@ void EventPoller::runLoop(bool blocked) {
     }else{
         _loopThread = new thread(&EventPoller::runLoop, this, true);
     }
-}
-
-uint64_t EventPoller::size() {
-    lock_guard<mutex> lck(_mtx_task);
-    return _list_task.size();
 }
 
 

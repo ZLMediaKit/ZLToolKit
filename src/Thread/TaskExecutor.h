@@ -17,11 +17,125 @@ using namespace ZL::Util;
 namespace ZL {
 namespace Thread {
 
-class TaskExecutor {
+/**
+ * cpu负载计算器
+ */
+class ThreadLoadCounter {
+public:
+    /**
+     * 构造函数
+     * @param max_size 统计样本数量
+     * @param max_usec 统计时间窗口,亦即最近{max_usec}的cpu负载率
+     */
+    ThreadLoadCounter(uint64_t max_size,uint64_t max_usec){
+        _last_sleep_time = _last_wake_time = getCurrentMicrosecond();
+        _max_size = max_size;
+        _max_usec = max_usec;
+    }
+    ~ThreadLoadCounter(){}
+
+    //进入休眠
+    void startSleep(){
+        lock_guard<mutex> lck(_mtx);
+
+        _sleeping = true;
+
+        auto current_time = getCurrentMicrosecond();
+        auto run_time = current_time - _last_wake_time;
+        _last_sleep_time = current_time;
+
+        _time_list.emplace_back(run_time, false);
+
+        if(_time_list.size() > _max_size){
+            _time_list.pop_front();
+        }
+    }
+    //休眠唤醒
+    void sleepWakeUp(){
+        lock_guard<mutex> lck(_mtx);
+
+        _sleeping = false;
+
+        auto current_time = getCurrentMicrosecond();
+        auto sleep_time = current_time - _last_sleep_time;
+        _last_wake_time = current_time;
+
+        _time_list.emplace_back(sleep_time, true);
+
+        if(_time_list.size() > _max_size){
+            _time_list.pop_front();
+        }
+    }
+
+    //返回当前线程cpu使用率，范围为 0 ~ 100
+    int load(){
+        lock_guard<mutex> lck(_mtx);
+
+        uint64_t totalSleepTime = 0;
+        uint64_t totalRunTime = 0;
+
+        _time_list.for_each([&](const TimeRecord& rcd){
+            if(rcd._sleep){
+                totalSleepTime += rcd._time;
+            }else{
+                totalRunTime += rcd._time;
+            }
+        });
+
+        if(_sleeping){
+            totalSleepTime += (getCurrentMicrosecond() - _last_sleep_time);
+        }else{
+            totalRunTime += (getCurrentMicrosecond() - _last_wake_time);
+        }
+
+        uint64_t totalTime = totalRunTime + totalSleepTime;
+
+        while((_time_list.size() != 0) && (totalTime > _max_usec || _time_list.size() > _max_size)){
+            TimeRecord &rcd = _time_list.front();
+            if(rcd._sleep){
+                totalSleepTime -= rcd._time;
+            }else{
+                totalRunTime -= rcd._time;
+            }
+            totalTime -= rcd._time;
+            _time_list.pop_front();
+        }
+        return totalRunTime * 100 / totalTime;
+    }
+
+private:
+    inline static uint64_t getCurrentMicrosecond() {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return tv.tv_sec * 1000 * 1000 + tv.tv_usec;
+    }
+private:
+    class TimeRecord {
+    public:
+        TimeRecord(uint64_t tm,bool slp){
+            _time = tm;
+            _sleep = slp;
+        }
+    public:
+        uint64_t _time;
+        bool _sleep;
+    };
+private:
+    uint64_t _last_sleep_time;
+    uint64_t _last_wake_time;
+    List<TimeRecord> _time_list;
+    bool _sleeping = true;
+    uint64_t _max_size;
+    uint64_t _max_usec;
+    mutex _mtx;
+};
+
+class TaskExecutor : public ThreadLoadCounter{
 public:
     typedef function<void()> Task;
     typedef shared_ptr<TaskExecutor> Ptr;
 
+    TaskExecutor(uint64_t max_size = 32,uint64_t max_usec = 2 * 1000 * 1000):ThreadLoadCounter(max_size,max_usec){}
     virtual ~TaskExecutor(){}
     //把任务打入线程池并异步执行
     virtual bool async(const Task &task, bool may_sync = true) = 0;
@@ -35,8 +149,6 @@ public:
     //等待线程退出
     virtual void wait() = 0;
     virtual void shutdown() = 0;
-    //任务个数
-    virtual uint64_t size() = 0;
 };
 
 class TaskExecutorGetter {
@@ -53,8 +165,7 @@ class TaskExecutorGetterImp : public TaskExecutorGetter{
 public:
     template <typename FUN>
     TaskExecutorGetterImp(FUN &&fun,int threadnum = thread::hardware_concurrency()){
-        _threadnum = threadnum;
-        for (int i = 0; i < _threadnum; i++) {
+        for (int i = 0; i < threadnum; i++) {
             _threads.emplace_back(fun());
         }
     }
@@ -66,20 +177,29 @@ public:
     }
 
     TaskExecutor::Ptr getExecutor() override{
-        TaskExecutor::Ptr ret = _threads.front();
-        auto minSize = ret->size();
-        //获取任务数最少的线程
-        for(auto &th : _threads){
-            auto size = th->size();
-            if(size < minSize){
-                minSize = size;
-                ret = th;
+        auto thread_pos = _thread_pos;
+        if(thread_pos >= _threads.size()){
+            thread_pos = _threads.size() - 1;
+        }
+
+        TaskExecutor::Ptr executor_min_load = _threads[thread_pos];
+        auto min_load = executor_min_load->load();
+
+        for(int i = 0; i < _threads.size() && min_load != 0; ++i , ++thread_pos ){
+            if(thread_pos >= _threads.size()){
+                thread_pos = _threads.size() - 1;
             }
-            if(size ==0){
-                break;
+
+            auto th = _threads[thread_pos];
+            auto load = th->load();
+
+            if(load < min_load){
+                min_load = load;
+                executor_min_load = th;
             }
         }
-        return ret;
+        _thread_pos = thread_pos;
+        return executor_min_load;
     }
 
     void wait() override{
@@ -92,97 +212,18 @@ public:
             th->shutdown();
         }
     }
+    vector<int> getExecutorLoad(){
+        vector<int> vec(_threads.size());
+        int i = 0;
+        for(auto &executor : _threads){
+            vec[i++] = executor->load();
+        }
+        return vec;
+    }
 protected:
-    int _threadnum;
     vector <TaskExecutor::Ptr > _threads;
+    int _thread_pos = 0;
 };
-
-class ThreadLoadCounter {
-public:
-    ThreadLoadCounter(){
-        _last_sleep_time = _last_wake_time = getCurrentMicrosecond();
-    }
-    ~ThreadLoadCounter(){}
-
-    //进入休眠
-    void startSleep(){
-        _sleeping = true;
-
-        auto current_time = getCurrentMicrosecond();
-        auto run_time = current_time - _last_wake_time;
-        _last_sleep_time = current_time;
-
-        time_record rcd = {run_time, false};
-        _time_list.emplace_back(std::move(rcd));
-        countCpuLoad(5 * 1000 * 1000,1024);
-    }
-    //休眠唤醒
-    void sleepWakeUp(){
-        _sleeping = false;
-
-        auto current_time = getCurrentMicrosecond();
-        auto sleep_time = current_time - _last_sleep_time;
-        _last_wake_time = current_time;
-
-        time_record rcd = {sleep_time, true};
-        _time_list.emplace_back(std::move(rcd));
-        countCpuLoad(5 * 1000 * 1000,1024);
-    }
-
-    //cpu负载量
-    int load(){
-        return _cpu_load;
-    }
-
-private:
-    inline static uint64_t getCurrentMicrosecond() {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        return tv.tv_sec * 1000 * 1000 + tv.tv_usec;
-    }
-
-    void countCpuLoad(uint64_t max_time, uint64_t max_size){
-        uint64_t totalSleepTime = 0;
-        uint64_t totalRunTime = 0;
-
-        _time_list.for_each([&](const time_record& rcd){
-            if(rcd.sleep){
-                totalSleepTime += rcd.time;
-            }else{
-                totalRunTime += rcd.time;
-            }
-        });
-
-        if(_sleeping){
-            totalSleepTime += (getCurrentMicrosecond() - _last_sleep_time);
-        }else{
-            totalRunTime += (getCurrentMicrosecond() - _last_wake_time);
-        }
-
-        uint64_t totalTime = totalRunTime + totalSleepTime;
-
-        _cpu_load = totalRunTime * 100 / totalTime;
-
-        while(totalTime > max_time && _time_list.size() != 0 && _time_list.size() > max_size){
-            time_record &rcd = _time_list.front();
-            totalTime -= rcd.time;
-            _time_list.pop_front();
-        }
-    }
-
-private:
-    typedef struct {
-        uint64_t time;
-        bool sleep;
-    } time_record;
-private:
-    uint64_t _last_sleep_time;
-    uint64_t _last_wake_time;
-    List<time_record> _time_list;
-    bool _sleeping = true;
-    int _cpu_load;
-};
-
 
 }//Thread
 }//ZL

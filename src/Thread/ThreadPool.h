@@ -107,7 +107,7 @@ public:
 		_thread_group.join_all();
 	}
 
-    uint64_t size() override{
+    uint64_t size(){
         return _queue.size();
     }
 
@@ -158,10 +158,12 @@ private:
 		ThreadPool::setPriority(_priority);
 		TaskExecutor::Task task;
 		while (true) {
+			startSleep();
 			if (!_queue.get_task(task)) {
                 //空任务，退出线程
                 break;
             }
+            sleepWakeUp();
             try {
                 task();
                 task = nullptr;
