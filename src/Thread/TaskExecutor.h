@@ -179,15 +179,15 @@ public:
     TaskExecutor::Ptr getExecutor() override{
         auto thread_pos = _thread_pos;
         if(thread_pos >= _threads.size()){
-            thread_pos = _threads.size() - 1;
+            thread_pos = 0;
         }
 
         TaskExecutor::Ptr executor_min_load = _threads[thread_pos];
         auto min_load = executor_min_load->load();
 
-        for(int i = 0; i < _threads.size() && min_load != 0; ++i , ++thread_pos ){
+        for(int i = 0; i < _threads.size() ; ++i , ++thread_pos ){
             if(thread_pos >= _threads.size()){
-                thread_pos = _threads.size() - 1;
+                thread_pos = 0;
             }
 
             auto th = _threads[thread_pos];
@@ -196,6 +196,9 @@ public:
             if(load < min_load){
                 min_load = load;
                 executor_min_load = th;
+            }
+            if(min_load == 0){
+                break;
             }
         }
         _thread_pos = thread_pos;
