@@ -237,18 +237,13 @@ bool EventPoller::async_l(const TaskExecutor::Task &task,bool may_sync, bool fir
         task();
         return true;
     }
-    std::shared_ptr<Ticker> pTicker = std::make_shared<Ticker>(5, "wake up main thread", WarnL, true);
-    auto lam = [task, pTicker]() {
-        const_cast<std::shared_ptr<Ticker> &>(pTicker).reset();
-        task();
-    };
 
     {
         lock_guard<mutex> lck(_mtx_task);
         if(first){
-            _list_task.emplace_front(std::move(lam));
+            _list_task.emplace_front(task);
         }else{
-            _list_task.emplace_back(std::move(lam));
+            _list_task.emplace_back(task);
         }
     }
     //写数据到管道,唤醒主线程
