@@ -44,18 +44,28 @@ int main() {
 
 	AsyncTaskThread::Instance(2).DoTaskDelay(0,2,[](){
 		EventPollerPool::Instance().getExecutor()->async([](){
-			usleep(500);
+		    auto usec = rand() % 5000;
+		    //DebugL << usec;
+			usleep(usec);
 		});
 		return true;
 	});
 
 	while(true){
-		_StrPrinter printer;
 		auto vec = EventPollerPool::Instance().getExecutorLoad();
-		for(auto load : vec){
+        _StrPrinter printer;
+        for(auto load : vec){
 			printer << load << "-";
 		}
 		DebugL << "cpu负载:" << printer;
+
+        EventPollerPool::Instance().getExecutorDelay([](const vector<int> &vec){
+            _StrPrinter printer;
+            for(auto delay : vec){
+                printer << delay << "-";
+            }
+            DebugL << "cpu任务执行延时:" << printer;
+        });
 		sleep(1);
 	}
 

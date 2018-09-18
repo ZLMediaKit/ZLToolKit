@@ -9,10 +9,10 @@
 #include <functional>
 #include "List.h"
 #include "Util/util.h"
+#include "Util/TimeTicker.h"
 
 using namespace std;
 using namespace ZL::Util;
-
 
 namespace ZL {
 namespace Thread {
@@ -34,7 +34,9 @@ public:
     }
     ~ThreadLoadCounter(){}
 
-    //进入休眠
+    /**
+     * 线程进入休眠
+     */
     void startSleep(){
         lock_guard<mutex> lck(_mtx);
 
@@ -50,7 +52,10 @@ public:
             _time_list.pop_front();
         }
     }
-    //休眠唤醒
+
+    /**
+     * 休眠唤醒,结束休眠
+     */
     void sleepWakeUp(){
         lock_guard<mutex> lck(_mtx);
 
@@ -67,7 +72,10 @@ public:
         }
     }
 
-    //返回当前线程cpu使用率，范围为 0 ~ 100
+    /**
+     * 返回当前线程cpu使用率，范围为 0 ~ 100
+     * @return 当前线程cpu使用率
+     */
     int load(){
         lock_guard<mutex> lck(_mtx);
 
@@ -130,24 +138,63 @@ private:
     mutex _mtx;
 };
 
+/**
+ * 任务执行器
+ */
 class TaskExecutor : public ThreadLoadCounter{
 public:
     typedef function<void()> Task;
     typedef shared_ptr<TaskExecutor> Ptr;
 
+    /**
+     * 构造函数
+     * @param max_size cpu负载统计样本数
+     * @param max_usec cpu负载统计时间窗口大小
+     */
     TaskExecutor(uint64_t max_size = 32,uint64_t max_usec = 2 * 1000 * 1000):ThreadLoadCounter(max_size,max_usec){}
     virtual ~TaskExecutor(){}
-    //把任务打入线程池并异步执行
+    /**
+     * 异步执行任务
+     * @param task 任务
+     * @param may_sync 是否允许同步执行该任务
+     * @return 任务是否添加成功
+     */
     virtual bool async(const Task &task, bool may_sync = true) = 0;
+
+    /**
+     * 最高优先级方式异步执行任务
+     * @param task 任务
+     * @param may_sync 是否允许同步执行该任务
+     * @return 任务是否添加成功
+     */
     virtual bool async_first(const Task &task, bool may_sync = true) {
         return async(task,may_sync);
     };
+
+    /**
+     * 同步执行任务
+     * @param task
+     * @return
+     */
     virtual bool sync(const Task &task) = 0;
+
+    /**
+     * 最高优先级方式同步执行任务
+     * @param task
+     * @return
+     */
     virtual bool sync_first(const Task &task) {
         return sync(task);
     };
-    //等待线程退出
+
+    /**
+     * 等待执行线程退出
+     */
     virtual void wait() = 0;
+
+    /**
+     * 通知执行线程退出
+     */
     virtual void shutdown() = 0;
 };
 
@@ -155,14 +202,32 @@ class TaskExecutorGetter {
 public:
     typedef shared_ptr<TaskExecutorGetter> Ptr;
     virtual ~TaskExecutorGetter(){};
+    /**
+     * 获取任务执行器
+     * @return 任务执行器
+     */
     virtual TaskExecutor::Ptr getExecutor() = 0;
+
+    /**
+     * 等待所有任务执行线程退出
+     */
     virtual void wait() = 0;
+
+    /**
+     * 通知所有执行线程退出
+     */
     virtual void shutdown() = 0;
 };
 
 
 class TaskExecutorGetterImp : public TaskExecutorGetter{
 public:
+    /**
+     *
+     * @tparam FUN 任务执行器创建方式
+     * @param fun 任务执行器创建lambad
+     * @param threadnum 任务执行器个数，默认cpu核心数
+     */
     template <typename FUN>
     TaskExecutorGetterImp(FUN &&fun,int threadnum = thread::hardware_concurrency()){
         for (int i = 0; i < threadnum; i++) {
@@ -176,6 +241,10 @@ public:
         _threads.clear();
     }
 
+    /**
+     * 根据线程负载情况，获取最空闲的任务执行器
+     * @return 任务执行器
+     */
     TaskExecutor::Ptr getExecutor() override{
         auto thread_pos = _thread_pos;
         if(thread_pos >= _threads.size()){
@@ -205,16 +274,27 @@ public:
         return executor_min_load;
     }
 
+    /**
+     * 等待所有线程退出
+     */
     void wait() override{
         for (auto &th : _threads){
             th->wait();
         }
     }
+    /**
+     *  关闭所有线程
+     */
     void shutdown() override{
         for (auto &th : _threads){
             th->shutdown();
         }
     }
+
+    /**
+     * 获取所有线程的负载率
+     * @return 所有线程的负载率
+     */
     vector<int> getExecutorLoad(){
         vector<int> vec(_threads.size());
         int i = 0;
@@ -222,6 +302,28 @@ public:
             vec[i++] = executor->load();
         }
         return vec;
+    }
+
+    /**
+     * 获取所有线程任务执行延时，单位毫秒
+     * 通过此函数也可以大概知道线程负载情况
+     * @return
+     */
+    void getExecutorDelay(const function<void(const vector<int> &)> &callback){
+        int totalCount = _threads.size();
+        std::shared_ptr<atomic_int> completed = std::make_shared<atomic_int>(0);
+        std::shared_ptr<vector<int> > delayVec = std::make_shared<vector<int>>(totalCount);
+        int index = 0;
+        for (auto &th : _threads){
+            std::shared_ptr<Ticker> ticker = std::make_shared<Ticker >();
+            th->async([completed,totalCount,delayVec,index,ticker,callback](){
+                (*delayVec)[index] = ticker->elapsedTime();
+                if(++(*completed) == totalCount){
+                    callback((*delayVec));
+                }
+            }, false);
+            ++index;
+        }
     }
 protected:
     vector <TaskExecutor::Ptr > _threads;
