@@ -295,8 +295,8 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		int nread;
 #endif //defined(_WIN32)
 		ioctl(sock, FIONREAD, &nread);
-		if (nread < 4095) {
-			nread = 4095;
+		if (nread < 127) {
+			nread = 127;
 		}
 		struct sockaddr peerAddr;
 		socklen_t len = sizeof(struct sockaddr);
@@ -326,6 +326,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
         lock_guard<mutex> lck(_mtx_read);
         _readCB(buf, &peerAddr);
 	}
+
     return 0;
 }
 void Socket::onError(const SockFD::Ptr &pSock) {
