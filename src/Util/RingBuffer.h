@@ -232,6 +232,12 @@ private:
 		if(_lastKeyCnt){
 			//计算两个I帧之间的包个数
 			_besetSize = _totalCnt - _lastKeyCnt;
+			if(_besetSize < 32){
+				_besetSize = 32;
+			}
+			if(_besetSize > 512){
+				_besetSize = 512;
+			}
 			reSize();
 			return;
 		}
