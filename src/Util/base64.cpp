@@ -27,7 +27,7 @@
 //#include "common.h"
 #include "stdio.h"
 #include "base64.h"
-
+#include <memory>
 #include <limits.h>
 /* ---------------- private code */
 static const uint8_t map2[] =
