@@ -29,6 +29,7 @@
 #include <thread>
 #include <string>
 #include <functional>
+#include <memory>
 #include <unordered_map>
 #include "PipeWrap.h"
 #include "Util/logger.h"
@@ -113,7 +114,7 @@ private:
     mutex _mtx_event_map;
 #if defined(HAS_EPOLL)
 	int _epoll_fd = -1;
-	unordered_map<int, PollEventCB> _event_map;
+	unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
 #else
 	unordered_map<int, Poll_Record> _event_map;
 #endif //HAS_EPOLL

@@ -73,7 +73,6 @@ Socket::~Socket() {
 }
 
 void Socket::setOnRead(const onReadCB &cb) {
-	lock_guard<mutex> lck(_mtx_read);
 	if (cb) {
 		_readCB = cb;
 	} else {
@@ -83,7 +82,6 @@ void Socket::setOnRead(const onReadCB &cb) {
 	}
 }
 void Socket::setOnErr(const onErrCB &cb) {
-	lock_guard<mutex> lck(_mtx_err);
 	if (cb) {
 		_errCB = cb;
 	} else {
@@ -93,7 +91,6 @@ void Socket::setOnErr(const onErrCB &cb) {
 	}
 }
 void Socket::setOnAccept(const onAcceptCB &cb) {
-	lock_guard<mutex> lck(_mtx_accept);
 	if (cb) {
 		_acceptCB = cb;
 	} else {
@@ -103,7 +100,6 @@ void Socket::setOnAccept(const onAcceptCB &cb) {
 	}
 }
 void Socket::setOnFlush(const onFlush &cb) {
-	lock_guard<mutex> lck(_mtx_flush);
 	if (cb) {
 		_flushCB = cb;
 	} else {
@@ -113,7 +109,6 @@ void Socket::setOnFlush(const onFlush &cb) {
 
 //设置Socket生成拦截器
 void Socket::setOnBeforeAccept(const onBeforeAcceptCB &cb){
-	lock_guard<mutex> lck(_mtx_beforeAccept);
 	if (cb) {
 		_beforeAcceptCB = cb;
 	} else {
@@ -323,7 +318,6 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 		buf->data()[nread] = '\0';
 		buf->setSize(nread);
 
-        lock_guard<mutex> lck(_mtx_read);
         _readCB(buf, &peerAddr);
 	}
 
@@ -346,7 +340,6 @@ bool Socket::emitErr(const SockException& err,bool close) {
 		if (!strongSelf) {
 			return;
 		}
-		lock_guard<mutex> lck(strongSelf->_mtx_err);
 		strongSelf->_errCB(err);
 	});
     if(close){
@@ -436,7 +429,6 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
     bool flag;
     {
-        lock_guard<mutex> lck(_mtx_flush);
         flag = _flushCB();
     }
 	if (!flag) {
@@ -542,7 +534,6 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			    //拦截默认的Socket构造行为，
                 //在TcpServer中，默认的行为是子Socket的网络事件会派发到其他poll线程
                 //这样就可以发挥最大的网络性能
-				lock_guard<mutex> lck(_mtx_beforeAccept);
 				peerSock = _beforeAcceptCB(_poller,_executor);
 			}
 
@@ -556,7 +547,6 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
             auto sockFD = peerSock->setPeerSock(peerfd);
 
             {
-				lock_guard<mutex> lck(_mtx_accept);
 				//在accept事件中，TcpServer对象会创建TcpSession对象并绑定该Socket的相关事件(onRead/onErr)
 				//所以在这之前千万不能就把peerfd加入poll监听
 				_acceptCB(peerSock);

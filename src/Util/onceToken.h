@@ -25,7 +25,8 @@
 #ifndef UTIL_ONCETOKEN_H_
 #define UTIL_ONCETOKEN_H_
 
-#include "functional"
+#include <functional>
+#include <type_traits>
 
 using namespace std;
 
@@ -40,6 +41,12 @@ public:
 			onConstructed();
 		}
 		_onDestructed = onDestructed;
+	}
+	onceToken(const task &onConstructed, task &&onDestructed) {
+		if (onConstructed) {
+			onConstructed();
+		}
+		_onDestructed = std::move(onDestructed);
 	}
 	~onceToken() {
 		if (_onDestructed) {

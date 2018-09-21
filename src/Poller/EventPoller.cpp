@@ -125,7 +125,7 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
     ev.data.fd = fd;
     int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
     if (ret == 0) {
-        _event_map.emplace(fd, cb);
+        _event_map.emplace(fd, std::make_shared<PollEventCB>(cb));
     }
     return ret;
 #else
@@ -335,7 +335,7 @@ void EventPoller::runLoop(bool blocked) {
                     continue;
                 }
                 // other event
-                PollEventCB eventCb;
+                std::shared_ptr<PollEventCB> eventCb;
                 {
                     lock_guard<mutex> lck(_mtx_event_map);
                     auto it = _event_map.find(fd);
@@ -346,7 +346,7 @@ void EventPoller::runLoop(bool blocked) {
                     }
                     eventCb = it->second;
                 }
-                eventCb(event);
+                (*eventCb)(event);
             }
         }
 #else

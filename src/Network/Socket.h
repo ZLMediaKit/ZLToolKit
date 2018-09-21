@@ -34,6 +34,7 @@
 #include <sstream>
 #include <functional>
 #include "Util/util.h"
+#include "Util/onceToken.h"
 #include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
 #include "Util/ResourcePool.h"
@@ -302,6 +303,38 @@ private:
     string _data;
 };
 
+template <typename FUN>
+class SafeFunction{
+public:
+    SafeFunction(){
+        _fun.reset(new FUN(nullptr));
+    }
+    SafeFunction(const FUN &fun){
+        _fun.reset(new FUN(fun));
+    }
+    template<typename ...ArgsType>
+    inline typename FUN::result_type operator()(ArgsType &&...args){
+        std::shared_ptr<FUN> fun;
+        {
+            lock_guard<mutex> lck(_mtx);
+            fun = _fun;
+        }
+        return (*fun)(std::forward<ArgsType>(args)...);
+    }
+
+    inline void operator = (const FUN &fun){
+        lock_guard<mutex> lck(_mtx);
+        _fun.reset(new FUN(fun));
+    }
+    inline operator bool(){
+        lock_guard<mutex> lck(_mtx);
+        return _fun->operator bool();
+    }
+private:
+    std::shared_ptr<FUN> _fun;
+    mutex _mtx;
+};
+
 //异步IO套接字对象，线程安全的
 class Socket: public std::enable_shared_from_this<Socket> ,
               public noncopyable{
@@ -408,16 +441,11 @@ private:
     deque<Packet::Ptr> _sendPktBuf;
     /////////////////////
     std::shared_ptr<Timer> _conTimer;
-    mutex _mtx_read;
-    mutex _mtx_err;
-    mutex _mtx_accept;
-    mutex _mtx_flush;
-    mutex _mtx_beforeAccept;
-    onReadCB _readCB;
-    onErrCB _errCB;
-    onAcceptCB _acceptCB;
-    onFlush _flushCB;
-    onBeforeAcceptCB _beforeAcceptCB;
+    SafeFunction<onReadCB> _readCB;
+    SafeFunction<onErrCB> _errCB;
+    SafeFunction<onAcceptCB> _acceptCB;
+    SafeFunction<onFlush> _flushCB;
+    SafeFunction<onBeforeAcceptCB> _beforeAcceptCB;
     Ticker _flushTicker;
     atomic<bool> _enableRecv;
     atomic<bool> _canSendSock;
