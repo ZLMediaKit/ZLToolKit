@@ -195,7 +195,8 @@ void SSL_Box::flushWriteBio(char *buf, int bufsize) {
 	while ((nread = BIO_read(_write_bio, buf, bufsize)) > 0) {
 		if (_onEnc) {
 			//send
-			_onEnc(buf, nread);
+            buf[nread] = '\0';
+            _onEnc(buf, nread);
 		}
 	}
 }
@@ -206,15 +207,16 @@ void SSL_Box::flushReadBio(char *buf, int bufsize) {
 	while ((nread = SSL_read(_ssl, buf, bufsize)) > 0) {
 		if (_onDec) {
 			//recv
+            buf[nread] = '\0';
 			_onDec(buf, nread);
 		}
 	}
 }
 void SSL_Box::flush() {
 	int nread = 0;
-	char buffer[SSL_BUF_SIZE]; // optimize!
-	flushReadBio(buffer, sizeof(buffer));
-	flushWriteBio(buffer, sizeof(buffer));
+	char buffer[SSL_BUF_SIZE + 1]; // optimize!
+	flushReadBio(buffer, SSL_BUF_SIZE);
+	flushWriteBio(buffer, SSL_BUF_SIZE);
 	//write to bio
 	if (SSL_is_init_finished(_ssl) && _bufferOut.size()) {
 		nread = SSL_write(_ssl, _bufferOut.data(), _bufferOut.size());
