@@ -498,14 +498,13 @@ public:
     int send(const string &buf);
     int send(string &&buf);
     int send(const char *buf, int size = 0);
-    int send(const Buffer::Ptr &buf);
 
     /**
-     * 重载此方法截取或修改发送数据
-     * @param buf 数据
-     * @return 修改后的数据
+     * 其他send方法、operator << 方法最终都会调用此方法
+     * @param buf 数据包
+     * @return  -1代表该socket已经不可用；0代表缓存列队已满，并未产生实质操作(在关闭主动丢包时有效)；否则返回数据长度
      */
-    virtual Buffer::Ptr onBeforeSend(const Buffer::Ptr &buf);
+    virtual int send(const Buffer::Ptr &buf);
 
     ////////其他方法////////
     //从缓存池中获取一片缓存
