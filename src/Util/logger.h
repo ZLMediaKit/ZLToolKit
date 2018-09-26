@@ -316,7 +316,7 @@ protected:
         while (!_exit_flag) {
             _sem.wait();
             lock_guard<mutex> lock(_mutex);
-            if (_pending.size()) {
+            while (_pending.size()) {
                 realWrite(_pending.front());
                 _pending.pop_front();
             }
