@@ -471,16 +471,16 @@ public:
     void setExecutor(const TaskExecutor::Ptr &excutor);
     TaskExecutor::Ptr getExecutor();
     //设置socket flags
-    virtual SocketHelper &operator << (const SocketFlags &flags);
+    SocketHelper &operator << (const SocketFlags &flags);
     //////////////////operator << 系列函数//////////////////
     //发送char *
-    virtual SocketHelper &operator << (const char *buf);
+    SocketHelper &operator << (const char *buf);
     //发送字符串
-    virtual SocketHelper &operator << (const string &buf);
+    SocketHelper &operator << (const string &buf);
     //发送字符串
-    virtual SocketHelper &operator << (string &&buf) ;
+    SocketHelper &operator << (string &&buf) ;
     //发送Buffer对象
-    virtual SocketHelper &operator << (const Buffer::Ptr &buf) ;
+    SocketHelper &operator << (const Buffer::Ptr &buf) ;
 
     //发送其他类型是数据
     template<typename T>
@@ -490,14 +490,20 @@ public:
         }
         ostringstream ss;
         ss << buf;
-        _sock->send(ss.str(),_flags);
+        send(ss.str());
         return *this;
     }
 
     //////////////////send系列函数//////////////////
-    virtual int send(const string &buf);
-    virtual int send(string &&buf);
-    virtual int send(const char *buf, int size);
+    int send(const string &buf);
+    int send(string &&buf);
+    int send(const char *buf, int size = 0);
+
+    /**
+     * 其他send方法、operator << 方法最终都会调用此方法
+     * @param buf 数据包
+     * @return  -1代表该socket已经不可用；0代表缓存列队已满，并未产生实质操作(在关闭主动丢包时有效)；否则返回数据长度
+     */
     virtual int send(const Buffer::Ptr &buf);
 
     ////////其他方法////////

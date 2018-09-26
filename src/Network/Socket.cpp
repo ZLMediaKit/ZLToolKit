@@ -830,7 +830,8 @@ SocketHelper &SocketHelper::operator<<(const char *buf) {
     if (!_sock) {
         return *this;
     }
-    _sock->send(buf, 0, _flags);
+
+    send(buf);
     return *this;
 }
 
@@ -839,7 +840,7 @@ SocketHelper &SocketHelper::operator<<(const string &buf) {
     if (!_sock) {
         return *this;
     }
-    _sock->send(buf, _flags);
+    send(buf);
     return *this;
 }
 
@@ -848,7 +849,7 @@ SocketHelper &SocketHelper::operator<<(string &&buf) {
     if (!_sock) {
         return *this;
     }
-    _sock->send(std::move(buf), _flags);
+	send(std::move(buf));
     return *this;
 }
 
@@ -857,7 +858,7 @@ SocketHelper &SocketHelper::operator<<(const Buffer::Ptr &buf) {
     if (!_sock) {
         return *this;
     }
-    _sock->send(buf, _flags);
+	send(buf);
     return *this;
 }
 
@@ -867,21 +868,25 @@ int SocketHelper::send(const string &buf) {
     if (!_sock) {
         return -1;
     }
-    return _sock->send(buf, _flags);
+    auto buffer = std::make_shared<BufferString>(buf);
+    return send(buffer);
 }
 
 int SocketHelper::send(string &&buf) {
     if (!_sock) {
         return -1;
     }
-    return _sock->send(std::move(buf), _flags);
+	auto buffer = std::make_shared<BufferString>(std::move(buf));
+	return send(buffer);
 }
 
 int SocketHelper::send(const char *buf, int size) {
     if (!_sock) {
         return -1;
     }
-    return _sock->send(buf, size, _flags);
+	auto buffer = _sock->obtainBuffer();
+	buffer->assign(buf,size);
+	return send(buffer);
 }
 
 int SocketHelper::send(const Buffer::Ptr &buf) {
