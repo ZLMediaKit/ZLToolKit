@@ -37,7 +37,7 @@ using namespace ZL::Thread;
 
 namespace ZL {
 namespace Network {
-
+class TcpServer;
 class TcpSession:
 		public std::enable_shared_from_this<TcpSession> ,
 		public SocketHelper{
@@ -60,7 +60,7 @@ public:
     //每隔一段时间触发，用来做超时管理
 	virtual void onManager() =0;
     //在创建TcpSession后，TcpServer会把自身的配置参数通过该函数传递给TcpSession
-    virtual void attachServer(const mINI &ini){};
+    virtual void attachServer(const TcpServer &server){};
     //作为该TcpSession的唯一标识符
     virtual string getIdentifier() const;
     //安全的脱离TcpServer并触发onError事件
