@@ -183,7 +183,7 @@ public:
 		}
 		_str_tmp.str("");
 		_str_tmp << data;
-		string str = _str_tmp.str();
+		string str = SqlPool::escape(_str_tmp.str());
 		_startPos = pos + str.size();
 		_sql.replace(pos, 1, str);
 		return *this;

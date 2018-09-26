@@ -127,8 +127,8 @@ public:
 
 		_executor = _poller;
 		_socket = std::make_shared<Socket>(_poller,_executor);
-        _socket->setOnAccept(bind(&TcpServer::onAcceptConnection, this, placeholders::_1));
-		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection, this));
+        _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
+		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this));
     }
 
 	~TcpServer() {
@@ -184,8 +184,9 @@ public:
 		 }
 		 return _socket->get_local_port();
 	 }
-private:
-	Socket::Ptr onBeforeAcceptConnection(){
+
+protected:
+	virtual Socket::Ptr onBeforeAcceptConnection(){
     	//获取任务执行器
     	auto executor = _executorGetter->getExecutor();
     	//该任务执行器可能是ThreadPool也可能是EventPoller
@@ -197,7 +198,7 @@ private:
 		return std::make_shared<Socket>(poller,executor);
     }
     // 接收到客户端连接请求
-    void onAcceptConnection(const Socket::Ptr & sock) {
+    virtual void onAcceptConnection(const Socket::Ptr & sock) {
         //创建一个TcpSession;这里实现创建不同的服务会话实例
 		auto session = _sessionMaker(sock);
         //把本服务器的配置传递给TcpSession
@@ -265,6 +266,15 @@ private:
 			}, false);
 		}
 	}
+
+private:
+    Socket::Ptr onBeforeAcceptConnection_l(){
+        return onBeforeAcceptConnection();
+    }
+    // 接收到客户端连接请求
+    void onAcceptConnection_l(const Socket::Ptr & sock) {
+        onAcceptConnection(sock);
+    }
 private:
     EventPoller::Ptr _poller;
 	TaskExecutor::Ptr _executor;
