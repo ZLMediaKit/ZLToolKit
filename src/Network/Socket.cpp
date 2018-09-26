@@ -905,6 +905,14 @@ BufferRaw::Ptr SocketHelper::obtainBuffer() {
     return _sock->obtainBuffer();
 }
 
+BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, int len) {
+	BufferRaw::Ptr buffer = obtainBuffer();
+	if(buffer){
+		buffer->assign((const char *)data,len);
+	}
+	return buffer;
+};
+
 //触发onError事件
 void SocketHelper::shutdown() {
     if (_sock) {
@@ -959,7 +967,7 @@ bool SocketHelper::sync(const TaskExecutor::Task &task) {
 };
 bool SocketHelper::sync_first(const TaskExecutor::Task &task) {
 	return _executor->sync_first(task);
-};
+}
 
 }  // namespace Network
 }  // namespace ZL

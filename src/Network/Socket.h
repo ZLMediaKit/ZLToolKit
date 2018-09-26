@@ -508,7 +508,8 @@ public:
 
     ////////其他方法////////
     //从缓存池中获取一片缓存
-    virtual BufferRaw::Ptr obtainBuffer();
+    BufferRaw::Ptr obtainBuffer();
+    BufferRaw::Ptr obtainBuffer(const void *data,int len);
     //触发onError事件
     virtual void shutdown();
     /////////获取ip或端口///////////
