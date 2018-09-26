@@ -893,8 +893,12 @@ int SocketHelper::send(const Buffer::Ptr &buf) {
     if (!_sock) {
         return -1;
     }
-    return _sock->send(buf, _flags);
+    return _sock->send(onBeforeSend(buf), _flags);
 }
+
+Buffer::Ptr SocketHelper::onBeforeSend(const Buffer::Ptr &buf) {
+    return buf;
+};
 
 ////////其他方法////////
 //从缓存池中获取一片缓存
@@ -959,7 +963,7 @@ bool SocketHelper::sync(const TaskExecutor::Task &task) {
 };
 bool SocketHelper::sync_first(const TaskExecutor::Task &task) {
 	return _executor->sync_first(task);
-};
+}
 
 }  // namespace Network
 }  // namespace ZL
