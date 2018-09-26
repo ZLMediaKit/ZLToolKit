@@ -378,7 +378,7 @@ uint32_t Socket::getBufSecondLength(){
 }
     
 int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
-	if(!buf->size()){
+	if(!buf || !buf->size()){
 		return 0;
 	}
 	SockFD::Ptr sock;
