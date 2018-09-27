@@ -90,7 +90,7 @@ void EventPoller::shutdown() {
         try {
             _loopThread->join();
         }catch (std::exception &ex){
-            WarnL << ex.what();
+            ErrorL << "catch exception:" << ex.what();
         }
         delete _loopThread;
         _loopThread = nullptr;
@@ -279,7 +279,7 @@ inline bool EventPoller::onPipeEvent() {
         }catch (ExitException &ex){
             catchExitException = true;
         }catch (std::exception &ex){
-            ErrorL << ex.what();
+            ErrorL << "catch exception:" << ex.what();
         }
     });
     return !catchExitException;
@@ -346,13 +346,17 @@ void EventPoller::runLoop(bool blocked) {
                     }
                     eventCb = it->second;
                 }
-                (*eventCb)(event);
+                try{
+                    (*eventCb)(event);
+                }catch (std::exception &ex){
+                    ErrorL << "catch exception:" << ex.what();
+                }
             }
         }
 #else
         int ret, maxFd;
         FdSet Set_read, Set_write, Set_err;
-        list<unordered_map<int, Poll_Record>::value_type> listCB;
+        List<unordered_map<int, Poll_Record>::value_type> listCB;
         while (true) {
             Set_read.fdZero();
             Set_write.fdZero();
@@ -410,13 +414,17 @@ void EventPoller::runLoop(bool blocked) {
                     }
                     if (event != 0) {
                         pr.second.attach = event;
-                        listCB.push_back(pr);
+                        listCB.emplace_back(pr);
                     }
                 }
             }
-            for (auto &pr : listCB) {
-                pr.second();
-            }
+            listCB.for_each([](unordered_map<int, Poll_Record>::value_type &pr){
+                try{
+                    pr.second();
+                }catch (std::exception &ex){
+                    ErrorL << "catch exception:" << ex.what();
+                }
+            });
             listCB.clear();
         }
 #endif //HAS_EPOLL

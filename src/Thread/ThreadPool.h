@@ -168,7 +168,7 @@ private:
                 task();
                 task = nullptr;
             } catch (std::exception &ex) {
-                ErrorL << ex.what();
+				ErrorL << "catch exception:" << ex.what();
             }
 		}
 	}
