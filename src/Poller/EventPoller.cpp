@@ -131,9 +131,9 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
 #else
     if (isMainThread()) {
         lock_guard<mutex> lck(_mtx_event_map);
-        Poll_Record record;
-        record.event = (Poll_Event)event;
-        record.callBack = cb;
+        Poll_Record::Ptr record(new Poll_Record);
+        record->event = event;
+        record->callBack = cb;
         _event_map.emplace(fd, record);
         return 0;
     }
@@ -189,7 +189,7 @@ int EventPoller::modifyEvent(int fd, int event) {
         lock_guard<mutex> lck(_mtx_event_map);
         auto it = _event_map.find(fd);
         if (it != _event_map.end()) {
-            it->second.event = (Poll_Event)event;
+            it->second->event = event;
         }
         return 0;
     }
@@ -356,7 +356,7 @@ void EventPoller::runLoop(bool blocked) {
 #else
         int ret, maxFd;
         FdSet Set_read, Set_write, Set_err;
-        List<unordered_map<int, Poll_Record>::value_type> listCB;
+        List<Poll_Record::Ptr> listCB;
         while (true) {
             Set_read.fdZero();
             Set_write.fdZero();
@@ -369,13 +369,13 @@ void EventPoller::runLoop(bool blocked) {
                     if (pr.first > maxFd) {
                         maxFd = pr.first;
                     }
-                    if (pr.second.event & Event_Read) {
+                    if (pr.second->event & Event_Read) {
                         Set_read.fdSet(pr.first);//监听管道可读事件
                     }
-                    if (pr.second.event & Event_Write) {
+                    if (pr.second->event & Event_Write) {
                         Set_write.fdSet(pr.first);//监听管道可写事件
                     }
-                    if (pr.second.event & Event_Error) {
+                    if (pr.second->event & Event_Error) {
                         Set_err.fdSet(pr.first);//监听管道错误事件
                     }
                 }
@@ -413,14 +413,14 @@ void EventPoller::runLoop(bool blocked) {
                         event |= Event_Error;
                     }
                     if (event != 0) {
-                        pr.second.attach = event;
-                        listCB.emplace_back(pr);
+                        pr.second->attach = event;
+                        listCB.emplace_back(pr.second);
                     }
                 }
             }
-            listCB.for_each([](unordered_map<int, Poll_Record>::value_type &pr){
+            listCB.for_each([](Poll_Record::Ptr &record){
                 try{
-                    pr.second();
+                    record->callBack(record->attach);
                 }catch (std::exception &ex){
                     ErrorL << "catch exception:" << ex.what();
                 }

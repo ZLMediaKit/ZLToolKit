@@ -69,6 +69,9 @@ public:
             ptr = ptr->next;
             delete last;
         }
+        _size = 0;
+        _front = nullptr;
+        _back = nullptr;
     }
     template <typename  FUN>
     void for_each(FUN &&fun){

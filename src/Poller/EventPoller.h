@@ -59,19 +59,6 @@ typedef enum {
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 
-#ifndef  HAS_EPOLL
-typedef struct {
-	Poll_Event event;
-	PollEventCB callBack;
-	int attach;
-	void operator()(int event) const{
-		callBack(event);
-	}
-	void operator()() const{
-		callBack(attach);
-	}
-} Poll_Record;
-#endif //HAS_EPOLL
 
 class EventPoller : public TaskExecutor , public std::enable_shared_from_this<EventPoller> {
 public:
@@ -116,7 +103,13 @@ private:
 	int _epoll_fd = -1;
 	unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
 #else
-	unordered_map<int, Poll_Record> _event_map;
+	struct Poll_Record{
+		typedef std::shared_ptr<Poll_Record> Ptr;
+		int event;
+		int attach;
+		PollEventCB callBack;
+	};
+	unordered_map<int, Poll_Record::Ptr > _event_map;
 #endif //HAS_EPOLL
 
     mutex _mtx_runing;
