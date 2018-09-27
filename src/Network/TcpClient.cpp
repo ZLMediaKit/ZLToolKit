@@ -54,7 +54,7 @@ void TcpClient::shutdown() {
             strongSelf->_managerTimer.reset();
         });
     }catch (std::exception &ex){
-        ErrorL << "catch exception:" << ex.what();
+        //ErrorL << "catch exception:" << ex.what();
     }
 }
 

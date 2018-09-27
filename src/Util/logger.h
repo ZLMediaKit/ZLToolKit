@@ -289,18 +289,15 @@ private:
 class AsyncLogWriter : public LogWriter {
 public:
     AsyncLogWriter() : _exit_flag(false) {
+        _logger = &Logger::Instance();
         _thread = std::make_shared<thread>([this]() { this->run(); });
-        _logger = Logger::Instance().shared_from_this();
     }
 
     ~AsyncLogWriter() {
         _exit_flag = true;
         _sem.post();
         _thread->join();
-        while (_pending.size()) {
-            realWrite( _pending.front());
-            _pending.pop_front();
-        }
+        flushAll();
     }
 
     virtual void write(const LogInfoPtr &stream) {
@@ -311,35 +308,27 @@ public:
         _sem.post();
     }
 
-protected:
+private:
     void run() {
         while (!_exit_flag) {
             _sem.wait();
-            lock_guard<mutex> lock(_mutex);
-            while (_pending.size()) {
-                realWrite(_pending.front());
-                _pending.pop_front();
-            }
+            flushAll();
         }
     }
-
-    inline void realWrite(const LogInfoPtr &stream) {
-        auto strongLogger = _logger.lock();
-        if(!strongLogger){
-            stream->format(cout);
-            return;
+    void flushAll(){
+        lock_guard<mutex> lock(_mutex);
+        while (_pending.size()) {
+            _logger->writeChannels(_pending.front());
+            _pending.pop_front();
         }
-        strongLogger->writeChannels(stream);
     }
-
-
-protected:
+private:
     bool _exit_flag;
     std::shared_ptr<thread> _thread;
     deque<LogInfoPtr> _pending;
     semaphore _sem;
     mutex _mutex;
-    std::weak_ptr<Logger> _logger;
+    Logger *_logger;
 };
 
 class ConsoleChannel : public LogChannel {
