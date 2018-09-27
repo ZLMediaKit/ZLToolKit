@@ -56,7 +56,7 @@ Socket::Socket(const EventPoller::Ptr &poller,
 		WarnL << "Socket not set readCB";
 	};
 	_errCB = [](const SockException &err) {
-		WarnL << "Socket not set errCB";
+		WarnL << "Socket not set errCB:" << err.what();
 	};
 	_acceptCB = [](Socket::Ptr &sock) {
 		WarnL << "Socket not set acceptCB";
