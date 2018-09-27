@@ -245,8 +245,9 @@ public:
         if(size <=0 ){
             size = strlen(data);
         }
-        setCapacity(size);
+        setCapacity(size + 1);
         memcpy(_data,data,size);
+        _data[size] = '\0';
         setSize(size);
     }
 private:
