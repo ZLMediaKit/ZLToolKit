@@ -326,7 +326,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 void Socket::onError(const SockFD::Ptr &pSock) {
 	emitErr(getSockErr(pSock));
 }
-bool Socket::emitErr(const SockException& err,bool close) {
+bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
 	{
 		lock_guard<mutex> lck(_mtx_sockFd);
 		if (!_sockFd) {
@@ -334,6 +334,7 @@ bool Socket::emitErr(const SockException& err,bool close) {
 			return false;
 		}
 	}
+
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	_executor->async([weakSelf,err]() {
 		auto strongSelf=weakSelf.lock();
@@ -341,7 +342,8 @@ bool Socket::emitErr(const SockException& err,bool close) {
 			return;
 		}
 		strongSelf->_errCB(err);
-	});
+	},maySync);
+
     if(close){
         closeSock();
     }
@@ -916,7 +918,7 @@ BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, int len) {
 //触发onError事件
 void SocketHelper::shutdown() {
     if (_sock) {
-        _sock->emitErr(SockException(Err_other, "self shutdown"));
+        _sock->emitErr(SockException(Err_other, "self shutdown"),true,false);
     }
 }
 

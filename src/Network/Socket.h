@@ -387,7 +387,7 @@ public:
 	int send(const Buffer::Ptr &buf,int flags = SOCKET_DEFAULE_FLAGS , struct sockaddr *peerAddr = nullptr);
 
     //关闭socket且触发onErr回调，onErr回调将在主线程中进行
-	bool emitErr(const SockException &err,bool closeSock = true);
+	bool emitErr(const SockException &err,bool closeSock = true,bool maySync = true);
     //关闭或开启数据接收
 	void enableRecv(bool enabled);
     //获取裸文件描述符，请勿进行close操作(因为Socket对象会管理其生命周期)
