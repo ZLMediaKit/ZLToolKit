@@ -148,7 +148,8 @@ public:
     void start() {
         if (_thread_num <= 0)
             return;
-        for (int i = 0; i < _thread_num - _thread_group.size(); ++i) {
+        auto total =  _thread_num - _thread_group.size();
+        for (int i = 0; i < total; ++i) {
             _thread_group.create_thread(bind(&ThreadPool::run, this));
         }
     }
