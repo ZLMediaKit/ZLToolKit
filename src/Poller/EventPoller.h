@@ -96,6 +96,7 @@ private:
     PipeWrap _pipe;
 
 	thread *_loopThread = nullptr;
+	semaphore _sem_run_started;
 	thread::id _mainThreadId;
 
     mutex _mtx_event_map;

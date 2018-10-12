@@ -303,8 +303,8 @@ void EventPoller::runLoop(bool blocked) {
             //runLoop已经被执行过了，不能执行两次
             return;
         }
-
         _mainThreadId = this_thread::get_id();
+        _sem_run_started.post();
         ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
@@ -430,6 +430,7 @@ void EventPoller::runLoop(bool blocked) {
 #endif //HAS_EPOLL
     }else{
         _loopThread = new thread(&EventPoller::runLoop, this, true);
+        _sem_run_started.wait();
     }
 }
 
