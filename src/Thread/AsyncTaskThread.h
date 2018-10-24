@@ -38,12 +38,11 @@
 #include "Util/util.h"
 
 using namespace std;
-using namespace ZL::Util;
 
 #define TASK_INTERVAL 50
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
+
 typedef struct {
 	uint64_t type;
 	uint64_t timeLine;
@@ -85,7 +84,6 @@ public:
 	}
 };
 
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* defined(AsyncTaskThread_h) */

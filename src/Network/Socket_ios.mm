@@ -28,12 +28,7 @@
 #import <Foundation/Foundation.h>
 #endif //OS_IPHONE
 
-using namespace ZL::Util;
-
-namespace ZL {
-namespace Network {
-
-
+namespace toolkit {
 
 #if defined (OS_IPHONE)
 bool SockFD::setSocketOfIOS(int sock){
@@ -102,5 +97,4 @@ void SockFD::unsetSocketOfIOS(int sock){
 
 
 
-}  // namespace Network
-}  // namespace ZL
+}  // namespace toolkit

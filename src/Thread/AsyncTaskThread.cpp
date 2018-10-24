@@ -28,10 +28,8 @@
 #include "AsyncTaskThread.h"
 
 using namespace std;
-using namespace ZL::Util;
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 static std::shared_ptr<AsyncTaskThread> s_instance;
 
@@ -134,5 +132,4 @@ void AsyncTaskThread::DoTask() {
 		TaskNeedDo.clear();
 	}
 }
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */

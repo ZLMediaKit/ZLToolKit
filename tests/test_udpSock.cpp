@@ -28,9 +28,7 @@
 #include "Network/Socket.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Network;
-
+using namespace toolkit;
 
 //主线程退出标志
 bool exitProgram = false;

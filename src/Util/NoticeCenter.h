@@ -35,8 +35,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 
 class NoticeCenter {
@@ -117,7 +116,6 @@ private:
 
 };
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* SRC_UTIL_NOTICECENTER_H_ */

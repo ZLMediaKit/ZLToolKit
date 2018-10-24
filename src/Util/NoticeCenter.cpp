@@ -25,14 +25,12 @@
 
 #include "NoticeCenter.h"
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 NoticeCenter &NoticeCenter::Instance(){
 	static NoticeCenter instance;
 	return instance;
 }
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 

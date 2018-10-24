@@ -26,7 +26,7 @@
 #include "Util/logger.h"
 #include "Util/NoticeCenter.h"
 using namespace std;
-using namespace ZL::Util;
+using namespace toolkit;
 
 //广播名称1
 #define NOTICE_NAME1 "NOTICE_NAME1"

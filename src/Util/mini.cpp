@@ -22,8 +22,7 @@
 #include "mini.h"
 
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 template<>
 mINI_basic<string, variant> &mINI_basic<string, variant>::Instance(){
@@ -31,7 +30,6 @@ mINI_basic<string, variant> &mINI_basic<string, variant>::Instance(){
 	return instance;
 }
 
-}  // namespace Util
-}  // namespace ZL
+}  // namespace toolkit
 
 

@@ -35,8 +35,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 class WorkThreadPool :
         public std::enable_shared_from_this<WorkThreadPool> ,
@@ -50,7 +49,6 @@ private:
     WorkThreadPool();
 };
 
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* UTIL_WORKTHREADPOOL_H_ */

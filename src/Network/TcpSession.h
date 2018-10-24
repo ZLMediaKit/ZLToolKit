@@ -32,11 +32,9 @@
 #include "Thread/ThreadPool.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
+
 class TcpServer;
 class TcpSession:
 		public std::enable_shared_from_this<TcpSession> ,
@@ -68,7 +66,6 @@ public:
 };
 
 
-} /* namespace Session */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* SERVER_SESSION_H_ */

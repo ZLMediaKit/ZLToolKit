@@ -29,9 +29,7 @@
 #include "Thread/AsyncTaskThread.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Poller;
-using namespace ZL::Thread;
+using namespace toolkit;
 
 /**
  * cpu负载均衡测试

@@ -31,8 +31,7 @@
 #include <list>
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
+using namespace toolkit;
 
 //程序退出标志
 bool g_bExitFlag = false;

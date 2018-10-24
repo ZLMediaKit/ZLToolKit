@@ -35,9 +35,6 @@
 #include "Thread/ThreadPool.h"
 #include "Network/sockutil.h"
 
-using namespace ZL::Util;
-using namespace ZL::Thread;
-using namespace ZL::Network;
 
 #if defined(HAS_EPOLL)
     #include <sys/epoll.h>
@@ -52,8 +49,7 @@ using namespace ZL::Network;
                                 | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #endif //HAS_EPOLL
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
@@ -462,6 +458,5 @@ EventPollerPool::EventPollerPool(): TaskExecutorGetterImp([](){
 }){}
 
 
-}  // namespace Poller
-}  // namespace ZL
+}  // namespace toolkit
 

@@ -28,8 +28,7 @@
 #include "logger.h"
 #include "Util/util.h"
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 class Ticker {
 public:
@@ -129,7 +128,7 @@ private:
 	#define TimeTicker2(tm,where)
 	#define TimeTicker3(tm,where,log)
 #endif
-} /* namespace Util */
-} /* namespace ZL */
+
+} /* namespace toolkit */
 
 #endif /* UTIL_TIMETICKER_H_ */

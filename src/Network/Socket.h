@@ -43,12 +43,8 @@
 #include "Network/sockutil.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Poller;
-using namespace ZL::Thread;
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 #if defined(MSG_NOSIGNAL)
 #define FLAG_NOSIGNAL MSG_NOSIGNAL
@@ -537,7 +533,6 @@ private:
 };
 
 
-}  // namespace Network
-}  // namespace ZL
+}  // namespace toolkit
 
 #endif /* NETWORK_SOCKET_H */

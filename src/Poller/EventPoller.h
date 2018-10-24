@@ -38,16 +38,13 @@
 #include "Thread/TaskExecutor.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
 
 
 #if defined(__linux__)
 #define HAS_EPOLL
 #endif //__linux__
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 typedef enum {
 	Event_Read = 1 << 0, //读事件
@@ -136,10 +133,8 @@ private:
 	EventPollerPool() ;
 };
 
+}  // namespace toolkit
 
-
-}  // namespace Poller
-}  // namespace ZL
 #endif /* EventPoller_h */
 
 

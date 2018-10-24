@@ -39,10 +39,8 @@
 #endif
 
 using namespace std;
-using namespace ZL::Util;
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 #if defined(_WIN32)
 	static onceToken g_token([]() {
@@ -875,7 +873,6 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
 
 
 
-	}  // namespace Network
-}  // namespace ZL
+}  // namespace toolkit
 
 

@@ -26,8 +26,7 @@
 #include "TcpSession.h"
 
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 TcpSession::TcpSession( const Socket::Ptr &sock) : SocketHelper(sock) {
 }
@@ -52,6 +51,5 @@ void TcpSession::safeShutdown(){
     });
 }
 
-} /* namespace Session */
-} /* namespace ZL */
+} /* namespace toolkit */
 

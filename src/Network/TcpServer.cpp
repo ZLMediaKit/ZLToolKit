@@ -26,14 +26,12 @@
 #include "TcpServer.h"
 
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 SessionMap &SessionMap::Instance(){
 	static SessionMap instance;
 	return instance;
 }
 
-} /* namespace Network */
-} /* namespace ZL */
+} /* namespace toolkit */
 

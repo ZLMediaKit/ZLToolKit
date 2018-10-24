@@ -30,7 +30,7 @@
 #include "Util/SqlPool.h"
 #endif
 using namespace std;
-using namespace ZL::Util;
+using namespace toolkit;
 
 int main() {
 	//初始化日志

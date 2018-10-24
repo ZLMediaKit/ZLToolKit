@@ -30,8 +30,7 @@
 #include <getopt.h>
 #endif // defined(_WIN32)
 
-namespace ZL{
-namespace Util{
+namespace toolkit{
 
 mutex OptionParser::s_mtx_opt;
 //默认注册exit/quit/help/clear命令
@@ -135,5 +134,4 @@ void OptionParser::operator ()(mINI &allArg, int argc, char *argv[],const std::s
     }
 }
 
-}//namespace Util
-}//namespace ZL
+}//namespace toolkit

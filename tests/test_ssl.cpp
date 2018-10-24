@@ -28,7 +28,7 @@
 #include "Util/SSLBox.h"
 #endif
 using namespace std;
-using namespace ZL::Util;
+using namespace toolkit;
 
 int main(int argc,char *argv[]) {
 	//初始化设置日志

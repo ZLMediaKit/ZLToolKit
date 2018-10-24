@@ -32,8 +32,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 class Pipe
 {
@@ -48,8 +47,7 @@ private:
 };
 
 
-}  // namespace Poller
-}  // namespace ZL
+}  // namespace toolkit
 
 
 #endif /* Pipe_h */

@@ -67,8 +67,7 @@ struct dirent *readdir(DIR *);
 
 #endif // defined(_WIN32)
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 class File {
 public:
@@ -88,7 +87,6 @@ private:
 	~File();
 };
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* SRC_UTIL_FILE_H_ */

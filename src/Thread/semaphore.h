@@ -38,8 +38,7 @@
 #include <condition_variable>
 using namespace std;
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 class semaphore {
 public:
@@ -91,6 +90,7 @@ private:
 	condition_variable_any _condition;
 #endif
 };
-} /* namespace Thread */
-} /* namespace ZL */
+
+} /* namespace toolkit */
+
 #endif /* SEMAPHORE_H_ */

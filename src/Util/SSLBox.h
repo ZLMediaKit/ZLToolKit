@@ -67,8 +67,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 #if defined(ENABLE_OPENSSL)
 class SSL_Initor {
@@ -179,7 +178,6 @@ private:
 #endif //defined(ENABLE_OPENSSL)
 
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* CRYPTO_SSLBOX_H_ */

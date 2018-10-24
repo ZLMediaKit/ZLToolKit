@@ -30,9 +30,7 @@
 #include "Thread/AsyncTaskThread.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Poller;
-
+using namespace toolkit;
 
 int main() {
 	//设置程序退出信号处理函数

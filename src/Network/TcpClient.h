@@ -33,11 +33,8 @@
 #include "Thread/WorkThreadPool.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 
 //Tcp客户端，接口线程安全的
@@ -80,7 +77,6 @@ private:
     string _netAdapter = "0.0.0.0";
 };
 
-} /* namespace Network */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* NETWORK_TCPCLIENT_H */

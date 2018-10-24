@@ -35,8 +35,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 //实现了一个基于函数对象的任务列队，该列队是线程安全的，任务列队任务数由信号量控制
 template<typename T>
@@ -86,6 +85,6 @@ private:
 	semaphore _sem;
 };
 
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */
+
 #endif /* TASKQUEUE_H_ */

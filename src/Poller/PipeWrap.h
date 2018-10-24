@@ -24,8 +24,7 @@
 #ifndef PipeWarp_h
 #define PipeWarp_h
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 class PipeWrap {
 public:
@@ -48,8 +47,7 @@ private:
 
 		};
 
-} /* namespace Poller */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif // !PipeWarp_h
 

@@ -41,8 +41,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 class _StrPrinter : public string {
 public:
@@ -109,7 +108,6 @@ void sleep(int second);
 
 #endif //WIN32
 
-}  // namespace Util
-}  // namespace ZL
+}  // namespace toolkit
 
 #endif /* UTIL_UTIL_H_ */

@@ -37,10 +37,9 @@
 #include "Thread/AsyncTaskThread.h"
 
 using namespace std;
-using namespace ZL::Thread;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
+
 class SqlPool {
 public:
 	typedef ResourcePool<SqlConnection> PoolType;
@@ -240,7 +239,6 @@ private:
 	bool _throwAble = true;
 };
 
-} /* namespace mysql */
-} /* namespace im */
+} /* namespace toolkit */
 
 #endif /* SQL_SQLPOOL_H_ */

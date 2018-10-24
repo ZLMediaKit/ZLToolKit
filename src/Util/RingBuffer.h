@@ -33,8 +33,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 //实现了一个一写多读得环形缓冲的模板类
 template<typename T> class RingBuffer: public enable_shared_from_this<
@@ -261,7 +260,6 @@ private:
 	}
 };
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* UTIL_RINGBUFFER_H_ */

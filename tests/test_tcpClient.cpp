@@ -26,9 +26,7 @@
 #include "Util/logger.h"
 #include "Network/TcpClient.h"
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Network;
-
+using namespace toolkit;
 
 class TestClient: public TcpClient {
 public:

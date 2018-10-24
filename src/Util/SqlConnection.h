@@ -45,8 +45,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 class SqlConnection {
 public:
@@ -201,6 +200,5 @@ private:
 	}
 };
 
-} /* namespace util */
-} /* namespace ZL */
+} /* namespace toolkit */
 #endif /* SQL_SQLCONNECTION_H_ */

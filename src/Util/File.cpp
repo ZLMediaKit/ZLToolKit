@@ -38,7 +38,6 @@
 #include "Util/uv_errno.h"
 
 using namespace std;
-using namespace ZL::Util;
 
 #if defined(_WIN32)
 int mkdir(const char *path, int mode) {
@@ -106,8 +105,7 @@ int closedir(DIR *d) {
 #endif // defined(_WIN32)
 
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 FILE *File::createfile_file(const char *file, const char *mode) {
 	std::string path = file;
@@ -230,5 +228,4 @@ void File::delete_file(const char *path) {
 	unlink(path);
 }
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */

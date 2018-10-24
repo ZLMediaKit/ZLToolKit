@@ -25,8 +25,7 @@
 #ifndef SRC_POLLER_SELECTWRAP_H_
 #define SRC_POLLER_SELECTWRAP_H_
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 class FdSet
 {
@@ -41,9 +40,9 @@ public:
 private:
 };
 
-} /* namespace Poller */
-} /* namespace ZL */
-using namespace ZL::Poller;
+} /* namespace toolkit */
+
+using namespace toolkit;
 int zl_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv);
 
 

@@ -26,8 +26,7 @@
 #include "logger.h"
 #include "onceToken.h"
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 static Logger::Ptr s_logger;
 
@@ -41,6 +40,5 @@ void Logger::Destory() {
 	s_logger.reset();
 }
 
-} /* namespace util */
-} /* namespace ZL */
+} /* namespace toolkit */
 

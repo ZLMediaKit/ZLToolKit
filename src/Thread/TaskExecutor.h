@@ -12,10 +12,8 @@
 #include "Util/TimeTicker.h"
 
 using namespace std;
-using namespace ZL::Util;
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 /**
  * cpu负载计算器
@@ -330,8 +328,7 @@ protected:
     int _thread_pos = 0;
 };
 
-}//Thread
-}//ZL
+}//toolkit
 
 
 #endif //ZLTOOLKIT_TASKEXECUTOR_H

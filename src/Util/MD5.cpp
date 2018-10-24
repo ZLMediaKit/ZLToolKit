@@ -39,8 +39,7 @@ documentation and/or software.
 #include <stdio.h>
 #include <string.h>
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 // Constants for MD5Transform routine.
 #define S11 7
@@ -365,5 +364,4 @@ std::string md5(const std::string str)
 
     return md5.hexdigest();
 }
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */

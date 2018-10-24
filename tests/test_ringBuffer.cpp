@@ -30,8 +30,7 @@
 #include <list>
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
+using namespace toolkit;
 
 //环形缓存写线程退出标记
 bool g_bExitWrite = false;

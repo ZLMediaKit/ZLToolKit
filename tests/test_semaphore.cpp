@@ -29,8 +29,7 @@
 #include <list>
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
+using namespace toolkit;
 
 bool g_bExitFlag = false;//程序退出标志
 semaphore g_sem;//信号量

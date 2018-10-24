@@ -24,7 +24,7 @@
 #include <iostream>
 #include "Util/logger.h"
 using namespace std;
-using namespace ZL::Util;
+using namespace toolkit;
 
 class TestLog
 {

@@ -48,8 +48,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 #if defined(_WIN32)
 
@@ -114,7 +113,6 @@ public:
 
 };
 
-}  // namespace Network
-}  // namespace ZL
+}  // namespace toolkit
 
 #endif // !NETWORK_SOCKUTIL_H

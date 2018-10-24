@@ -4,8 +4,7 @@
 #include <tuple>
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 template<typename T>
 struct function_traits;
@@ -51,7 +50,6 @@ FUNCTION_TRAITS(const volatile)
 template<typename Callable>
 struct function_traits : function_traits<decltype(&Callable::operator())>{};
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* SRC_UTIL_FUNCTION_TRAITS_H_ */

@@ -33,11 +33,9 @@
 #include <unordered_set>
 #include "Thread/List.h"
 
-using namespace ZL::Thread;
-
-namespace ZL {
-namespace Util {
 using namespace std;
+
+namespace toolkit {
 
 template<typename C>
 class ResourcePool {
@@ -148,7 +146,6 @@ private:
 	std::shared_ptr<_ResourcePool> pool;
 };
 
-} /* namespace util */
-} /* namespace im */
+} /* namespace toolkit */
 
 #endif /* UTIL_RECYCLEPOOL_H_ */

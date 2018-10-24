@@ -29,11 +29,9 @@
 #include "Network/sockutil.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Network;
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
+
 Pipe::Pipe(const function<void(int size, const char *buf)> &onRead,
 		   const EventPoller::Ptr &poller) {
 	_poller = poller;
@@ -78,6 +76,5 @@ void Pipe::send(const char *buf, int size) {
 }
 
 
-}  // namespace Poller
-}  // namespace ZL
+}  // namespace toolkit
 

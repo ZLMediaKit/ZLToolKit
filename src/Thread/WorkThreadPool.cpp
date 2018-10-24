@@ -29,10 +29,7 @@
 #include "Util/onceToken.h"
 #include "ThreadPool.h"
 
-using namespace ZL::Util;
-
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 static WorkThreadPool::Ptr s_instance;
 
@@ -51,6 +48,5 @@ WorkThreadPool::WorkThreadPool(): TaskExecutorGetterImp([](){
 }){}
 
 
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */
 

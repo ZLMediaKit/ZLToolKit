@@ -77,8 +77,8 @@ int uv_exepath(char* buffer, int *size) {
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
+
 string makeRandStr(int sz, bool printable) {
 	char *tmp =  new char[sz+1];
 	static const char CCH[] =
@@ -262,6 +262,5 @@ int gettimeofday(struct timeval *tp, void *tzp) {
 #endif //WIN32
 
 
-}  // namespace Util
-}  // namespace ZL
+}  // namespace toolkit
 

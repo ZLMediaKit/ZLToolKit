@@ -29,8 +29,7 @@
 #include "Thread/ThreadPool.h"
 
 using namespace std;
-using namespace ZL::Util;
-
+using namespace toolkit;
 
 int main() {
     signal(SIGINT,[](int ){

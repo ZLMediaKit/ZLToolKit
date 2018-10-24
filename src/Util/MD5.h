@@ -39,8 +39,7 @@ documentation and/or software.
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 // a small class for calculating MD5 hashes of strings or byte arrays
 // it is not meant to be fast or secure
@@ -94,7 +93,6 @@ private:
 };
 
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* SRC_UTIL_MD5_H_ */

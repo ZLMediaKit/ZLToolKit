@@ -31,10 +31,8 @@
 #include "Thread/AsyncTaskThread.h"
 
 using namespace std;
-using namespace ZL::Thread;
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 class Timer {
 public:
@@ -46,6 +44,6 @@ private:
     std::shared_ptr<bool> _canceled;
 };
 
-}  // namespace Poller
-}  // namespace ZL
+}  // namespace toolkit
+
 #endif /* Timer_h */

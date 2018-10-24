@@ -33,11 +33,8 @@
 #include "Util/uv_errno.h"
 
 using namespace std;
-using namespace ZL::Util;
 
-namespace ZL {
-namespace Poller {
-
+namespace toolkit {
 
 FdSet::FdSet() {
 	_ptr = new fd_set;
@@ -63,8 +60,7 @@ bool FdSet::isSet(int fd) {
 	return  FD_ISSET(fd, (fd_set *)_ptr);
 }
 
-} /* namespace Poller */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 int zl_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv){
 	void *rd,*wt,*er;

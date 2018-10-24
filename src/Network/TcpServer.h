@@ -40,12 +40,8 @@
 #include "Thread/WorkThreadPool.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Poller;
-using namespace ZL::Thread;
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 //全局的TcpSession记录对象，方便后面管理
 //线程安全的
@@ -293,7 +289,6 @@ private:
     function<TcpSession::Ptr(const Socket::Ptr &)> _sessionMaker;
 };
 
-} /* namespace Network */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* TCPSERVER_TCPSERVER_H */

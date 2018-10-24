@@ -34,8 +34,8 @@
 
 #define SSL_BUF_SIZE 1024*4
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
+
 mutex *SSL_Initor::_mutexes;
 
 SSL_Initor::SSL_Initor() {
@@ -233,17 +233,14 @@ void SSL_Box::flush() {
 
 
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 #endif //ENABLE_OPENSSL
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 SSL_Initor &SSL_Initor::Instance() {
     static SSL_Initor obj;
     return obj;
 }
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */

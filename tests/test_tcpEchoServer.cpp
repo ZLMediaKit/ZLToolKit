@@ -29,8 +29,7 @@
 #include "Network/TcpSession.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Network;
+using namespace toolkit;
 
 class EchoSession: public TcpSession {
 public:

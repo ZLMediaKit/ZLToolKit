@@ -43,10 +43,8 @@
 #include "Thread/semaphore.h"
 
 using namespace std;
-using namespace ZL::Thread;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 typedef enum { LTrace = 0, LDebug, LInfo, LWarn, LError} LogLevel;
 static const char *LogLevelStr[] = { "T", "D", "I", "W", "E" };
@@ -407,7 +405,6 @@ protected:
 #define WarnL LogInfoMaker(LWarn,__FILE__, __FUNCTION__, __LINE__)
 #define ErrorL LogInfoMaker(LError,__FILE__, __FUNCTION__, __LINE__)
 
-} /* namespace util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* UTIL_LOGGER_H_ */

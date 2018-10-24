@@ -30,8 +30,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 class onceToken {
 public:
@@ -62,7 +61,6 @@ private:
 	task _onDestructed;
 };
 
-} /* namespace Util */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif /* UTIL_ONCETOKEN_H_ */

@@ -33,8 +33,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 class thread_group {
 private:
@@ -98,6 +97,6 @@ private:
 	thread::id _thread_id;
 };
 
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */
+
 #endif /* THREADGROUP_H_ */

@@ -38,8 +38,7 @@
 
 using namespace std;
 
-namespace ZL{
-namespace Util{
+namespace toolkit{
 
 class Option {
 public:
@@ -398,8 +397,7 @@ private:
     }
 };
 
-}//namespace Util
-}//namespace ZL
+}//namespace toolkit
 
 #define GET_CMD(name) (*(CMDRegister::Instance()[name]))
 #define CMD_DO(name,...) (*(CMDRegister::Instance()[name]))(__VA_ARGS__)

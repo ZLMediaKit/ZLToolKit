@@ -29,8 +29,7 @@
 #include "Thread/WorkThreadPool.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
+using namespace toolkit;
 
 #ifndef UINT32_MAX
 #define UINT32_MAX 0xFFFFFFFF

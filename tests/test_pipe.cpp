@@ -28,9 +28,7 @@
 #include "Poller/Pipe.h"
 #include "Util/util.h"
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Poller;
-
+using namespace toolkit;
 
 int main() {
 	//设置日志

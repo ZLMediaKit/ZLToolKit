@@ -30,8 +30,7 @@
 #include "SqlPool.h"
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 static shared_ptr<SqlPool>	s_instance;
 SqlPool &SqlPool::Instance() {
@@ -44,8 +43,7 @@ void SqlPool::Destory(){
 	s_instance.reset();
 }
 
-} /* namespace mysql */
-} /* namespace im */
+} /* namespace toolkit */
 
 #endif// defined(ENABLE_MYSQL)
 

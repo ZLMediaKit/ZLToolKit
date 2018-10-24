@@ -23,8 +23,7 @@
  */
 #include "TcpClient.h"
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 TcpClient::TcpClient(const EventPoller::Ptr &poller,
                      const TaskExecutor::Ptr &executor) : SocketHelper(nullptr) {
@@ -157,5 +156,4 @@ void TcpClient::onSockErr(const SockException& ex) {
 	onErr(ex);
 }
 
-} /* namespace Network */
-} /* namespace ZL */
+} /* namespace toolkit */

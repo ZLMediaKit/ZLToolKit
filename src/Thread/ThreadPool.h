@@ -34,10 +34,7 @@
 #include "Util/util.h"
 #include "Util/logger.h"
 
-using namespace ZL::Util;
-
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 class ThreadPool : public TaskExecutor{
 public:
@@ -180,6 +177,6 @@ private:
 	Priority _priority;
 };
 
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */
+
 #endif /* THREADPOOL_H_ */

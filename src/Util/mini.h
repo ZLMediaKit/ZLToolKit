@@ -33,8 +33,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Util {
+namespace toolkit {
 
 
 template<typename key, typename variant>
@@ -154,8 +153,7 @@ struct variant: public string {
 
 using mINI = mINI_basic<string, variant>;
 
-}  // namespace Util
-}  // namespace ZL
+}  // namespace toolkit
 
 #endif //UTIL_MINI_H
 

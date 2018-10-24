@@ -28,8 +28,7 @@
 
 using namespace std;
 
-namespace ZL {
-namespace Thread {
+namespace toolkit {
 
 
 template<typename T>
@@ -154,8 +153,6 @@ private:
 
 
 
-
-} /* namespace Thread */
-} /* namespace ZL */
+} /* namespace toolkit */
 
 #endif //ZLTOOLKIT_LIST_H

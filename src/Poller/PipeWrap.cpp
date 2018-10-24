@@ -28,8 +28,6 @@
 #include "Network/sockutil.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Network;
 
 #define checkFD(fd) \
 	if (fd == -1) { \
@@ -43,8 +41,7 @@ using namespace ZL::Network;
 		fd = -1;\
 	}
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 PipeWrap::PipeWrap(){
 
@@ -104,5 +101,4 @@ int PipeWrap::read(void *buf, int n) {
 	return ret;
 }
 
-} /* namespace Poller */
-} /* namespace ZL*/
+} /* namespace toolkit*/

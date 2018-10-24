@@ -33,12 +33,8 @@
 #include "Poller/EventPoller.h"
 
 using namespace std;
-using namespace ZL::Util;
-using namespace ZL::Thread;
-using namespace ZL::Poller;
 
-namespace ZL {
-namespace Network {
+namespace toolkit {
 
 Socket::Socket(const EventPoller::Ptr &poller,
 			   const TaskExecutor::Ptr &executor) {
@@ -971,8 +967,7 @@ bool SocketHelper::sync_first(const TaskExecutor::Task &task) {
 	return _executor->sync_first(task);
 }
 
-}  // namespace Network
-}  // namespace ZL
+}  // namespace toolkit
 
 
 

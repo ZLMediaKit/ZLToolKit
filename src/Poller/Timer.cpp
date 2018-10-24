@@ -24,8 +24,7 @@
 
 #include "Timer.h"
 
-namespace ZL {
-namespace Poller {
+namespace toolkit {
 
 Timer::Timer(float second,
 			 const function<bool()> &cb,
@@ -58,5 +57,4 @@ Timer::~Timer()
 	AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
 }
 
-}  // namespace Poller
-}  // namespace ZL
+}  // namespace toolkit
