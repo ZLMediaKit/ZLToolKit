@@ -199,7 +199,7 @@ public:
     Buffer(){};
     virtual ~Buffer(){};
     //返回数据长度
-    virtual char *data() = 0 ;
+    virtual char *data() const = 0 ;
     virtual uint32_t size() const = 0;
 };
 
@@ -218,7 +218,7 @@ public:
         }
     }
     //在写入数据时请确保内存是否越界
-    char *data() override {
+    char *data() const override {
         return _data;
     }
     //有效数据大小
@@ -294,7 +294,7 @@ public:
     BufferString(const string &data):_data(data) {}
     BufferString(string &&data):_data(std::move(data)){}
     ~BufferString() {}
-    char *data() override {
+    char *data() const override {
         return const_cast<char *>(_data.data());
     }
     uint32_t size() const override{

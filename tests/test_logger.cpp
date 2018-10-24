@@ -66,6 +66,9 @@ int main() {
     //根据RAII的原理，此处不需要输入 endl，也会在被函数栈pop时打印log
 	ErrorL << "without endl!";
 
+
+	sleep(10);
+
 	Logger::Destory();
 	return 0;
 }
