@@ -167,6 +167,9 @@ public:
 	}
 	//写环形缓冲，非线程安全的
 	void write(const T &in,bool isKey = true) {
+		if(_delegate){
+			_delegate->write(in,isKey);
+		}
 		computeBestSize(isKey);
         _dataRing[_ringPos] = in;
         if (isKey) {
@@ -189,6 +192,9 @@ public:
 		lock_guard<mutex> lck(_mtx_reader);
 		return _readerMap.size();
 	}
+	void setDelegate(const Ptr &delegate){
+		_delegate = delegate;
+	}
 private:
 	T *_dataRing;
 	int _ringPos;
@@ -199,6 +205,7 @@ private:
 	int _totalCnt = 0;
 	int _lastKeyCnt = 0;
     bool _canReSize = false;
+	RingBuffer::Ptr _delegate;
 
 	mutex _mtx_reader;
 	unordered_map<void *,std::weak_ptr<RingReader> > _readerMap;
