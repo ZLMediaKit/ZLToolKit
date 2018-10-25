@@ -35,6 +35,15 @@ using namespace std;
 
 namespace toolkit {
 
+template<typename T>
+class RingDelegate {
+public:
+	typedef std::shared_ptr<RingDelegate> Ptr;
+	RingDelegate(){}
+	virtual ~RingDelegate(){}
+	virtual void onWrite(const T &in,bool isKey = true) = 0;
+};
+
 //实现了一个一写多读得环形缓冲的模板类
 template<typename T> class RingBuffer: public enable_shared_from_this<
 		RingBuffer<T> > {
@@ -167,8 +176,11 @@ public:
 	}
 	//写环形缓冲，非线程安全的
 	void write(const T &in,bool isKey = true) {
-		if(_delegate){
-			_delegate->write(in,isKey);
+		{
+			lock_guard<mutex> lck(_mtx_delegate);
+			if (_delegate) {
+				_delegate->onWrite(in, isKey);
+			}
 		}
 		computeBestSize(isKey);
         _dataRing[_ringPos] = in;
@@ -192,7 +204,8 @@ public:
 		lock_guard<mutex> lck(_mtx_reader);
 		return _readerMap.size();
 	}
-	void setDelegate(const Ptr &delegate){
+	void setDelegate(const typename RingDelegate<T>::Ptr &delegate){
+		lock_guard<mutex> lck(_mtx_delegate);
 		_delegate = delegate;
 	}
 private:
@@ -205,8 +218,8 @@ private:
 	int _totalCnt = 0;
 	int _lastKeyCnt = 0;
     bool _canReSize = false;
-	RingBuffer::Ptr _delegate;
-
+	typename RingDelegate<T>::Ptr _delegate;
+	mutex _mtx_delegate;
 	mutex _mtx_reader;
 	unordered_map<void *,std::weak_ptr<RingReader> > _readerMap;
 
