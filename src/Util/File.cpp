@@ -38,6 +38,7 @@
 #include "Util/uv_errno.h"
 
 using namespace std;
+using namespace toolkit;
 
 #if defined(_WIN32)
 int mkdir(const char *path, int mode) {

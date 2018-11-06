@@ -472,7 +472,7 @@ vector<map<string,string> > SockUtil::getInterfaceList(){
 		while (ipAddr) {
 			map<string,string> obj;
 			obj["ip"] = ipAddr->IpAddress.String;
-			obj["name"] = adapter->AdapterName
+			obj["name"] = adapter->AdapterName;
 			ret.emplace_back(std::move(obj));
 			ipAddr = ipAddr->Next;
 		}
