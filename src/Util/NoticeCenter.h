@@ -52,12 +52,16 @@ public:
 
 	template<typename ...ArgsType>
 	bool emitEvent(const char *strEvent,ArgsType &&...args){
-		lock_guard<recursive_mutex> lck(_mtxListener);
-		auto it0 = _mapListener.find(strEvent);
-		if (it0 == _mapListener.end()) {
-			return false;
+		decltype(_mapListener)::mapped_type listenerMap;
+		{
+			lock_guard<recursive_mutex> lck(_mtxListener);
+			auto it0 = _mapListener.find(strEvent);
+			if (it0 == _mapListener.end()) {
+				return false;
+			}
+			listenerMap = it0->second;
 		}
-		for(auto &pr : it0->second){
+		for(auto &pr : listenerMap){
 			typedef function<void(decltype(std::forward<ArgsType>(args))...)> funType;
 			funType *obj = (funType *)(pr.second.get());
 			try{
@@ -66,7 +70,7 @@ public:
 				break;
 			}
 		}
-		return it0->second.size();
+		return listenerMap.size();
 	}
 
 
