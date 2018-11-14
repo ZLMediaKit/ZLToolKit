@@ -432,7 +432,7 @@ void EventPoller::runLoopOnce(bool blocked) {
         }
 #endif //HAS_EPOLL
     }else{
-        _loopThread = new thread(&EventPoller::runLoop, this, true);
+        _loopThread = new thread(&EventPoller::runLoopOnce, this, true);
         _sem_run_started.wait();
     }
 }
