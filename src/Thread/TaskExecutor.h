@@ -106,6 +106,9 @@ public:
             totalTime -= rcd._time;
             _time_list.pop_front();
         }
+        if(totalTime == 0){
+            return 0;
+        }
         return totalRunTime * 100 / totalTime;
     }
 
