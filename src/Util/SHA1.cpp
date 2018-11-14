@@ -1,4 +1,4 @@
-//	100% Public Domain.
+﻿//	100% Public Domain.
 //
 //	Original C Code
 //	 -- Steve Reid <steve@edmweb.com>
