@@ -78,8 +78,10 @@ std::string& trim(std::string &s,const string &chars=" \r\n\t");
 std::string trim(std::string &&s,const string &chars=" \r\n\t");
 // string转小写
 std::string &strToLower(std::string &str);
+std::string strToLower(std::string &&str);
 // string转大写
 std::string &strToUpper(std::string &str);
+std::string strToUpper(std::string &&str);
 
 
 #ifndef bzero
@@ -96,17 +98,12 @@ std::string to_string(T value){
 #endif//ANDROID
 
 #if defined(_WIN32)
-
 int gettimeofday(struct timeval *tp, void *tzp);
-
-#if !defined(strcasecmp)
-int strcasecmp(const char *strA,const char *strB);
-#endif //!defined(strcasecmp)
-
 void usleep(int micro_seconds);
 void sleep(int second);
-
 #endif //WIN32
+
+int strcasecmp(const char *strA,const char *strB);
 
 }  // namespace toolkit
 
