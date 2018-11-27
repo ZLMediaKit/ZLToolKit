@@ -101,9 +101,12 @@ std::string to_string(T value){
 int gettimeofday(struct timeval *tp, void *tzp);
 void usleep(int micro_seconds);
 void sleep(int second);
-#endif //WIN32
 
-int strcasecmp(const char *strA,const char *strB);
+#if !defined(strcasecmp)
+#define strcasecmp _stricmp
+#endif
+
+#endif //WIN32
 
 }  // namespace toolkit
 

@@ -234,14 +234,6 @@ std::string trim(std::string &&s,const string &chars){
 	TRIM(s,chars);
 }
 
-int strcasecmp(const char *strA,const char *strB){
-#if defined(_WIN32)
-    return ::_stricmp(strA,strB);
-#else
-    return ::strcasecmp(strA,strB);
-#endif
-}
-
 #if defined(_WIN32)
 void sleep(int second) {
 	Sleep(1000 * second);
