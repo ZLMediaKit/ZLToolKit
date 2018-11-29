@@ -29,3 +29,5 @@
 /X64/
 
 *.DS_Store
+/cmake-build-debug/
+/.idea/
