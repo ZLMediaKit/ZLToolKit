@@ -288,7 +288,14 @@ inline bool EventPoller::onPipeEvent() {
 void EventPoller::wait() {
     lock_guard<mutex> lck(_mtx_runing);
 }
+
 void EventPoller::runLoop(bool blocked) {
+    if(blocked){
+        wait();
+    }
+}
+
+void EventPoller::runLoopOnce(bool blocked) {
     if (blocked) {
         onceToken token([this](){
             //获取锁
@@ -429,11 +436,10 @@ void EventPoller::runLoop(bool blocked) {
         }
 #endif //HAS_EPOLL
     }else{
-        _loopThread = new thread(&EventPoller::runLoop, this, true);
+        _loopThread = new thread(&EventPoller::runLoopOnce, this, true);
         _sem_run_started.wait();
     }
 }
-
 
 ///////////////////////////////////////////////
 static EventPollerPool::Ptr s_pool_instance;
@@ -456,8 +462,8 @@ EventPoller::Ptr EventPollerPool::getPoller(){
 }
 
 EventPollerPool::EventPollerPool(): TaskExecutorGetterImp([](){
-    auto ret = std::make_shared<EventPoller>();
-    ret->runLoop(false);
+    EventPoller::Ptr ret(new EventPoller);
+    ret->runLoopOnce(false);
     return ret;
 }){}
 
