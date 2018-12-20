@@ -33,7 +33,7 @@ using namespace toolkit;
 
 class EchoSession: public TcpSession {
 public:
-	EchoSession(const TaskExecutor::Ptr &pTh,const Socket::Ptr &sock) :
+	EchoSession(const Socket::Ptr &sock) :
 			TcpSession(sock) {
 		DebugL;
 	}

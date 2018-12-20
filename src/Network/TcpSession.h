@@ -44,13 +44,6 @@ public:
     typedef std::shared_ptr<TcpSession> Ptr;
 
 	TcpSession(const Socket::Ptr &pSock);
-
-	/**
-	 * 过期接口,为了兼容老代码而保留
-	 * @param pTh
-	 * @param pSock
-	 */
-	TcpSession(const TaskExecutor::Ptr &pTh, const Socket::Ptr &pSock);
 	virtual ~TcpSession();
     //接收数据入口
 	virtual void onRecv(const Buffer::Ptr &) = 0;
@@ -69,8 +62,7 @@ public:
 template<typename TcpSessionType>
 class TcpSessionWithSSL: public TcpSessionType {
 public:
-	TcpSessionWithSSL(const std::shared_ptr<ThreadPool> &pTh, const Socket::Ptr &pSock):
-			TcpSessionType(pTh,pSock){
+	TcpSessionWithSSL(const Socket::Ptr &pSock):TcpSessionType(pSock){
 		_sslBox.setOnEncData([&](const char *data, uint32_t len){
 			public_send(data,len);
 		});

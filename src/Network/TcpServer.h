@@ -148,7 +148,7 @@ public:
         //TcpSession创建器，通过它创建不同类型的服务器
         weak_ptr<Socket> weakSock = _socket;
         _sessionMaker = [weakSock](const Socket::Ptr &sock){
-			std::shared_ptr<SessionType> ret(new SessionType(nullptr,sock),[weakSock](SessionType *ptr){
+			std::shared_ptr<SessionType> ret(new SessionType(sock),[weakSock](SessionType *ptr){
 				if(!ptr) {
                     return;
                 }
