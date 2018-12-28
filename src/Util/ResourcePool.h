@@ -37,7 +37,7 @@ using namespace std;
 
 namespace toolkit {
 
-#if (defined(__GNUC__) && ( __GNUC__ >= 5 || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 8))) || defined(__clang__) || !defined(__GNUC__)
+#if (defined(__GNUC__) && ( __GNUC__ >= 5 || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 9))) || defined(__clang__) || !defined(__GNUC__)
 #define SUPPORT_DYNAMIC_TEMPLATE
 #endif
 
