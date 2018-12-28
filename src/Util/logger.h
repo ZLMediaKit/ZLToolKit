@@ -141,10 +141,12 @@ private:
 /**
  * 日志上下文捕获器
  */
-class LogContextCapturer : public noncopyable{
+class LogContextCapturer {
 public:
 	typedef std::shared_ptr<LogContextCapturer> Ptr;
     LogContextCapturer(Logger &logger,LogLevel level, const char *file, const char *function, int line);
+    LogContextCapturer(const LogContextCapturer &that);
+
     ~LogContextCapturer();
 
     /**

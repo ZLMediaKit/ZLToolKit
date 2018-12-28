@@ -1,4 +1,4 @@
-﻿/*
+﻿ /*
  * MIT License
  *
  * Copyright (c) 2016 xiongziliang <771730766@qq.com>
@@ -25,6 +25,7 @@
 #ifndef UTIL_TIMETICKER_H_
 #define UTIL_TIMETICKER_H_
 
+#include <assert.h>
 #include "logger.h"
 #include "Util/util.h"
 
@@ -34,10 +35,10 @@ class Ticker {
 public:
 	Ticker(int64_t minMs = 0,
 		   const char *where = "",
-		   LogContextCapturer *stream = new LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
-		   bool printLog = false):_stream(stream) {
+		   LogContextCapturer && stream = LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
+		   bool printLog=false):_stream(stream) {
 		if(!printLog){
-			(*_stream).clear();
+			_stream.clear();
 		}
 		_begin = getNowTime();
 		_created = _begin;
@@ -47,22 +48,21 @@ public:
 	~Ticker() {
 		int64_t tm = getNowTime() - _begin;
 		if (tm > _minMs) {
-			(*_stream) << _where << " take time:" << tm << endl;
+			_stream << _where << " take time:" << tm << endl;
 		} else {
-			(*_stream).clear();
+			_stream.clear();
 		}
-		delete _stream;
 	}
 	uint64_t elapsedTime() {
-		(*_stream).clear();
+		_stream.clear();
 		return getNowTime() - _begin;
 	}
 	uint64_t createdTime() {
-		(*_stream).clear();
+		_stream.clear();
 		return getNowTime() - _created;
 	}
 	void resetTime() {
-		(*_stream).clear();
+		_stream.clear();
 		_begin = getNowTime();
 	}
 
@@ -75,7 +75,7 @@ private:
 private:
 	uint64_t _begin;
 	uint64_t _created;
-	LogContextCapturer *_stream;
+	LogContextCapturer _stream;
 	const char *_where;
 	int64_t _minMs;
 
@@ -118,7 +118,7 @@ private:
 	Ticker _ticker;
 };
 
-#if defined(_DEBUG)
+#if !defined(NDEBUG)
 	#define TimeTicker() Ticker __ticker(5,"",WarnL,true)
 	#define TimeTicker1(tm) Ticker __ticker1(tm,"",WarnL,true)
 	#define TimeTicker2(tm,where) Ticker __ticker2(tm,where,WarnL,true)

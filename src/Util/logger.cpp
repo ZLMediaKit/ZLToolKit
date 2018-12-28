@@ -158,6 +158,11 @@ LogContextCapturer::LogContextCapturer(
         _logContext(new LogContext(level, file, function, line)),_logger(logger) {
 }
 
+
+LogContextCapturer::LogContextCapturer(const LogContextCapturer &that): _logContext(that._logContext),_logger(that._logger) {
+    const_cast<LogContextPtr&>(that._logContext).reset();
+}
+
 LogContextCapturer::~LogContextCapturer() {
     *this << endl;
 }
