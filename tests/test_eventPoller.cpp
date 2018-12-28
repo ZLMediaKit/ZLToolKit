@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <signal.h>
 #include <iostream>
 #include "Util/util.h"
 #include "Util/logger.h"

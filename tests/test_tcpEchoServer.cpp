@@ -23,6 +23,7 @@
  */
 #include <signal.h>
 #include <iostream>
+#include <unistd.h>
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Network/TcpServer.h"
