@@ -34,10 +34,10 @@ class Ticker {
 public:
 	Ticker(int64_t minMs = 0,
 		   const char *where = "",
-		   LogInfoMaker && stream = LogInfoMaker(LWarn, __FILE__, "", __LINE__),
-		   bool printLog=false):_stream(stream) {
+		   LogContextCapturer *stream = new LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
+		   bool printLog = false):_stream(stream) {
 		if(!printLog){
-			_stream.clear();
+			(*_stream).clear();
 		}
 		_begin = getNowTime();
 		_created = _begin;
@@ -47,21 +47,22 @@ public:
 	~Ticker() {
 		int64_t tm = getNowTime() - _begin;
 		if (tm > _minMs) {
-			_stream << _where << " take time:" << tm << endl;
+			(*_stream) << _where << " take time:" << tm << endl;
 		} else {
-			_stream.clear();
+			(*_stream).clear();
 		}
+		delete _stream;
 	}
 	uint64_t elapsedTime() {
-		_stream.clear();
+		(*_stream).clear();
 		return getNowTime() - _begin;
 	}
 	uint64_t createdTime() {
-		_stream.clear();
+		(*_stream).clear();
 		return getNowTime() - _created;
 	}
 	void resetTime() {
-		_stream.clear();
+		(*_stream).clear();
 		_begin = getNowTime();
 	}
 
@@ -74,7 +75,7 @@ private:
 private:
 	uint64_t _begin;
 	uint64_t _created;
-	LogInfoMaker _stream;
+	LogContextCapturer *_stream;
 	const char *_where;
 	int64_t _minMs;
 

@@ -41,7 +41,7 @@ int main() {
 	//设置程序退出信号处理函数
 	signal(SIGINT, [](int){g_bExitFlag = true;});
 	//设置日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 
 	//对事件NOTICE_NAME1新增一个监听
 	//addListener方法第一个参数是标签，用来删除监听时使用
@@ -66,6 +66,5 @@ int main() {
 		NoticeCenter::Instance().emitEvent(NOTICE_NAME2,d,c,b,a);
 		sleep(1); // sleep 1 second
 	}
-	Logger::Destory();
 	return 0;
 }

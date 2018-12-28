@@ -36,20 +36,21 @@ using namespace toolkit;
  * @return
  */
 int main() {
-	//设置日志系统
-	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
-	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+	static bool  exit_flag = false;
+	signal(SIGINT, [](int) { exit_flag = true; });
+	//设置日志
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 
-	AsyncTaskThread::Instance(2).DoTaskDelay(0,2,[](){
+	AsyncTaskThread::Instance().DoTaskDelay(0,2,[](){
 		EventPollerPool::Instance().getExecutor()->async([](){
-		    auto usec = rand() % 5000;
+		    auto usec = rand() % 50000;
 		    //DebugL << usec;
 			usleep(usec);
 		});
 		return true;
 	});
 
-	while(true){
+	while(!exit_flag){
 		auto vec = EventPollerPool::Instance().getExecutorLoad();
         _StrPrinter printer;
         for(auto load : vec){
@@ -67,8 +68,6 @@ int main() {
 		sleep(1);
 	}
 
-	//测试结束，清理工作
-	EventPoller::Destory();
-	Logger::Destory();
+	AsyncTaskThread::Instance().CancelTask(0);
 	return 0;
 }

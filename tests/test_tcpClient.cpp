@@ -77,18 +77,16 @@ private:
 
 
 int main() {
-    signal(SIGINT, [](int) { EventPoller::Instance().shutdown(); });// 设置退出信号
+    signal(SIGINT, [](int) { EventPollerPool::Instance().shutdown(); });// 设置退出信号
     // 设置日志系统
-    Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+    Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
     {
         TestClient::Ptr client(new TestClient());//必须使用智能指针
         client->connect();//连接服务器
-        EventPoller::Instance().runLoop();//主线程事件轮询
+        EventPollerPool::Instance().wait();
     }
 
-	EventPoller::Destory();
-	Logger::Destory();
 	return 0;
 }

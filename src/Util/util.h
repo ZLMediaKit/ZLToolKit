@@ -33,6 +33,23 @@
 #include <sys/time.h>
 #endif // defined(_WIN32)
 
+#if defined(__APPLE__)
+#include "TargetConditionals.h"
+#if TARGET_IPHONE_SIMULATOR
+#define OS_IPHONE
+#elif TARGET_OS_IPHONE
+#define OS_IPHONE
+#endif
+#endif //__APPLE__
+
+
+#define INSTANCE_IMP(class_name, ...) \
+class_name &class_name::Instance() { \
+    static std::shared_ptr<class_name> s_instance(new class_name(__VA_ARGS__)); \
+    static class_name &s_insteanc_ref = *s_instance; \
+    return s_insteanc_ref; \
+}
+
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -60,6 +77,20 @@ public:
 
 private:
     stringstream _stream;
+};
+
+//禁止拷贝基类
+class noncopyable
+{
+protected:
+    noncopyable() {}
+    ~noncopyable() {}
+private:
+    //禁止拷贝
+    noncopyable(const noncopyable &that) = delete;
+    noncopyable(noncopyable &&that) = delete;
+    noncopyable &operator=(const noncopyable &that) = delete;
+    noncopyable &operator=(noncopyable &&that) = delete;
 };
 
 #define StrPrinter _StrPrinter()

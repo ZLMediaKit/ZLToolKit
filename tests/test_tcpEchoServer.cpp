@@ -65,18 +65,14 @@ private:
 
 int main() {
 	//退出程序事件处理
-	signal(SIGINT, [](int){EventPoller::Instance().shutdown();});
+	signal(SIGINT, [](int){EventPollerPool::Instance().shutdown();});
 	//初始化日志模块
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	TcpServer::Ptr server(new TcpServer(nullptr, nullptr));
 	server->start<EchoSession>(9000);//监听9000端口
 
-	EventPoller::Instance().runLoop();//主线程事件轮询
-
-	server.reset();//销毁服务器
-	EventPoller::Destory();
-	Logger::Destory();
+	EventPollerPool::Instance().wait();
 	return 0;
 }

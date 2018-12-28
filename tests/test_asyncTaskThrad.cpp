@@ -33,11 +33,10 @@ using namespace std;
 using namespace toolkit;
 
 int main() {
-	//设置程序退出信号处理函数
-	signal(SIGINT, [](int){EventPoller::Instance().shutdown();});
-	//设置日志系统
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
-	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+	//设置退出信号处理函数
+	signal(SIGINT, [](int) { EventPollerPool::Instance().shutdown(); });
+	//设置日志
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 
 	std::shared_ptr<int> pCount1(new int(0));
 	//设置一个定时任务，任务标记为1
@@ -62,11 +61,7 @@ int main() {
 		return false;//该任务只执行一次
 	});
 
-	EventPoller::Instance().runLoop();//主线程事件轮询
-
-	//程序开始退出，做些清理工作
-	EventPoller::Destory();
-	Logger::Destory();
+	EventPollerPool::Instance().wait();
 	return 0;
 }
 

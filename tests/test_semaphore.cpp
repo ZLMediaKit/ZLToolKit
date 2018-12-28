@@ -72,7 +72,7 @@ int main() {
 	//设置程序退出信号处理函数
 	signal(SIGINT, programExit);
 	//初始化log
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 
 	thread_group thread_producer;
 	thread_producer.create_thread([]() {
@@ -91,8 +91,5 @@ int main() {
 	//等待所有线程退出
 	thread_consumer.join_all();
 	thread_producer.join_all();
-
-	//清理程序
-	Logger::Destory();
 	return 0;
 }

@@ -61,7 +61,7 @@ void doWrite(){
 }
 int main() {
 	//初始化日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	//从环形缓存获取一个读取器
@@ -93,8 +93,6 @@ int main() {
 
 	//释放环形缓冲，此时触发Detach事件
 	g_ringBuf.reset();
-
-	Logger::Destory();
 	return 0;
 }
 

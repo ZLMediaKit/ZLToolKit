@@ -44,7 +44,12 @@ public:
 	typedef std::shared_ptr<WorkThreadPool> Ptr;
     ~WorkThreadPool(){};
     static WorkThreadPool &Instance();
-    static void Destory();
+
+	/**
+     * 废弃的接口，无实际操作
+     * @deprecated
+     */
+    static void Destory(){};
 private:
     WorkThreadPool();
 };

@@ -35,6 +35,7 @@
 #include "Util/logger.h"
 #include "Util/util.h"
 #include "Thread/List.h"
+#include "Thread/AsyncTaskThread.h"
 #include "Thread/TaskExecutor.h"
 
 using namespace std;
@@ -72,10 +73,10 @@ public:
 	static EventPoller &Instance();
 
 	/**
-	 * 销毁EventPollerPool单例，等同于EventPollerPool::Destory(),
-	 * 保留该接口是为了兼容老代码
-	 */
-	static void Destory();
+     * 废弃的接口，无实际操作
+     * @deprecated
+     */
+	static void Destory(){};
 
 	/**
 	 * 添加事件监听
@@ -218,6 +219,8 @@ private:
 
     List<TaskExecutor::Task> _list_task;
     mutex _mtx_task;
+    Logger::Ptr _logger;
+	AsyncTaskThread::Ptr _asyncTaskThread;
 };
 
 
@@ -229,7 +232,12 @@ public:
 	~EventPollerPool(){};
 
 	static EventPollerPool &Instance();
-	static void Destory();
+
+	/**
+     * 废弃的接口，无实际操作
+     * @deprecated
+     */
+	static void Destory(){};
 
 	/**
 	 * 获取第一个实例

@@ -37,6 +37,11 @@ using namespace std;
 
 namespace toolkit {
 
+#if (defined(__GNUC__) && ( __GNUC__ >= 5 || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 8))) || defined(__clang__) || !defined(__GNUC__)
+#define SUPPORT_DYNAMIC_TEMPLATE
+#endif
+
+
 template<typename C>
 class ResourcePool {
 public:
@@ -44,12 +49,12 @@ public:
 	ResourcePool() {
 			pool.reset(new _ResourcePool());
 	}
-#if (!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
+#if defined(SUPPORT_DYNAMIC_TEMPLATE)
 	template<typename ...ArgTypes>
 	ResourcePool(ArgTypes &&...args) {
 		pool = std::make_shared<_ResourcePool>(std::forward<ArgTypes>(args)...);
 	}
-#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
+#endif //defined(SUPPORT_DYNAMIC_TEMPLATE)
 	void setSize(int size) {
 		pool->setSize(size);
 	}
@@ -69,14 +74,17 @@ private:
 				return new C();
 			};
 		}
-#if (!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
+
+#if defined(SUPPORT_DYNAMIC_TEMPLATE)
 		template<typename ...ArgTypes>
 		_ResourcePool(ArgTypes &&...args) {
 			_allotter = [args...]()->C* {
 				return new C(args...);
 			};
 		}
-#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5) || defined(__clang__)
+
+#endif //defined(SUPPORT_DYNAMIC_TEMPLATE)
+
 		~_ResourcePool(){
 			std::lock_guard<decltype(_mutex)> lck(_mutex);
 //			for(auto &ptr : _objs){

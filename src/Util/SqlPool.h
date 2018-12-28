@@ -46,7 +46,12 @@ public:
 	typedef vector<vector<string> > SqlRetType;
 
 	static SqlPool &Instance();
-	static void Destory();
+
+	/**
+     * 废弃的接口，无实际操作
+     * @deprecated
+     */
+	static void Destory(){};
 
 	~SqlPool() {
 		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));

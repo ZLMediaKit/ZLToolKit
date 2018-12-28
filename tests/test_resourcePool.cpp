@@ -64,7 +64,7 @@ void onRun(int threadNum){
 
 int main() {
     //初始化日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 	g_pool.setSize(50);
 	//获取一个对象,该对象将被主线程持有，并且不会被后台线程获取并赋值
@@ -104,7 +104,6 @@ int main() {
 	g_bExitFlag = true;
     //等待后台线程退出
 	group.join_all();
-	Logger::Destory();
 	return 0;
 }
 

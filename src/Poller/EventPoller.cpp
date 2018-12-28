@@ -54,10 +54,6 @@ namespace toolkit {
 EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
-void EventPoller::Destory() {
-    Instance().shutdown();
-    EventPollerPool::Destory();
-}
 
 EventPoller::EventPoller() {
     SockUtil::setNoBlocked(_pipe.readFD());
@@ -75,6 +71,8 @@ EventPoller::EventPoller() {
 #endif //HAS_EPOLL
 
     _mainThreadId = this_thread::get_id();
+    _logger = Logger::Instance().shared_from_this();
+    _asyncTaskThread = AsyncTaskThread::Instance().shared_from_this();
 }
 
 
@@ -438,16 +436,8 @@ void EventPoller::runLoopOnce(bool blocked) {
 }
 
 ///////////////////////////////////////////////
-static EventPollerPool::Ptr s_pool_instance;
-EventPollerPool &EventPollerPool::Instance() {
-    static onceToken s_token([](){
-        s_pool_instance.reset(new EventPollerPool);
-    });
-    return *s_pool_instance;
-}
-void EventPollerPool::Destory(){
-    s_pool_instance.reset();
-}
+
+INSTANCE_IMP(EventPollerPool);
 
 EventPoller::Ptr EventPollerPool::getFirstPoller(){
     return dynamic_pointer_cast<EventPoller>(_threads.front());

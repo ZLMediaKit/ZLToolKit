@@ -51,15 +51,20 @@ typedef struct {
 } TaskInfo;
 
 
-class AsyncTaskThread {
+class AsyncTaskThread : public std::enable_shared_from_this<AsyncTaskThread> {
 public:
-	//the timer default 30s
+    typedef std::shared_ptr<AsyncTaskThread> Ptr;
 	AsyncTaskThread(uint64_t millisecond_sleep);
 	~AsyncTaskThread();
 	void DoTaskDelay(uint64_t type, uint64_t millisecond, const function<bool()> &func);
 	void CancelTask(uint64_t type);
-	static AsyncTaskThread &Instance(uint32_t millisecond_sleep = TASK_INTERVAL);
-	static void Destory();
+
+	static AsyncTaskThread &Instance();
+	/**
+	 * 废弃的接口，无实际操作
+	 * @deprecated
+	 */
+	static void Destory(){};
 private:
 	void DoTask();
 	inline uint64_t getNowTime();
@@ -71,6 +76,7 @@ private:
 	atomic_bool _threadExit;
 	condition_variable_any _cond;
 	uint64_t _millisecond_sleep;
+	Logger::Ptr _logger;
 };
 
 class AsyncTaskHelper

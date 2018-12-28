@@ -22,9 +22,6 @@
  * SOFTWARE.
  */
 #include <iostream>
-#ifdef __clang__
-#undef __GNUC__
-#endif //__clang__
 #include "Util/logger.h"
 #if defined(ENABLE_MYSQL)
 #include "Util/SqlPool.h"
@@ -34,7 +31,7 @@ using namespace toolkit;
 
 int main() {
 	//初始化日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel> ());
 
 #if defined(ENABLE_MYSQL)
 	/*
@@ -48,14 +45,14 @@ int main() {
 	string password = "111111";
 	string character = "utf8mb4";
 
-#if !defined(__GNUC__) || (__GNUC__ >= 5)
+#if defined(SUPPORT_DYNAMIC_TEMPLATE)
     //初始化数据
 	SqlPool::Instance().Init(sql_ip,sql_port,dbname,user,password/*,character*/);
 #else
     //由于需要编译器对可变参数模板的支持，所以gcc5.0以下一般都不支持，否则编译报错
     ErrorL << "your compiler does not support variable parameter templates!" << endl;
     return -1;
-#endif //(!defined(__GNUC__)) || (__GNUC__ >= 5)
+#endif //defined(SUPPORT_DYNAMIC_TEMPLATE)
 
     //建议数据库连接池大小设置跟CPU个数一致(大一点为佳)
 	SqlPool::Instance().setSize(3 + thread::hardware_concurrency());
@@ -88,11 +85,5 @@ int main() {
     return -1;
 #endif//ENABLE_MYSQL
 
-	//程序退出...
-#if defined(ENABLE_MYSQL)
-	sleep(1);
-	SqlPool::Destory();
-#endif//ENABLE_MYSQL
-	Logger::Destory();
 	return 0;
 }

@@ -50,7 +50,7 @@ int main() {
     //设置程序退出信号处理函数
 	signal(SIGINT, [](int){exitProgram = true;});
     //设置日志系统
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	Socket::Ptr sockRecv(new Socket(nullptr, nullptr));//创建一个UDP数据接收端口
@@ -72,10 +72,6 @@ int main() {
 		sockSend->send(to_string(i++),SOCKET_DEFAULE_FLAGS,&addrDst);
 		sleep(1);
 	}
-
-    //程序开始推出，做些清理工作
-	EventPoller::Destory();
-	Logger::Destory();
 	return 0;
 }
 
