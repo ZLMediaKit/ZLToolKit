@@ -74,19 +74,19 @@ public:
     ~Logger();
 
     /**
-     * 添加线程通道，非线程安全的
+     * 添加日志通道，非线程安全的
      * @param channel log通道
      */
     void add(const std::shared_ptr<LogChannel> &channel);
 
 	/**
-     * 删除线程通道，非线程安全的
+     * 删除日志通道，非线程安全的
      * @param name log通道名
      */
     void del(const string &name);
 
     /**
-     * 获取线程通道，非线程安全的
+     * 获取日志通道，非线程安全的
      * @param name log通道名
      * @return 线程通道
      */
@@ -99,7 +99,7 @@ public:
     void setWriter(const std::shared_ptr<LogWriter> &writer);
 
     /**
-     * 设置所有log通道的log等级
+     * 设置所有日志通道的log等级
      * @param level log等级
      */
     void setLevel(LogLevel level);
@@ -121,7 +121,7 @@ public:
     friend class LogContextCapturer;
 
     /**
-     * 打印log至输出流
+     * 打印日志至输出流
      * @param ost 输出流
      * @param enableColor 是否请用颜色
      * @param enableDetail 是否打印细节(函数名、源码文件名、源码行)
@@ -139,7 +139,7 @@ private:
 };
 
 /**
- * 日志上下文捕获者
+ * 日志上下文捕获器
  */
 class LogContextCapturer : public noncopyable{
 public:
@@ -172,7 +172,7 @@ private:
 
 ///////////////////LogWriter///////////////////
 /**
- * 写日志者
+ * 写日志器
  */
 class LogWriter : public noncopyable {
 public:
