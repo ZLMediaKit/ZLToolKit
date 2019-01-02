@@ -239,7 +239,7 @@ void ConsoleChannel::write(const LogContextPtr &logContext)  {
         LogPriorityArr[LWarn] = ANDROID_LOG_WARN;
         LogPriorityArr[LError] = ANDROID_LOG_ERROR;
     }, nullptr);
-    __android_log_print(LogPriorityArr[logContext->_level],"JNI","%s %s",logContext->_function.c_str(),logContext->_message.str().c_str());
+    __android_log_print(LogPriorityArr[logContext->_level],"JNI","%s %s",logContext->_function.c_str(),logContext->str().c_str());
 #else
     logContext->format(std::cout, true);
 #endif
