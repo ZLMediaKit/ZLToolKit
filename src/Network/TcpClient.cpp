@@ -58,7 +58,7 @@ void TcpClient::shutdown() {
 }
 
 bool TcpClient::alive() {
-    bool ret = _sock.operator bool();
+    bool ret = _sock.operator bool() && _sock->rawFD() >= 0;
     return ret;
 }
 
