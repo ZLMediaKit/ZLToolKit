@@ -79,6 +79,29 @@ private:
     mutex _mtx_session;
 };
 
+class TcpServer;
+class TcpSessionHelper {
+public:
+	typedef std::shared_ptr<TcpSessionHelper> Ptr;
+
+	TcpSessionHelper(const std::weak_ptr<TcpServer> &server,TcpSession::Ptr &&session){
+		_server = server;
+		_session = std::move(session);
+	}
+	~TcpSessionHelper(){
+		if(!_server.lock()){
+			_session->onError(SockException(Err_other,"Tcp server shutdown!"));
+		}
+	}
+
+	const TcpSession::Ptr &session() const{
+		return _session;
+	}
+private:
+	std::weak_ptr<TcpServer> _server;
+	TcpSession::Ptr _session;
+};
+
 
 //TCP服务器，可配置的；配置通过TcpSession::attachServer方法传递给会话对象
 //该对象是非线程安全的，务必在主线程中操作
@@ -146,19 +169,9 @@ public:
     template <typename SessionType>
 	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
         //TcpSession创建器，通过它创建不同类型的服务器
-        weak_ptr<Socket> weakSock = _socket;
-        _sessionMaker = [weakSock](const Socket::Ptr &sock){
-			std::shared_ptr<SessionType> ret(new SessionType(sock),[weakSock](SessionType *ptr){
-				if(!ptr) {
-                    return;
-                }
-                if(!weakSock.lock()){
-					//本服务器已经销毁
-                    ptr->onError(SockException(Err_other,"Tcp server shutdown!"));
-                }
-                delete ptr;
-			});
-			return ret;
+		std::weak_ptr<TcpServer> weakSelf = shared_from_this();
+        _sessionMaker = [weakSelf](const Socket::Ptr &sock){
+			return std::make_shared<TcpSessionHelper>(weakSelf,std::make_shared<SessionType>(sock));
         };
 
         if (!_socket->listen(port, host.c_str(), backlog)) {
@@ -196,7 +209,8 @@ protected:
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr & sock) {
         //创建一个TcpSession;这里实现创建不同的服务会话实例
-		auto session = _sessionMaker(sock);
+		auto sessionHelper = _sessionMaker(sock);
+		auto &session = sessionHelper->session();
         //把本服务器的配置传递给TcpSession
         session->attachServer(*this);
 
@@ -210,7 +224,7 @@ protected:
         }
         //SessionMap中没有相关记录，那么_sessionMap更不可能有相关记录了；
         //所以_sessionMap::emplace肯定能成功
-        auto success = _sessionMap.emplace(sessionId, session).second;
+        auto success = _sessionMap.emplace(sessionId, sessionHelper).second;
         assert(success == true);
 
         weak_ptr<TcpSession> weakSession(session);
@@ -259,8 +273,8 @@ protected:
     //定时管理Session
 	void onManagerSession() {
 		for (auto &pr : _sessionMap) {
-			weak_ptr<TcpSession> weakSession = pr.second;
-			pr.second->async([weakSession]() {
+			weak_ptr<TcpSession> weakSession = pr.second->session();
+			pr.second->session()->async([weakSession]() {
 				auto strongSession=weakSession.lock();
 				if(!strongSession) {
 					return;
@@ -285,8 +299,8 @@ private:
 
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
-	unordered_map<string, TcpSession::Ptr > _sessionMap;
-    function<TcpSession::Ptr(const Socket::Ptr &)> _sessionMaker;
+	unordered_map<string, TcpSessionHelper::Ptr > _sessionMap;
+    function<TcpSessionHelper::Ptr(const Socket::Ptr &)> _sessionMaker;
 };
 
 } /* namespace toolkit */
