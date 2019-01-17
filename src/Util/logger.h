@@ -71,6 +71,7 @@ public:
      */
     static void Destory(){};
 
+	Logger(const string &loggerName);
     ~Logger();
 
     /**
@@ -103,13 +104,19 @@ public:
      * @param level log等级
      */
     void setLevel(LogLevel level);
+
+    /**
+     * 获取logger名
+     * @return
+     */
+    const string &getName() const;
 private:
-    Logger();
     void writeChannels(const LogContextPtr &stream);
     void write(const LogContextPtr &stream);
 private:
     map<string, std::shared_ptr<LogChannel> > _channels;
     std::shared_ptr<LogWriter> _writer;
+    string _loggerName;
 };
 
 ///////////////////LogContext///////////////////
@@ -119,15 +126,6 @@ private:
 class LogContext : public ostringstream{
 public:
     friend class LogContextCapturer;
-
-    /**
-     * 打印日志至输出流
-     * @param ost 输出流
-     * @param enableColor 是否请用颜色
-     * @param enableDetail 是否打印细节(函数名、源码文件名、源码行)
-     */
-    void format(ostream &ost,bool enableColor = true, bool enableDetail = true) ;
-    static std::string printTime(const timeval &tv);
 public:
     LogLevel _level;
     int _line;
@@ -208,10 +206,23 @@ class LogChannel : public noncopyable{
 public:
 	LogChannel(const string& name, LogLevel level = LDebug);
 	virtual ~LogChannel();
-	virtual void write(const LogContextPtr & stream) = 0;
-
+	virtual void write(const Logger &logger,const LogContextPtr & stream) = 0;
 	const string &name() const ;
 	void setLevel(LogLevel level);
+
+	static std::string printTime(const timeval &tv);
+protected:
+	/**
+    * 打印日志至输出流
+    * @param ost 输出流
+    * @param enableColor 是否请用颜色
+    * @param enableDetail 是否打印细节(函数名、源码文件名、源码行)
+    */
+	virtual void format(const Logger &logger,
+						ostream &ost,
+						const LogContextPtr & stream,
+						bool enableColor = true,
+						bool enableDetail = true);
 protected:
 	string _name;
 	LogLevel _level;
@@ -224,7 +235,7 @@ class ConsoleChannel : public LogChannel {
 public:
     ConsoleChannel(const string &name = "ConsoleChannel" , LogLevel level = LDebug) ;
     ~ConsoleChannel();
-    void write(const LogContextPtr &logContext) override;
+    void write(const Logger &logger , const LogContextPtr &logContext) override;
 };
 
 /**
@@ -235,7 +246,7 @@ public:
     FileChannel(const string &name = "FileChannel",const string &path = exePath() + ".log", LogLevel level = LDebug);
     ~FileChannel();
 
-    void write(const std::shared_ptr<LogContext> &stream) override;
+    void write(const Logger &logger , const std::shared_ptr<LogContext> &stream) override;
     void setPath(const string &path);
     const string &path() const;
 protected:

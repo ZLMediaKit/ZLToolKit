@@ -28,6 +28,7 @@
 
 namespace toolkit {
 
+
 #define CLEAR_COLOR "\033[0m"
 static const char *LOG_CONST_TABLE[][3] = {
         {"\033[44;37m", "\033[34m" , "T"},
@@ -37,9 +38,11 @@ static const char *LOG_CONST_TABLE[][3] = {
         {"\033[41;37m", "\033[31m" , "E"}};
 
 ///////////////////Logger///////////////////
-INSTANCE_IMP(Logger);
+INSTANCE_IMP(Logger,exeName());
 
-Logger::Logger() {}
+Logger::Logger(const string &loggerName) {
+    _loggerName = loggerName;
+}
 Logger::~Logger() {
     _writer.reset();
     {
@@ -68,11 +71,11 @@ void Logger::setWriter(const std::shared_ptr<LogWriter> &writer) {
     _writer = writer;
 }
 
-void Logger::write(const LogContextPtr &stream) {
+void Logger::write(const LogContextPtr &logContext) {
     if (_writer) {
-        _writer->write(stream);
+        _writer->write(logContext);
     }else{
-        writeChannels(stream);
+        writeChannels(logContext);
     }
 }
 
@@ -82,61 +85,16 @@ void Logger::setLevel(LogLevel level) {
     }
 }
 
-void Logger::writeChannels(const LogContextPtr &stream){
+void Logger::writeChannels(const LogContextPtr &logContext){
     for (auto &chn : _channels) {
-        chn.second->write(stream);
+        chn.second->write(*this,logContext);
     }
 }
 
+const string &Logger::getName() const{
+    return _loggerName;
+}
 ///////////////////LogContext///////////////////
-void LogContext::format(ostream &ost, bool enableColor, bool enableDetail) {
-    if (!enableDetail && str().empty()) {
-        //没有任何信息打印
-        return;
-    }
-
-    if (enableDetail) {
-        static string appName = exeName();
-#if defined(_WIN32)
-        ost << appName <<"(" << GetCurrentProcessId() << ") " << _file << " " << _line << endl;
-#else
-        ost << appName << "(" << getpid() << ") " << _file << " " << _line << endl;
-#endif
-    }
-
-    if (enableColor) {
-        ost << LOG_CONST_TABLE[_level][1];
-    }
-
-    ost << printTime(_tv) << " " << LOG_CONST_TABLE[_level][2] << " | ";
-
-    if (enableDetail) {
-        ost << _function << " ";
-    }
-
-    ost << str();
-
-    if (enableColor) {
-        ost << CLEAR_COLOR;
-    }
-
-    ost << endl;
-}
-
-std::string LogContext::printTime(const timeval &tv) {
-    time_t sec_tmp = tv.tv_sec;
-    struct tm *tm = localtime(&sec_tmp);
-    char buf[128];
-    snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%03d",
-             1900 + tm->tm_year,
-             1 + tm->tm_mon,
-             tm->tm_mday,
-             tm->tm_hour,
-             tm->tm_min,
-             tm->tm_sec,
-             (int) (tv.tv_usec / 1000));
-    return buf;
-}
 LogContext::LogContext(LogLevel level,
         const char *file,
         const char *function,
@@ -192,10 +150,10 @@ AsyncLogWriter::~AsyncLogWriter() {
     flushAll();
 }
 
-void AsyncLogWriter::write(const LogContextPtr &stream) {
+void AsyncLogWriter::write(const LogContextPtr &logContext) {
     {
         lock_guard<mutex> lock(_mutex);
-        _pending.push_back(stream);
+        _pending.push_back(logContext);
     }
     _sem.post();
 }
@@ -223,13 +181,13 @@ void AsyncLogWriter::flushAll(){
 
 ConsoleChannel::ConsoleChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
 ConsoleChannel:: ~ConsoleChannel() {}
-void ConsoleChannel::write(const LogContextPtr &logContext)  {
+void ConsoleChannel::write(const Logger &logger,const LogContextPtr &logContext)  {
     if (_level > logContext->_level) {
         return;
     }
 
 #if defined(_WIN32) || defined(OS_IPHONE)
-    logContext->format(std::cout, false);
+    format(logger,std::cout, logContext , false);
 #elif defined(ANDROID)
     static android_LogPriority LogPriorityArr[10];
     static onceToken s_token([](){
@@ -241,7 +199,7 @@ void ConsoleChannel::write(const LogContextPtr &logContext)  {
     }, nullptr);
     __android_log_print(LogPriorityArr[logContext->_level],"JNI","%s %s",logContext->_function.c_str(),logContext->str().c_str());
 #else
-    logContext->format(std::cout, true);
+    format(logger,std::cout,logContext, true);
 #endif
 
 }
@@ -252,6 +210,54 @@ LogChannel::~LogChannel(){}
 const string &LogChannel::name() const { return _name; }
 void LogChannel::setLevel(LogLevel level) { _level = level; }
 
+std::string LogChannel::printTime(const timeval &tv) {
+    time_t sec_tmp = tv.tv_sec;
+    struct tm *tm = localtime(&sec_tmp);
+    char buf[128];
+    snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%03d",
+             1900 + tm->tm_year,
+             1 + tm->tm_mon,
+             tm->tm_mday,
+             tm->tm_hour,
+             tm->tm_min,
+             tm->tm_sec,
+             (int) (tv.tv_usec / 1000));
+    return buf;
+}
+
+void LogChannel::format(const Logger &logger,ostream &ost,const LogContextPtr & logContext, bool enableColor, bool enableDetail) {
+    if (!enableDetail && logContext->str().empty()) {
+        //没有任何信息打印
+        return;
+    }
+
+    if (enableDetail) {
+#if defined(_WIN32)
+        ost << logger.getName() <<"(" << GetCurrentProcessId() << ") " << logContext->_file << " " << logContext->_line << endl;
+#else
+        ost << logger.getName() << "(" << getpid() << ") " << logContext->_file << " " << logContext->_line << endl;
+#endif
+    }
+
+    if (enableColor) {
+        ost << LOG_CONST_TABLE[logContext->_level][1];
+    }
+
+    ost << printTime(logContext->_tv) << " " << LOG_CONST_TABLE[logContext->_level][2] << " | ";
+
+    if (enableDetail) {
+        ost << logContext->_function << " ";
+    }
+
+    ost << logContext->str();
+
+    if (enableColor) {
+        ost << CLEAR_COLOR;
+    }
+
+    ost << endl;
+}
+
 ///////////////////FileChannel///////////////////
 FileChannel::FileChannel(const string &name, const string &path, LogLevel level) :
         LogChannel(name, level), _path(path) {}
@@ -260,14 +266,14 @@ FileChannel::~FileChannel() {
     close();
 }
 
-void FileChannel::write(const std::shared_ptr<LogContext> &stream) {
-    if (_level > stream->_level) {
+void FileChannel::write(const Logger &logger,const std::shared_ptr<LogContext> &logContext) {
+    if (_level > logContext->_level) {
         return;
     }
     if (!_fstream.is_open()) {
         open();
     }
-    stream->format(_fstream, false);
+    format(logger, _fstream, logContext ,false);
 }
 
 void FileChannel::setPath(const string &path) {
