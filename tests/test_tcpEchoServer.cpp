@@ -23,7 +23,11 @@
  */
 #include <signal.h>
 #include <iostream>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Network/TcpServer.h"
@@ -66,7 +70,9 @@ private:
 
 int main() {
 	//退出程序事件处理
-	signal(SIGINT, [](int){EventPollerPool::Instance().shutdown();});
+	static semaphore sem;
+	signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
+
 	//初始化日志模块
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
@@ -74,6 +80,6 @@ int main() {
 	TcpServer::Ptr server(new TcpServer(nullptr, nullptr));
 	server->start<EchoSession>(9000);//监听9000端口
 
-	EventPollerPool::Instance().wait();
+	sem.wait();
 	return 0;
 }

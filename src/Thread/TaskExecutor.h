@@ -188,15 +188,6 @@ public:
         return sync(task);
     };
 
-    /**
-     * 等待执行线程退出
-     */
-    virtual void wait() = 0;
-
-    /**
-     * 通知执行线程退出
-     */
-    virtual void shutdown() = 0;
 };
 
 class TaskExecutorGetter {
@@ -209,15 +200,6 @@ public:
      */
     virtual TaskExecutor::Ptr getExecutor() = 0;
 
-    /**
-     * 等待所有任务执行线程退出
-     */
-    virtual void wait() = 0;
-
-    /**
-     * 通知所有执行线程退出
-     */
-    virtual void shutdown() = 0;
 };
 
 
@@ -236,11 +218,7 @@ public:
         }
     }
 
-    ~TaskExecutorGetterImp(){
-        shutdown();
-        wait();
-        _threads.clear();
-    }
+    ~TaskExecutorGetterImp(){}
 
     /**
      * 根据线程负载情况，获取最空闲的任务执行器
@@ -275,22 +253,6 @@ public:
         return executor_min_load;
     }
 
-    /**
-     * 等待所有线程退出
-     */
-    void wait() override{
-        for (auto &th : _threads){
-            th->wait();
-        }
-    }
-    /**
-     *  关闭所有线程
-     */
-    void shutdown() override{
-        for (auto &th : _threads){
-            th->shutdown();
-        }
-    }
 
     /**
      * 获取所有线程的负载率

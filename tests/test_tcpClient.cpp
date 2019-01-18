@@ -77,16 +77,15 @@ private:
 
 
 int main() {
-    signal(SIGINT, [](int) { EventPollerPool::Instance().shutdown(); });// 设置退出信号
+	static semaphore sem;
+    signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
     // 设置日志系统
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-    {
-        TestClient::Ptr client(new TestClient());//必须使用智能指针
-        client->connect();//连接服务器
-        EventPollerPool::Instance().wait();
-    }
+	TestClient::Ptr client(new TestClient());//必须使用智能指针
+	client->connect();//连接服务器
 
+    sem.wait();
 	return 0;
 }

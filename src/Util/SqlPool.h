@@ -47,12 +47,6 @@ public:
 
 	static SqlPool &Instance();
 
-	/**
-     * 废弃的接口，无实际操作
-     * @deprecated
-     */
-	static void Destory(){};
-
 	~SqlPool() {
 		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
 		flushError();

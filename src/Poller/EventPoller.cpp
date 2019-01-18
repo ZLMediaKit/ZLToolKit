@@ -283,11 +283,6 @@ void EventPoller::wait() {
     lock_guard<mutex> lck(_mtx_runing);
 }
 
-void EventPoller::runLoop(bool blocked) {
-    if(blocked){
-        wait();
-    }
-}
 
 void EventPoller::runLoopOnce(bool blocked) {
     if (blocked) {

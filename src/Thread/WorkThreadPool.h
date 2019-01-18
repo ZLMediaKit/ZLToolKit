@@ -45,11 +45,6 @@ public:
     ~WorkThreadPool(){};
     static WorkThreadPool &Instance();
 
-	/**
-     * 废弃的接口，无实际操作
-     * @deprecated
-     */
-    static void Destory(){};
 private:
     WorkThreadPool();
 };

@@ -65,11 +65,6 @@ public:
      */
     static Logger &Instance();
 
-    /**
-     * 废弃的接口，无实际操作
-     * @deprecated
-     */
-    static void Destory(){};
 
 	Logger(const string &loggerName);
     ~Logger();

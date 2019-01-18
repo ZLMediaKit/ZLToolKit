@@ -34,7 +34,9 @@ using namespace toolkit;
 
 int main() {
 	//设置退出信号处理函数
-	signal(SIGINT, [](int) { EventPollerPool::Instance().shutdown(); });
+	static semaphore sem;
+	signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
+
 	//设置日志
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 
@@ -61,7 +63,7 @@ int main() {
 		return false;//该任务只执行一次
 	});
 
-	EventPollerPool::Instance().wait();
+	sem.wait();
 	return 0;
 }
 

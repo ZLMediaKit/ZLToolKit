@@ -72,11 +72,6 @@ public:
 	 */
 	static EventPoller &Instance();
 
-	/**
-     * 废弃的接口，无实际操作
-     * @deprecated
-     */
-	static void Destory(){};
 
 	/**
 	 * 添加事件监听
@@ -134,32 +129,11 @@ public:
     */
     bool sync_first(const TaskExecutor::Task &task) override;
 
-    /**
-     * 在blocked时则等待轮询线程退出，功能相当于wait接口
-     * 否则什么也不干
-     * 保留本接口的目的是为了兼容老代码
-     * 老接口的原有功能已经被runLoopOnce接口替代
-     * @param blocked 是否等待轮询线程退出
-     */
-	void runLoop(bool blocked = true);
-
-	/**
-	 * 结束事件轮询
-	 * 需要指出的是，一旦结束就不能再次恢复轮询线程
-	 */
-	void shutdown() override;
-
 	/**
 	 * 判断执行该接口的线程是否为本对象的轮询线程
 	 * @return 是否为本对象的轮询线程
 	 */
 	bool isMainThread();
-
-	/**
-	 * 阻塞当前线程，等待轮询线程退出;
-	 * 在执行shutdown接口时本函数会退出
-	 */
-    void wait() override ;
 private:
 	/**
 	 * 本对象只允许在EventPollerPool中构造
@@ -187,6 +161,19 @@ private:
 	 */
     bool async_l(const TaskExecutor::Task &task, bool may_sync = true,bool first = false) ;
     bool sync_l(const TaskExecutor::Task &task,bool first = false);
+
+	/**
+     * 阻塞当前线程，等待轮询线程退出;
+     * 在执行shutdown接口时本函数会退出
+     */
+	void wait() ;
+
+
+	/**
+     * 结束事件轮询
+     * 需要指出的是，一旦结束就不能再次恢复轮询线程
+     */
+	void shutdown();
 private:
     class ExitException : public std::exception{
     public:

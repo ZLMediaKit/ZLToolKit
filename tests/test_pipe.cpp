@@ -62,8 +62,10 @@ int main() {
 		DebugL << "子进程退出" << endl;
 	} else {
 		//父进程设置退出信号处理函数
-		signal(SIGINT, [](int){EventPollerPool::Instance().shutdown();});
-		EventPollerPool::Instance().wait();
+		static semaphore sem;
+		signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
+		sem.wait();
+
 		InfoL << "父进程退出" << endl;
 	}
 #endif // defined(_WIN32)

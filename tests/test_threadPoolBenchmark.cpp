@@ -33,7 +33,6 @@ using namespace toolkit;
 
 int main() {
     signal(SIGINT,[](int ){
-        Logger::Destory();
         exit(0);
     });
     //初始化日志系统

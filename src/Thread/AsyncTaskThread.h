@@ -60,11 +60,6 @@ public:
 	void CancelTask(uint64_t type);
 
 	static AsyncTaskThread &Instance();
-	/**
-	 * 废弃的接口，无实际操作
-	 * @deprecated
-	 */
-	static void Destory(){};
 private:
 	void DoTask();
 	inline uint64_t getNowTime();
