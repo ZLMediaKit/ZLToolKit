@@ -199,7 +199,7 @@ private:
  */
 class LogChannel : public noncopyable{
 public:
-	LogChannel(const string& name, LogLevel level = LDebug);
+	LogChannel(const string& name, LogLevel level = LTrace);
 	virtual ~LogChannel();
 	virtual void write(const Logger &logger,const LogContextPtr & stream) = 0;
 	const string &name() const ;
@@ -228,7 +228,7 @@ protected:
  */
 class ConsoleChannel : public LogChannel {
 public:
-    ConsoleChannel(const string &name = "ConsoleChannel" , LogLevel level = LDebug) ;
+    ConsoleChannel(const string &name = "ConsoleChannel" , LogLevel level = LTrace) ;
     ~ConsoleChannel();
     void write(const Logger &logger , const LogContextPtr &logContext) override;
 };
@@ -238,7 +238,7 @@ public:
  */
 class FileChannel : public LogChannel {
 public:
-    FileChannel(const string &name = "FileChannel",const string &path = exePath() + ".log", LogLevel level = LDebug);
+    FileChannel(const string &name = "FileChannel",const string &path = exePath() + ".log", LogLevel level = LTrace);
     ~FileChannel();
 
     void write(const Logger &logger , const std::shared_ptr<LogContext> &stream) override;
