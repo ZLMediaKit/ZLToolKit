@@ -65,7 +65,7 @@ public:
 	}
 
 	template<typename F>
-	thread* create_thread(F threadfunc) {
+	thread* create_thread(F &&threadfunc) {
 		auto thread_new =new thread(threadfunc);
 		_thread_id = thread_new->get_id();
 		_threads[_thread_id] = thread_new;
