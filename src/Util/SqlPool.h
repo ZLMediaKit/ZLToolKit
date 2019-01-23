@@ -125,7 +125,7 @@ private:
 			mysql = _pool->obtain();
 			return mysql->query(rowID,std::forward<Args>(arg)...);
 		} catch (exception &e) {
-			_pool->quit(mysql);
+			mysql.quit();
 			WarnL << e.what() << endl;
 			return -2;
 		}

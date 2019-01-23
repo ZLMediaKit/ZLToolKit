@@ -36,21 +36,31 @@ using namespace toolkit;
 //程序退出标志
 bool g_bExitFlag = false;
 
-//大小为50的循环池
-ResourcePool<string> g_pool;
+
+class string_imp : public string{
+public:
+	template<typename ...ArgTypes>
+	string_imp(ArgTypes &&...args) : string(std::forward<ArgTypes>(args)...){
+		DebugL << "创建string对象:" << this << " " << *this;
+	};
+	~string_imp(){
+		WarnL << "销毁string对象:" << this << " " << *this;
+	}
+};
+
 
 //后台线程任务
-void onRun(int threadNum){
+void onRun(ResourcePool<string_imp> &pool,int threadNum){
 	std::random_device rd;
 	while(!g_bExitFlag){
         //从循环池获取一个可用的对象
-		auto obj_ptr = g_pool.obtain();
+		auto obj_ptr = pool.obtain();
 		if(obj_ptr->empty()){
             //这个对象是全新未使用的
-			InfoL << "thread " << threadNum << ":" << "obtain a emptry object!";
+			InfoL << "后台线程 " << threadNum << ":" << "obtain a emptry object!";
 		}else{
             //这个对象是循环使用的
-			InfoL << "thread " << threadNum << ":" << *obj_ptr;
+			InfoL << "后台线程 " << threadNum << ":" << *obj_ptr;
 		}
         //标记该对象被本线程使用
 		obj_ptr->assign(StrPrinter << "keeped by thread:" << threadNum );
@@ -66,18 +76,26 @@ int main() {
     //初始化日志
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
-	g_pool.setSize(50);
+
+	//大小为50的循环池
+	ResourcePool<string_imp> pool;
+	pool.setSize(50);
+
 	//获取一个对象,该对象将被主线程持有，并且不会被后台线程获取并赋值
-	auto reservedObj = g_pool.obtain();
+	auto reservedObj = pool.obtain();
     //在主线程赋值该对象
 	reservedObj->assign("This is a reserved object , and will never be used!");
 
 	thread_group group;
     //创建4个后台线程，该4个线程模拟循环池的使用场景，
     //理论上4个线程在同一时间最多同时总共占用4个对象
+
+
+	WarnL << "主线程打印:" << "开始测试，主线程已经获取到的对象应该不会被后台线程获取到:" << *reservedObj;
+
 	for(int i = 0 ;i < 4 ; ++i){
-		group.create_thread([i](){
-			onRun(i);
+		group.create_thread([i,&pool](){
+			onRun(pool,i);
 		});
 	}
 
@@ -86,7 +104,7 @@ int main() {
 
 	//但是由于reservedObj早已被主线程持有，后台线程是获取不到该对象的
     //所以其值应该尚未被覆盖
-	WarnL << *reservedObj << endl;
+	WarnL << "主线程打印: 该对象还在被主线程持有，其值应该保持不变:" << *reservedObj;
 
     //获取该对象的引用
 	auto &objref = *reservedObj;
@@ -94,11 +112,27 @@ int main() {
     //显式释放对象,让对象重新进入循环列队，这时该对象应该会被后台线程持有并赋值
 	reservedObj.reset();
 
+	WarnL << "主线程打印: 已经释放该对象,它应该会被后台线程获取到并被覆盖值";
+
     //再休眠3秒，让reservedObj被后台线程循环使用
 	sleep(3);
 
 	//这时，reservedObj还在循环池内，引用应该还是有效的，但是值应该被覆盖了
-	WarnL << objref << endl;
+	WarnL << "主线程打印:对象已被后台线程赋值为:" << objref << endl;
+
+	{
+		WarnL << "主线程打印:开始测试主动放弃循环使用功能";
+
+		List<decltype(pool)::ValuePtr> objlist;
+		for (int i = 0; i < 8; ++i) {
+			reservedObj = pool.obtain();
+			string str = StrPrinter << i << " " << (i % 2 == 0 ? "此对象将脱离循环池管理" : "此对象将回到循环池");
+			reservedObj->assign(str);
+			reservedObj.quit(i % 2 == 0);
+			objlist.emplace_back(reservedObj);
+		}
+	}
+	sleep(3);
 
     //通知后台线程退出
 	g_bExitFlag = true;
