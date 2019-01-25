@@ -153,7 +153,7 @@ AsyncLogWriter::~AsyncLogWriter() {
 void AsyncLogWriter::write(const LogContextPtr &logContext) {
     {
         lock_guard<mutex> lock(_mutex);
-        _pending.push_back(logContext);
+        _pending.emplace_back(logContext);
     }
     _sem.post();
 }
@@ -165,11 +165,16 @@ void AsyncLogWriter::run() {
     }
 }
 void AsyncLogWriter::flushAll(){
-    lock_guard<mutex> lock(_mutex);
-    while (_pending.size()) {
-        _logger.writeChannels(_pending.front());
-        _pending.pop_front();
+    List<LogContextPtr> tmp;
+    {
+        lock_guard<mutex> lock(_mutex);
+        tmp.swap(_pending);
     }
+
+    tmp.for_each([&](const LogContextPtr &ctx){
+        _logger.writeChannels(ctx);
+    });
+
 }
 
 

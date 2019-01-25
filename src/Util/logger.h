@@ -37,6 +37,7 @@
 #include <memory>
 #include <mutex>
 #include "Util/util.h"
+#include "Thread/List.h"
 #include "Thread/semaphore.h"
 
 using namespace std;
@@ -124,8 +125,8 @@ public:
 public:
     LogLevel _level;
     int _line;
-    string _file;
-    string _function;
+    const char *_file;
+	const char *_function;
     timeval _tv;
 private:
     LogContext(LogLevel level,const char *file,const char *function,int line);
@@ -187,7 +188,7 @@ private:
 private:
     bool _exit_flag;
     std::shared_ptr<thread> _thread;
-    deque<LogContextPtr> _pending;
+    List<LogContextPtr> _pending;
     semaphore _sem;
     mutex _mutex;
     Logger &_logger;
