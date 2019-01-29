@@ -54,47 +54,74 @@ public:
 		_pool.reset();
 		InfoL;
 	}
-	
+
+	/**
+	 * 设置循环池对象个数
+	 * @param size
+	 */
 	void setSize(int size) {
 		checkInited();
 		_pool->setSize(size);
 	}
+
+	/**
+	 * 初始化循环池，设置数据库连接参数
+	 * @tparam Args
+	 * @param arg
+	 */
 	template<typename ...Args>
 	void Init(Args && ...arg) {
 		_pool.reset(new PoolType(std::forward<Args>(arg)...));
 		_pool->obtain();
 	}
 
+	/**
+	 * 异步执行sql
+	 * @tparam Args 参数类型列表
+	 * @param fmt printf类型的字符串
+	 * @param arg 参数列表
+	 * @return 0
+	 */
 	template<typename ...Args>
 	int64_t query(const char *fmt, Args && ...arg) {
-		string sql = SqlConnection::queryString(fmt, std::forward<Args>(arg)...);
-		doQuery(sql);
+		async_query(SqlConnection::queryString(fmt, std::forward<Args>(arg)...));
 		return 0;
 	}
 	int64_t query(const string &sql) {
-		doQuery(sql);
+		async_query(sql);
 		return 0;
 	}
 
+
+	/**
+	 * 同步执行sql
+	 * @tparam Row 数据行类型，可以是vector<string>/list<string>等支持 obj.emplace_back("value")操作的数据类型
+	 * 			   也可以是map<string,string>/Json::Value 等支持 obj["key"] = "value"操作的数据类型
+	 * @tparam Args 可变参数类型列表
+	 * @param rowID insert时的新增rowid
+	 * @param ret 数据存放对象
+	 * @param fmt printf样式的fmt
+	 * @param arg 可变参数列表
+	 * @return 影响行数
+	 */
 	template<typename Row,typename ...Args>
-	int64_t query(int64_t &rowID,vector<Row> &ret, const char *fmt,
-			Args && ...arg) {
-		return _query(rowID,ret, fmt, std::forward<Args>(arg)...);
+	int64_t query(int64_t &rowID,vector<Row> &ret, const char *fmt, Args && ...arg) {
+		return query_l(rowID,ret, fmt, std::forward<Args>(arg)...);
 	}
 
 	template<typename Row>
 	int64_t query(int64_t &rowID,vector<Row> &ret, const string &sql) {
-		return _query(rowID,ret, sql.c_str());
+		return query_l(rowID,ret, sql.c_str());
 	}
-	static const string &escape(const string &str) {
+
+	/**
+	 * sql转义
+	 * @param str
+	 * @return
+	 */
+	static string escape(const string &str) {
 		SqlPool::Instance().checkInited();
-		try {
-			//捕获创建对象异常
-			SqlPool::Instance()._pool->obtain()->escape(const_cast<string &>(str));
-		} catch (exception &e) {
-			WarnL << e.what() << endl;
-		}
-		return str;
+		return SqlPool::Instance()._pool->obtain()->escape(const_cast<string &>(str));
 	}
 
 private:
@@ -104,20 +131,41 @@ private:
 			return true;
 		});
 	}
-	inline void doQuery(const string &str,int tryCnt = 3) {
+
+	/**
+	 * 异步执行sql
+	 * @param str sql语句
+	 * @param tryCnt 重试次数
+	 */
+	inline void async_query(const string &str,int tryCnt = 3) {
 		auto lam = [this,str,tryCnt]() {
 			int64_t rowID;
 			auto cnt = tryCnt - 1;
-			if(_query(rowID,str.c_str())==-2 && cnt > 0) {
-				lock_guard<mutex> lk(_error_query_mutex);
-				sqlQuery query(str,cnt);
-				_error_query.push_back(query);
+			try {
+				query_l(rowID,str.c_str());
+			}catch(exception &ex) {
+				if( cnt > 0) {
+					//失败重试
+					lock_guard<mutex> lk(_error_query_mutex);
+					sqlQuery query(str,cnt);
+					_error_query.push_back(query);
+				}else{
+					WarnL <<  ex.what();
+				}
 			}
 		};
 		_threadPool->async(lam);
 	}
+
+	/**
+	 * 对SqlConnection多个query函数的统一模板函数包装
+	 * @tparam Args 可变长度参数列表
+	 * @param rowID insert时新增行的rowid
+	 * @param arg 可变长度参数列表
+	 * @return 影响行数
+	 */
 	template<typename ...Args>
-	inline int64_t _query(int64_t &rowID,Args &&...arg) {
+	inline int64_t query_l(int64_t &rowID,Args &&...arg) {
 		checkInited();
 		typename PoolType::ValuePtr mysql;
 		try {
@@ -126,26 +174,30 @@ private:
 			return mysql->query(rowID,std::forward<Args>(arg)...);
 		} catch (exception &e) {
 			mysql.quit();
-			WarnL << e.what() << endl;
-			return -2;
-		}
-	}
-	void flushError() {
-		decltype(_error_query) query_copy;
-		_error_query_mutex.lock();
-		query_copy.swap(_error_query);
-		_error_query_mutex.unlock();
-		if (query_copy.size() == 0) {
-			return;
-		}
-		for (auto &query : query_copy) {
-			doQuery(query.sql_str,query.tryCnt);
+			throw;
 		}
 	}
 
+	/**
+	 * 定时重试失败的sql
+	 */
+	void flushError() {
+		decltype(_error_query) query_copy;
+		{
+			lock_guard<mutex> lck(_error_query_mutex);
+			query_copy.swap(_error_query);
+		}
+		for (auto &query : query_copy) {
+			async_query(query.sql_str,query.tryCnt);
+		}
+	}
+
+	/**
+	 * 检查数据库连接池是否初始化
+	 */
 	void checkInited(){
 		if(!_pool){
-			throw std::runtime_error("请先调用SqlPool::Init初始化数据库连接池");
+			throw SqlException("SqlPool::checkInited","数据库连接池未初始化");
 		}
 	}
 private:
@@ -160,27 +212,24 @@ private:
 	std::shared_ptr<ThreadPool> _threadPool;
 	mutex _error_query_mutex;
 	std::shared_ptr<PoolType> _pool;
-}
-;
+};
 
+/**
+ * Sql语句生成器，通过占位符'？'的方式生成sql语句
+ */
 class SqlStream {
 public:
-	SqlStream(const char *sql) :
-			_sql(sql) {
-		_startPos = 0;
-	}
-	~SqlStream() {
-
-	}
+	SqlStream(const char *sql) : _sql(sql){}
+	~SqlStream() {}
 
 	template<typename T>
-	SqlStream& operator <<(const T& data) {
+	SqlStream& operator <<(T &&data) {
 		auto pos = _sql.find('?', _startPos);
 		if (pos == string::npos) {
 			return *this;
 		}
 		_str_tmp.str("");
-		_str_tmp << data;
+		_str_tmp << std::forward<T>(data);
 		string str = SqlPool::escape(_str_tmp.str());
 		_startPos = pos + str.size();
 		_sql.replace(pos, 1, str);
@@ -195,45 +244,92 @@ public:
 private:
 	stringstream _str_tmp;
 	string _sql;
-	string::size_type _startPos;
+	string::size_type _startPos = 0;
 };
 
+
+/**
+ * sql查询器
+ */
 class SqlWriter {
 public:
-	SqlWriter(const char *sql,bool throwAble = true) :
-			_sqlstream(sql),_throwAble(throwAble) {
-	}
-	~SqlWriter() {
+	/**
+	 * 构造函数
+	 * @param sql 带'？'占位符的sql模板
+	 * @param throwAble 是否抛异常
+	 */
+	SqlWriter(const char *sql,bool throwAble = true) : _sqlstream(sql),_throwAble(throwAble) {}
+	~SqlWriter() {}
 
-	}
+	/**
+	 * 输入参数替换占位符'？'以便生成sql语句；可能抛异常
+	 * @tparam T 参数类型
+	 * @param data 参数
+	 * @return 本身引用
+	 */
 	template<typename T>
-	SqlWriter& operator <<(const T& data) {
-		_sqlstream << data;
+	SqlWriter& operator <<(T &&data) {
+		try {
+			_sqlstream << std::forward<T>(data);
+		}catch (std::exception &ex){
+			//在转义sql时可能抛异常
+			if(!_throwAble){
+				WarnL << ex.what();
+			}else{
+				throw;
+			}
+		}
 		return *this;
 	}
 
+	/**
+	 * 异步执行sql，不会抛异常
+	 * @param f std::endl
+	 */
 	void operator <<(std::ostream&(*f)(std::ostream&)) {
+		//异步执行sql不会抛异常
 		SqlPool::Instance().query(_sqlstream << endl);
 	}
+
+	/**
+	 * 同步执行sql，可能抛异常
+	 * @tparam Row 数据行类型，可以是vector<string>/list<string>等支持 obj.emplace_back("value")操作的数据类型
+	 * 			   也可以是map<string,string>/Json::Value 等支持 obj["key"] = "value"操作的数据类型
+	 * @param ret 数据存放对象
+	 * @return 影响行数
+	 */
 	template <typename Row>
 	int64_t operator <<(vector<Row> &ret) {
-		_affectedRows = SqlPool::Instance().query(_rowId,ret, _sqlstream << endl);
-		if(_affectedRows < 0 && _throwAble){
-			throw std::runtime_error("operate database failed");
+		try {
+			_affectedRows = SqlPool::Instance().query(_rowId,ret, _sqlstream << endl);
+		}catch (std::exception &ex){
+			if(!_throwAble){
+				WarnL << ex.what();
+			} else {
+				throw;
+			}
 		}
 		return _affectedRows;
 	}
+
+	/**
+	 * 在insert数据库时返回插入的rowid
+	 * @return
+	 */
 	int64_t getRowID() const {
 		return _rowId;
 	}
 
+	/**
+	 * 返回影响数据库数据行数
+	 * @return
+	 */
 	int64_t getAffectedRows() const {
 		return _affectedRows;
 	}
-
 private:
 	SqlStream _sqlstream;
-	int64_t _rowId = 0;
+	int64_t _rowId = -1;
 	int64_t _affectedRows = -1;
 	bool _throwAble = true;
 };
