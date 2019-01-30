@@ -492,7 +492,6 @@ TaskTag::Ptr EventPoller::doTaskDelay(uint64_t delayMS,const function<uint64_t()
     async_first([time_line,ret,this](){
         //异步执行的目的是刷新select或epoll的休眠时间
         _delayTask.emplace(time_line,ret);
-        _minDelay = getMinDelay();
     });
     return ret;
 }
