@@ -34,7 +34,7 @@ Timer::Timer(float second,
 		poller_tmp = EventPollerPool::Instance().getPoller();
 	}
 	_tag = poller_tmp->doTaskDelay(second * 1000,[cb,second](){
-		if(cb){
+		if(cb()){
 			return (uint64_t)(1000 * second);
 		}
 		return (uint64_t)0;
