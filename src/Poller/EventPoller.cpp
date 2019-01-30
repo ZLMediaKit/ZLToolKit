@@ -72,7 +72,6 @@ EventPoller::EventPoller() {
 
     _mainThreadId = this_thread::get_id();
     _logger = Logger::Instance().shared_from_this();
-    _asyncTaskThread = AsyncTaskThread::Instance().shared_from_this();
 }
 
 

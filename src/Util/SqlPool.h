@@ -30,11 +30,11 @@
 #include <memory>
 #include <sstream>
 #include <functional>
+#include "Poller/Timer.h"
 #include "logger.h"
 #include "SqlConnection.h"
 #include "Thread/ThreadPool.h"
 #include "Util/ResourcePool.h"
-#include "Thread/AsyncTaskThread.h"
 
 using namespace std;
 
@@ -48,7 +48,7 @@ public:
 	static SqlPool &Instance();
 
 	~SqlPool() {
-		AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
+		_timer.reset();
 		flushError();
 		_threadPool.reset();
 		_pool.reset();
@@ -121,10 +121,10 @@ public:
 
 private:
 	SqlPool() : _threadPool(new ThreadPool(1)) {
-		AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this), 30 * 1000,[this]() {
+		_timer = std::make_shared<Timer>(30,[this](){
 			flushError();
 			return true;
-		});
+		}, nullptr);
 	}
 
 	/**
@@ -185,6 +185,7 @@ private:
 	std::shared_ptr<ThreadPool> _threadPool;
 	mutex _error_query_mutex;
 	std::shared_ptr<PoolType> _pool;
+	Timer::Ptr _timer;
 };
 
 /**

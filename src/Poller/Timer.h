@@ -35,6 +35,7 @@ namespace toolkit {
 
 class Timer {
 public:
+    typedef std::shared_ptr<Timer> Ptr;
     Timer(float second,
           const function<bool()> &cb,
           const EventPoller::Ptr &poller/* = nullptr*/);

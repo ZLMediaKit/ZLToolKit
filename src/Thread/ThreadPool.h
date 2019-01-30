@@ -33,7 +33,6 @@
 #include "TaskExecutor.h"
 #include "Util/util.h"
 #include "Util/logger.h"
-#include "AsyncTaskThread.h"
 
 namespace toolkit {
 
@@ -56,7 +55,6 @@ public:
             start();
         }
 		_logger = Logger::Instance().shared_from_this();
-		_asyncTaskThread = AsyncTaskThread::Instance().shared_from_this();
 	}
 	~ThreadPool() {
 		shutdown();
@@ -179,7 +177,6 @@ private:
 	int _thread_num;
 	Priority _priority;
 	Logger::Ptr _logger;
-	AsyncTaskThread::Ptr _asyncTaskThread;
 };
 
 } /* namespace toolkit */

@@ -27,7 +27,6 @@
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Poller/EventPoller.h"
-#include "Thread/AsyncTaskThread.h"
 
 using namespace std;
 using namespace toolkit;
@@ -42,33 +41,35 @@ int main() {
 	//设置日志
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 
-	AsyncTaskThread::Instance().DoTaskDelay(0,2,[](){
-		EventPollerPool::Instance().getExecutor()->async([](){
-		    auto usec = rand() % 50000;
-		    //DebugL << usec;
-			usleep(usec);
-		});
-		return true;
-	});
-
+	Ticker ticker;
 	while(!exit_flag){
-		auto vec = EventPollerPool::Instance().getExecutorLoad();
-        _StrPrinter printer;
-        for(auto load : vec){
-			printer << load << "-";
-		}
-		DebugL << "cpu负载:" << printer;
 
-        EventPollerPool::Instance().getExecutorDelay([](const vector<int> &vec){
+	    if(ticker.elapsedTime() > 1000){
+            auto vec = EventPollerPool::Instance().getExecutorLoad();
             _StrPrinter printer;
-            for(auto delay : vec){
-                printer << delay << "-";
+            for(auto load : vec){
+                printer << load << "-";
             }
-            DebugL << "cpu任务执行延时:" << printer;
+            DebugL << "cpu负载:" << printer;
+
+            EventPollerPool::Instance().getExecutorDelay([](const vector<int> &vec){
+                _StrPrinter printer;
+                for(auto delay : vec){
+                    printer << delay << "-";
+                }
+                DebugL << "cpu任务执行延时:" << printer;
+            });
+            ticker.resetTime();
+	    }
+
+        EventPollerPool::Instance().getExecutor()->async([](){
+            auto usec = rand() % 4000;
+            //DebugL << usec;
+            usleep(usec);
         });
-		sleep(1);
+
+		usleep(2000);
 	}
 
-	AsyncTaskThread::Instance().CancelTask(0);
 	return 0;
 }

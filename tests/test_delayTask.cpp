@@ -27,7 +27,6 @@
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Poller/EventPoller.h"
-#include "Thread/AsyncTaskThread.h"
 
 using namespace std;
 using namespace toolkit;

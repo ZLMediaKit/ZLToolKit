@@ -35,7 +35,6 @@
 #include "Util/logger.h"
 #include "Util/util.h"
 #include "Thread/List.h"
-#include "Thread/AsyncTaskThread.h"
 #include "Thread/TaskExecutor.h"
 
 using namespace std;
@@ -265,7 +264,6 @@ private:
 
     mutex _mtx_task;
     Logger::Ptr _logger;
-	AsyncTaskThread::Ptr _asyncTaskThread;
 };
 
 
