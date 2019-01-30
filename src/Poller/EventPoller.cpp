@@ -305,6 +305,7 @@ void EventPoller::runLoopOnce(bool blocked) {
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         while (true) {
+            _minDelay = getMinDelay();
             startSleep();
             int nfds = epoll_wait(_epoll_fd, events, EPOLL_SIZE, _minDelay ? _minDelay : -1);
             sleepWakeUp();
@@ -346,13 +347,11 @@ void EventPoller::runLoopOnce(bool blocked) {
                 continue;
             }
 
-            if(nfds == 0){
-                //定时器任务
-                _minDelay = flushDelayTask();
+            if(ret == -1){
+                //被打断
+                WarnL << "epoll_wait interrupted:" << get_uv_errmsg();
                 continue;
             }
-            //被打断
-            WarnL << "epoll_wait() interrupted:" << get_uv_errmsg();
         }
 #else
         int ret, maxFd;
@@ -384,9 +383,10 @@ void EventPoller::runLoopOnce(bool blocked) {
                 }
             }
 
-            startSleep();
+            _minDelay = getMinDelay();
             tv.tv_sec = _minDelay / 1000;
             tv.tv_usec = 1000 * (_minDelay % 1000);
+            startSleep();
             ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, _minDelay ? &tv: NULL);
             sleepWakeUp();
 
@@ -428,13 +428,11 @@ void EventPoller::runLoopOnce(bool blocked) {
                 continue;
             }
 
-            if(ret == 0){
-                //定时器任务
-                _minDelay = flushDelayTask();
+            if(ret == -1){
+                //被打断
+                WarnL << "select interrupted:" << get_uv_errmsg();
                 continue;
             }
-            //被打断
-            WarnL << "select() interrupted:" << get_uv_errmsg();
         }
 #endif //HAS_EPOLL
     }else{
@@ -446,10 +444,6 @@ void EventPoller::runLoopOnce(bool blocked) {
 
 
 uint64_t EventPoller::flushDelayTask() {
-    if(_delayTask.empty()){
-        return 0;
-    }
-
     decltype(_delayTask) delayTask;
     delayTask.swap(_delayTask);
     auto now_time = Ticker::getNowTime();
