@@ -32,7 +32,7 @@ using namespace toolkit;
 
 int main(int argc,char *argv[]) {
 	//初始化设置日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel> ());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 #if defined(ENABLE_OPENSSL)
@@ -90,9 +90,5 @@ int main(int argc,char *argv[]) {
 #else
 	ErrorL << "ENABLE_OPENSSL 宏未打开";
 #endif //ENABLE_OPENSSL
-
-
-	//程序退出
-	Logger::Destory();
 	return 0;
 }

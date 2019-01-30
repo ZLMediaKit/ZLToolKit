@@ -38,7 +38,7 @@ using namespace toolkit;
 int main() {
 	signal(SIGINT, [](int){});
 	//初始化log
-	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel> ());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	Ticker timeTicker;//计时器
@@ -67,12 +67,7 @@ int main() {
 
 	//两次任务执行耗时2秒，timeTicker.elapsedTime()结果接近2000毫秒
 	InfoL << "sync task take time:" <<  timeTicker.elapsedTime() << "ms" << endl;
-
 	sleep(UINT32_MAX);//sleep会被Ctl+C打断，可以正常退出程序
-
-	//等待线程池退出
-	WorkThreadPool::Destory();
 	DebugL << "exited!" << endl;
-	Logger::Destory();
 	return 0;
 }

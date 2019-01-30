@@ -25,6 +25,7 @@
 #ifndef CRYPTO_SSLBOX_H_
 #define CRYPTO_SSLBOX_H_
 
+#include <assert.h>
 #include <fcntl.h>
 #include <mutex>
 #include <string>
@@ -41,24 +42,24 @@
 #if defined(_WIN64)
 
 //64bit
-#if defined(_DEBUG)
+#if !defined(NDEBUG)
 #pragma  comment (lib,"libssl64MDd") 
 #pragma  comment (lib,"libcrypto64MDd") 
 #else
 #pragma  comment (lib,"libssl64MD") 
 #pragma  comment (lib,"libcrypto64MD") 
-#endif // defined(_DEBUG)
+#endif // !defined(NDEBUG)
 
 #else 
 
 //32 bit
-#if defined(_DEBUG)
+#if !defined(NDEBUG)
 #pragma  comment (lib,"libssl32MDd") 
 #pragma  comment (lib,"libcrypto32MDd") 
 #else
 #pragma  comment (lib,"libssl32MD") 
 #pragma  comment (lib,"libcrypto32MD") 
-#endif // defined(_DEBUG)
+#endif // !defined(NDEBUG)
 
 #endif //defined(_WIN64)
 #endif // defined(_WIN32)

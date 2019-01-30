@@ -54,10 +54,6 @@ namespace toolkit {
 EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
-void EventPoller::Destory() {
-    Instance().shutdown();
-    EventPollerPool::Destory();
-}
 
 EventPoller::EventPoller() {
     SockUtil::setNoBlocked(_pipe.readFD());
@@ -75,6 +71,8 @@ EventPoller::EventPoller() {
 #endif //HAS_EPOLL
 
     _mainThreadId = this_thread::get_id();
+    _logger = Logger::Instance().shared_from_this();
+    _asyncTaskThread = AsyncTaskThread::Instance().shared_from_this();
 }
 
 
@@ -285,11 +283,6 @@ void EventPoller::wait() {
     lock_guard<mutex> lck(_mtx_runing);
 }
 
-void EventPoller::runLoop(bool blocked) {
-    if(blocked){
-        wait();
-    }
-}
 
 void EventPoller::runLoopOnce(bool blocked) {
     if (blocked) {
@@ -313,53 +306,60 @@ void EventPoller::runLoopOnce(bool blocked) {
         struct epoll_event events[EPOLL_SIZE];
         while (true) {
             startSleep();
-            int nfds = epoll_wait(_epoll_fd, events, EPOLL_SIZE, -1);
+            int nfds = epoll_wait(_epoll_fd, events, EPOLL_SIZE, _minDelay ? _minDelay : -1);
             sleepWakeUp();
-
-            TimeTicker();
-            if (nfds == -1) {
-                WarnL << "epoll_wait() interrupted:" << get_uv_errmsg();
+            if(nfds > 0){
+                for (int i = 0; i < nfds; ++i) {
+                    struct epoll_event &ev = events[i];
+                    int fd = ev.data.fd;
+                    int event = toPoller(ev.events);
+                    if (fd == _pipe.readFD()) {
+                        //inner pipe event
+                        if (event & Event_Error) {
+                            WarnL << "Poller 异常退出监听:" << get_uv_errmsg();
+                            break;
+                        }
+                        if (!onPipeEvent()) {
+                            //收到退出事件
+                            break;
+                        }
+                        continue;
+                    }
+                    // other event
+                    std::shared_ptr<PollEventCB> eventCb;
+                    {
+                        lock_guard<mutex> lck(_mtx_event_map);
+                        auto it = _event_map.find(fd);
+                        if (it == _event_map.end()) {
+                            WarnL << "未找到Poll事件回调对象!";
+                            epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                            continue;
+                        }
+                        eventCb = it->second;
+                    }
+                    try{
+                        (*eventCb)(event);
+                    }catch (std::exception &ex){
+                        ErrorL << "catch exception:" << ex.what();
+                    }
+                }
                 continue;
             }
 
-            for (int i = 0; i < nfds; ++i) {
-                struct epoll_event &ev = events[i];
-                int fd = ev.data.fd;
-                int event = toPoller(ev.events);
-                if (fd == _pipe.readFD()) {
-                    //inner pipe event
-                    if (event & Event_Error) {
-                        WarnL << "Poller 异常退出监听。";
-                        return;
-                    }
-                    if (!onPipeEvent()) {
-                        return;
-                    }
-                    continue;
-                }
-                // other event
-                std::shared_ptr<PollEventCB> eventCb;
-                {
-                    lock_guard<mutex> lck(_mtx_event_map);
-                    auto it = _event_map.find(fd);
-                    if (it == _event_map.end()) {
-                        WarnL << "未找到Poll事件回调对象!";
-                        epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                        continue;
-                    }
-                    eventCb = it->second;
-                }
-                try{
-                    (*eventCb)(event);
-                }catch (std::exception &ex){
-                    ErrorL << "catch exception:" << ex.what();
-                }
+            if(nfds == 0){
+                //定时器任务
+                _minDelay = flushDelayTask();
+                continue;
             }
+            //被打断
+            WarnL << "epoll_wait() interrupted:" << get_uv_errmsg();
         }
 #else
         int ret, maxFd;
         FdSet Set_read, Set_write, Set_err;
         List<Poll_Record::Ptr> listCB;
+        struct timeval tv;
+
         while (true) {
             Set_read.fdZero();
             Set_write.fdZero();
@@ -383,52 +383,58 @@ void EventPoller::runLoopOnce(bool blocked) {
                     }
                 }
             }
+
             startSleep();
-            ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, NULL);
+            tv.tv_sec = _minDelay / 1000;
+            tv.tv_usec = 1000 * (_minDelay % 1000);
+            ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, _minDelay ? &tv: NULL);
             sleepWakeUp();
-            if (ret < 1) {
-                WarnL << "select() interrupted:" << get_uv_errmsg();
+
+            if(ret > 0){
+                if (Set_read.isSet(_pipe.readFD())) {
+                    //判断有否监听操作
+                    if (!onPipeEvent()) {
+                        break;
+                    }
+                }
+
+                {
+                    lock_guard<mutex> lck(_mtx_event_map);
+                    for (auto &pr : _event_map) {
+                        int event = 0;
+                        if (Set_read.isSet(pr.first)) {
+                            event |= Event_Read;
+                        }
+                        if (Set_write.isSet(pr.first)) {
+                            event |= Event_Write;
+                        }
+                        if (Set_err.isSet(pr.first)) {
+                            event |= Event_Error;
+                        }
+                        if (event != 0) {
+                            pr.second->attach = event;
+                            listCB.emplace_back(pr.second);
+                        }
+                    }
+                }
+                listCB.for_each([](Poll_Record::Ptr &record){
+                    try{
+                        record->callBack(record->attach);
+                    }catch (std::exception &ex){
+                        ErrorL << "catch exception:" << ex.what();
+                    }
+                });
+                listCB.clear();
                 continue;
             }
 
-            if (Set_read.isSet(_pipe.readFD())) {
-                //判断有否监听操作
-                if (!onPipeEvent()) {
-                    break;
-                }
-                if (ret == 1) {
-                    //没有其他事件
-                    continue;
-                }
+            if(ret == 0){
+                //定时器任务
+                _minDelay = flushDelayTask();
+                continue;
             }
-
-            {
-                lock_guard<mutex> lck(_mtx_event_map);
-                for (auto &pr : _event_map) {
-                    int event = 0;
-                    if (Set_read.isSet(pr.first)) {
-                        event |= Event_Read;
-                    }
-                    if (Set_write.isSet(pr.first)) {
-                        event |= Event_Write;
-                    }
-                    if (Set_err.isSet(pr.first)) {
-                        event |= Event_Error;
-                    }
-                    if (event != 0) {
-                        pr.second->attach = event;
-                        listCB.emplace_back(pr.second);
-                    }
-                }
-            }
-            listCB.for_each([](Poll_Record::Ptr &record){
-                try{
-                    record->callBack(record->attach);
-                }catch (std::exception &ex){
-                    ErrorL << "catch exception:" << ex.what();
-                }
-            });
-            listCB.clear();
+            //被打断
+            WarnL << "select() interrupted:" << get_uv_errmsg();
         }
 #endif //HAS_EPOLL
     }else{
@@ -437,17 +443,70 @@ void EventPoller::runLoopOnce(bool blocked) {
     }
 }
 
-///////////////////////////////////////////////
-static EventPollerPool::Ptr s_pool_instance;
-EventPollerPool &EventPollerPool::Instance() {
-    static onceToken s_token([](){
-        s_pool_instance.reset(new EventPollerPool);
+
+
+uint64_t EventPoller::flushDelayTask() {
+    if(_delayTask.empty()){
+        return 0;
+    }
+
+    decltype(_delayTask) delayTask;
+    delayTask.swap(_delayTask);
+    auto now_time = Ticker::getNowTime();
+
+    for(auto it = delayTask.begin() ; it != delayTask.end() ; ++it){
+        if(it->first > now_time){
+            //后面的任务时间还未到
+            _delayTask.insert(it,delayTask.end());
+            break;
+        }
+        //已经到期的任务
+        auto next_delay = (*(it->second))();
+        if(next_delay){
+            //可重复任务,更新时间截止线
+            _delayTask.emplace(next_delay + now_time,std::move(it->second));
+        }
+    }
+
+    auto it = _delayTask.begin();
+    if(it == _delayTask.end()){
+        //没有剩余的定时器了
+        return 0;
+    }
+    //最近一个定时器的执行延时
+    return it->first - now_time;
+}
+
+uint64_t EventPoller::getMinDelay() {
+    auto it = _delayTask.begin();
+    if(it == _delayTask.end()){
+        //没有剩余的定时器了
+        return 0;
+    }
+    auto now =  Ticker::getNowTime();
+    if(it->first > now){
+        //所有任务尚未到期
+        return it->first - now;
+    }
+    //执行已到期的任务并刷新休眠延时
+    return flushDelayTask();
+}
+
+TaskTag::Ptr EventPoller::doTaskDelay(uint64_t delayMS,const function<uint64_t()> &task) {
+    TaskTagImp::Ptr ret = std::make_shared<TaskTagImp>(task);
+    auto time_line = Ticker::getNowTime() + delayMS;
+    async_first([time_line,ret,this](){
+        //异步执行的目的是刷新select或epoll的休眠时间
+        _delayTask.emplace(time_line,ret);
+        _minDelay = getMinDelay();
     });
-    return *s_pool_instance;
+    return ret;
 }
-void EventPollerPool::Destory(){
-    s_pool_instance.reset();
-}
+
+
+///////////////////////////////////////////////
+
+INSTANCE_IMP(EventPollerPool);
 
 EventPoller::Ptr EventPollerPool::getFirstPoller(){
     return dynamic_pointer_cast<EventPoller>(_threads.front());

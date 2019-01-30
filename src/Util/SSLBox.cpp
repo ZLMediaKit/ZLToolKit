@@ -192,7 +192,7 @@ void SSL_Box::onSend(const char* data, uint32_t data_len) {
 void SSL_Box::flushWriteBio(char *buf, int bufsize) {
 	int nread = 0;
 	//write to socket
-	while ((nread = BIO_read(_write_bio, buf, bufsize)) > 0) {
+	while ((nread = BIO_read(_write_bio, buf, bufsize - 1)) > 0) {
 		if (_onEnc) {
 			//send
             buf[nread] = '\0';
@@ -204,7 +204,7 @@ void SSL_Box::flushWriteBio(char *buf, int bufsize) {
 void SSL_Box::flushReadBio(char *buf, int bufsize) {
 	int nread = 0;
 	//recv from bio
-	while ((nread = SSL_read(_ssl, buf, bufsize)) > 0) {
+	while ((nread = SSL_read(_ssl, buf, bufsize - 1)) > 0) {
 		if (_onDec) {
 			//recv
             buf[nread] = '\0';
@@ -214,9 +214,9 @@ void SSL_Box::flushReadBio(char *buf, int bufsize) {
 }
 void SSL_Box::flush() {
 	int nread = 0;
-	char buffer[SSL_BUF_SIZE + 1]; // optimize!
-	flushReadBio(buffer, SSL_BUF_SIZE);
-	flushWriteBio(buffer, SSL_BUF_SIZE);
+	char buffer[SSL_BUF_SIZE]; // optimize!
+	flushReadBio(buffer, sizeof(buffer));
+	flushWriteBio(buffer, sizeof(buffer));
 	//write to bio
 	if (SSL_is_init_finished(_ssl) && _bufferOut.size()) {
 		nread = SSL_write(_ssl, _bufferOut.data(), _bufferOut.size());

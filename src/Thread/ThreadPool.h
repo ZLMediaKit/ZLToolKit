@@ -33,6 +33,7 @@
 #include "TaskExecutor.h"
 #include "Util/util.h"
 #include "Util/logger.h"
+#include "AsyncTaskThread.h"
 
 namespace toolkit {
 
@@ -54,6 +55,8 @@ public:
         if(autoRun){
             start();
         }
+		_logger = Logger::Instance().shared_from_this();
+		_asyncTaskThread = AsyncTaskThread::Instance().shared_from_this();
 	}
 	~ThreadPool() {
 		shutdown();
@@ -100,17 +103,9 @@ public:
 		return flag;
 	}
 
-	void wait() override{
-		_thread_group.join_all();
-	}
-
     uint64_t size(){
         return _queue.size();
     }
-
-    void shutdown() override{
-		_queue.push_exit(_thread_num);
-	}
 
 	static bool setPriority(Priority priority = PRIORITY_NORMAL,
 			thread::native_handle_type threadId = 0) {
@@ -170,11 +165,21 @@ private:
             }
 		}
 	}
+
+	void wait() {
+		_thread_group.join_all();
+	}
+
+	void shutdown() {
+		_queue.push_exit(_thread_num);
+	}
 private:
 	TaskQueue<TaskExecutor::Task> _queue;
 	thread_group _thread_group;
 	int _thread_num;
 	Priority _priority;
+	Logger::Ptr _logger;
+	AsyncTaskThread::Ptr _asyncTaskThread;
 };
 
 } /* namespace toolkit */

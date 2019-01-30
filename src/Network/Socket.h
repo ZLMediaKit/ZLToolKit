@@ -73,15 +73,6 @@ namespace toolkit {
 //缓存列队中数据最大保存秒数,默认最大保存5秒的数据
 #define SEND_BUF_MAX_SEC 5
 
-#if defined(__APPLE__)
-  #import "TargetConditionals.h"
-  #if TARGET_IPHONE_SIMULATOR
-    #define OS_IPHONE
-  #elif TARGET_OS_IPHONE
-    #define OS_IPHONE
-  #endif
-#endif //__APPLE__
-
 //错误类型枚举
 typedef enum {
 	Err_success = 0, //成功
@@ -135,19 +126,6 @@ private:
     int _customCode = 0;
 };
 
-//禁止拷贝基类
-class noncopyable
-{
-protected:
-  noncopyable() {}
-  ~noncopyable() {}
-private:
-    //禁止拷贝
-    noncopyable(const noncopyable &that) = delete;
-    noncopyable(noncopyable &&that) = delete;
-    noncopyable &operator=(const noncopyable &that) = delete;
-    noncopyable &operator=(noncopyable &&that) = delete;
-};
 //socket 文件描述符的包装
 //在析构时自动溢出监听并close套接字
 //防止描述符溢出

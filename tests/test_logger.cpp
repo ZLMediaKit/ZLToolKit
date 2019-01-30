@@ -45,7 +45,8 @@ private:
 
 int main() {
 	//初始化日志系统
-	Logger::Instance().add(std::make_shared<ConsoleChannel> ("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel> ());
+	Logger::Instance().add(std::make_shared<FileChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	//ostream支持的数据类型都支持,可以通过友元的方式打印自定义类型数据
@@ -65,10 +66,5 @@ int main() {
 	ErrorL << "void *:" << (void *)0x12345678 << endl;
     //根据RAII的原理，此处不需要输入 endl，也会在被函数栈pop时打印log
 	ErrorL << "without endl!";
-
-
-	sleep(10);
-
-	Logger::Destory();
 	return 0;
 }

@@ -32,8 +32,7 @@ using namespace toolkit;
 
 int main() {
 	//设置日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
-	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 #if defined(_WIN32)
 	ErrorL << "该测试程序不能再windows下运行，因为我不会windows下的多进程编程，但是管道模块是可以在windows下正常工作的。" << endl;
 #else
@@ -63,16 +62,13 @@ int main() {
 		DebugL << "子进程退出" << endl;
 	} else {
 		//父进程设置退出信号处理函数
-		signal(SIGINT, [](int){EventPoller::Instance().shutdown();});
-		//父进程开始事件轮询
-		EventPoller::Instance().runLoop();
-		//轮询退出，说明收到SIGINT信号，程序开始退出
-		EventPoller::Destory();
+		static semaphore sem;
+		signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
+		sem.wait();
+
 		InfoL << "父进程退出" << endl;
 	}
 #endif // defined(_WIN32)
 
-	//销毁log
-	Logger::Destory();
 	return 0;
 }

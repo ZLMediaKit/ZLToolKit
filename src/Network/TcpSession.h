@@ -29,6 +29,7 @@
 #include "Socket.h"
 #include "Util/logger.h"
 #include "Util/mini.h"
+#include "Util/SSLBox.h"
 #include "Thread/ThreadPool.h"
 
 using namespace std;
@@ -43,13 +44,6 @@ public:
     typedef std::shared_ptr<TcpSession> Ptr;
 
 	TcpSession(const Socket::Ptr &pSock);
-
-	/**
-	 * 过期接口,为了兼容老代码而保留
-	 * @param pTh
-	 * @param pSock
-	 */
-	TcpSession(const TaskExecutor::Ptr &pTh, const Socket::Ptr &pSock);
 	virtual ~TcpSession();
     //接收数据入口
 	virtual void onRecv(const Buffer::Ptr &) = 0;
@@ -63,6 +57,39 @@ public:
     virtual string getIdentifier() const;
     //安全的脱离TcpServer并触发onError事件
     void safeShutdown();
+};
+
+template<typename TcpSessionType>
+class TcpSessionWithSSL: public TcpSessionType {
+public:
+	TcpSessionWithSSL(const Socket::Ptr &pSock):TcpSessionType(pSock){
+		_sslBox.setOnEncData([&](const char *data, uint32_t len){
+			public_send(data,len);
+		});
+		_sslBox.setOnDecData([&](const char *data, uint32_t len){
+			public_onRecv(data,len);
+		});
+	}
+	virtual ~TcpSessionWithSSL(){
+		//_sslBox.shutdown();
+	}
+	void onRecv(const Buffer::Ptr &pBuf) override{
+		_sslBox.onRecv(pBuf->data(), pBuf->size());
+	}
+
+	int public_send(const char *data, uint32_t len){
+		return TcpSessionType::send(TcpSessionType::obtainBuffer(data,len));
+	}
+	void public_onRecv(const char *data, uint32_t len){
+		TcpSessionType::onRecv(TcpSessionType::obtainBuffer(data,len));
+	}
+protected:
+	virtual int send(const Buffer::Ptr &buf) override{
+		_sslBox.onSend(buf->data(), buf->size());
+		return buf->size();
+	}
+private:
+	SSL_Box _sslBox;
 };
 
 

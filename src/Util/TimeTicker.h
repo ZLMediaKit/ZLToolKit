@@ -1,4 +1,4 @@
-﻿/*
+﻿ /*
  * MIT License
  *
  * Copyright (c) 2016 xiongziliang <771730766@qq.com>
@@ -25,6 +25,7 @@
 #ifndef UTIL_TIMETICKER_H_
 #define UTIL_TIMETICKER_H_
 
+#include <assert.h>
 #include "logger.h"
 #include "Util/util.h"
 
@@ -34,7 +35,7 @@ class Ticker {
 public:
 	Ticker(int64_t minMs = 0,
 		   const char *where = "",
-		   LogInfoMaker && stream = LogInfoMaker(LWarn, __FILE__, "", __LINE__),
+		   LogContextCapturer && stream = LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
 		   bool printLog=false):_stream(stream) {
 		if(!printLog){
 			_stream.clear();
@@ -65,8 +66,7 @@ public:
 		_begin = getNowTime();
 	}
 
-private:
-	inline static uint64_t getNowTime() {
+	static uint64_t getNowTime() {
 		struct timeval tv;
 		gettimeofday(&tv, NULL);
 		return tv.tv_sec * 1000 + tv.tv_usec / 1000;
@@ -74,7 +74,7 @@ private:
 private:
 	uint64_t _begin;
 	uint64_t _created;
-	LogInfoMaker _stream;
+	LogContextCapturer _stream;
 	const char *_where;
 	int64_t _minMs;
 
@@ -117,7 +117,7 @@ private:
 	Ticker _ticker;
 };
 
-#if defined(_DEBUG)
+#if !defined(NDEBUG)
 	#define TimeTicker() Ticker __ticker(5,"",WarnL,true)
 	#define TimeTicker1(tm) Ticker __ticker1(tm,"",WarnL,true)
 	#define TimeTicker2(tm,where) Ticker __ticker2(tm,where,WarnL,true)

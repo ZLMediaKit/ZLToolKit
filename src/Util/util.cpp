@@ -185,6 +185,19 @@ std::string &strToUpper(std::string &str)
 	return str;
 }
 
+// string转小写
+std::string strToLower(std::string &&str)
+{
+	transform(str.begin(), str.end(), str.begin(), towlower);
+	return str;
+}
+// string转大写
+std::string strToUpper(std::string &&str)
+{
+	transform(str.begin(), str.end(), str.begin(), towupper);
+	return str;
+}
+
 vector<string> split(const string& s, const char *delim){
 	vector<string> ret;
 	int last = 0;
@@ -221,17 +234,7 @@ std::string trim(std::string &&s,const string &chars){
 	TRIM(s,chars);
 }
 
-
 #if defined(_WIN32)
-
-#if !defined(strcasecmp)
-int strcasecmp(const char *strA,const char *strB){
-	string str1 = strToLower(string(strA));
-	string str2 = strToLower(string(strB));
-	return str1.compare(str2);
-}
-#endif// !defined(strcasecmp)
-
 void sleep(int second) {
 	Sleep(1000 * second);
 }

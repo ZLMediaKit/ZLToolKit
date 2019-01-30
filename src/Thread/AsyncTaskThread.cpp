@@ -31,22 +31,13 @@ using namespace std;
 
 namespace toolkit {
 
-static std::shared_ptr<AsyncTaskThread> s_instance;
-
-AsyncTaskThread &AsyncTaskThread::Instance(uint32_t millisecond_sleep) {
-	static onceToken s_token([&](){
-		s_instance = std::make_shared<AsyncTaskThread>(millisecond_sleep);
-	});
-	return *s_instance;
-}
-void AsyncTaskThread::Destory(){
-	s_instance.reset();
-}
+INSTANCE_IMP(AsyncTaskThread,TASK_INTERVAL);
 
 AsyncTaskThread::AsyncTaskThread(uint64_t millisecond_sleep) {
 	_millisecond_sleep = millisecond_sleep;
 	_threadExit = false;
 	_taskThread = new thread(&AsyncTaskThread::DoTask, this);
+	_logger = Logger::Instance().shared_from_this();
 }
 AsyncTaskThread::~AsyncTaskThread() {
 	if (_taskThread != NULL) {
@@ -56,7 +47,7 @@ AsyncTaskThread::~AsyncTaskThread() {
 		delete _taskThread;
 		_taskThread = NULL;
 	}
-	//InfoL;
+	InfoL;
 }
 
 void AsyncTaskThread::DoTaskDelay(uint64_t type, uint64_t millisecond,const function<bool()> &func) {

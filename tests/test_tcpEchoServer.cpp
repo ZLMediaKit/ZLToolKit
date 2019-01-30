@@ -23,6 +23,11 @@
  */
 #include <signal.h>
 #include <iostream>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Network/TcpServer.h"
@@ -33,7 +38,7 @@ using namespace toolkit;
 
 class EchoSession: public TcpSession {
 public:
-	EchoSession(const TaskExecutor::Ptr &pTh,const Socket::Ptr &sock) :
+	EchoSession(const Socket::Ptr &sock) :
 			TcpSession(sock) {
 		DebugL;
 	}
@@ -65,18 +70,16 @@ private:
 
 int main() {
 	//退出程序事件处理
-	signal(SIGINT, [](int){EventPoller::Instance().shutdown();});
+	static semaphore sem;
+	signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
+
 	//初始化日志模块
-	Logger::Instance().add(std::make_shared<ConsoleChannel>("stdout", LTrace));
+	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	TcpServer::Ptr server(new TcpServer(nullptr, nullptr));
 	server->start<EchoSession>(9000);//监听9000端口
 
-	EventPoller::Instance().runLoop();//主线程事件轮询
-
-	server.reset();//销毁服务器
-	EventPoller::Destory();
-	Logger::Destory();
+	sem.wait();
 	return 0;
 }

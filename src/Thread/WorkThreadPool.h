@@ -44,7 +44,7 @@ public:
 	typedef std::shared_ptr<WorkThreadPool> Ptr;
     ~WorkThreadPool(){};
     static WorkThreadPool &Instance();
-    static void Destory();
+
 private:
     WorkThreadPool();
 };

@@ -35,6 +35,7 @@
 #include "Util/logger.h"
 #include "Util/util.h"
 #include "Thread/List.h"
+#include "Thread/AsyncTaskThread.h"
 #include "Thread/TaskExecutor.h"
 
 using namespace std;
@@ -56,6 +57,23 @@ typedef enum {
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 
+class TaskTag {
+public:
+	typedef std::shared_ptr<TaskTag> Ptr;
+	TaskTag(){}
+	~TaskTag(){}
+
+	/**
+	 * 取消任务
+	 */
+	virtual void cancel() = 0;
+
+	/**
+	 * 执行任务
+	 * @return
+	 */
+	virtual uint64_t operator()() const = 0;
+};
 
 class EventPoller : public TaskExecutor , public std::enable_shared_from_this<EventPoller> {
 public:
@@ -71,11 +89,6 @@ public:
 	 */
 	static EventPoller &Instance();
 
-	/**
-	 * 销毁EventPollerPool单例，等同于EventPollerPool::Destory(),
-	 * 保留该接口是为了兼容老代码
-	 */
-	static void Destory();
 
 	/**
 	 * 添加事件监听
@@ -133,21 +146,6 @@ public:
     */
     bool sync_first(const TaskExecutor::Task &task) override;
 
-    /**
-     * 在blocked时则等待轮询线程退出，功能相当于wait接口
-     * 否则什么也不干
-     * 保留本接口的目的是为了兼容老代码
-     * 老接口的原有功能已经被runLoopOnce接口替代
-     * @param blocked 是否等待轮询线程退出
-     */
-	void runLoop(bool blocked = true);
-
-	/**
-	 * 结束事件轮询
-	 * 需要指出的是，一旦结束就不能再次恢复轮询线程
-	 */
-	void shutdown() override;
-
 	/**
 	 * 判断执行该接口的线程是否为本对象的轮询线程
 	 * @return 是否为本对象的轮询线程
@@ -155,10 +153,12 @@ public:
 	bool isMainThread();
 
 	/**
-	 * 阻塞当前线程，等待轮询线程退出;
-	 * 在执行shutdown接口时本函数会退出
+	 * 延时执行某个任务
+	 * @param delayMS 延时毫秒数
+	 * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时
+	 * @return 可取消的任务标签
 	 */
-    void wait() override ;
+	TaskTag::Ptr doTaskDelay(uint64_t delayMS,const function<uint64_t()> &task);
 private:
 	/**
 	 * 本对象只允许在EventPollerPool中构造
@@ -186,12 +186,55 @@ private:
 	 */
     bool async_l(const TaskExecutor::Task &task, bool may_sync = true,bool first = false) ;
     bool sync_l(const TaskExecutor::Task &task,bool first = false);
+
+	/**
+     * 阻塞当前线程，等待轮询线程退出;
+     * 在执行shutdown接口时本函数会退出
+     */
+	void wait() ;
+
+
+	/**
+     * 结束事件轮询
+     * 需要指出的是，一旦结束就不能再次恢复轮询线程
+     */
+	void shutdown();
+
+	/**
+	 * 刷新延时任务
+	 */
+	uint64_t flushDelayTask();
+
+	/**
+	 * 获取select或epoll休眠时间
+	 */
+	uint64_t getMinDelay();
 private:
     class ExitException : public std::exception{
     public:
         ExitException(){}
         ~ExitException(){}
     };
+
+	class TaskTagImp : public TaskTag{
+	public:
+		typedef std::shared_ptr<TaskTagImp> Ptr;
+		template <typename FUN>
+		TaskTagImp(FUN &&task) : _task(std::forward<FUN>(task)),_canceled(false){}
+		~TaskTagImp(){}
+		void cancel() override {
+			_canceled = true;
+		};
+		uint64_t operator()() const override{
+			if(_canceled){
+				return 0;
+			}
+			return _task();
+		}
+	private:
+		function<uint64_t()> _task;
+		atomic_bool _canceled;
+	};
 private:
     PipeWrap _pipe;
 
@@ -217,7 +260,12 @@ private:
     bool _loopRunned = false;
 
     List<TaskExecutor::Task> _list_task;
+    multimap<uint64_t,TaskTagImp::Ptr > _delayTask;
+	uint64_t _minDelay = 0;
+
     mutex _mtx_task;
+    Logger::Ptr _logger;
+	AsyncTaskThread::Ptr _asyncTaskThread;
 };
 
 
@@ -229,7 +277,12 @@ public:
 	~EventPollerPool(){};
 
 	static EventPollerPool &Instance();
-	static void Destory();
+
+	/**
+     * 废弃的接口，无实际操作
+     * @deprecated
+     */
+	static void Destory(){};
 
 	/**
 	 * 获取第一个实例

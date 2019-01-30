@@ -173,15 +173,8 @@ int main(int argc,char *argv[]){
 	}
     GET_CMD("http").delOption("type");
     //初始化环境
-    static onceToken s_token([](){
-        Logger::Instance().add(std::shared_ptr<ConsoleChannel>(new ConsoleChannel("stdcout",LTrace)));
-        Logger::Instance().setWriter(std::shared_ptr<LogWriter>(new AsyncLogWriter()));
-
-    },[](){
-        CMDRegister::Instance().clear();
-        EventPoller::Destory();
-        Logger::Destory();
-    });
+	Logger::Instance().add(std::shared_ptr<ConsoleChannel>(new ConsoleChannel()));
+	Logger::Instance().setWriter(std::shared_ptr<LogWriter>(new AsyncLogWriter()));
 
 	cout << "> 欢迎进入命令模式，你可以输入\"help\"命令获取帮助" << endl;
 	string cmd_line;

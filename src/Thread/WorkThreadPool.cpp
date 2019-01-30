@@ -31,17 +31,7 @@
 
 namespace toolkit {
 
-static WorkThreadPool::Ptr s_instance;
-
-WorkThreadPool &WorkThreadPool::Instance() {
-	static onceToken s_token([](){
-		s_instance.reset(new WorkThreadPool);
-	});
-	return *s_instance;
-}
-void WorkThreadPool::Destory(){
-    s_instance.reset();
-}
+INSTANCE_IMP(WorkThreadPool);
 
 WorkThreadPool::WorkThreadPool(): TaskExecutorGetterImp([](){
 	return std::make_shared<ThreadPool>( 1,ThreadPool::PRIORITY_HIGHEST, true);
