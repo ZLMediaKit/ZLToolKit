@@ -66,8 +66,7 @@ public:
 		_begin = getNowTime();
 	}
 
-private:
-	inline static uint64_t getNowTime() {
+	static uint64_t getNowTime() {
 		struct timeval tv;
 		gettimeofday(&tv, NULL);
 		return tv.tv_sec * 1000 + tv.tv_usec / 1000;

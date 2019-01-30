@@ -57,6 +57,14 @@ typedef enum {
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 
+class TaskTag {
+public:
+	typedef std::shared_ptr<TaskTag> Ptr;
+	TaskTag(){}
+	~TaskTag(){}
+	virtual void cancel() = 0;
+	virtual uint64_t operator()() const = 0;
+};
 
 class EventPoller : public TaskExecutor , public std::enable_shared_from_this<EventPoller> {
 public:
@@ -134,6 +142,14 @@ public:
 	 * @return 是否为本对象的轮询线程
 	 */
 	bool isMainThread();
+
+	/**
+	 * 延时执行某个任务
+	 * @param delayMS 延时毫秒数
+	 * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时
+	 * @param task 可取消的任务标签
+	 */
+	TaskTag::Ptr doTaskDelay(uint64_t delayMS,const function<uint64_t()> &task);
 private:
 	/**
 	 * 本对象只允许在EventPollerPool中构造
@@ -174,12 +190,42 @@ private:
      * 需要指出的是，一旦结束就不能再次恢复轮询线程
      */
 	void shutdown();
+
+	/**
+	 * 刷新延时任务
+	 */
+	uint64_t flushDelayTask();
+
+	/**
+	 * 获取select或epoll休眠时间
+	 */
+	uint64_t getMinDelay();
 private:
     class ExitException : public std::exception{
     public:
         ExitException(){}
         ~ExitException(){}
     };
+
+	class TaskTagImp : public TaskTag{
+	public:
+		typedef std::shared_ptr<TaskTagImp> Ptr;
+		template <typename FUN>
+		TaskTagImp(FUN &&task) : _task(std::forward<FUN>(task)),_canceled(false){}
+		~TaskTagImp(){}
+		void cancel() override {
+			_canceled = true;
+		};
+		uint64_t operator()() const override{
+			if(_canceled){
+				return 0;
+			}
+			return _task();
+		}
+	private:
+		function<uint64_t()> _task;
+		atomic_bool _canceled;
+	};
 private:
     PipeWrap _pipe;
 
@@ -205,6 +251,9 @@ private:
     bool _loopRunned = false;
 
     List<TaskExecutor::Task> _list_task;
+    multimap<uint64_t,TaskTagImp::Ptr > _delayTask;
+	uint64_t _minDelay = 0;
+
     mutex _mtx_task;
     Logger::Ptr _logger;
 	AsyncTaskThread::Ptr _asyncTaskThread;
