@@ -77,7 +77,7 @@ int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	TcpServer::Ptr server(new TcpServer(nullptr, nullptr));
+	TcpServer::Ptr server(new TcpServer());
 	server->start<EchoSession>(9000);//监听9000端口
 
 	sem.wait();

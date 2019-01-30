@@ -30,7 +30,6 @@
 #include <functional>
 #include "Socket.h"
 #include "Util/TimeTicker.h"
-#include "Thread/WorkThreadPool.h"
 
 using namespace std;
 
@@ -43,8 +42,7 @@ class TcpClient :
         public SocketHelper{
 public:
 	typedef std::shared_ptr<TcpClient> Ptr;
-	TcpClient(const EventPoller::Ptr &poller = nullptr,
-              const TaskExecutor::Ptr &executor = nullptr);
+	TcpClient(const EventPoller::Ptr &poller = nullptr);
 	virtual ~TcpClient();
     //开始连接服务器，strUrl可以是域名或ip
     void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
@@ -72,7 +70,6 @@ private:
 	void onSockErr(const SockException &ex);
 private:
     EventPoller::Ptr _poller;
-    TaskExecutor::Ptr _executor;
     std::shared_ptr<Timer> _managerTimer;
     string _netAdapter = "0.0.0.0";
 };

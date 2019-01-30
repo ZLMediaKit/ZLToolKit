@@ -36,15 +36,10 @@ using namespace std;
 
 namespace toolkit {
 
-Socket::Socket(const EventPoller::Ptr &poller,
-			   const TaskExecutor::Ptr &executor) {
+Socket::Socket(const EventPoller::Ptr &poller) {
 	_poller = poller;
 	if(!_poller){
 		_poller = EventPollerPool::Instance().getPoller();
-	}
-	_executor = executor;
-	if(!_executor){
-		_executor = _poller;
 	}
 
     _canSendSock = true;
@@ -59,7 +54,7 @@ Socket::Socket(const EventPoller::Ptr &poller,
 	};
 	_flushCB = []() {return true;};
 
-	_beforeAcceptCB = [](const EventPoller::Ptr &poller,const TaskExecutor::Ptr &executor){
+	_beforeAcceptCB = [](const EventPoller::Ptr &poller){
 		return nullptr;
 	};
 }
@@ -108,7 +103,7 @@ void Socket::setOnBeforeAccept(const onBeforeAcceptCB &cb){
 	if (cb) {
 		_beforeAcceptCB = cb;
 	} else {
-		_beforeAcceptCB = [](const EventPoller::Ptr &poller,const TaskExecutor::Ptr &executor) {
+		_beforeAcceptCB = [](const EventPoller::Ptr &poller) {
 			return nullptr;
 		};
 	}
@@ -125,34 +120,15 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 	weak_ptr<SockFD> weakSock = sockFD;
 	shared_ptr<bool> bTriggered = std::make_shared<bool>(false);//回调被触发过
 
-	int result;
-	if(_poller == _executor){
-		result = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
-			auto strongSelf = weakSelf.lock();
-			auto strongSock = weakSock.lock();
-			if(!strongSelf || !strongSock ||  *bTriggered) {
-				return;
-			}
-			*bTriggered = true;
-			strongSelf->onConnected(strongSock,connectCB);
-		});
-	}else{
-		result = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
-			auto strongSelf = weakSelf.lock();
-			if(!strongSelf || *bTriggered) {
-				return;
-			}
-			*bTriggered = true;
-			strongSelf->_executor->async([weakSelf,weakSock,connectCB](){
-				auto strongSelf = weakSelf.lock();
-				auto strongSock = weakSock.lock();
-				if(!strongSelf || !strongSock) {
-					return;
-				}
-				strongSelf->onConnected(strongSock,connectCB);
-			});
-		});
-	}
+	int result  = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
+		auto strongSelf = weakSelf.lock();
+		auto strongSock = weakSock.lock();
+		if(!strongSelf || !strongSock ||  *bTriggered) {
+			return;
+		}
+		*bTriggered = true;
+		strongSelf->onConnected(strongSock,connectCB);
+	});
 
 	if(result == -1){
 		WarnL << "开始Poll监听失败";
@@ -172,7 +148,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 		strongSelf->emitErr(err);
 		connectCB(err);
 		return false;
-	},_executor);
+	},_poller);
 	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = sockFD;
 }
@@ -227,50 +203,23 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 	weak_ptr<SockFD> weakSock = pSock;
 	_enableRecv = true;
 
-	int result;
-	if(_poller == _executor){
-		result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write, [weakSelf,weakSock,isUdp](int event) {
-			auto strongSelf = weakSelf.lock();
-			auto strongSock = weakSock.lock();
-			if(!strongSelf || !strongSock) {
-				return;
-			}
-			if (event & Event_Error) {
-				strongSelf->onError(strongSock);
-				return;
-			}
-			if (event & Event_Read) {
-				strongSelf->onRead(strongSock,!isUdp);
-			}
-			if (event & Event_Write) {
-				strongSelf->onWriteAble(strongSock);
-			}
-		});
-	}else{
-		result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write, [weakSelf,weakSock,isUdp](int event) {
-			auto strongSelf = weakSelf.lock();
-			if(!strongSelf) {
-				return;
-			}
-			strongSelf->_executor->async([weakSelf,weakSock,isUdp,event](){
-				auto strongSelf = weakSelf.lock();
-				auto strongSock = weakSock.lock();
-				if(!strongSelf || !strongSock) {
-					return;
-				}
-				if (event & Event_Error) {
-					strongSelf->onError(strongSock);
-					return;
-				}
-				if (event & Event_Read) {
-					strongSelf->onRead(strongSock,!isUdp);
-				}
-				if (event & Event_Write) {
-					strongSelf->onWriteAble(strongSock);
-				}
-			});
-		});
-	}
+	int result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write, [weakSelf,weakSock,isUdp](int event) {
+		auto strongSelf = weakSelf.lock();
+		auto strongSock = weakSock.lock();
+		if(!strongSelf || !strongSock) {
+			return;
+		}
+		if (event & Event_Error) {
+			strongSelf->onError(strongSock);
+			return;
+		}
+		if (event & Event_Read) {
+			strongSelf->onRead(strongSock,!isUdp);
+		}
+		if (event & Event_Write) {
+			strongSelf->onWriteAble(strongSock);
+		}
+	});
 
 	return -1 != result;
 }
@@ -332,7 +281,7 @@ bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
 	}
 
 	weak_ptr<Socket> weakSelf = shared_from_this();
-	_executor->async([weakSelf,err]() {
+	_poller->async([weakSelf,err]() {
 		auto strongSelf=weakSelf.lock();
 		if (!strongSelf) {
 			return;
@@ -450,32 +399,14 @@ bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
 	weak_ptr<SockFD> weakSock = pSock;
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	_enableRecv = true;
-	int result;
-	if(_poller == _executor){
-		result = _poller->addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
-			auto strongSelf = weakSelf.lock();
-			auto strongSock = weakSock.lock();
-			if(!strongSelf || !strongSock) {
-				return;
-			}
-			strongSelf->onAccept(strongSock,event);
-		});
-	} else{
-		result = _poller->addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
-			auto strongSelf = weakSelf.lock();
-			if(!strongSelf) {
-				return;
-			}
-			strongSelf->_executor->async([weakSelf,weakSock,event](){
-				auto strongSelf = weakSelf.lock();
-				auto strongSock = weakSock.lock();
-				if(!strongSelf || !strongSock) {
-					return;
-				}
-				strongSelf->onAccept(strongSock,event);
-			});
-		});
-	}
+	int result = _poller->addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
+		auto strongSelf = weakSelf.lock();
+		auto strongSock = weakSock.lock();
+		if(!strongSelf || !strongSock) {
+			return;
+		}
+		strongSelf->onAccept(strongSock,event);
+	});
 
 	if(result == -1){
 		WarnL << "开始Poll监听失败";
@@ -532,13 +463,13 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			    //拦截默认的Socket构造行为，
                 //在TcpServer中，默认的行为是子Socket的网络事件会派发到其他poll线程
                 //这样就可以发挥最大的网络性能
-				peerSock = _beforeAcceptCB(_poller,_executor);
+				peerSock = _beforeAcceptCB(_poller);
 			}
 
 			if(!peerSock){
 			    //此处是默认构造行为，也就是子Socket
                 //共用父Socket的poll线程以及事件执行线程
-				peerSock = std::make_shared<Socket>(_poller,_executor);
+				peerSock = std::make_shared<Socket>(_poller);
 			}
 
             //设置好fd,以备在TcpSession的构造函数中可以正常访问该fd
@@ -743,9 +674,6 @@ BufferRaw::Ptr Socket::obtainBuffer() {
 bool Socket::isSocketBusy() const{
     return !_canSendSock.load();
 }
-const TaskExecutor::Ptr &Socket::getExecutor() const{
-	return _executor;
-}
 
 const EventPoller::Ptr &Socket::getPoller() const{
 	return _poller;
@@ -802,17 +730,19 @@ SocketHelper::~SocketHelper() {}
 void SocketHelper::setSock(const Socket::Ptr &sock) {
     _sock = sock;
     if(_sock){
-		_executor = _sock->getExecutor();
+		_poller = _sock->getPoller();
     }
 }
-void SocketHelper::setExecutor(const TaskExecutor::Ptr &excutor){
-	if(excutor){
-		_executor = excutor;
+
+
+void SocketHelper::setPoller(const EventPoller::Ptr &poller){
+	if(poller){
+		_poller = poller;
 	}
 }
 
-TaskExecutor::Ptr SocketHelper::getExecutor(){
-    return _executor;
+EventPoller::Ptr SocketHelper::getPoller(){
+    return _poller;
 }
 
 
@@ -955,16 +885,16 @@ bool SocketHelper::isSocketBusy() const{
 }
 
 bool SocketHelper::async(const TaskExecutor::Task &task, bool may_sync) {
-	return _executor->async(task,may_sync);
+	return _poller->async(task,may_sync);
 };
 bool SocketHelper::async_first(const TaskExecutor::Task &task, bool may_sync) {
-	return _executor->async_first(task,may_sync);
+	return _poller->async_first(task,may_sync);
 };
 bool SocketHelper::sync(const TaskExecutor::Task &task) {
-	return _executor->sync(task);
+	return _poller->sync(task);
 };
 bool SocketHelper::sync_first(const TaskExecutor::Task &task) {
-	return _executor->sync_first(task);
+	return _poller->sync_first(task);
 }
 
 }  // namespace toolkit

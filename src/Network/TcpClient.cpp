@@ -25,17 +25,12 @@
 
 namespace toolkit {
 
-TcpClient::TcpClient(const EventPoller::Ptr &poller,
-                     const TaskExecutor::Ptr &executor) : SocketHelper(nullptr) {
+TcpClient::TcpClient(const EventPoller::Ptr &poller) : SocketHelper(nullptr) {
     _poller = poller;
     if(!_poller){
         _poller = EventPollerPool::Instance().getPoller();
     }
-    _executor = executor;
-    if(!_executor){
-        _executor = _poller;
-    }
-    setExecutor(_executor);
+    setPoller(_poller);
 }
 
 TcpClient::~TcpClient() {
@@ -82,7 +77,7 @@ void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOut
             return;
         }
         shutdown();
-        SocketHelper::setSock(std::make_shared<Socket>(_poller,_executor));
+        SocketHelper::setSock(std::make_shared<Socket>(_poller));
 
         weak_ptr<TcpClient> weakSelf = shared_from_this();
         _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
@@ -138,7 +133,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
             }
             strongSelf->onManager();
             return true;
-        },_executor);
+        },_poller);
 	}
     onConnect(ex);
 }

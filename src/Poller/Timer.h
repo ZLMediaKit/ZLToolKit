@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <functional>
 #include "EventPoller.h"
-#include "Thread/AsyncTaskThread.h"
 
 using namespace std;
 
@@ -38,10 +37,10 @@ class Timer {
 public:
     Timer(float second,
           const function<bool()> &cb,
-          const TaskExecutor::Ptr &executor/* = nullptr*/);
+          const EventPoller::Ptr &poller/* = nullptr*/);
     ~Timer();
 private:
-    std::shared_ptr<bool> _canceled;
+    TaskTag::Ptr _tag;
 };
 
 }  // namespace toolkit

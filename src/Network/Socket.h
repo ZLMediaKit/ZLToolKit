@@ -325,10 +325,9 @@ public:
     //譬如http文件下载服务器，返回false则移除回调监听
     typedef function<bool()> onFlush;
     //在接收到连接请求前，拦截Socket默认生成方式
-    typedef function<Ptr(const EventPoller::Ptr &poller,const TaskExecutor::Ptr &executor)> onBeforeAcceptCB;
+    typedef function<Ptr(const EventPoller::Ptr &poller)> onBeforeAcceptCB;
 
-    Socket(const EventPoller::Ptr &poller = nullptr,
-           const TaskExecutor::Ptr &executor = nullptr);
+    Socket(const EventPoller::Ptr &poller = nullptr);
 	~Socket();
 
     //创建tcp客户端，url可以是ip或域名
@@ -388,7 +387,6 @@ public:
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
 
-    const TaskExecutor::Ptr &getExecutor() const;
     const EventPoller::Ptr &getPoller() const;
 private:
     void closeSock();
@@ -410,7 +408,6 @@ private:
 private:
     mutable mutex _mtx_sockFd;
     EventPoller::Ptr _poller;
-    TaskExecutor::Ptr _executor;
     SockFD::Ptr _sockFd;
     recursive_mutex _mtx_sendBuf;
     deque<Packet::Ptr> _sendPktBuf;
@@ -443,8 +440,8 @@ public:
     virtual ~SocketHelper();
     //重新设置socket
     void setSock(const Socket::Ptr &sock);
-    void setExecutor(const TaskExecutor::Ptr &excutor);
-    TaskExecutor::Ptr getExecutor();
+    void setPoller(const EventPoller::Ptr &excutor);
+    EventPoller::Ptr getPoller();
     //设置socket flags
     SocketHelper &operator << (const SocketFlags &flags);
     //////////////////operator << 系列函数//////////////////
@@ -503,7 +500,7 @@ protected:
     int _flags = SOCKET_DEFAULE_FLAGS;
     Socket::Ptr _sock;
 private:
-    TaskExecutor::Ptr _executor;
+    EventPoller::Ptr _poller;
     string _local_ip;
     uint16_t _local_port = 0;
     string _peer_ip;

@@ -37,7 +37,6 @@
 #include "Util/uv_errno.h"
 #include "Poller/Timer.h"
 #include "Thread/semaphore.h"
-#include "Thread/WorkThreadPool.h"
 
 using namespace std;
 
@@ -109,43 +108,10 @@ class TcpServer : public mINI , public std::enable_shared_from_this<TcpServer>{
 public:
 	typedef std::shared_ptr<TcpServer> Ptr;
 
-    /**
-     * 原先的方式是网络事件、数据读取在poller循环中触发，但是处理在后台线程中执行
-     * 目前提供两种方式创建TcpServer
-     * 1:executorGetter 为WorkThreadPool类型
-     * 2:executorGetter 为EventPollerPool类型
-     *
-     * 方式1：
-     * 		此种方式创建的Tcp服务器，所有网络事件会在poller循环中触发，
-     * 		但是数据的读取、处理等事件会在后台线程中触发
-     * 		所以这种方式跟最初方式相比，poller轮询线程负担更小，网路吞吐量更大
-     * 		但是这种方式存在poller线程切换到后台线程的过程，可能性能不是最佳
-     *
-     * 方式2：
-     * 		此种方式创建的Tcp服务器，父文件描述符的accept事件在poller循环中触发
-     * 		但是子文件描述符的所有事件、数据读取、数据处理都是在从EventPollerPool中获取的poller线程中执行
-     * 		所以这种方式跟最初方式相比，网络事件的触发会派发到多个poller线程中执行
-     * 		这种方式网络吞吐量最大
-     *
-     * 综上，推荐方式2
-     * 构造方式参考为 : std::make_shared<TcpServer>(nullptr,nullptr);
-     *
-     * @param executorGetter 任务执行器获取器
-     * @param poller 事件轮询器
-     */
-    TcpServer(const TaskExecutorGetter::Ptr executorGetter = nullptr,
-			  const EventPoller::Ptr &poller = nullptr ) {
-		_executorGetter = executorGetter;
-		if(!_executorGetter){
-			_executorGetter = EventPollerPool::Instance().shared_from_this();
-		}
-		_poller = poller;
-		if(!_poller){
-			_poller =  EventPollerPool::Instance().getPoller();
-		}
-
-		_executor = _poller;
-		_socket = std::make_shared<Socket>(_poller,_executor);
+    TcpServer() {
+		_pollerPool = EventPollerPool::Instance().shared_from_this();
+		_poller =  _pollerPool->getPoller();
+		_socket = std::make_shared<Socket>(_poller);
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
 		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this));
     }
@@ -184,7 +150,7 @@ public:
 		_timer = std::make_shared<Timer>(2, [this]()->bool {
 			this->onManagerSession();
 			return true;
-		},_executor);
+		},_poller);
 		InfoL << "TCP Server listening on " << host << ":" << port;
 	}
 	 uint16_t getPort(){
@@ -196,15 +162,7 @@ public:
 
 protected:
 	virtual Socket::Ptr onBeforeAcceptConnection(){
-    	//获取任务执行器
-    	auto executor = _executorGetter->getExecutor();
-    	//该任务执行器可能是ThreadPool也可能是EventPoller
-		EventPoller::Ptr poller = dynamic_pointer_cast<EventPoller>(executor);
-		if(!poller){
-			//如果executor不是EventPoller，那么赋值为TcpServer的poller
-			poller = _poller;
-		}
-		return std::make_shared<Socket>(poller,executor);
+		return std::make_shared<Socket>(_pollerPool->getPoller());
     }
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr & sock) {
@@ -253,7 +211,7 @@ protected:
                     return;
                 }
                 //在TcpServer对应线程中移除map相关记录
-                strongSelf->_executor->async([weakSelf,sessionId](){
+                strongSelf->_poller->async([weakSelf,sessionId](){
                     auto strongSelf = weakSelf.lock();
                     if(!strongSelf){
                         return;
@@ -294,9 +252,7 @@ private:
     }
 private:
     EventPoller::Ptr _poller;
-	TaskExecutor::Ptr _executor;
-	TaskExecutorGetter::Ptr _executorGetter;
-
+    EventPollerPool::Ptr _pollerPool;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
 	unordered_map<string, TcpSessionHelper::Ptr > _sessionMap;

@@ -28,33 +28,21 @@ namespace toolkit {
 
 Timer::Timer(float second,
 			 const function<bool()> &cb,
-			 const TaskExecutor::Ptr &executor)
-{
-	_canceled = std::make_shared<bool>();
-	TaskExecutor::Ptr executor_tmp = executor;
-	if(!executor_tmp){
-		executor_tmp =  EventPollerPool::Instance().getPoller();
+			 const EventPoller::Ptr &poller) {
+	EventPoller::Ptr poller_tmp = poller;
+	if(!poller_tmp){
+		poller_tmp = EventPollerPool::Instance().getPoller();
 	}
-	std::weak_ptr<bool> canceledWeak = _canceled;
-	AsyncTaskThread::Instance().DoTaskDelay(reinterpret_cast<uint64_t>(this),second * 1000,[this,cb,canceledWeak,executor_tmp](){
-		executor_tmp->async([this,cb,canceledWeak]() {
-			auto canceledStrog = canceledWeak.lock();
-			if(!canceledStrog){
-				AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
-				return;
-			}
-			if(!cb()) {
-				AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
-			}
-		});
-		return true;
+	_tag = poller_tmp->doTaskDelay(second * 1000,[cb,second](){
+		if(cb){
+			return (uint64_t)(1000 * second);
+		}
+		return (uint64_t)0;
 	});
-
-
 }
-Timer::~Timer()
-{
-	AsyncTaskThread::Instance().CancelTask(reinterpret_cast<uint64_t>(this));
+
+Timer::~Timer() {
+	_tag->cancel();
 }
 
 }  // namespace toolkit
