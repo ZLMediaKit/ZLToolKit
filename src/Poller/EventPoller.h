@@ -62,7 +62,16 @@ public:
 	typedef std::shared_ptr<TaskTag> Ptr;
 	TaskTag(){}
 	~TaskTag(){}
+
+	/**
+	 * 取消任务
+	 */
 	virtual void cancel() = 0;
+
+	/**
+	 * 执行任务
+	 * @return
+	 */
 	virtual uint64_t operator()() const = 0;
 };
 
@@ -147,7 +156,7 @@ public:
 	 * 延时执行某个任务
 	 * @param delayMS 延时毫秒数
 	 * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时
-	 * @param task 可取消的任务标签
+	 * @return 可取消的任务标签
 	 */
 	TaskTag::Ptr doTaskDelay(uint64_t delayMS,const function<uint64_t()> &task);
 private:
