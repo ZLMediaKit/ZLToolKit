@@ -108,6 +108,13 @@ class TcpServer : public mINI , public std::enable_shared_from_this<TcpServer>{
 public:
 	typedef std::shared_ptr<TcpServer> Ptr;
 
+	/**
+	 * 创建Tcp服务器，父文件描述符的accept事件在某固定的poller循环中触发
+     * 但是子文件描述符的所有事件、数据读取、数据处理都是在从EventPollerPool中获取的poller线程中执行
+     * 所以这种方式网络事件的触发会派发到多个poller线程中执行
+     * 这种方式网络吞吐量最大
+	 */
+
     TcpServer() {
 		_pollerPool = EventPollerPool::Instance().shared_from_this();
 		_poller =  _pollerPool->getPoller();
