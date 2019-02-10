@@ -122,7 +122,7 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
     }
     return ret;
 #else
-    if (isMainThread()) {
+    if (isCurrentThread()) {
         lock_guard<mutex> lck(_mtx_event_map);
         Poll_Record::Ptr record(new Poll_Record);
         record->event = event;
@@ -153,7 +153,7 @@ int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
     delCb(success);
     return success ? 0 : -1;
 #else
-    if (isMainThread()) {
+    if (isCurrentThread()) {
         lock_guard<mutex> lck(_mtx_event_map);
         if (_event_map.erase(fd)) {
             delCb(true);
@@ -178,7 +178,7 @@ int EventPoller::modifyEvent(int fd, int event) {
     ev.data.fd = fd;
     return epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 #else
-    if (isMainThread()) {
+    if (isCurrentThread()) {
         lock_guard<mutex> lck(_mtx_event_map);
         auto it = _event_map.find(fd);
         if (it != _event_map.end()) {
@@ -244,7 +244,7 @@ bool EventPoller::async_l(const TaskExecutor::Task &task,bool may_sync, bool fir
     return true;
 }
 
-bool EventPoller::isMainThread() {
+bool EventPoller::isCurrentThread() {
     return _mainThreadId == this_thread::get_id();
 }
 
@@ -454,10 +454,14 @@ uint64_t EventPoller::flushDelayTask() {
             break;
         }
         //已经到期的任务
-        auto next_delay = (*(it->second))();
-        if(next_delay){
-            //可重复任务,更新时间截止线
-            _delayTask.emplace(next_delay + now_time,std::move(it->second));
+        try {
+            auto next_delay = (*(it->second))();
+            if(next_delay){
+                //可重复任务,更新时间截止线
+                _delayTask.emplace(next_delay + now_time,std::move(it->second));
+            }
+        }catch (std::exception &ex){
+            ErrorL << "catch exception:" << ex.what();
         }
     }
 
@@ -485,8 +489,8 @@ uint64_t EventPoller::getMinDelay() {
     return flushDelayTask();
 }
 
-TaskTag::Ptr EventPoller::doTaskDelay(uint64_t delayMS,const function<uint64_t()> &task) {
-    TaskTagImp::Ptr ret = std::make_shared<TaskTagImp>(task);
+DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, const function<uint64_t()> &task) {
+    DelayTaskImp::Ptr ret = std::make_shared<DelayTaskImp>(task);
     auto time_line = Ticker::getNowTime() + delayMS;
     async_first([time_line,ret,this](){
         //异步执行的目的是刷新select或epoll的休眠时间

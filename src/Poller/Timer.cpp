@@ -33,12 +33,12 @@ Timer::Timer(float second,
 	if(!poller_tmp){
 		poller_tmp = EventPollerPool::Instance().getPoller();
 	}
-	_tag = poller_tmp->doTaskDelay(second * 1000,[cb,second](){
-		if(cb()){
-			return (uint64_t)(1000 * second);
-		}
-		return (uint64_t)0;
-	});
+	_tag = poller_tmp->doDelayTask(second * 1000, [cb, second]() {
+        if (cb()) {
+            return (uint64_t) (1000 * second);
+        }
+        return (uint64_t) 0;
+    });
 }
 
 Timer::~Timer() {

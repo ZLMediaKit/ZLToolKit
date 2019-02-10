@@ -41,7 +41,7 @@ public:
           const EventPoller::Ptr &poller/* = nullptr*/);
     ~Timer();
 private:
-    TaskTag::Ptr _tag;
+    DelayTask::Ptr _tag;
 };
 
 }  // namespace toolkit

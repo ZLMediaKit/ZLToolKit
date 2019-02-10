@@ -42,24 +42,24 @@ int main() {
 
     Ticker ticker0;
 	int nextDelay0 = 5;
-	auto tag0 = EventPollerPool::Instance().getPoller()->doTaskDelay(nextDelay0,[&](){
-		TraceL << "task 0,预期休眠时间 :"  << nextDelay0 << " 实际休眠时间" << ticker0.elapsedTime();
-		ticker0.resetTime();
-		return nextDelay0;
-	});
+	auto tag0 = EventPollerPool::Instance().getPoller()->doDelayTask(nextDelay0, [&]() {
+        TraceL << "task 0,预期休眠时间 :" << nextDelay0 << " 实际休眠时间" << ticker0.elapsedTime();
+        ticker0.resetTime();
+        return nextDelay0;
+    });
 
 	Ticker ticker1;
 	int nextDelay1 = 5;
-    auto tag1 = EventPollerPool::Instance().getPoller()->doTaskDelay(nextDelay1,[&](){
-		DebugL << "task 1,预期休眠时间 :" << nextDelay1 << " 实际休眠时间" << ticker1.elapsedTime();
-		ticker1.resetTime();
-		nextDelay1 += 1;
-		return nextDelay1;
-	});
+    auto tag1 = EventPollerPool::Instance().getPoller()->doDelayTask(nextDelay1, [&]() {
+        DebugL << "task 1,预期休眠时间 :" << nextDelay1 << " 实际休眠时间" << ticker1.elapsedTime();
+        ticker1.resetTime();
+        nextDelay1 += 1;
+        return nextDelay1;
+    });
 
     Ticker ticker2;
     int nextDelay2 = 3000;
-    auto tag2 = EventPollerPool::Instance().getPoller()->doTaskDelay(nextDelay2,[&](){
+    auto tag2 = EventPollerPool::Instance().getPoller()->doDelayTask(nextDelay2, [&]() {
         InfoL << "task 2,预期休眠时间 :" << nextDelay2 << " 实际休眠时间" << ticker2.elapsedTime();
         return 0;
     });

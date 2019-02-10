@@ -56,11 +56,12 @@ typedef enum {
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 
-class TaskTag {
+
+class DelayTask {
 public:
-	typedef std::shared_ptr<TaskTag> Ptr;
-	TaskTag(){}
-	~TaskTag(){}
+	typedef std::shared_ptr<DelayTask> Ptr;
+	DelayTask(){}
+	~DelayTask(){}
 
 	/**
 	 * 取消任务
@@ -149,7 +150,7 @@ public:
 	 * 判断执行该接口的线程是否为本对象的轮询线程
 	 * @return 是否为本对象的轮询线程
 	 */
-	bool isMainThread();
+	bool isCurrentThread();
 
 	/**
 	 * 延时执行某个任务
@@ -157,7 +158,7 @@ public:
 	 * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时
 	 * @return 可取消的任务标签
 	 */
-	TaskTag::Ptr doTaskDelay(uint64_t delayMS,const function<uint64_t()> &task);
+	DelayTask::Ptr doDelayTask(uint64_t delayMS, const function<uint64_t()> &task);
 private:
 	/**
 	 * 本对象只允许在EventPollerPool中构造
@@ -215,12 +216,12 @@ private:
         ~ExitException(){}
     };
 
-	class TaskTagImp : public TaskTag{
+	class DelayTaskImp : public DelayTask{
 	public:
-		typedef std::shared_ptr<TaskTagImp> Ptr;
+		typedef std::shared_ptr<DelayTaskImp> Ptr;
 		template <typename FUN>
-		TaskTagImp(FUN &&task) : _task(std::forward<FUN>(task)),_canceled(false){}
-		~TaskTagImp(){}
+		DelayTaskImp(FUN &&task) : _task(std::forward<FUN>(task)),_canceled(false){}
+		~DelayTaskImp(){}
 		void cancel() override {
 			_canceled = true;
 		};
@@ -259,7 +260,7 @@ private:
     bool _loopRunned = false;
 
     List<TaskExecutor::Task> _list_task;
-    multimap<uint64_t,TaskTagImp::Ptr > _delayTask;
+    multimap<uint64_t,DelayTaskImp::Ptr > _delayTask;
 	uint64_t _minDelay = 0;
 
     mutex _mtx_task;
