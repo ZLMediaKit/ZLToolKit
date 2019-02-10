@@ -79,7 +79,6 @@ void EventPoller::shutdown() {
         try {
             _loopThread->join();
         }catch (std::exception &ex){
-            ErrorL << "catch exception:" << ex.what();
         }
         delete _loopThread;
         _loopThread = nullptr;
@@ -268,7 +267,7 @@ inline bool EventPoller::onPipeEvent() {
         }catch (ExitException &ex){
             catchExitException = true;
         }catch (std::exception &ex){
-            ErrorL << "catch exception:" << ex.what();
+            ErrorL << "EventPoller执行异步任务捕获到异常:" << ex.what();
         }
     });
     return !catchExitException;
@@ -336,7 +335,7 @@ void EventPoller::runLoopOnce(bool blocked) {
                     try{
                         (*eventCb)(event);
                     }catch (std::exception &ex){
-                        ErrorL << "catch exception:" << ex.what();
+                        ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
                     }
                 }
                 continue;
@@ -417,7 +416,7 @@ void EventPoller::runLoopOnce(bool blocked) {
                     try{
                         record->callBack(record->attach);
                     }catch (std::exception &ex){
-                        ErrorL << "catch exception:" << ex.what();
+                        ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
                     }
                 });
                 listCB.clear();
@@ -458,7 +457,7 @@ uint64_t EventPoller::flushDelayTask() {
                 _delayTask.emplace(next_delay + now_time,std::move(it->second));
             }
         }catch (std::exception &ex){
-            ErrorL << "catch exception:" << ex.what();
+            ErrorL << "EventPoller执行延时任务捕获到异常:" << ex.what();
         }
     }
 

@@ -36,6 +36,13 @@ namespace toolkit {
 class Timer {
 public:
     typedef std::shared_ptr<Timer> Ptr;
+
+    /**
+     * 构造定时器
+     * @param second 定时器重复秒数
+     * @param cb 定时器任务，返回true表示重复下次任务，否则不重复，如果任务中抛异常，则默认重复下次任务
+     * @param poller EventPoller对象，可以为nullptr
+     */
     Timer(float second,
           const function<bool()> &cb,
           const EventPoller::Ptr &poller/* = nullptr*/);

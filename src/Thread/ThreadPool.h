@@ -159,7 +159,7 @@ private:
                 task();
                 task = nullptr;
             } catch (std::exception &ex) {
-				ErrorL << "catch exception:" << ex.what();
+				ErrorL << "ThreadPool执行任务捕获到异常:" << ex.what();
             }
 		}
 	}
