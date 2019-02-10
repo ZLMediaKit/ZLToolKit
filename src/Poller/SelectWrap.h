@@ -27,8 +27,7 @@
 
 namespace toolkit {
 
-class FdSet
-{
+class FdSet {
 public:
 	FdSet();
 	~FdSet();
@@ -37,13 +36,10 @@ public:
 	void fdClr(int fd);
 	bool isSet(int fd);
 	void *_ptr;
-private:
 };
+int zl_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv);
 
 } /* namespace toolkit */
-
-using namespace toolkit;
-int zl_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv);
 
 
 

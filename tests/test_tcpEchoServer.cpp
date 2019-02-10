@@ -69,10 +69,6 @@ private:
 
 
 int main() {
-	//退出程序事件处理
-	static semaphore sem;
-	signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
-
 	//初始化日志模块
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
@@ -80,6 +76,9 @@ int main() {
 	TcpServer::Ptr server(new TcpServer());
 	server->start<EchoSession>(9000);//监听9000端口
 
+	//退出程序事件处理
+	static semaphore sem;
+	signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
 	sem.wait();
 	return 0;
 }

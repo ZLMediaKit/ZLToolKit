@@ -34,13 +34,13 @@
 #include "PipeWrap.h"
 #include "Util/logger.h"
 #include "Util/util.h"
-#include "Thread/List.h"
+#include "Util/List.h"
 #include "Thread/TaskExecutor.h"
 
 using namespace std;
 
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__linux)
 #define HAS_EPOLL
 #endif //__linux__
 
@@ -56,7 +56,6 @@ typedef enum {
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 
-
 class DelayTask {
 public:
 	typedef std::shared_ptr<DelayTask> Ptr;
@@ -65,6 +64,7 @@ public:
 
 	/**
 	 * 取消任务
+	 * 在取消延时任务时，并不会立即销毁lambad表达式中的强引用，要在下一次tick时才会真正移除
 	 */
 	virtual void cancel() = 0;
 
@@ -81,13 +81,6 @@ public:
 	friend class EventPollerPool;
 
 	~EventPoller();
-
-	/**
-	 * 获取EventPollerPool单例中的第一个EventPoller实例，
-	 * 保留该接口是为了兼容老代码
-	 * @return 单例
-	 */
-	static EventPoller &Instance();
 
 
 	/**
@@ -224,6 +217,8 @@ private:
 		~DelayTaskImp(){}
 		void cancel() override {
 			_canceled = true;
+			//由于追求性能最大化，此处并未置空_task，
+            //这样_task中捕获的强引用要在下一次tick时才会移除
 		};
 		uint64_t operator()() const override{
 			if(_canceled){
@@ -275,19 +270,11 @@ public:
 	typedef std::shared_ptr<EventPollerPool> Ptr;
 	~EventPollerPool(){};
 
-	static EventPollerPool &Instance();
-
 	/**
-     * 废弃的接口，无实际操作
-     * @deprecated
-     */
-	static void Destory(){};
-
-	/**
-	 * 获取第一个实例
+	 * 获取单例
 	 * @return
 	 */
-	EventPoller::Ptr getFirstPoller();
+	static EventPollerPool &Instance();
 
 	/**
 	 * 根据负载情况获取轻负载的实例

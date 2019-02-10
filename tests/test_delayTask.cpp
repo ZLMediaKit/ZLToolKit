@@ -69,9 +69,9 @@ int main() {
     tag1->cancel();
     DebugL << "取消task 0、1";
 
-	static semaphore sem;
-	signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
-	sem.wait();
-
-	return 0;
+    //退出程序事件处理
+    static semaphore sem;
+    signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
+    sem.wait();
+    return 0;
 }

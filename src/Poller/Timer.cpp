@@ -29,14 +29,16 @@ namespace toolkit {
 Timer::Timer(float second,
 			 const function<bool()> &cb,
 			 const EventPoller::Ptr &poller) {
-	EventPoller::Ptr poller_tmp = poller;
-	if(!poller_tmp){
-		poller_tmp = EventPollerPool::Instance().getPoller();
+    _poller = poller;
+	if(!_poller){
+        _poller = EventPollerPool::Instance().getPoller();
 	}
-	_tag = poller_tmp->doDelayTask(second * 1000, [cb, second]() {
+	_tag = _poller->doDelayTask(second * 1000, [cb, second]() {
         if (cb()) {
+            //重复的任务
             return (uint64_t) (1000 * second);
         }
+        //该任务不再重复
         return (uint64_t) 0;
     });
 }

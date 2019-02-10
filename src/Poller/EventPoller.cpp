@@ -51,10 +51,6 @@
 
 namespace toolkit {
 
-EventPoller &EventPoller::Instance() {
-    return *(EventPollerPool::Instance().getFirstPoller());
-}
-
 EventPoller::EventPoller() {
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
@@ -70,15 +66,15 @@ EventPoller::EventPoller() {
     }
 #endif //HAS_EPOLL
 
-    _mainThreadId = this_thread::get_id();
     _logger = Logger::Instance().shared_from_this();
 }
 
 
 void EventPoller::shutdown() {
-    async_first([](){
+    async_l([](){
         throw ExitException();
-    });
+    },false, true);
+
     if (_loopThread) {
         try {
             _loopThread->join();
@@ -226,7 +222,7 @@ bool EventPoller::async_l(const TaskExecutor::Task &task,bool may_sync, bool fir
     if (!task) {
         return false;
     }
-    if (may_sync && _mainThreadId == this_thread::get_id()) {
+    if (may_sync && isCurrentThread()) {
         task();
         return true;
     }
@@ -305,27 +301,27 @@ void EventPoller::runLoopOnce(bool blocked) {
         struct epoll_event events[EPOLL_SIZE];
         while (true) {
             _minDelay = getMinDelay();
-            startSleep();
-            int nfds = epoll_wait(_epoll_fd, events, EPOLL_SIZE, _minDelay ? _minDelay : -1);
-            sleepWakeUp();
-            if(nfds > 0){
-                for (int i = 0; i < nfds; ++i) {
+            startSleep();//用于统计当前线程负载情况
+            int ret = epoll_wait(_epoll_fd, events, EPOLL_SIZE, _minDelay ? _minDelay : -1);
+            sleepWakeUp();//用于统计当前线程负载情况
+            if(ret > 0){
+                for (int i = 0; i < ret; ++i) {
                     struct epoll_event &ev = events[i];
                     int fd = ev.data.fd;
                     int event = toPoller(ev.events);
                     if (fd == _pipe.readFD()) {
-                        //inner pipe event
+                        //内部管道事件，主要是其他线程切换到本线程执行的任务事件
                         if (event & Event_Error) {
                             WarnL << "Poller 异常退出监听:" << get_uv_errmsg();
-                            break;
+                            return;
                         }
                         if (!onPipeEvent()) {
                             //收到退出事件
-                            break;
+                            return;
                         }
                         continue;
                     }
-                    // other event
+                    // 其他文件描述符的事件
                     std::shared_ptr<PollEventCB> eventCb;
                     {
                         lock_guard<mutex> lck(_mtx_event_map);
@@ -347,7 +343,7 @@ void EventPoller::runLoopOnce(bool blocked) {
             }
 
             if(ret == -1){
-                //被打断
+                //阻塞操作被打断
                 WarnL << "epoll_wait interrupted:" << get_uv_errmsg();
                 continue;
             }
@@ -385,19 +381,20 @@ void EventPoller::runLoopOnce(bool blocked) {
             _minDelay = getMinDelay();
             tv.tv_sec = _minDelay / 1000;
             tv.tv_usec = 1000 * (_minDelay % 1000);
-            startSleep();
+            startSleep();//用于统计当前线程负载情况
             ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, _minDelay ? &tv: NULL);
-            sleepWakeUp();
+            sleepWakeUp();//用于统计当前线程负载情况
 
             if(ret > 0){
                 if (Set_read.isSet(_pipe.readFD())) {
-                    //判断有否监听操作
+                    //内部管道事件，主要是其他线程切换到本线程执行的任务事件
                     if (!onPipeEvent()) {
-                        break;
+                        return;
                     }
                 }
 
                 {
+                    //收集select事件类型
                     lock_guard<mutex> lck(_mtx_event_map);
                     for (auto &pr : _event_map) {
                         int event = 0;
@@ -428,7 +425,7 @@ void EventPoller::runLoopOnce(bool blocked) {
             }
 
             if(ret == -1){
-                //被打断
+                //阻塞操作被打断
                 WarnL << "select interrupted:" << get_uv_errmsg();
                 continue;
             }
@@ -503,10 +500,6 @@ DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, const function<uint64_
 ///////////////////////////////////////////////
 
 INSTANCE_IMP(EventPollerPool);
-
-EventPoller::Ptr EventPollerPool::getFirstPoller(){
-    return dynamic_pointer_cast<EventPoller>(_threads.front());
-}
 
 EventPoller::Ptr EventPollerPool::getPoller(){
     return dynamic_pointer_cast<EventPoller>(getExecutor());
