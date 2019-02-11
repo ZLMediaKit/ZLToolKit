@@ -65,6 +65,13 @@ int main() {
         return 0;
     });
 
+    Ticker ticker3;
+    int nextDelay3 = 50;
+    auto tag3 = EventPollerPool::Instance().getPoller()->doDelayTask(nextDelay3, [&]() -> uint64_t {
+        throw std::runtime_error("task 2(测试延时任务中抛异常,将导致不再继续该延时任务)");
+    });
+
+
 	sleep(2);
     tag0->cancel();
     tag1->cancel();

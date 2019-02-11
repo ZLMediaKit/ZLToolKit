@@ -45,7 +45,7 @@ int main() {
     }, nullptr);
 
     Timer::Ptr timer1 = std::make_shared<Timer>(1.0,[](){
-        DebugL << "timer1不在重复";
+        DebugL << "timer1不再重复";
         return false;
     },nullptr);
 
