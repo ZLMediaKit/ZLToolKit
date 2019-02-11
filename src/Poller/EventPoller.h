@@ -56,7 +56,7 @@ typedef enum {
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 
-class DelayTask {
+class DelayTask : public noncopyable{
 public:
 	typedef std::shared_ptr<DelayTask> Ptr;
 	DelayTask(){}
@@ -64,7 +64,8 @@ public:
 
 	/**
 	 * 取消任务
-	 * 在取消延时任务时，并不会立即销毁lambad表达式中的强引用，要在下一次tick时才会真正移除
+	 * 在跨线程取消延时任务时(取消线程和EventPoller线程不是一个线程)，
+	 * 可能会在cancel后再次最多执行一次tick事件
 	 */
 	virtual void cancel() = 0;
 
@@ -213,22 +214,28 @@ private:
 	public:
 		typedef std::shared_ptr<DelayTaskImp> Ptr;
 		template <typename FUN>
-		DelayTaskImp(FUN &&task) : _task(std::forward<FUN>(task)),_canceled(false){}
+		DelayTaskImp(FUN &&task) {
+			_strongTask = std::make_shared<function<uint64_t()> >(std::forward<FUN>(task));
+			_weakTask = _strongTask;
+		}
+
 		~DelayTaskImp(){}
+
 		void cancel() override {
-			_canceled = true;
-			//由于追求性能最大化，此处并未置空_task，
-            //这样_task中捕获的强引用要在下一次tick时才会移除
+			_strongTask = nullptr;
 		};
+
 		uint64_t operator()() const override{
-			if(_canceled){
-				return 0;
+			auto strongTask = _weakTask.lock();
+			if(strongTask){
+				return (*strongTask)();
 			}
-			return _task();
+			return 0;
 		}
 	private:
-		function<uint64_t()> _task;
-		atomic_bool _canceled;
+		std::shared_ptr<function<uint64_t()> > _strongTask;
+		std::weak_ptr<function<uint64_t()> > _weakTask;
+
 	};
 private:
     PipeWrap _pipe;
