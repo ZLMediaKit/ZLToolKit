@@ -83,6 +83,12 @@ public:
 
 	~EventPoller();
 
+    /**
+     * 获取EventPollerPool单例中的第一个EventPoller实例，
+     * 保留该接口是为了兼容老代码
+     * @return 单例
+     */
+    static EventPoller &Instance();
 
 	/**
 	 * 添加事件监听
@@ -282,6 +288,12 @@ public:
 	 * @return
 	 */
 	static EventPollerPool &Instance();
+
+    /**
+     * 获取第一个实例
+     * @return
+     */
+    EventPoller::Ptr getFirstPoller();
 
 	/**
 	 * 根据负载情况获取轻负载的实例

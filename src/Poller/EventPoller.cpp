@@ -51,6 +51,10 @@
 
 namespace toolkit {
 
+EventPoller &EventPoller::Instance() {
+    return *(EventPollerPool::Instance().getFirstPoller());
+}
+
 EventPoller::EventPoller() {
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
