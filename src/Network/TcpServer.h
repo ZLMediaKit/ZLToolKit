@@ -115,9 +115,12 @@ public:
      * 这种方式网络吞吐量最大
 	 */
 
-    TcpServer() {
+    TcpServer(const EventPoller::Ptr &poller = nullptr) {
 		_pollerPool = EventPollerPool::Instance().shared_from_this();
-		_poller =  _pollerPool->getPoller();
+		_poller = poller;
+		if(!_poller){
+			_poller =  _pollerPool->getPoller();
+		}
 		_socket = std::make_shared<Socket>(_poller);
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
 		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this));
