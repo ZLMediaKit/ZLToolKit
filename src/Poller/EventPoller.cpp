@@ -504,6 +504,10 @@ DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, const function<uint64_
 
 INSTANCE_IMP(EventPollerPool);
 
+EventPoller::Ptr EventPollerPool::getFirstPoller(){
+    return dynamic_pointer_cast<EventPoller>(_threads.front());
+}
+
 EventPoller::Ptr EventPollerPool::getPoller(){
     return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
