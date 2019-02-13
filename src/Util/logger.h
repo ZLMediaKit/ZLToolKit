@@ -127,7 +127,7 @@ public:
     int _line;
     const char *_file;
 	const char *_function;
-    timeval _tv;
+    struct timeval _tv;
 private:
     LogContext(LogLevel level,const char *file,const char *function,int line);
 };
