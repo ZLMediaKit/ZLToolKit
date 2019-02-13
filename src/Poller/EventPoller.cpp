@@ -442,28 +442,23 @@ void EventPoller::runLoopOnce(bool blocked) {
 
 
 
-uint64_t EventPoller::flushDelayTask() {
-    decltype(_delayTask) delayTask;
-    delayTask.swap(_delayTask);
-    auto now_time = Ticker::getNowTime();
+uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
+    decltype(_delayTask) taskUpdated;
 
-    for(auto it = delayTask.begin() ; it != delayTask.end() ; ++it){
-        if(it->first > now_time){
-            //后面的任务时间还未到
-            _delayTask.insert(it,delayTask.end());
-            break;
-        }
-        //已经到期的任务
+    for(auto it = _delayTask.begin() ; it != _delayTask.end() && it->first <= now_time ; it = _delayTask.erase(it)){
+        //已到期的任务
         try {
             auto next_delay = (*(it->second))();
             if(next_delay){
                 //可重复任务,更新时间截止线
-                _delayTask.emplace(next_delay + now_time,std::move(it->second));
+                taskUpdated.emplace(next_delay + now_time,std::move(it->second));
             }
         }catch (std::exception &ex){
             ErrorL << "EventPoller执行延时任务捕获到异常:" << ex.what();
         }
     }
+
+    _delayTask.insert(taskUpdated.begin(),taskUpdated.end());
 
     auto it = _delayTask.begin();
     if(it == _delayTask.end()){
@@ -486,7 +481,7 @@ uint64_t EventPoller::getMinDelay() {
         return it->first - now;
     }
     //执行已到期的任务并刷新休眠延时
-    return flushDelayTask();
+    return flushDelayTask(now);
 }
 
 DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, const function<uint64_t()> &task) {

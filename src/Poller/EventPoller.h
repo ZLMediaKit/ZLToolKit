@@ -203,7 +203,7 @@ private:
 	/**
 	 * 刷新延时任务
 	 */
-	uint64_t flushDelayTask();
+	uint64_t flushDelayTask(uint64_t now);
 
 	/**
 	 * 获取select或epoll休眠时间
