@@ -289,6 +289,13 @@ public:
 	 */
 	static EventPollerPool &Instance();
 
+	/**
+	 * 设置EventPoller个数，在EventPollerPool单例创建前有效
+	 * 在不调用此方法的情况下，默认创建thread::hardware_concurrency()个EventPoller实例
+	 * @param size  EventPoller个数，如果为0则为thread::hardware_concurrency()
+	 */
+	static void setPoolSize(int size = 0);
+
     /**
      * 获取第一个实例
      * @return
@@ -302,6 +309,7 @@ public:
 	EventPoller::Ptr getPoller();
 private:
 	EventPollerPool() ;
+	static int s_pool_size;
 };
 
 }  // namespace toolkit

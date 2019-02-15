@@ -496,6 +496,7 @@ DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, const function<uint64_
 
 
 ///////////////////////////////////////////////
+int EventPollerPool::s_pool_size = 0;
 
 INSTANCE_IMP(EventPollerPool);
 
@@ -507,11 +508,17 @@ EventPoller::Ptr EventPollerPool::getPoller(){
     return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
-EventPollerPool::EventPollerPool(): TaskExecutorGetterImp([](){
-    EventPoller::Ptr ret(new EventPoller);
-    ret->runLoopOnce(false);
-    return ret;
-}){}
+EventPollerPool::EventPollerPool(){
+    createThreads([](){
+        EventPoller::Ptr ret(new EventPoller);
+        ret->runLoopOnce(false);
+        return ret;
+    },s_pool_size ? s_pool_size : thread::hardware_concurrency());
+}
+
+void EventPollerPool::setPoolSize(int size) {
+    s_pool_size = size;
+}
 
 
 }  // namespace toolkit

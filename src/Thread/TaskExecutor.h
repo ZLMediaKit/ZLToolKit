@@ -205,18 +205,7 @@ public:
 
 class TaskExecutorGetterImp : public TaskExecutorGetter{
 public:
-    /**
-     *
-     * @tparam FUN 任务执行器创建方式
-     * @param fun 任务执行器创建lambad
-     * @param threadnum 任务执行器个数，默认cpu核心数
-     */
-    template <typename FUN>
-    TaskExecutorGetterImp(FUN &&fun,int threadnum = thread::hardware_concurrency()){
-        for (int i = 0; i < threadnum; i++) {
-            _threads.emplace_back(fun());
-        }
-    }
+    TaskExecutorGetterImp(){}
 
     ~TaskExecutorGetterImp(){}
 
@@ -286,6 +275,19 @@ public:
                 }
             }, false);
             ++index;
+        }
+    }
+protected:
+    /**
+     *
+     * @tparam FUN 任务执行器创建方式
+     * @param fun 任务执行器创建lambad
+     * @param threadnum 任务执行器个数，默认cpu核心数
+     */
+    template <typename FUN>
+    void createThreads(FUN &&fun,int threadnum = thread::hardware_concurrency()){
+        for (int i = 0; i < threadnum; i++) {
+            _threads.emplace_back(fun());
         }
     }
 protected:
