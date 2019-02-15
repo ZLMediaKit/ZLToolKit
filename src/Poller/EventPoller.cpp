@@ -509,11 +509,13 @@ EventPoller::Ptr EventPollerPool::getPoller(){
 }
 
 EventPollerPool::EventPollerPool(){
+    auto size = s_pool_size ? s_pool_size : thread::hardware_concurrency();
     createThreads([](){
         EventPoller::Ptr ret(new EventPoller);
         ret->runLoopOnce(false);
         return ret;
-    },s_pool_size ? s_pool_size : thread::hardware_concurrency());
+    },size);
+    InfoL << "创建EventPoller个数:" << size;
 }
 
 void EventPollerPool::setPoolSize(int size) {
