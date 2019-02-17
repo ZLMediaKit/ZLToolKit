@@ -169,7 +169,7 @@ private:
 	 * 执行事件轮询
 	 * @param blocked 是否用执行该接口的线程执行轮询
 	 */
-	void runLoopOnce(bool blocked = true);
+	void runLoop(bool blocked = true);
 
 	/**
 	 * 内部管道事件，用于唤醒轮询线程用
@@ -265,7 +265,6 @@ private:
 #endif //HAS_EPOLL
 
     mutex _mtx_runing;
-    bool _loopRunned = false;
 
     List<TaskExecutor::Task> _list_task;
     multimap<uint64_t,DelayTaskImp::Ptr > _delayTask;

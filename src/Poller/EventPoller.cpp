@@ -282,27 +282,17 @@ void EventPoller::wait() {
 }
 
 
-void EventPoller::runLoopOnce(bool blocked) {
+void EventPoller::runLoop(bool blocked) {
     if (blocked) {
-        onceToken token([this](){
-            //获取锁
-            _mtx_runing.lock();
-        },[this](){
-            //释放锁并标记已经执行过runLoop
-            _loopRunned = true;
-            _mtx_runing.unlock();
-        });
-
-        if(_loopRunned){
-            //runLoop已经被执行过了，不能执行两次
-            return;
-        }
+        lock_guard<mutex> lck(_mtx_runing);
         _mainThreadId = this_thread::get_id();
         _sem_run_started.post();
         ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
+
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
-        while (true) {
+        bool run_flag = true;
+        while (run_flag) {
             _minDelay = getMinDelay();
             startSleep();//用于统计当前线程负载情况
             int ret = epoll_wait(_epoll_fd, events, EPOLL_SIZE, _minDelay ? _minDelay : -1);
@@ -316,11 +306,13 @@ void EventPoller::runLoopOnce(bool blocked) {
                         //内部管道事件，主要是其他线程切换到本线程执行的任务事件
                         if (event & Event_Error) {
                             WarnL << "Poller 异常退出监听:" << get_uv_errmsg();
-                            return;
+                            run_flag = false;
+                            continue;
                         }
                         if (!onPipeEvent()) {
                             //收到退出事件
-                            return;
+                            run_flag = false;
+                            continue;
                         }
                         continue;
                     }
@@ -389,13 +381,6 @@ void EventPoller::runLoopOnce(bool blocked) {
             sleepWakeUp();//用于统计当前线程负载情况
 
             if(ret > 0){
-                if (Set_read.isSet(_pipe.readFD())) {
-                    //内部管道事件，主要是其他线程切换到本线程执行的任务事件
-                    if (!onPipeEvent()) {
-                        return;
-                    }
-                }
-
                 {
                     //收集select事件类型
                     lock_guard<mutex> lck(_mtx_event_map);
@@ -424,6 +409,13 @@ void EventPoller::runLoopOnce(bool blocked) {
                     }
                 });
                 listCB.clear();
+
+                if (Set_read.isSet(_pipe.readFD())) {
+                    //内部管道事件，主要是其他线程切换到本线程执行的任务事件
+                    if (!onPipeEvent()) {
+                        break;
+                    }
+                }
                 continue;
             }
 
@@ -435,7 +427,7 @@ void EventPoller::runLoopOnce(bool blocked) {
         }
 #endif //HAS_EPOLL
     }else{
-        _loopThread = new thread(&EventPoller::runLoopOnce, this, true);
+        _loopThread = new thread(&EventPoller::runLoop, this, true);
         _sem_run_started.wait();
     }
 }
@@ -512,7 +504,7 @@ EventPollerPool::EventPollerPool(){
     auto size = s_pool_size ? s_pool_size : thread::hardware_concurrency();
     createThreads([](){
         EventPoller::Ptr ret(new EventPoller);
-        ret->runLoopOnce(false);
+        ret->runLoop(false);
         return ret;
     },size);
     InfoL << "创建EventPoller个数:" << size;
