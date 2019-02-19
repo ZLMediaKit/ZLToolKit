@@ -884,17 +884,17 @@ bool SocketHelper::isSocketBusy() const{
     return _sock->isSocketBusy();
 }
 
-bool SocketHelper::async(const TaskExecutor::Task &task, bool may_sync) {
-	return _poller->async(task,may_sync);
+bool SocketHelper::async(TaskExecutor::Task &&task, bool may_sync) {
+	return _poller->async(std::move(task),may_sync);
 };
-bool SocketHelper::async_first(const TaskExecutor::Task &task, bool may_sync) {
-	return _poller->async_first(task,may_sync);
+bool SocketHelper::async_first(TaskExecutor::Task &&task, bool may_sync) {
+	return _poller->async_first(std::move(task),may_sync);
 };
-bool SocketHelper::sync(const TaskExecutor::Task &task) {
-	return _poller->sync(task);
+bool SocketHelper::sync(TaskExecutor::Task &&task) {
+	return _poller->sync(std::move(task));
 };
-bool SocketHelper::sync_first(const TaskExecutor::Task &task) {
-	return _poller->sync_first(task);
+bool SocketHelper::sync_first(TaskExecutor::Task &&task) {
+	return _poller->sync_first(std::move(task));
 }
 
 }  // namespace toolkit

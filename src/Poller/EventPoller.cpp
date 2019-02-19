@@ -189,14 +189,14 @@ int EventPoller::modifyEvent(int fd, int event) {
 #endif //HAS_EPOLL
 }
 
-bool EventPoller::sync(const TaskExecutor::Task &task) {
-    return sync_l(task, false);
+bool EventPoller::sync(TaskExecutor::Task &&task) {
+    return sync_l(std::move(task), false);
 }
 
-bool EventPoller::sync_first(const TaskExecutor::Task &task) {
-    return sync_l(task, true);
+bool EventPoller::sync_first(TaskExecutor::Task &&task) {
+    return sync_l(std::move(task), true);
 }
-bool EventPoller::sync_l(const TaskExecutor::Task &task,bool first){
+bool EventPoller::sync_l(TaskExecutor::Task &&task,bool first){
     TimeTicker();
     if (!task) {
         return false;
@@ -210,14 +210,14 @@ bool EventPoller::sync_l(const TaskExecutor::Task &task,bool first){
     return true;
 }
 
-bool EventPoller::async(const TaskExecutor::Task &task, bool may_sync) {
-    return async_l(task,may_sync, false);
+bool EventPoller::async(TaskExecutor::Task &&task, bool may_sync) {
+    return async_l(std::move(task),may_sync, false);
 }
-bool EventPoller::async_first(const TaskExecutor::Task &task, bool may_sync) {
-    return async_l(task,may_sync, true);
+bool EventPoller::async_first(TaskExecutor::Task &&task, bool may_sync) {
+    return async_l(std::move(task),may_sync, true);
 }
 
-bool EventPoller::async_l(const TaskExecutor::Task &task,bool may_sync, bool first) {
+bool EventPoller::async_l(TaskExecutor::Task &&task,bool may_sync, bool first) {
     TimeTicker();
     if (!task) {
         return false;
@@ -230,9 +230,9 @@ bool EventPoller::async_l(const TaskExecutor::Task &task,bool may_sync, bool fir
     {
         lock_guard<mutex> lck(_mtx_task);
         if(first){
-            _list_task.emplace_front(task);
+            _list_task.emplace_front(std::move(task));
         }else{
-            _list_task.emplace_back(task);
+            _list_task.emplace_back(std::move(task));
         }
     }
     //写数据到管道,唤醒主线程
@@ -467,8 +467,8 @@ uint64_t EventPoller::getMinDelay() {
     return flushDelayTask(now);
 }
 
-DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, const function<uint64_t()> &task) {
-    DelayTaskImp::Ptr ret = std::make_shared<DelayTaskImp>(task);
+DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> &&task) {
+    DelayTaskImp::Ptr ret = std::make_shared<DelayTaskImp>(std::move(task));
     auto time_line = Ticker::getNowTime() + delayMS;
     async_first([time_line,ret,this](){
         //异步执行的目的是刷新select或epoll的休眠时间

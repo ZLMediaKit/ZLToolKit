@@ -492,10 +492,10 @@ public:
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
 
-    bool async(const TaskExecutor::Task &task, bool may_sync = true);
-    bool async_first(const TaskExecutor::Task &task, bool may_sync = true);
-    bool sync(const TaskExecutor::Task &task) ;
-    bool sync_first(const TaskExecutor::Task &task);
+    bool async(TaskExecutor::Task &&task, bool may_sync = true);
+    bool async_first(TaskExecutor::Task &&task, bool may_sync = true);
+    bool sync(TaskExecutor::Task &&task) ;
+    bool sync_first(TaskExecutor::Task &&task);
 protected:
     int _flags = SOCKET_DEFAULE_FLAGS;
     Socket::Ptr _sock;

@@ -160,7 +160,7 @@ public:
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
      */
-    virtual bool async(const Task &task, bool may_sync = true) = 0;
+    virtual bool async(Task &&task, bool may_sync = true) = 0;
 
     /**
      * 最高优先级方式异步执行任务
@@ -168,8 +168,8 @@ public:
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
      */
-    virtual bool async_first(const Task &task, bool may_sync = true) {
-        return async(task,may_sync);
+    virtual bool async_first(Task &&task, bool may_sync = true) {
+        return async(std::move(task),may_sync);
     };
 
     /**
@@ -177,15 +177,15 @@ public:
      * @param task
      * @return
      */
-    virtual bool sync(const Task &task) = 0;
+    virtual bool sync(Task &&task) = 0;
 
     /**
      * 最高优先级方式同步执行任务
      * @param task
      * @return
      */
-    virtual bool sync_first(const Task &task) {
-        return sync(task);
+    virtual bool sync_first(Task &&task) {
+        return sync(std::move(task));
     };
 
 };

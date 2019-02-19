@@ -122,7 +122,7 @@ public:
 	 * @param may_sync 如果调用该函数的线程就是本对象的轮询线程，那么may_sync为true时就是同步执行任务
 	 * @return 是否成功，一定会返回true
 	 */
-	bool async(const TaskExecutor::Task &task, bool may_sync = true) override ;
+	bool async(TaskExecutor::Task &&task, bool may_sync = true) override ;
 
 	/**
 	 * 同async方法，不过是把任务打入任务列队头，这样任务优先级最高
@@ -130,21 +130,21 @@ public:
 	 * @param may_sync 如果调用该函数的线程就是本对象的轮询线程，那么may_sync为true时就是同步执行任务
 	 * @return 是否成功，一定会返回true
 	 */
-    bool async_first(const TaskExecutor::Task &task, bool may_sync = true) override ;
+    bool async_first(TaskExecutor::Task &&task, bool may_sync = true) override ;
 
     /**
      * 在轮询线程中执行任务并且等待其执行结束
      * @param task 任务
      * @return 是否成功，一定会返回true
      */
-	bool sync(const TaskExecutor::Task &task) override;
+	bool sync(TaskExecutor::Task &&task) override;
 
 	/**
     * 同sync方法，不过是把任务打入任务列队头，这样任务优先级最高
     * @param task 任务
     * @return 是否成功，一定会返回true
     */
-    bool sync_first(const TaskExecutor::Task &task) override;
+    bool sync_first(TaskExecutor::Task &&task) override;
 
 	/**
 	 * 判断执行该接口的线程是否为本对象的轮询线程
@@ -158,7 +158,7 @@ public:
 	 * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时，如果任务中抛异常，那么默认不重复任务
 	 * @return 可取消的任务标签
 	 */
-	DelayTask::Ptr doDelayTask(uint64_t delayMS, const function<uint64_t()> &task);
+	DelayTask::Ptr doDelayTask(uint64_t delayMS, function<uint64_t()> &&task);
 private:
 	/**
 	 * 本对象只允许在EventPollerPool中构造
@@ -184,8 +184,8 @@ private:
 	 * @param first
 	 * @return
 	 */
-    bool async_l(const TaskExecutor::Task &task, bool may_sync = true,bool first = false) ;
-    bool sync_l(const TaskExecutor::Task &task,bool first = false);
+    bool async_l(TaskExecutor::Task &&task, bool may_sync = true,bool first = false) ;
+    bool sync_l(TaskExecutor::Task &&task,bool first = false);
 
 	/**
      * 阻塞当前线程，等待轮询线程退出;

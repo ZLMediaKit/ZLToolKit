@@ -62,23 +62,23 @@ public:
 	}
 
 	//把任务打入线程池并异步执行
-	bool async(const Task &task,bool may_sync = true) override {
+	bool async(Task &&task,bool may_sync = true) override {
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			_queue.push_task(task);
+			_queue.push_task(std::move(task));
 		}
 		return true;
 	}
-	bool async_first(const Task &task,bool may_sync = true) override{
+	bool async_first(Task &&task,bool may_sync = true) override{
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
 		} else {
-			_queue.push_task_first(task);
+			_queue.push_task_first(std::move(task));
 		}
 		return true;
 	}
-	bool sync(const Task &task) override{
+	bool sync(Task &&task) override{
 		semaphore sem;
 		bool flag = async([&](){
 			task();
@@ -89,7 +89,7 @@ public:
 		}
 		return flag;
 	}
-	bool sync_first(const Task &task) override{
+	bool sync_first(Task &&task) override{
 		semaphore sem;
 		bool flag = async_first([&]() {
 			task();
