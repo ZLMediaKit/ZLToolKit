@@ -99,7 +99,7 @@ EventPoller::~EventPoller() {
     }
 #endif //defined(HAS_EPOLL)
     //退出前清理管道中的数据
-    _mainThreadId = this_thread::get_id();
+    _loopThreadId = this_thread::get_id();
     onPipeEvent();
     InfoL << this;
 }
@@ -122,7 +122,6 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
     return ret;
 #else
     if (isCurrentThread()) {
-        lock_guard<mutex> lck(_mtx_event_map);
         Poll_Record::Ptr record(new Poll_Record);
         record->event = event;
         record->callBack = cb;
@@ -153,7 +152,6 @@ int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
     return success ? 0 : -1;
 #else
     if (isCurrentThread()) {
-        lock_guard<mutex> lck(_mtx_event_map);
         if (_event_map.erase(fd)) {
             delCb(true);
         }else {
@@ -178,7 +176,6 @@ int EventPoller::modifyEvent(int fd, int event) {
     return epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 #else
     if (isCurrentThread()) {
-        lock_guard<mutex> lck(_mtx_event_map);
         auto it = _event_map.find(fd);
         if (it != _event_map.end()) {
             it->second->event = event;
@@ -244,7 +241,7 @@ bool EventPoller::async_l(const TaskExecutor::Task &task,bool may_sync, bool fir
 }
 
 bool EventPoller::isCurrentThread() {
-    return _mainThreadId == this_thread::get_id();
+    return _loopThreadId == this_thread::get_id();
 }
 
 inline bool EventPoller::onPipeEvent() {
@@ -285,17 +282,17 @@ void EventPoller::wait() {
 void EventPoller::runLoop(bool blocked) {
     if (blocked) {
         lock_guard<mutex> lck(_mtx_runing);
-        _mainThreadId = this_thread::get_id();
+        _loopThreadId = this_thread::get_id();
         _sem_run_started.post();
         ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
-
+        uint64_t minDelay;
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         bool run_flag = true;
         while (run_flag) {
-            _minDelay = getMinDelay();
+            minDelay = getMinDelay();
             startSleep();//用于统计当前线程负载情况
-            int ret = epoll_wait(_epoll_fd, events, EPOLL_SIZE, _minDelay ? _minDelay : -1);
+            int ret = epoll_wait(_epoll_fd, events, EPOLL_SIZE, minDelay ? minDelay : -1);
             sleepWakeUp();//用于统计当前线程负载情况
             if(ret > 0){
                 for (int i = 0; i < ret; ++i) {
@@ -355,52 +352,48 @@ void EventPoller::runLoop(bool blocked) {
             Set_err.fdZero();
             Set_read.fdSet(_pipe.readFD()); //监听管道可读事件
             maxFd = _pipe.readFD();
-            {
-                lock_guard<mutex> lck(_mtx_event_map);
-                for (auto &pr : _event_map) {
-                    if (pr.first > maxFd) {
-                        maxFd = pr.first;
-                    }
-                    if (pr.second->event & Event_Read) {
-                        Set_read.fdSet(pr.first);//监听管道可读事件
-                    }
-                    if (pr.second->event & Event_Write) {
-                        Set_write.fdSet(pr.first);//监听管道可写事件
-                    }
-                    if (pr.second->event & Event_Error) {
-                        Set_err.fdSet(pr.first);//监听管道错误事件
-                    }
+
+            for (auto &pr : _event_map) {
+                if (pr.first > maxFd) {
+                    maxFd = pr.first;
+                }
+                if (pr.second->event & Event_Read) {
+                    Set_read.fdSet(pr.first);//监听管道可读事件
+                }
+                if (pr.second->event & Event_Write) {
+                    Set_write.fdSet(pr.first);//监听管道可写事件
+                }
+                if (pr.second->event & Event_Error) {
+                    Set_err.fdSet(pr.first);//监听管道错误事件
                 }
             }
 
-            _minDelay = getMinDelay();
-            tv.tv_sec = _minDelay / 1000;
-            tv.tv_usec = 1000 * (_minDelay % 1000);
+            minDelay = getMinDelay();
+            tv.tv_sec = minDelay / 1000;
+            tv.tv_usec = 1000 * (minDelay % 1000);
             startSleep();//用于统计当前线程负载情况
-            ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, _minDelay ? &tv: NULL);
+            ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, minDelay ? &tv: NULL);
             sleepWakeUp();//用于统计当前线程负载情况
 
             if(ret > 0){
-                {
-                    //收集select事件类型
-                    lock_guard<mutex> lck(_mtx_event_map);
-                    for (auto &pr : _event_map) {
-                        int event = 0;
-                        if (Set_read.isSet(pr.first)) {
-                            event |= Event_Read;
-                        }
-                        if (Set_write.isSet(pr.first)) {
-                            event |= Event_Write;
-                        }
-                        if (Set_err.isSet(pr.first)) {
-                            event |= Event_Error;
-                        }
-                        if (event != 0) {
-                            pr.second->attach = event;
-                            listCB.emplace_back(pr.second);
-                        }
+                //收集select事件类型
+                for (auto &pr : _event_map) {
+                    int event = 0;
+                    if (Set_read.isSet(pr.first)) {
+                        event |= Event_Read;
+                    }
+                    if (Set_write.isSet(pr.first)) {
+                        event |= Event_Write;
+                    }
+                    if (Set_err.isSet(pr.first)) {
+                        event |= Event_Error;
+                    }
+                    if (event != 0) {
+                        pr.second->attach = event;
+                        listCB.emplace_back(pr.second);
                     }
                 }
+
                 listCB.for_each([](Poll_Record::Ptr &record){
                     try{
                         record->callBack(record->attach);
@@ -431,8 +424,6 @@ void EventPoller::runLoop(bool blocked) {
         _sem_run_started.wait();
     }
 }
-
-
 
 uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
     decltype(_delayTask) taskUpdated;

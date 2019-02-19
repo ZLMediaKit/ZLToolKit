@@ -244,17 +244,27 @@ private:
 
 	};
 private:
-    PipeWrap _pipe;
-
+    //正在运行事件循环时该锁处于被锁定状态
+    mutex _mtx_runing;
+    //执行事件循环的线程
 	thread *_loopThread = nullptr;
+	//通知事件循环的线程已启动
 	semaphore _sem_run_started;
-	thread::id _mainThreadId;
+	//事件循环的线程id
+	thread::id _loopThreadId;
+	//内部事件管道
+    PipeWrap _pipe;
+    //从其他线程切换过来的任务
+    List<TaskExecutor::Task> _list_task;
+    mutex _mtx_task;
 
-    mutex _mtx_event_map;
 #if defined(HAS_EPOLL)
+    //epoll相关
 	int _epoll_fd = -1;
 	unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
+    mutex _mtx_event_map;
 #else
+    //select相关
 	struct Poll_Record{
 		typedef std::shared_ptr<Poll_Record> Ptr;
 		int event;
@@ -264,13 +274,9 @@ private:
 	unordered_map<int, Poll_Record::Ptr > _event_map;
 #endif //HAS_EPOLL
 
-    mutex _mtx_runing;
-
-    List<TaskExecutor::Task> _list_task;
+    //定时器相关
     multimap<uint64_t,DelayTaskImp::Ptr > _delayTask;
-	uint64_t _minDelay = 0;
-
-    mutex _mtx_task;
+	//保持日志可用
     Logger::Ptr _logger;
 };
 
