@@ -353,6 +353,11 @@ void EventPoller::runLoop(bool blocked) {
             Set_read.fdSet(_pipe.readFD()); //监听管道可读事件
             maxFd = _pipe.readFD();
 
+            //定时器事件中可能操作_event_map
+            minDelay = getMinDelay();
+            tv.tv_sec = minDelay / 1000;
+            tv.tv_usec = 1000 * (minDelay % 1000);
+
             for (auto &pr : _event_map) {
                 if (pr.first > maxFd) {
                     maxFd = pr.first;
@@ -368,9 +373,6 @@ void EventPoller::runLoop(bool blocked) {
                 }
             }
 
-            minDelay = getMinDelay();
-            tv.tv_sec = minDelay / 1000;
-            tv.tv_usec = 1000 * (minDelay % 1000);
             startSleep();//用于统计当前线程负载情况
             ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, minDelay ? &tv: NULL);
             sleepWakeUp();//用于统计当前线程负载情况
