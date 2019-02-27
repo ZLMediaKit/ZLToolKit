@@ -186,16 +186,20 @@ public:
 		return ret;
 	}
 
+#if !defined(_WIN32)
 	template<typename ...Args>
 	static string queryString(const char *fmt, Args && ...arg) {
 		char *ptr_out = NULL;
 		asprintf(&ptr_out, fmt, arg...);
-		string ret(ptr_out);
 		if (ptr_out) {
+			string ret(ptr_out);
 			free(ptr_out);
+			return ret;
 		}
-		return ret;
+		return "";
 	}
+#endif //defined(_WIN32)
+
     template<typename ...Args>
     static string queryString(const string &fmt, Args && ...args) {
         return queryString(fmt.data(),std::forward<Args>(args)...);
