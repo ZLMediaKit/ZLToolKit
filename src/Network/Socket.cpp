@@ -176,7 +176,9 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 			return false;
 		}
         *timeOuted = true;
-		connectCB(SockException(Err_timeout, uv_strerror(UV_ETIMEDOUT)));
+		SockException err(Err_timeout, uv_strerror(UV_ETIMEDOUT));
+		strongSelf->emitErr(err);
+		connectCB(err);
 		return false;
 	},_poller, false);
 
