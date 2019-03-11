@@ -30,6 +30,7 @@
 #include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
 #include "Thread/semaphore.h"
+#include "Thread/ThreadPool.h"
 #include "Poller/EventPoller.h"
 
 using namespace std;
@@ -108,49 +109,77 @@ void Socket::setOnBeforeAccept(const onBeforeAcceptCB &cb){
 		};
 	}
 }
-void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec,const char *localIp,uint16_t localPort) {
-	closeSock();
-	int sock = SockUtil::connect(url.data(), port, true, localIp, localPort);
-	if (sock < 0) {
-		connectCB(SockException(Err_other, get_uv_errmsg(true)));
-		return;
-	}
-	auto sockFD = makeSock(sock);
-	weak_ptr<Socket> weakSelf = shared_from_this();
-	weak_ptr<SockFD> weakSock = sockFD;
-	shared_ptr<bool> bTriggered = std::make_shared<bool>(false);//回调被触发过
 
-	int result  = _poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,bTriggered](int event) {
-		auto strongSelf = weakSelf.lock();
-		auto strongSock = weakSock.lock();
-		if(!strongSelf || !strongSock ||  *bTriggered) {
-			return;
-		}
-		*bTriggered = true;
-		strongSelf->onConnected(strongSock,connectCB);
+void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec,const char *localIp,uint16_t localPort) {
+	//重置当前socket
+    closeSock();
+
+	auto poller = _poller;
+    string strLocalIp = localIp;
+    weak_ptr<Socket> weakSelf = shared_from_this();
+	//是否已经触发连接超时回调
+    shared_ptr<bool> timeOuted = std::make_shared<bool>(false);
+	//dns解析线程个数跟cpu个数一致，线程优先级最低
+	static ThreadPool s_dnsThreadPool(thread::hardware_concurrency() , ThreadPool::PRIORITY_LOWEST, true);
+
+    //DNS解析放在后台线程执行
+	s_dnsThreadPool.async([weakSelf,poller,connectCB,timeOuted,url,port,strLocalIp,localPort](){
+		//开始发起连接服务器，要等待可写事件才表明连接服务器成功
+		int sock = SockUtil::connect(url.data(), port, true, strLocalIp.data(), localPort);
+		poller->async([weakSelf,connectCB,timeOuted,sock](){
+			auto strongSelf = weakSelf.lock();
+			if(!strongSelf && *timeOuted ){
+                //本对象已经销毁或已经超时回调
+                if(sock != -1){
+                    ::close(sock);
+                }
+                return;
+			}
+
+			if(sock == -1){
+                //发起连接服务器失败，一般都是dns解析失败导致
+                connectCB(SockException(Err_dns, get_uv_errmsg(true)));
+                //取消超时定时器
+                strongSelf->_conTimer.reset();
+                return;
+			}
+
+			auto sockFD = strongSelf->makeSock(sock);
+            weak_ptr<SockFD> weakSock = sockFD;
+            //监听该socket是否可写，可写表明已经连接服务器成功
+			int result  = strongSelf->_poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,timeOuted](int event) {
+                auto strongSelf = weakSelf.lock();
+                auto strongSock = weakSock.lock();
+                if(!strongSelf || !strongSock || *timeOuted) {
+                	//自己或该Socket已经被销毁或已经触发超时回调
+                    return;
+                }
+                //socket可写事件，说明已经连接服务器成功
+                strongSelf->onConnected(strongSock,connectCB);
+			});
+			if(result == -1){
+				WarnL << "开始Poll监听失败";
+				connectCB(SockException(Err_other,"开始Poll监听失败"));
+				strongSelf->_conTimer.reset();
+				return;
+			}
+			//保存fd
+			lock_guard<mutex> lck(strongSelf->_mtx_sockFd);
+			strongSelf->_sockFd = sockFD;
+		});
 	});
 
-	if(result == -1){
-		WarnL << "开始Poll监听失败";
-		SockException err(Err_other,"开始Poll监听失败");
-		connectCB(err);
-		return;
-	}
-
-	_conTimer = std::make_shared<Timer>(timeoutSec, [weakSelf,weakSock,connectCB,bTriggered]() {
+	_conTimer = std::make_shared<Timer>(timeoutSec, [weakSelf,connectCB,timeOuted]() {
 		auto strongSelf = weakSelf.lock();
-		auto strongSock = weakSock.lock();
-		if(!strongSelf || !strongSock || *bTriggered) {
+		if(!strongSelf) {
+			//自己已经销毁
 			return false;
 		}
-		*bTriggered = true;
-		SockException err(Err_timeout, uv_strerror(UV_ETIMEDOUT));
-		strongSelf->emitErr(err);
-		connectCB(err);
+        *timeOuted = true;
+		connectCB(SockException(Err_timeout, uv_strerror(UV_ETIMEDOUT)));
 		return false;
-	},_poller);
-	lock_guard<mutex> lck(_mtx_sockFd);
-	_sockFd = sockFD;
+	},_poller, false);
+
 }
 
 void Socket::onConnected(const SockFD::Ptr &pSock,const onErrCB &connectCB) {
