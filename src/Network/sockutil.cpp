@@ -321,7 +321,7 @@ string SockUtil::get_local_ip(int fd) {
 			return string(inet_ntoa(addr_v4->sin_addr));
 		}
 	}
-	return "0.0.0.0";
+	return "";
 }
 
 
@@ -515,7 +515,7 @@ string SockUtil::get_peer_ip(int fd) {
 			return string(inet_ntoa(addr_v4->sin_addr));
 		}
 	}
-	return "0.0.0.0";
+	return "";
 }
 
 int SockUtil::bindSock(int sockFd,const char *ifr_ip,uint16_t port){
