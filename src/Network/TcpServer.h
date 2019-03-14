@@ -161,7 +161,6 @@ public:
 			}
 			serverRef->cloneFrom(*this);
 		});
-        _cloned = false;
 	}
 
 	uint16_t getPort(){
@@ -273,6 +272,7 @@ private:
 			return true;
 		},_poller);
 		this->mINI::operator=(that);
+        _cloned = true;
 	}
 
 	template <typename SessionType>
@@ -303,7 +303,7 @@ private:
 	unordered_map<string, TcpSessionHelper::Ptr > _sessionMap;
     function<TcpSessionHelper::Ptr(const weak_ptr<TcpServer> &server,const Socket::Ptr &)> _sessionMaker;
 	unordered_map<EventPoller *,Ptr> _clonedServer;
-    bool _cloned = true;
+    bool _cloned = false;
 };
 
 } /* namespace toolkit */
