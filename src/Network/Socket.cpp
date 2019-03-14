@@ -709,6 +709,22 @@ bool Socket::isSocketBusy() const{
 const EventPoller::Ptr &Socket::getPoller() const{
 	return _poller;
 }
+
+void Socket::cloneFrom(const Socket &other){
+	closeSock();
+	SockFD::Ptr fd;
+	{
+		lock_guard<mutex> lck(other._mtx_sockFd);
+		if(!other._sockFd){
+			throw invalid_argument("Socket::cloneFrom sockfd of src socket is null!");
+		}
+		fd = std::make_shared<SockFD>(*(other._sockFd), _poller);
+	}
+	attachEvent(fd, false);
+	lock_guard<mutex> lck(_mtx_sockFd);
+	_sockFd = fd;
+}
+
 ///////////////Packet/////////////////////
 void Packet::updateStamp(){
     _stamp = (uint32_t)time(NULL);

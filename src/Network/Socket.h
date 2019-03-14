@@ -126,6 +126,40 @@ private:
     int _customCode = 0;
 };
 
+
+class SockNum{
+public:
+    typedef std::shared_ptr<SockNum> Ptr;
+    SockNum(int fd){
+        _fd = fd;
+    }
+    ~SockNum(){
+#if defined (OS_IPHONE)
+        unsetSocketOfIOS(_sock);
+#endif //OS_IPHONE
+        ::shutdown(_fd, SHUT_RDWR);
+        ::close(_fd);
+    }
+
+    int rawFd() const{
+        return _fd;
+    }
+
+    void setConnected(){
+#if defined (OS_IPHONE)
+        setSocketOfIOS(_sock);
+#endif //OS_IPHONE
+    }
+private:
+    int _fd;
+#if defined (OS_IPHONE)
+    void *readStream=NULL;
+    void *writeStream=NULL;
+    bool setSocketOfIOS(int socket);
+    void unsetSocketOfIOS(int socket);
+#endif //OS_IPHONE
+};
+
 //socket 文件描述符的包装
 //在析构时自动溢出监听并close套接字
 //防止描述符溢出
@@ -133,37 +167,42 @@ class SockFD : public noncopyable
 {
 public:
 	typedef std::shared_ptr<SockFD> Ptr;
-	SockFD(int sock,const EventPoller::Ptr &poller){
-		_sock = sock;
+	/**
+	 * 创建一个fd对象
+	 * @param num 文件描述符，int数字
+	 * @param poller 事件监听器
+	 */
+	SockFD(int num,const EventPoller::Ptr &poller){
+        _num = std::make_shared<SockNum>(num);
         _poller = poller;
 	}
+
+	/**
+	 * 复制一个fd对象
+	 * @param that 源对象
+	 * @param poller 事件监听器
+	 */
+    SockFD(const SockFD &that,const EventPoller::Ptr &poller){
+        _num = that._num;
+        _poller = poller;
+        if(_poller == that._poller){
+            throw invalid_argument("copy a SockFD with some poller!");
+        }
+    }
+
 	~SockFD(){
-        ::shutdown(_sock, SHUT_RDWR);
-#if defined (OS_IPHONE)
-        unsetSocketOfIOS(_sock);
-#endif //OS_IPHONE
-        int fd =  _sock;
-        _poller->delEvent(fd,[fd](bool){
-            close(fd);
-        });
+	    auto num = _num;
+        _poller->delEvent(_num->rawFd(),[num](bool){});
 	}
 	void setConnected(){
-#if defined (OS_IPHONE)
-		setSocketOfIOS(_sock);
-#endif //OS_IPHONE
+        _num->setConnected();
 	}
 	int rawFd() const{
-		return _sock;
+		return _num->rawFd();
 	}
 private:
-	int _sock;
+    SockNum::Ptr _num;
     EventPoller::Ptr _poller;
-#if defined (OS_IPHONE)
-	void *readStream=NULL;
-	void *writeStream=NULL;
-	bool setSocketOfIOS(int socket);
-	void unsetSocketOfIOS(int socket);
-#endif //OS_IPHONE
 };
 
 //缓存基类
@@ -387,7 +426,12 @@ public:
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
 
+    //获取poller对象
     const EventPoller::Ptr &getPoller() const;
+
+    //从另外一个Socket克隆
+    //目的是一个socket可以被多个poller对象监听，提高性能
+    void cloneFrom(const Socket &other);
 private:
     void closeSock();
     SockFD::Ptr setPeerSock(int fd);

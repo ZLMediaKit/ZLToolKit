@@ -127,7 +127,6 @@ public:
     }
 
 	~TcpServer() {
-		TraceL << "start clean tcp server...";
 		_timer.reset();
         //先关闭socket监听，防止收到新的连接
 		_socket.reset();
@@ -138,46 +137,39 @@ public:
             SessionMap::Instance().remove(pr.first);
 		}
 		_sessionMap.clear();
-		TraceL << "clean tcp server completed!";
+		_clonedServer.clear();
 	}
 
     //开始监听服务器
     template <typename SessionType>
 	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
-        //TcpSession创建器，通过它创建不同类型的服务器
-		std::weak_ptr<TcpServer> weakSelf = shared_from_this();
-        _sessionMaker = [weakSelf](const Socket::Ptr &sock){
-			return std::make_shared<TcpSessionHelper>(weakSelf,std::make_shared<SessionType>(sock));
-        };
-
-        if (!_socket->listen(port, host.c_str(), backlog)) {
-            //创建tcp监听失败，可能是由于端口占用或权限问题
-			string err = (StrPrinter << "listen on " << host << ":" << port << " failed:" << get_uv_errmsg(true));
-			throw std::runtime_error(err);
-		}
-
-        //新建一个定时器定时管理这些tcp会话
-		_timer = std::make_shared<Timer>(2, [this]()->bool {
-			this->onManagerSession();
-			return true;
-		},_poller);
-		InfoL << "TCP Server listening on " << host << ":" << port;
+		start_l<SessionType>(port,host,backlog);
+		_pollerPool->for_each([&](const TaskExecutor::Ptr &executor){
+			EventPoller::Ptr poller = dynamic_pointer_cast<EventPoller>(executor);
+			if(poller == _poller || !poller){
+				return;
+			}
+			TcpServer::Ptr server = std::make_shared<TcpServer>(poller);
+			server->cloneFrom(*this);
+			_clonedServer.emplace_back(server);
+		});
 	}
-	 uint16_t getPort(){
-		 if(!_socket){
-			 return 0;
-		 }
-		 return _socket->get_local_port();
-	 }
 
+	uint16_t getPort(){
+		if(!_socket){
+			return 0;
+		}
+		return _socket->get_local_port();
+	}
 protected:
 	virtual Socket::Ptr onBeforeAcceptConnection(){
 		return std::make_shared<Socket>(_pollerPool->getPoller());
     }
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr & sock) {
+		weak_ptr<TcpServer> weakSelf = shared_from_this();
         //创建一个TcpSession;这里实现创建不同的服务会话实例
-		auto sessionHelper = _sessionMaker(sock);
+		auto sessionHelper = _sessionMaker(weakSelf,sock);
 		auto &session = sessionHelper->session();
         //把本服务器的配置传递给TcpSession
         session->attachServer(*this);
@@ -207,7 +199,7 @@ protected:
 			strongSession->onRecv(buf);
 		});
 
-		weak_ptr<TcpServer> weakSelf = shared_from_this();
+
 		//会话接收到错误事件
 		sock->setOnErr([weakSelf,weakSession,sessionId](const SockException &err){
 		    //在本函数作用域结束时移除会话对象
@@ -260,13 +252,48 @@ private:
     void onAcceptConnection_l(const Socket::Ptr & sock) {
         onAcceptConnection(sock);
     }
+
+	void cloneFrom(const TcpServer &that){
+		if(!that._socket){
+			throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
+		}
+		_sessionMaker = that._sessionMaker;
+		_socket->cloneFrom(*(that._socket));
+		_timer = std::make_shared<Timer>(2, [this]()->bool {
+			this->onManagerSession();
+			return true;
+		},_poller);
+		this->mINI::operator=(that);
+	}
+
+	template <typename SessionType>
+	void start_l(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
+		//TcpSession创建器，通过它创建不同类型的服务器
+		_sessionMaker = [](const weak_ptr<TcpServer> &server,const Socket::Ptr &sock){
+			return std::make_shared<TcpSessionHelper>(server,std::make_shared<SessionType>(sock));
+		};
+
+		if (!_socket->listen(port, host.c_str(), backlog)) {
+			//创建tcp监听失败，可能是由于端口占用或权限问题
+			string err = (StrPrinter << "listen on " << host << ":" << port << " failed:" << get_uv_errmsg(true));
+			throw std::runtime_error(err);
+		}
+
+		//新建一个定时器定时管理这些tcp会话
+		_timer = std::make_shared<Timer>(2, [this]()->bool {
+			this->onManagerSession();
+			return true;
+		},_poller);
+		InfoL << "TCP Server listening on " << host << ":" << port;
+	}
 private:
     EventPoller::Ptr _poller;
     EventPollerPool::Ptr _pollerPool;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
 	unordered_map<string, TcpSessionHelper::Ptr > _sessionMap;
-    function<TcpSessionHelper::Ptr(const Socket::Ptr &)> _sessionMaker;
+    function<TcpSessionHelper::Ptr(const weak_ptr<TcpServer> &server,const Socket::Ptr &)> _sessionMaker;
+    list<Ptr> _clonedServer;
 };
 
 } /* namespace toolkit */

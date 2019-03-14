@@ -31,7 +31,7 @@
 namespace toolkit {
 
 #if defined (OS_IPHONE)
-bool SockFD::setSocketOfIOS(int sock){
+bool SockNum::setSocketOfIOS(int sock){
     
     CFStreamCreatePairWithSocket(NULL, (CFSocketNativeHandle)sock, (CFReadStreamRef *)(&readStream), (CFWriteStreamRef*)(&writeStream));
     if (readStream)
@@ -82,7 +82,7 @@ bool SockFD::setSocketOfIOS(int sock){
     //NSLog(@"setSocketOfIOS:%d",sock);
     return true;
 }
-void SockFD::unsetSocketOfIOS(int sock){
+void SockNum::unsetSocketOfIOS(int sock){
     //NSLog(@"unsetSocketOfIOS:%d",sock);
     if (readStream) {
         CFReadStreamClose((CFReadStreamRef)readStream);

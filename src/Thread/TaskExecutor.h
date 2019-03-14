@@ -277,6 +277,13 @@ public:
             ++index;
         }
     }
+
+    template <typename FUN>
+    void for_each(FUN &&fun){
+        for(auto &th : _threads){
+            fun(th);
+        }
+    }
 protected:
     /**
      *
