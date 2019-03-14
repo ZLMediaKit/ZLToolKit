@@ -431,7 +431,7 @@ public:
 
     //从另外一个Socket克隆
     //目的是一个socket可以被多个poller对象监听，提高性能
-    void cloneFrom(const Socket &other);
+    bool cloneFromListenSocket(const Socket &other);
 private:
     void closeSock();
     SockFD::Ptr setPeerSock(int fd);
@@ -449,6 +449,7 @@ private:
     SockFD::Ptr makeSock(int sock);
     uint32_t getBufSecondLength();
     static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
+    bool listen(const SockFD::Ptr &fd);
 private:
     mutable mutex _mtx_sockFd;
     EventPoller::Ptr _poller;

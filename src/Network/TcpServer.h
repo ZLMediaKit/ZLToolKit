@@ -116,14 +116,12 @@ public:
 	 */
 
     TcpServer(const EventPoller::Ptr &poller = nullptr) {
-		_pollerPool = EventPollerPool::Instance().shared_from_this();
 		_poller = poller;
 		if(!_poller){
-			_poller =  _pollerPool->getPoller();
+			_poller =  EventPollerPool::Instance().getPoller();
 		}
 		_socket = std::make_shared<Socket>(_poller);
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
-		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this));
     }
 
 	~TcpServer() {
@@ -150,7 +148,7 @@ public:
     template <typename SessionType>
 	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
 		start_l<SessionType>(port,host,backlog);
-		_pollerPool->for_each([&](const TaskExecutor::Ptr &executor){
+		EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor){
 			EventPoller::Ptr poller = dynamic_pointer_cast<EventPoller>(executor);
 			if(poller == _poller || !poller){
 				return;
@@ -170,9 +168,6 @@ public:
 		return _socket->get_local_port();
 	}
 protected:
-	virtual Socket::Ptr onBeforeAcceptConnection(){
-		return std::make_shared<Socket>(_pollerPool->getPoller());
-    }
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr & sock) {
 		weak_ptr<TcpServer> weakSelf = shared_from_this();
@@ -253,9 +248,6 @@ protected:
 	}
 
 private:
-    Socket::Ptr onBeforeAcceptConnection_l(){
-        return onBeforeAcceptConnection();
-    }
     // 接收到客户端连接请求
     void onAcceptConnection_l(const Socket::Ptr & sock) {
         onAcceptConnection(sock);
@@ -266,7 +258,7 @@ private:
 			throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
 		}
 		_sessionMaker = that._sessionMaker;
-		_socket->cloneFrom(*(that._socket));
+		_socket->cloneFromListenSocket(*(that._socket));
 		_timer = std::make_shared<Timer>(2, [this]()->bool {
 			this->onManagerSession();
 			return true;
@@ -297,7 +289,6 @@ private:
 	}
 private:
     EventPoller::Ptr _poller;
-    EventPollerPool::Ptr _pollerPool;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
 	unordered_map<string, TcpSessionHelper::Ptr > _sessionMap;

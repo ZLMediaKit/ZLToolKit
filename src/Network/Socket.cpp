@@ -420,17 +420,12 @@ void Socket::closeSock() {
 	_sockFd.reset();
 }
 
-bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
+bool Socket::listen(const SockFD::Ptr &pSock){
 	closeSock();
-	int sock = SockUtil::listen(port, localIp, backLog);
-	if (sock == -1) {
-		return false;
-	}
-	auto pSock = makeSock(sock);
 	weak_ptr<SockFD> weakSock = pSock;
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	_enableRecv = true;
-	int result = _poller->addEvent(sock, Event_Read | Event_Error, [weakSelf,weakSock](int event) {
+	int result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error, [weakSelf,weakSock](int event) {
 		auto strongSelf = weakSelf.lock();
 		auto strongSock = weakSock.lock();
 		if(!strongSelf || !strongSock) {
@@ -446,6 +441,13 @@ bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
 	lock_guard<mutex> lck(_mtx_sockFd);
 	_sockFd = pSock;
 	return true;
+}
+bool Socket::listen(const uint16_t port, const char* localIp, int backLog) {
+	int sock = SockUtil::listen(port, localIp, backLog);
+	if (sock == -1) {
+		return false;
+	}
+	return listen(makeSock(sock));
 }
 bool Socket::bindUdpSock(const uint16_t port, const char* localIp) {
 	closeSock();
@@ -710,19 +712,17 @@ const EventPoller::Ptr &Socket::getPoller() const{
 	return _poller;
 }
 
-void Socket::cloneFrom(const Socket &other){
-	closeSock();
+bool Socket::cloneFromListenSocket(const Socket &other){
 	SockFD::Ptr fd;
 	{
 		lock_guard<mutex> lck(other._mtx_sockFd);
 		if(!other._sockFd){
-			throw invalid_argument("Socket::cloneFrom sockfd of src socket is null!");
+			WarnL << "sockfd of src socket is null!";
+            return false;
 		}
 		fd = std::make_shared<SockFD>(*(other._sockFd), _poller);
 	}
-	attachEvent(fd, false);
-	lock_guard<mutex> lck(_mtx_sockFd);
-	_sockFd = fd;
+    return listen(fd);
 }
 
 ///////////////Packet/////////////////////
