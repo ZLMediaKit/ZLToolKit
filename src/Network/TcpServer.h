@@ -131,6 +131,9 @@ public:
         //先关闭socket监听，防止收到新的连接
 		_socket.reset();
 
+        if(!_cloned) {
+            TraceL << "start clean tcp server...";
+        }
         //务必通知TcpSession已从TcpServer脱离
 		for (auto &pr : _sessionMap) {
             //从全局的map中移除记录
@@ -138,6 +141,9 @@ public:
 		}
 		_sessionMap.clear();
 		_clonedServer.clear();
+        if(!_cloned){
+            TraceL << "clean tcp server completed!";
+        }
 	}
 
     //开始监听服务器
@@ -149,10 +155,13 @@ public:
 			if(poller == _poller || !poller){
 				return;
 			}
-			TcpServer::Ptr server = std::make_shared<TcpServer>(poller);
-			server->cloneFrom(*this);
-			_clonedServer.emplace_back(server);
+			auto &serverRef = _clonedServer[poller.get()];
+			if(!serverRef){
+				serverRef = std::make_shared<TcpServer>(poller);
+			}
+			serverRef->cloneFrom(*this);
 		});
+        _cloned = false;
 	}
 
 	uint16_t getPort(){
@@ -293,7 +302,8 @@ private:
     std::shared_ptr<Timer> _timer;
 	unordered_map<string, TcpSessionHelper::Ptr > _sessionMap;
     function<TcpSessionHelper::Ptr(const weak_ptr<TcpServer> &server,const Socket::Ptr &)> _sessionMaker;
-    list<Ptr> _clonedServer;
+	unordered_map<EventPoller *,Ptr> _clonedServer;
+    bool _cloned = true;
 };
 
 } /* namespace toolkit */
