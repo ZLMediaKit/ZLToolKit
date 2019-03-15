@@ -374,7 +374,7 @@ int Socket::send(const Buffer::Ptr &buf, int flags ,struct sockaddr *peerAddr){
             ret = 0;
             break;
 		}
-		_sendPktBuf.emplace_back(packet);
+		_sendPktBuf.emplace_back(std::move(packet));
 	}while(0);
 
 	if(_canSendSock){
@@ -597,7 +597,9 @@ bool Socket::sendData(const SockFD::Ptr &pSock, bool bMainThread){
     if(_sendPktBuf.empty()){
         _sendPktBuf.swap(sendPktBuf_copy);
     }else{
-        _sendPktBuf.insert(_sendPktBuf.begin(), sendPktBuf_copy.begin(),sendPktBuf_copy.end());
+		_sendPktBuf.swap(sendPktBuf_copy);
+		_sendPktBuf.append(sendPktBuf_copy);
+//		_sendPktBuf.insert(_sendPktBuf.begin(), sendPktBuf_copy.begin(),sendPktBuf_copy.end());
     }
     return true;
 }

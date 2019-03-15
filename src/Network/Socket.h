@@ -450,7 +450,7 @@ private:
     EventPoller::Ptr _poller;
     SockFD::Ptr _sockFd;
     recursive_mutex _mtx_sendBuf;
-    deque<Packet::Ptr> _sendPktBuf;
+    List<Packet::Ptr> _sendPktBuf;
     /////////////////////
     std::shared_ptr<Timer> _conTimer;
     SafeFunction<onReadCB> _readCB;

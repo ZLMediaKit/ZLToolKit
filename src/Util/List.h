@@ -85,6 +85,9 @@ public:
         return _size;
     }
 
+    bool empty() const{
+        return _size == 0;
+    }
     template <class... Args>
     void emplace_front(Args&&... args){
         NodeType *node = new NodeType(std::forward<Args>(args)...);
@@ -117,6 +120,10 @@ public:
         return _front->_data;
     }
 
+    T &back() const{
+        return _back->_data;
+    }
+
     void pop_front(){
         if(!_front){
             return;
@@ -144,6 +151,23 @@ public:
         uint64_t tmp_size = _size;
         _size = other._size;
         other._size = tmp_size;
+    }
+
+    void append(List<T> &other){
+        if(other.empty()){
+            return;
+        }
+        if(_back){
+            _back->next = other._front;
+            _back = other._back;
+        }else{
+            _front = other._front;
+            _back = other._back;
+        }
+        _size += other._size;
+
+        other._front = other._back = nullptr;
+        other._size = 0;
     }
 private:
     NodeType *_front = nullptr;
