@@ -54,10 +54,6 @@ Socket::Socket(const EventPoller::Ptr &poller) {
 		WarnL << "Socket not set acceptCB";
 	};
 	_flushCB = []() {return true;};
-
-	_beforeAcceptCB = [](const EventPoller::Ptr &poller){
-		return nullptr;
-	};
 }
 Socket::~Socket() {
 	closeSock();
@@ -96,17 +92,6 @@ void Socket::setOnFlush(const onFlush &cb) {
 		_flushCB = cb;
 	} else {
 		_flushCB = []() {return true;};
-	}
-}
-
-//设置Socket生成拦截器
-void Socket::setOnBeforeAccept(const onBeforeAcceptCB &cb){
-	if (cb) {
-		_beforeAcceptCB = cb;
-	} else {
-		_beforeAcceptCB = [](const EventPoller::Ptr &poller) {
-			return nullptr;
-		};
 	}
 }
 
@@ -483,41 +468,24 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 				onError(pSock);
 				return -1;
 			}
-			SockUtil::setNoSigpipe(peerfd);
+            SockUtil::setNoSigpipe(peerfd);
 			SockUtil::setNoBlocked(peerfd);
 			SockUtil::setNoDelay(peerfd);
 			SockUtil::setSendBuf(peerfd);
 			SockUtil::setRecvBuf(peerfd);
 			SockUtil::setCloseWait(peerfd);
 
-
-			Socket::Ptr peerSock ;
-			{
-			    //拦截默认的Socket构造行为，
-                //在TcpServer中，默认的行为是子Socket的网络事件会派发到其他poll线程
-                //这样就可以发挥最大的网络性能
-				peerSock = _beforeAcceptCB(_poller);
-			}
-
-			if(!peerSock){
-			    //此处是默认构造行为，也就是子Socket
-                //共用父Socket的poll线程以及事件执行线程
-				peerSock = std::make_shared<Socket>(_poller);
-			}
-
+            Socket::Ptr peerSock = std::make_shared<Socket>(_poller);
             //设置好fd,以备在TcpSession的构造函数中可以正常访问该fd
             auto sockFD = peerSock->setPeerSock(peerfd);
-
-            {
-				//在accept事件中，TcpServer对象会创建TcpSession对象并绑定该Socket的相关事件(onRead/onErr)
-				//所以在这之前千万不能就把peerfd加入poll监听
-				_acceptCB(peerSock);
-			}
-			//把该peerfd加入poll监听，这个时候可能会触发其数据接收事件
-			if(!peerSock->attachEvent(sockFD, false)){
+            //在accept事件中，TcpServer对象会创建TcpSession对象并绑定该Socket的相关事件(onRead/onErr)
+            //所以在这之前千万不能就把peerfd加入poll监听
+            _acceptCB(peerSock);
+            //把该peerfd加入poll监听，这个时候可能会触发其数据接收事件
+            if(!peerSock->attachEvent(sockFD, false)){
                 //加入poll监听失败，我们通知TcpServer该Socket无效
-				peerSock->emitErr(SockException(Err_eof,"attachEvent failed"), true);
-			}
+                peerSock->emitErr(SockException(Err_eof,"attachEvent failed"), true);
+            }
 		}
 
 		if (event & Event_Error) {

@@ -363,8 +363,6 @@ public:
 	//socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
     typedef function<bool()> onFlush;
-    //在接收到连接请求前，拦截Socket默认生成方式
-    typedef function<Ptr(const EventPoller::Ptr &poller)> onBeforeAcceptCB;
 
     Socket(const EventPoller::Ptr &poller = nullptr);
 	~Socket();
@@ -386,9 +384,6 @@ public:
     //socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
 	void setOnFlush(const onFlush &cb);
-
-	//设置Socket生成拦截器
-    void setOnBeforeAccept(const onBeforeAcceptCB &cb);
 
     ////////////线程安全的数据发送，udp套接字请传入peerAddr，否则置空////////////
     //发送裸指针数据，内部会把数据拷贝至内部缓存列队，如果要避免数据拷贝，可以调用send(const Buffer::Ptr &buf...）接口
@@ -462,7 +457,6 @@ private:
     SafeFunction<onErrCB> _errCB;
     SafeFunction<onAcceptCB> _acceptCB;
     SafeFunction<onFlush> _flushCB;
-    SafeFunction<onBeforeAcceptCB> _beforeAcceptCB;
     Ticker _flushTicker;
     atomic<bool> _enableRecv;
     atomic<bool> _canSendSock;
