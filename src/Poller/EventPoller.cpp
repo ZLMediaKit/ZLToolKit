@@ -38,11 +38,16 @@
 
 #if defined(HAS_EPOLL)
     #include <sys/epoll.h>
+
+    #if !defined(EPOLLEXCLUSIVE)
+    #define EPOLLEXCLUSIVE 0
+    #endif
+
     #define EPOLL_SIZE 1024
     #define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
-                            | (((event) & Event_Write) ? EPOLLOUT : 0) \
-                            | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
-                            | (((event) & Event_LT) ?  0 : EPOLLET)
+                                | (((event) & Event_Write) ? EPOLLOUT : 0) \
+                                | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
+                                | (((event) & Event_LT) ?  0 : EPOLLET)
     #define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
                                 | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
                                 | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
@@ -113,7 +118,7 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
 #if defined(HAS_EPOLL)
     lock_guard<mutex> lck(_mtx_event_map);
     struct epoll_event ev = {0};
-    ev.events = toEpoll(event);
+    ev.events = (toEpoll(event)) | EPOLLEXCLUSIVE;
     ev.data.fd = fd;
     int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
     if (ret == 0) {
