@@ -6,20 +6,12 @@
 #include "Buffer.h"
 
 namespace toolkit {
-///////////////Packet/////////////////////
-void Packet::updateStamp(){
-    _stamp = (uint32_t)time(NULL);
-}
-uint32_t Packet::getStamp() const{
-    return _stamp;
-}
-
-///////////////PacketList/////////////////////
-bool PacketList::empty() {
+///////////////BufferList/////////////////////
+bool BufferList::empty() {
     return _iovec_off == _iovec.size();
 }
 
-int PacketList::send(int fd,int flags) {
+int BufferList::send(int fd,int flags) {
     int n;
     do {
         struct msghdr msg;
@@ -49,9 +41,9 @@ int PacketList::send(int fd,int flags) {
     return n;
 }
 
-void PacketList::reOffset(int n) {
+void BufferList::reOffset(int n) {
     _remainSize -= n;
-    int offset;
+    int offset = 0;
     for(int i = _iovec_off ; i != _iovec.size() ; ++i ){
         auto &ref = _iovec[i];
         offset += ref.iov_len;
@@ -67,20 +59,15 @@ void PacketList::reOffset(int n) {
         break;
     }
 }
-PacketList::PacketList(List<Packet::Ptr> &list) : _iovec(list.size()) {
+BufferList::BufferList(List<Buffer::Ptr> &list) : _iovec(list.size()) {
     _pkt_list.swap(list);
     auto it = _iovec.begin();
-    _pkt_list.for_each([&](Packet::Ptr &pkt){
-        it->iov_base = pkt->_data->data();
-        it->iov_len = pkt->_data->size();
+    _pkt_list.for_each([&](Buffer::Ptr &pkt){
+        it->iov_base = pkt->data();
+        it->iov_len = pkt->size();
         _remainSize += it->iov_len;
         ++it;
     });
 }
-
-uint32_t PacketList::getStamp() {
-    return _pkt_list[_iovec_off]->getStamp();
-}
-
 
 }//namespace toolkit

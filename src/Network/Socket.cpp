@@ -54,7 +54,7 @@ Socket::Socket(const EventPoller::Ptr &poller) {
 		WarnL << "Socket not set acceptCB";
 	};
 	_flushCB = []() {return true;};
-    _frontPacketStamp = 0;
+    _lastWriteAbleStamp = 0;
 }
 Socket::~Socket() {
 	closeSock();
@@ -346,29 +346,23 @@ int Socket::send(const Buffer::Ptr &buf){
 		return -1;
 	}
 
-    Packet::Ptr packet = std::make_shared<Packet>();
-    packet->updateStamp();
-    packet->setData(buf);
-
     {
         lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
-        _bufferWaiting.emplace_back(std::move(packet));
-    }
-
-    if(_frontPacketStamp && time(NULL) - _frontPacketStamp > _sendTimeOutSec){
-        //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
-        emitErr(SockException(Err_other, "Socket send timeout"));
-        return -1;
+        _bufferWaiting.emplace_back(buf);
     }
 
 	if(_canSendSock){
 		//该socket可写
 		//WarnL << "后台线程发送数据";
 		if(!flushData(sock, false)){
-            //发生错误
-            return -1;
-        }
-    }
+			//发生错误
+			return -1;
+		}
+	}else if(_lastWriteAbleStamp && time(NULL) - _lastWriteAbleStamp > _sendTimeOutSec){
+		//如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
+		emitErr(SockException(Err_other, "Socket send timeout"));
+		return -1;
+	}
 	return buf->size();
 }
 
@@ -533,12 +527,11 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
         lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
         if(!_bufferWaiting.empty()){
             //把_bufferWaiting列队数据放置到_bufferSending列队
-            bufferSendingTmp.emplace_back(std::make_shared<PacketList>(_bufferWaiting));
+            bufferSendingTmp.emplace_back(std::make_shared<BufferList>(_bufferWaiting));
         }
     }
 
-    auto sz = bufferSendingTmp.size();
-    if (!sz) {
+    if (bufferSendingTmp.empty()) {
         if (bPollerThread) {
             //主线程触发该函数，那么该socket应该已经加入了可写事件的监听；
             //那么在数据列队清空的情况下，我们需要关闭监听以免触发无意义的事件回调
@@ -588,9 +581,6 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
         lock_guard<recursive_mutex> lck(_mtx_bufferSending);
         bufferSendingTmp.swap(_bufferSending);
         _bufferSending.append(bufferSendingTmp);
-        _frontPacketStamp = _bufferSending.front()->getStamp();
-	}else{
-        _frontPacketStamp = 0;
 	}
 	return true;
 }
@@ -616,6 +606,7 @@ void Socket::onWriteAble(const SockFD::Ptr &pSock) {
         //WarnL << "主线程发送数据";
 		flushData(pSock, true);
 	}
+	_lastWriteAbleStamp = time(NULL);
 }
 
 

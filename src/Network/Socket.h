@@ -293,6 +293,7 @@ public:
 	int send(const string &buf);
 	int send(string &&buf);
 	int send(const Buffer::Ptr &buf);
+	int send(List<Buffer::Ptr> &buf);
 
     //关闭socket且触发onErr回调，onErr回调将在主线程中进行
 	bool emitErr(const SockException &err,bool closeSock = true,bool maySync = true);
@@ -349,9 +350,9 @@ private:
     EventPoller::Ptr _poller;
     SockFD::Ptr _sockFd;
     recursive_mutex _mtx_bufferWaiting;
-    List<Packet::Ptr> _bufferWaiting;
+    List<Buffer::Ptr> _bufferWaiting;
     recursive_mutex _mtx_bufferSending;
-    List<PacketList::Ptr> _bufferSending;
+    List<BufferList::Ptr> _bufferSending;
     /////////////////////
     std::shared_ptr<Timer> _conTimer;
     SafeFunction<onReadCB> _readCB;
@@ -362,7 +363,7 @@ private:
     atomic<bool> _canSendSock;
     //发送超时时间
     uint32_t _sendTimeOutSec = SEND_TIME_OUT_SEC;
-    atomic<uint32_t> _frontPacketStamp;
+    atomic<uint32_t> _lastWriteAbleStamp;
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
 };
 

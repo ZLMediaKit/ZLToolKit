@@ -101,42 +101,21 @@ private:
     int _size = 0;
 };
 
-class PacketList;
-class Packet : public noncopyable {
+
+class BufferList : public noncopyable {
 public:
-    typedef std::shared_ptr<Packet> Ptr;
-    friend class PacketList;
-    Packet(){}
-    ~Packet(){}
-
-    void updateStamp();
-
-    uint32_t getStamp() const;
-
-    void setData(const Buffer::Ptr &data){
-        _data = data;
-    }
-private:
-    Buffer::Ptr _data;
-    uint32_t _stamp = 0;
-};
-
-
-class PacketList : public noncopyable {
-public:
-    typedef std::shared_ptr<PacketList> Ptr;
-    PacketList(List<Packet::Ptr> &list);
-    ~PacketList(){}
+    typedef std::shared_ptr<BufferList> Ptr;
+    BufferList(List<Buffer::Ptr> &list);
+    ~BufferList(){}
     bool empty();
     int send(int fd,int flags);
-    uint32_t getStamp();
 private:
     void reOffset(int n);
 private:
     vector<struct iovec> _iovec;
     int _iovec_off = 0;
     int _remainSize = 0;
-    List<Packet::Ptr> _pkt_list;
+    List<Buffer::Ptr> _pkt_list;
 
 };
 
