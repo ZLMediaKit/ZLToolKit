@@ -331,41 +331,72 @@ int Socket::send(const string &buf) {
 int Socket::send(string &&buf) {
     return send(std::make_shared<BufferString>(std::move(buf)));
 }
-    
+
+bool Socket::send_l() {
+    SockFD::Ptr sock;
+    {
+        lock_guard<mutex> lck(_mtx_sockFd);
+        sock = _sockFd;
+    }
+    if (!sock ) {
+        //如果已断开连接或者发送超时
+        return false;
+    }
+
+    if(_canSendSock){
+        //该socket可写
+        //WarnL << "后台线程发送数据";
+        if(!flushData(sock, false)){
+            //发生错误
+            return false;
+        }
+    }else if(_lastWriteAbleStamp && time(NULL) - _lastWriteAbleStamp > _sendTimeOutSec){
+        //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
+        emitErr(SockException(Err_other, "Socket send timeout"));
+        return false;
+    }
+    return true;
+}
+
+int Socket::send(List<Buffer::Ptr> &list){
+	if(list.empty()){
+		return 0;
+	}
+
+	int total = 0;
+    list.for_each([&](const Buffer::Ptr &buf){
+        total += buf->size();
+    });
+
+    {
+        lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
+        _bufferWaiting.append(list);
+    }
+
+    if(!send_l()){
+        return -1;
+    }
+
+	return total;
+}
+
 int Socket::send(const Buffer::Ptr &buf){
 	if(!buf || !buf->size()){
 		return 0;
 	}
-	SockFD::Ptr sock;
+
 	{
-		lock_guard<mutex> lck(_mtx_sockFd);
-		sock = _sockFd;
+		lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
+		_bufferWaiting.emplace_back(buf);
 	}
-	if (!sock ) {
-        //如果已断开连接或者发送超时
+
+	if(!send_l()){
 		return -1;
 	}
 
-    {
-        lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
-        _bufferWaiting.emplace_back(buf);
-    }
-
-	if(_canSendSock){
-		//该socket可写
-		//WarnL << "后台线程发送数据";
-		if(!flushData(sock, false)){
-			//发生错误
-			return -1;
-		}
-	}else if(_lastWriteAbleStamp && time(NULL) - _lastWriteAbleStamp > _sendTimeOutSec){
-		//如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
-		emitErr(SockException(Err_other, "Socket send timeout"));
-		return -1;
-	}
 	return buf->size();
-}
 
+}
 
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
     bool flag;

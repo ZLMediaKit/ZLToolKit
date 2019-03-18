@@ -345,6 +345,7 @@ private:
     static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
     bool listen(const SockFD::Ptr &fd);
     bool flushData(const SockFD::Ptr &pSock,bool bPollerThread);
+    bool send_l();
 private:
     mutable mutex _mtx_sockFd;
     EventPoller::Ptr _poller;
