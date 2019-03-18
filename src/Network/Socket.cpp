@@ -117,7 +117,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 			if(!strongSelf && *timeOuted ){
                 //本对象已经销毁或已经超时回调
                 if(sock != -1){
-                    ::close(sock);
+                    close(sock);
                 }
                 return;
 			}

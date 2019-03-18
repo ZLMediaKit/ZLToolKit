@@ -142,7 +142,7 @@ public:
         unsetSocketOfIOS(_sock);
 #endif //OS_IPHONE
         ::shutdown(_fd, SHUT_RDWR);
-        ::close(_fd);
+        close(_fd);
     }
 
     int rawFd() const{
