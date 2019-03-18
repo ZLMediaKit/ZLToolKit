@@ -362,7 +362,7 @@ private:
     atomic<bool> _canSendSock;
     //发送超时时间
     uint32_t _sendTimeOutSec = SEND_TIME_OUT_SEC;
-    uint32_t _frontPacketStamp = 0;
+    atomic<uint32_t> _frontPacketStamp;
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
 };
 

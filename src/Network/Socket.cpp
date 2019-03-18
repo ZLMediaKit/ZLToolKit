@@ -54,6 +54,7 @@ Socket::Socket(const EventPoller::Ptr &poller) {
 		WarnL << "Socket not set acceptCB";
 	};
 	_flushCB = []() {return true;};
+    _frontPacketStamp = 0;
 }
 Socket::~Socket() {
 	closeSock();
@@ -354,7 +355,7 @@ int Socket::send(const Buffer::Ptr &buf){
         _bufferWaiting.emplace_back(std::move(packet));
     }
 
-    if(time(NULL) - _frontPacketStamp > _sendTimeOutSec){
+    if(_frontPacketStamp && time(NULL) - _frontPacketStamp > _sendTimeOutSec){
         //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
         emitErr(SockException(Err_other, "Socket send timeout"));
         return -1;
@@ -588,6 +589,8 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
         bufferSendingTmp.swap(_bufferSending);
         _bufferSending.append(bufferSendingTmp);
         _frontPacketStamp = _bufferSending.front()->getStamp();
+	}else{
+        _frontPacketStamp = 0;
 	}
 	return true;
 }
