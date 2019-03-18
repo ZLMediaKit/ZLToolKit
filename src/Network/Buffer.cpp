@@ -50,10 +50,11 @@ void BufferList::reOffset(int n) {
         if(offset < n){
             continue;
         }
-        ref.iov_len -= (offset - n);
-        ref.iov_base = (char *)ref.iov_base + (offset - n);
+        int remain = offset - n;
+        ref.iov_base = (char *)ref.iov_base + ref.iov_len - remain;
+        ref.iov_len = remain;
         _iovec_off = i;
-        if(ref.iov_len == 0){
+        if(remain == 0){
             _iovec_off += 1;
         }
         break;
