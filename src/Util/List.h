@@ -57,6 +57,9 @@ class List {
 public:
     typedef ListNode<T> NodeType;
     List(){}
+    List(List &&that){
+        swap(that);
+    }
     ~List(){
         clear();
     }
@@ -122,6 +125,14 @@ public:
 
     T &back() const{
         return _back->_data;
+    }
+
+    T &operator[](uint64_t pos){
+        NodeType *front = _front ;
+        while(pos--){
+            front = front->next;
+        }
+        return front->_data;
     }
 
     void pop_front(){

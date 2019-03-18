@@ -65,11 +65,11 @@ int main() {
 
 	struct sockaddr addrDst;
 	makeAddr(&addrDst,"127.0.0.1",9001);//UDP数据发送地址
-
+	sockSend->setSendPeerAddr(&addrDst);
 	int i = 0;
 	while(!exitProgram){
         //每隔一秒往对方发送数据
-		sockSend->send(to_string(i++),SOCKET_DEFAULE_FLAGS,&addrDst);
+		sockSend->send(to_string(i++));
 		sleep(1);
 	}
 	return 0;
