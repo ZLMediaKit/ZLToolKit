@@ -63,8 +63,6 @@ Socket::Socket(const EventPoller::Ptr &poller,bool enableMutex) :
 	_beforeAcceptCB = [](const EventPoller::Ptr &poller){
 		return nullptr;
 	};
-
-    _lastWriteAbleStamp = 0;
 }
 Socket::~Socket() {
 	closeSock();
@@ -383,7 +381,7 @@ bool Socket::send_l() {
             //发生错误
             return false;
         }
-    }else if(_lastWriteAbleStamp && time(NULL) - _lastWriteAbleStamp > _sendTimeOutSec){
+    }else if(_lastFlushStamp && time(NULL) - _lastFlushStamp > _sendTimeOutSec){
         //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
         emitErr(SockException(Err_other, "Socket send timeout"));
         return false;
@@ -681,7 +679,6 @@ void Socket::onWriteAble(const SockFD::Ptr &pSock) {
         //WarnL << "主线程发送数据";
 		flushData(pSock, true);
 	}
-	_lastWriteAbleStamp = time(NULL);
 }
 
 
@@ -697,6 +694,7 @@ void Socket::stopWriteAbleEvent(const SockFD::Ptr &pSock) {
     _canSendSock = true;
     int flag = _enableRecv ? Event_Read : 0;
 	_poller->modifyEvent(pSock->rawFd(), flag | Event_Error);
+    _lastFlushStamp = time(NULL);
 }
 void Socket::enableRecv(bool enabled) {
     if(_enableRecv == enabled){

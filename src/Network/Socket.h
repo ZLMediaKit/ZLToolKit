@@ -69,7 +69,7 @@ namespace toolkit {
 #define SOCKET_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
     
 //发送超时时间，如果在规定时间内一直没有发送数据成功，那么将触发onErr事件
-#define SEND_TIME_OUT_SEC 30
+#define SEND_TIME_OUT_SEC 10
     
 //错误类型枚举
 typedef enum {
@@ -362,7 +362,7 @@ private:
     atomic<bool> _canSendSock;
     //发送超时时间
     uint32_t _sendTimeOutSec = SEND_TIME_OUT_SEC;
-    atomic<uint32_t> _lastWriteAbleStamp;
+    uint32_t _lastFlushStamp = 0;
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
 };
 
