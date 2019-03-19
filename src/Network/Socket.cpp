@@ -600,26 +600,26 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
     }
 
 	if (bufferSendingTmp.empty()) {
-    	//_bufferSending列队中数据为空，那么我们接着消费_bufferWaiting列队中的数据
 		_lastFlushStamp = time(NULL);
 		do{
-			LOCK_GUARD(_mtx_bufferWaiting);
-			if(!_bufferWaiting.empty()){
-				//把_bufferWaiting列队数据放置到_bufferSending列队
-				bufferSendingTmp.emplace_back(std::make_shared<BufferList>(_bufferWaiting));
-				break;
+			{
+				//_bufferSending列队中数据为空，那么我们接着消费_bufferWaiting列队中的数据
+				LOCK_GUARD(_mtx_bufferWaiting);
+				if (!_bufferWaiting.empty()) {
+					//把_bufferWaiting列队数据放置到_bufferSending列队
+					bufferSendingTmp.emplace_back(std::make_shared<BufferList>(_bufferWaiting));
+					break;
+				}
 			}
 			//如果_bufferWaiting列队中数据也为空,那么说明消费完所有未发送缓存数据
+			if (bPollerThread) {
+				//主线程触发该函数，那么该socket应该已经加入了可写事件的监听；
+				//那么在数据列队清空的情况下，我们需要关闭监听以免触发无意义的事件回调
+				stopWriteAbleEvent(pSock);
+				onFlushed(pSock);
+			}
+			return true;
 		}while(0);
-
-		//所有数据发送完毕
-		if (bPollerThread) {
-			//主线程触发该函数，那么该socket应该已经加入了可写事件的监听；
-			//那么在数据列队清空的情况下，我们需要关闭监听以免触发无意义的事件回调
-			stopWriteAbleEvent(pSock);
-			onFlushed(pSock);
-		}
-		return true;
 	}
 
     int sockFd = pSock->rawFd();
