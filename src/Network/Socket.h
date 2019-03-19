@@ -219,12 +219,12 @@ private:
 
 
 template <class Mtx = recursive_mutex>
-class MutexWarpper {
+class MutexWrapper {
 public:
-    MutexWarpper(bool enable){
+    MutexWrapper(bool enable){
         _enable = enable;
     }
-    ~MutexWarpper(){}
+    ~MutexWrapper(){}
 
     inline void lock(){
         if(_enable){
@@ -345,11 +345,11 @@ private:
     EventPoller::Ptr _poller;
     std::shared_ptr<Timer> _conTimer;
     SockFD::Ptr _sockFd;
-    mutable MutexWarpper<recursive_mutex> _mtx_sockFd;
+    mutable MutexWrapper<recursive_mutex> _mtx_sockFd;
     /////////////////////
-    MutexWarpper<recursive_mutex> _mtx_bufferWaiting;
+    MutexWrapper<recursive_mutex> _mtx_bufferWaiting;
     List<Buffer::Ptr> _bufferWaiting;
-    MutexWarpper<recursive_mutex> _mtx_bufferSending;
+    MutexWrapper<recursive_mutex> _mtx_bufferSending;
     List<BufferList::Ptr> _bufferSending;
     /////////////////////
     onReadCB _readCB;
