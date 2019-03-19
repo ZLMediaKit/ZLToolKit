@@ -623,9 +623,10 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
 	}
 
     int sockFd = pSock->rawFd();
+	bool isUdp = pSock->type() == SockNum::Sock_UDP;
 	while (!bufferSendingTmp.empty()) {
 		auto &packet = bufferSendingTmp.front();
-		int n = packet->send(sockFd,_sock_flags);
+		int n = packet->send(sockFd,_sock_flags,isUdp);
 		if(n > 0){
 			//全部或部分发送成功
 			if(packet->empty()){

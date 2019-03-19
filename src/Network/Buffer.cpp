@@ -12,7 +12,30 @@ bool BufferList::empty() {
     return _iovec_off == _iovec.size();
 }
 
-int BufferList::send_l(int fd, int flags) {
+int BufferList::send_iovec(int fd, const struct msghdr *msg, int flags) {
+    int n = 0;
+    int total = 0;
+    for(auto i = 0; i != msg->msg_iovlen ; ++i ){
+        do {
+            n = sendto(fd,msg->msg_iov[i].iov_base,msg->msg_iov[i].iov_len,flags,NULL,0);
+        }while (-1 == n && UV_EINTR == get_uv_error(true));
+
+        if(n == -1 ){
+            //可能一个字节都未发送成功
+            return total ? total : -1;
+        }
+        if(n < msg->msg_iov[i].iov_len){
+            //发送部分字节成功
+            return total + n;
+        }
+        //单次全部发送成功
+        total += n;
+    }
+
+    //全部发送成功
+    return total;
+}
+int BufferList::send_l(int fd, int flags,bool udp) {
     int n;
     do {
         struct msghdr msg;
@@ -26,7 +49,7 @@ int BufferList::send_l(int fd, int flags) {
         msg.msg_control = NULL;
         msg.msg_controllen = 0;
         msg.msg_flags = flags;
-        n = sendmsg(fd,&msg,flags);
+        n = udp ? send_iovec(fd,&msg,flags) : sendmsg(fd,&msg,flags);
     } while (-1 == n && UV_EINTR == get_uv_error(true));
 
     if(n >= _remainSize){
@@ -46,9 +69,9 @@ int BufferList::send_l(int fd, int flags) {
     return n;
 }
 
-int BufferList::send(int fd,int flags) {
+int BufferList::send(int fd,int flags,bool udp) {
     auto remainSize = _remainSize;
-    while (_remainSize && send_l(fd,flags) != -1);
+    while (_remainSize && send_l(fd,flags,udp) != -1);
 
     int sent = remainSize - _remainSize;
     if(sent > 0){
@@ -84,6 +107,7 @@ void BufferList::reOffset(int n) {
         _pkt_list.pop_front();
     }
 }
+
 BufferList::BufferList(List<Buffer::Ptr> &list) : _iovec(list.size()) {
     _pkt_list.swap(list);
     auto it = _iovec.begin();

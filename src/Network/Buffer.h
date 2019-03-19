@@ -108,10 +108,11 @@ public:
     BufferList(List<Buffer::Ptr> &list);
     ~BufferList(){}
     bool empty();
-    int send(int fd,int flags);
+    int send(int fd,int flags,bool udp);
 private:
     void reOffset(int n);
-    int send_l(int fd,int flags);
+    int send_l(int fd,int flags,bool udp);
+    int send_iovec(int fd, const struct msghdr *msg, int flags);
 private:
     vector<struct iovec> _iovec;
     int _iovec_off = 0;
