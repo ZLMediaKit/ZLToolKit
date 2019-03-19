@@ -218,36 +218,27 @@ private:
 };
 
 
-template <typename FUN>
-class SafeFunction{
+template <class Mtx = recursive_mutex>
+class MutexWarpper {
 public:
-    SafeFunction(){
-        _fun.reset(new FUN(nullptr));
+    MutexWarpper(bool enable){
+        _enable = enable;
     }
-    SafeFunction(const FUN &fun){
-        _fun.reset(new FUN(fun));
-    }
-    template<typename ...ArgsType>
-    inline typename FUN::result_type operator()(ArgsType &&...args){
-        std::shared_ptr<FUN> fun;
-        {
-            lock_guard<mutex> lck(_mtx);
-            fun = _fun;
-        }
-        return (*fun)(std::forward<ArgsType>(args)...);
-    }
+    ~MutexWarpper(){}
 
-    inline void operator = (const FUN &fun){
-        lock_guard<mutex> lck(_mtx);
-        _fun.reset(new FUN(fun));
+    inline void lock(){
+        if(_enable){
+            _mtx.lock();
+        }
     }
-    inline operator bool(){
-        lock_guard<mutex> lck(_mtx);
-        return _fun->operator bool();
+    inline void unlock(){
+        if(_enable){
+            _mtx.unlock();
+        }
     }
 private:
-    std::shared_ptr<FUN> _fun;
-    mutex _mtx;
+    bool _enable;
+    Mtx _mtx;
 };
 
 //异步IO套接字对象，线程安全的
@@ -264,8 +255,10 @@ public:
 	//socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
     typedef function<bool()> onFlush;
+    //在接收到连接请求前，拦截Socket默认生成方式
+    typedef function<Ptr(const EventPoller::Ptr &poller)> onBeforeAcceptCB;
 
-    Socket(const EventPoller::Ptr &poller = nullptr);
+    Socket(const EventPoller::Ptr &poller = nullptr,bool enableMutex = true);
 	~Socket();
 
     //创建tcp客户端，url可以是ip或域名
@@ -285,6 +278,8 @@ public:
     //socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
 	void setOnFlush(const onFlush &cb);
+    //设置Socket生成拦截器
+    void setOnBeforeAccept(const onBeforeAcceptCB &cb);
 
     ////////////线程安全的数据发送，udp套接字请传入peerAddr，否则置空////////////
     //发送裸指针数据，内部会把数据拷贝至内部缓存列队，如果要避免数据拷贝，可以调用send(const Buffer::Ptr &buf...）接口
@@ -347,19 +342,22 @@ private:
     bool flushData(const SockFD::Ptr &pSock,bool bPollerThread);
     bool send_l();
 private:
-    mutable mutex _mtx_sockFd;
     EventPoller::Ptr _poller;
+    std::shared_ptr<Timer> _conTimer;
     SockFD::Ptr _sockFd;
-    recursive_mutex _mtx_bufferWaiting;
+    mutable MutexWarpper<recursive_mutex> _mtx_sockFd;
+    /////////////////////
+    MutexWarpper<recursive_mutex> _mtx_bufferWaiting;
     List<Buffer::Ptr> _bufferWaiting;
-    recursive_mutex _mtx_bufferSending;
+    MutexWarpper<recursive_mutex> _mtx_bufferSending;
     List<BufferList::Ptr> _bufferSending;
     /////////////////////
-    std::shared_ptr<Timer> _conTimer;
-    SafeFunction<onReadCB> _readCB;
-    SafeFunction<onErrCB> _errCB;
-    SafeFunction<onAcceptCB> _acceptCB;
-    SafeFunction<onFlush> _flushCB;
+    onReadCB _readCB;
+    onErrCB _errCB;
+    onAcceptCB _acceptCB;
+    onFlush _flushCB;
+    onBeforeAcceptCB _beforeAcceptCB;
+    /////////////////////
     atomic<bool> _enableRecv;
     atomic<bool> _canSendSock;
     //发送超时时间
@@ -368,7 +366,7 @@ private:
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
 };
 
-class  SocketFlags{
+class SocketFlags{
 public:
     SocketFlags(int flags):_flags(flags){};
     ~SocketFlags(){}

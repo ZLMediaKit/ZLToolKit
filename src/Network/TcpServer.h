@@ -122,6 +122,7 @@ public:
 		}
 		_socket = std::make_shared<Socket>(_poller);
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
+		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this,std::placeholders::_1));
     }
 
 	~TcpServer() {
@@ -168,6 +169,12 @@ public:
 		return _socket->get_local_port();
 	}
 protected:
+	virtual Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &poller){
+    	/**
+    	 * 服务器器模型socket是线程安全的，所以为了提高性能，关闭互斥锁
+    	 */
+		return std::make_shared<Socket>(poller,false);
+	}
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr & sock) {
 		weak_ptr<TcpServer> weakSelf = shared_from_this();
@@ -248,6 +255,9 @@ protected:
 	}
 
 private:
+	Socket::Ptr onBeforeAcceptConnection_l(const EventPoller::Ptr &poller){
+		return onBeforeAcceptConnection(poller);
+	}
     // 接收到客户端连接请求
     void onAcceptConnection_l(const Socket::Ptr & sock) {
         onAcceptConnection(sock);

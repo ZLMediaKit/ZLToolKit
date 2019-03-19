@@ -32,12 +32,17 @@
 #include "Thread/semaphore.h"
 #include "Thread/ThreadPool.h"
 #include "Poller/EventPoller.h"
-
 using namespace std;
+
+
+#define LOCK_GUARD(mtx) lock_guard<decltype(mtx)> lck(mtx)
 
 namespace toolkit {
 
-Socket::Socket(const EventPoller::Ptr &poller) {
+Socket::Socket(const EventPoller::Ptr &poller,bool enableMutex) :
+		_mtx_sockFd(enableMutex),
+		_mtx_bufferWaiting(enableMutex),
+		_mtx_bufferSending(enableMutex) {
 	_poller = poller;
 	if(!_poller){
 		_poller = EventPollerPool::Instance().getPoller();
@@ -54,6 +59,11 @@ Socket::Socket(const EventPoller::Ptr &poller) {
 		WarnL << "Socket not set acceptCB";
 	};
 	_flushCB = []() {return true;};
+
+	_beforeAcceptCB = [](const EventPoller::Ptr &poller){
+		return nullptr;
+	};
+
     _lastWriteAbleStamp = 0;
 }
 Socket::~Socket() {
@@ -62,38 +72,61 @@ Socket::~Socket() {
 }
 
 void Socket::setOnRead(const onReadCB &cb) {
-	if (cb) {
-		_readCB = cb;
-	} else {
-		_readCB = [](const Buffer::Ptr &buf,struct sockaddr *) {
-			WarnL << "Socket not set readCB";
-		};
-	}
+	_poller->sync([&](){
+		if (cb) {
+			_readCB = cb;
+		} else {
+			_readCB = [](const Buffer::Ptr &buf,struct sockaddr *) {
+				WarnL << "Socket not set readCB";
+			};
+		}
+	});
 }
+
 void Socket::setOnErr(const onErrCB &cb) {
-	if (cb) {
-		_errCB = cb;
-	} else {
-		_errCB = [](const SockException &err) {
-			WarnL << "Socket not set errCB";
-		};
-	}
+	_poller->sync([&]() {
+		if (cb) {
+			_errCB = cb;
+		} else {
+			_errCB = [](const SockException &err) {
+				WarnL << "Socket not set errCB";
+			};
+		}
+	});
 }
 void Socket::setOnAccept(const onAcceptCB &cb) {
-	if (cb) {
-		_acceptCB = cb;
-	} else {
-		_acceptCB = [](Socket::Ptr &sock) {
-			WarnL << "Socket not set acceptCB";
-		};
-	}
+	_poller->sync([&]() {
+		if (cb) {
+			_acceptCB = cb;
+		} else {
+			_acceptCB = [](Socket::Ptr &sock) {
+				WarnL << "Socket not set acceptCB";
+			};
+		}
+	});
 }
+
 void Socket::setOnFlush(const onFlush &cb) {
-	if (cb) {
-		_flushCB = cb;
-	} else {
-		_flushCB = []() {return true;};
-	}
+	_poller->sync([&]() {
+		if (cb) {
+			_flushCB = cb;
+		} else {
+			_flushCB = []() {return true;};
+		}
+	});
+}
+
+//设置Socket生成拦截器
+void Socket::setOnBeforeAccept(const onBeforeAcceptCB &cb){
+	_poller->sync([&]() {
+		if (cb) {
+			_beforeAcceptCB = cb;
+		} else {
+			_beforeAcceptCB = [](const EventPoller::Ptr &poller) {
+				return nullptr;
+			};
+		}
+	});
 }
 
 void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec,const char *localIp,uint16_t localPort) {
@@ -150,7 +183,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 				return;
 			}
 			//保存fd
-			lock_guard<mutex> lck(strongSelf->_mtx_sockFd);
+			LOCK_GUARD(strongSelf->_mtx_sockFd);
 			strongSelf->_sockFd = sockFD;
 		});
 	});
@@ -290,7 +323,7 @@ void Socket::onError(const SockFD::Ptr &pSock) {
 }
 bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
 	{
-		lock_guard<mutex> lck(_mtx_sockFd);
+		LOCK_GUARD(_mtx_sockFd);
 		if (!_sockFd) {
             //防止多次触发onErr事件
 			return false;
@@ -337,7 +370,7 @@ bool Socket::send_l() {
         //该socket可写
 		SockFD::Ptr sock;
 		{
-			lock_guard<mutex> lck(_mtx_sockFd);
+			LOCK_GUARD(_mtx_sockFd);
 			sock = _sockFd;
 		}
 
@@ -369,7 +402,7 @@ int Socket::send(List<Buffer::Ptr> &list){
     });
 
     {
-        lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
+		LOCK_GUARD(_mtx_bufferWaiting);
         _bufferWaiting.append(list);
     }
 
@@ -386,7 +419,7 @@ int Socket::send(const Buffer::Ptr &buf){
 	}
 
 	{
-		lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
+		LOCK_GUARD(_mtx_bufferWaiting);
 		_bufferWaiting.emplace_back(buf);
 	}
 
@@ -410,7 +443,7 @@ void Socket::onFlushed(const SockFD::Ptr &pSock) {
 
 void Socket::closeSock() {
 	_conTimer.reset();
-	lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	_sockFd.reset();
 }
 
@@ -432,7 +465,7 @@ bool Socket::listen(const SockFD::Ptr &pSock){
 		WarnL << "开始Poll监听失败";
 		return false;
 	}
-	lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	_sockFd = pSock;
 	return true;
 }
@@ -454,7 +487,7 @@ bool Socket::bindUdpSock(const uint16_t port, const char* localIp) {
 		WarnL << "开始Poll监听失败";
 		return false;
 	}
-	lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	_sockFd = pSock;
 	return true;
 }
@@ -484,17 +517,28 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			SockUtil::setRecvBuf(peerfd);
 			SockUtil::setCloseWait(peerfd);
 
-            Socket::Ptr peerSock = std::make_shared<Socket>(_poller);
-            //设置好fd,以备在TcpSession的构造函数中可以正常访问该fd
-            auto sockFD = peerSock->setPeerSock(peerfd);
-            //在accept事件中，TcpServer对象会创建TcpSession对象并绑定该Socket的相关事件(onRead/onErr)
-            //所以在这之前千万不能就把peerfd加入poll监听
-            _acceptCB(peerSock);
-            //把该peerfd加入poll监听，这个时候可能会触发其数据接收事件
-            if(!peerSock->attachEvent(sockFD, false)){
-                //加入poll监听失败，我们通知TcpServer该Socket无效
-                peerSock->emitErr(SockException(Err_eof,"attachEvent failed"), true);
-            }
+			//拦截默认的Socket构造行为，
+			//在TcpServer中，默认的行为是子Socket的网络事件会派发到其他poll线程
+			//这样就可以发挥最大的网络性能
+			Socket::Ptr peerSock = _beforeAcceptCB(_poller);
+
+			if(!peerSock){
+				//此处是默认构造行为，也就是子Socket
+				//共用父Socket的poll线程以及事件执行线程
+				peerSock = std::make_shared<Socket>(_poller);
+			}
+
+			//设置好fd,以备在TcpSession的构造函数中可以正常访问该fd
+			auto sockFD = peerSock->setPeerSock(peerfd);
+
+			//在accept事件中，TcpServer对象会创建TcpSession对象并绑定该Socket的相关事件(onRead/onErr)
+			//所以在这之前千万不能就把peerfd加入poll监听
+			_acceptCB(peerSock);
+			//把该peerfd加入poll监听，这个时候可能会触发其数据接收事件
+			if(!peerSock->attachEvent(sockFD, false)){
+				//加入poll监听失败，我们通知TcpServer该Socket无效
+				peerSock->emitErr(SockException(Err_eof,"attachEvent failed"), true);
+			}
 		}
 
 		if (event & Event_Error) {
@@ -508,13 +552,13 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 SockFD::Ptr Socket::setPeerSock(int sock) {
 	closeSock();
     auto pSock = makeSock(sock,SockNum::Sock_TCP);
-	lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	_sockFd = pSock;
 	return pSock;
 }
 
 string Socket::get_local_ip() {
-    lock_guard<mutex> lck(_mtx_sockFd);
+    LOCK_GUARD(_mtx_sockFd);
 	if (!_sockFd) {
 		return "";
 	}
@@ -522,7 +566,7 @@ string Socket::get_local_ip() {
 }
 
 uint16_t Socket::get_local_port() {
-    lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	if (!_sockFd) {
 		return 0;
 	}
@@ -531,7 +575,7 @@ uint16_t Socket::get_local_port() {
 }
 
 string Socket::get_peer_ip() {
-    lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	if (!_sockFd) {
 		return "";
 	}
@@ -539,7 +583,7 @@ string Socket::get_peer_ip() {
 }
 
 uint16_t Socket::get_peer_port() {
-    lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	if (!_sockFd) {
 		return 0;
 	}
@@ -549,13 +593,13 @@ uint16_t Socket::get_peer_port() {
 bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
     decltype(_bufferSending) bufferSendingTmp;
     {
-        lock_guard<recursive_mutex> lck(_mtx_bufferSending);
+		LOCK_GUARD(_mtx_bufferSending);
         if(!_bufferSending.empty()){
 			bufferSendingTmp.swap(_bufferSending);
 		}
     }
     {
-        lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
+		LOCK_GUARD(_mtx_bufferWaiting);
         if(!_bufferWaiting.empty()){
             //把_bufferWaiting列队数据放置到_bufferSending列队
             bufferSendingTmp.emplace_back(std::make_shared<BufferList>(_bufferWaiting));
@@ -609,7 +653,7 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
 	//回滚未发送完毕的数据
 	if(!bufferSendingTmp.empty()){
 	    //有剩余数据
-        lock_guard<recursive_mutex> lck(_mtx_bufferSending);
+		LOCK_GUARD(_mtx_bufferSending);
         bufferSendingTmp.swap(_bufferSending);
         _bufferSending.append(bufferSendingTmp);
 	}
@@ -620,12 +664,12 @@ void Socket::onWriteAble(const SockFD::Ptr &pSock) {
     bool emptyWaiting;
     bool emptySending;
     {
-        lock_guard<recursive_mutex> lck(_mtx_bufferWaiting);
+		LOCK_GUARD(_mtx_bufferWaiting);
         emptyWaiting = _bufferWaiting.empty();
     }
 
     {
-        lock_guard<recursive_mutex> lck(_mtx_bufferSending);
+		LOCK_GUARD(_mtx_bufferSending);
         emptySending = _bufferSending.empty();
     }
 
@@ -667,7 +711,7 @@ SockFD::Ptr Socket::makeSock(int sock,SockNum::SockType type){
 }
 
 int Socket::rawFD() const{
-    lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
     if(!_sockFd){
         return -1;
     }
@@ -693,7 +737,7 @@ const EventPoller::Ptr &Socket::getPoller() const{
 bool Socket::cloneFromListenSocket(const Socket &other){
 	SockFD::Ptr fd;
 	{
-		lock_guard<mutex> lck(other._mtx_sockFd);
+		LOCK_GUARD(other._mtx_sockFd);
 		if(!other._sockFd){
 			WarnL << "sockfd of src socket is null!";
             return false;
@@ -704,7 +748,7 @@ bool Socket::cloneFromListenSocket(const Socket &other){
 }
 
 bool Socket::setSendPeerAddr(const struct sockaddr *peerAddr) {
-	lock_guard<mutex> lck(_mtx_sockFd);
+	LOCK_GUARD(_mtx_sockFd);
 	if(!_sockFd){
         return false;
     }
