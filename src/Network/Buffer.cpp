@@ -44,6 +44,7 @@ int BufferList::send(int fd,int flags) {
 void BufferList::reOffset(int n) {
     _remainSize -= n;
     int offset = 0;
+    int last_off = _iovec_off;
     for(int i = _iovec_off ; i != _iovec.size() ; ++i ){
         auto &ref = _iovec[i];
         offset += ref.iov_len;
@@ -58,6 +59,11 @@ void BufferList::reOffset(int n) {
             _iovec_off += 1;
         }
         break;
+    }
+
+    //删除已经发送的数据，节省内存
+    for (int i = last_off ; i < _iovec_off ; ++i){
+        _pkt_list.pop_front();
     }
 }
 BufferList::BufferList(List<Buffer::Ptr> &list) : _iovec(list.size()) {
