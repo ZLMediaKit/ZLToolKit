@@ -102,6 +102,26 @@ private:
 };
 
 
+#if defined(_WIN32)
+struct iovec {
+	void *   iov_base;	/* [XSI] Base address of I/O memory region */
+	int	 iov_len;	/* [XSI] Size of region iov_base points to */
+};
+struct msghdr {
+	void		*msg_name;	/* [XSI] optional address */
+	int			msg_namelen;	/* [XSI] size of address */
+	struct		iovec *msg_iov;	/* [XSI] scatter/gather array */
+	int			msg_iovlen;	/* [XSI] # elements in msg_iov */
+	void		*msg_control;	/* [XSI] ancillary data, see below */
+	int			msg_controllen;	/* [XSI] ancillary data buffer len */
+	int			msg_flags;	/* [XSI] flags on received message */
+};
+#define IOV_MAX 1024
+#define sendmsg send_iovec
+#else
+#include <sys/uio.h>
+#include <limits.h>
+#endif
 class BufferList : public noncopyable {
 public:
     typedef std::shared_ptr<BufferList> Ptr;
