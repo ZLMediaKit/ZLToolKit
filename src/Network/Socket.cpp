@@ -364,6 +364,7 @@ int Socket::send(string &&buf) {
 }
 
 bool Socket::send_l() {
+    //数据可写入
     if(_canSendSock){
         //该socket可写
 		SockFD::Ptr sock;
@@ -376,16 +377,17 @@ bool Socket::send_l() {
 			//如果已断开连接或者发送超时
 			return false;
 		}
+        return flushData(sock, false);
+    }
 
-        if(!flushData(sock, false)){
-            //发生错误
-            return false;
-        }
-    }else if(_lastFlushStamp && time(NULL) - _lastFlushStamp > _sendTimeOutSec){
+    //判断发送超时
+    if(_lastFlushStamp && time(NULL) - _lastFlushStamp > _sendTimeOutSec){
         //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
         emitErr(SockException(Err_other, "Socket send timeout"));
         return false;
     }
+
+    //成功
     return true;
 }
 
