@@ -3,6 +3,7 @@
 //
 
 #include <sys/uio.h>
+#include <limits.h>
 #include "Buffer.h"
 
 namespace toolkit {
