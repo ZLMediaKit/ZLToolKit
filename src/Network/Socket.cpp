@@ -333,19 +333,19 @@ int Socket::send(string &&buf) {
 }
 
 bool Socket::send_l() {
-    SockFD::Ptr sock;
-    {
-        lock_guard<mutex> lck(_mtx_sockFd);
-        sock = _sockFd;
-    }
-    if (!sock ) {
-        //如果已断开连接或者发送超时
-        return false;
-    }
-
     if(_canSendSock){
         //该socket可写
-        //WarnL << "后台线程发送数据";
+		SockFD::Ptr sock;
+		{
+			lock_guard<mutex> lck(_mtx_sockFd);
+			sock = _sockFd;
+		}
+
+		if (!sock ) {
+			//如果已断开连接或者发送超时
+			return false;
+		}
+
         if(!flushData(sock, false)){
             //发生错误
             return false;
