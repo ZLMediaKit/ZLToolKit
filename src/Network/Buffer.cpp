@@ -11,7 +11,7 @@ bool BufferList::empty() {
     return _iovec_off == _iovec.size();
 }
 
-int BufferList::send(int fd,int flags) {
+int BufferList::send_l(int fd, int flags) {
     int n;
     do {
         struct msghdr msg;
@@ -19,6 +19,9 @@ int BufferList::send(int fd,int flags) {
         msg.msg_namelen = 0;
         msg.msg_iov = &(_iovec[_iovec_off]);
         msg.msg_iovlen = _iovec.size() - _iovec_off;
+        if(msg.msg_iovlen > IOV_MAX){
+            msg.msg_iovlen = IOV_MAX;
+        }
         msg.msg_control = NULL;
         msg.msg_controllen = 0;
         msg.msg_flags = flags;
@@ -28,6 +31,7 @@ int BufferList::send(int fd,int flags) {
     if(n >= _remainSize){
         //全部写完了
         _iovec_off = _iovec.size();
+        _remainSize = 0;
         return n;
     }
 
@@ -39,6 +43,19 @@ int BufferList::send(int fd,int flags) {
 
     //一个字节都未发送
     return n;
+}
+
+int BufferList::send(int fd,int flags) {
+    auto remainSize = _remainSize;
+    while (_remainSize && send_l(fd,flags) != -1);
+
+    int sent = remainSize - _remainSize;
+    if(sent > 0){
+        //部分或全部发送成功
+        return sent;
+    }
+    //一个字节都未发送成功
+    return -1;
 }
 
 void BufferList::reOffset(int n) {

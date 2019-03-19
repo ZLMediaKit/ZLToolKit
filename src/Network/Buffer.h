@@ -111,6 +111,7 @@ public:
     int send(int fd,int flags);
 private:
     void reOffset(int n);
+    int send_l(int fd,int flags);
 private:
     vector<struct iovec> _iovec;
     int _iovec_off = 0;
