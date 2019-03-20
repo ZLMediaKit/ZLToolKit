@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MIT License
  *
  * Copyright (c) 2016 xiongziliang <771730766@qq.com>
@@ -139,7 +139,7 @@ public:
     }
     ~SockNum(){
 #if defined (OS_IPHONE)
-        unsetSocketOfIOS(_sock);
+        unsetSocketOfIOS(_fd);
 #endif //OS_IPHONE
         ::shutdown(_fd, SHUT_RDWR);
         close(_fd);
@@ -155,7 +155,7 @@ public:
 
     void setConnected(){
 #if defined (OS_IPHONE)
-        setSocketOfIOS(_sock);
+        setSocketOfIOS(_fd);
 #endif //OS_IPHONE
     }
 private:
