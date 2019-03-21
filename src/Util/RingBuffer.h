@@ -159,7 +159,13 @@ public:
         _delegate = delegate;
     }
 
-    void write(const T &in,bool isKey = true,bool *reSized = nullptr) {
+    /**
+     * 写入环形缓存数据
+     * @param in 数据
+     * @param isKey 是否为关键帧
+     * @return 是否触发重置环形缓存大小
+     */
+    bool write(const T &in,bool isKey = true) {
         {
             lock_guard<mutex> lck(_mtx_delegate);
             if (_delegate) {
@@ -167,14 +173,12 @@ public:
             }
         }
         auto flag = computeGopSize(isKey);
-        if(reSized){
-            *reSized = flag;
-        }
         _dataRing[_ringPos] = in;
         if (isKey) {
             _ringKeyPos = _ringPos; //设置读取器可以定位的点
         }
         _ringPos = next(_ringPos);
+        return flag;
     }
 
     int getPos(bool keypos){
@@ -341,9 +345,7 @@ public:
     ~RingBuffer() {}
 
     void write(const T &in, bool isKey = true) {
-        bool flag = false;
-        _storage->write(in, isKey, &flag);
-        if (flag) {
+        if (_storage->write(in, isKey)) {
             resetPos();
         }
         emitRead(in);
@@ -370,7 +372,7 @@ public:
             if(!strongSelf){
                 return;
             }
-            strongSelf->release(poller);
+            strongSelf->check(poller);
         };
         return ring->attach(useBuffer,lam);
     }
@@ -403,7 +405,7 @@ private:
             }
         }
     }
-    void release(const EventPoller::Ptr &poller){
+    void check(const EventPoller::Ptr &poller){
         lock_guard<decltype(_mtx_map)> lck(_mtx_map);
         auto it = _bufferMap.find(poller);
         if(it == _bufferMap.end()){
