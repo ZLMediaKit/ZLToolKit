@@ -663,8 +663,14 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
 		LOCK_GUARD(_mtx_bufferSending);
         bufferSendingTmp.swap(_bufferSending);
         _bufferSending.append(bufferSendingTmp);
+        //bufferSendingTmp未全部发送完毕，说明该socket不可写，直接返回
+        return true;
 	}
-	return true;
+
+	//bufferSendingTmp已经全部发送完毕，说明该socket还可写，我们尝试继续写
+    //如果是poller线程，我们尝试再次写一次(因为可能其他线程调用了send函数又有新数据了)
+    //如果是非poller线程，那么本次操作本来就是send函数触发的，所以不可能还有新的数据(我们假定send函数只有其他单独一个线程调用)
+	return bPollerThread ? flushData(pSock,bPollerThread) : true;
 }
 
 void Socket::onWriteAble(const SockFD::Ptr &pSock) {
