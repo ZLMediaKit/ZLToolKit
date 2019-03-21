@@ -65,7 +65,7 @@ int main() {
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	//从环形缓存获取一个读取器
-	auto ringReader = g_ringBuf->attach();
+	auto ringReader = g_ringBuf->attach(nullptr);
 
 	//设置读取事件
 	ringReader->setReadCB([](const string &pkt){

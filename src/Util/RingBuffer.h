@@ -37,6 +37,7 @@ using namespace std;
 //自适应环形缓存大小的取值范围
 #define RING_MIN_SIZE 32
 #define RING_MAX_SIZE 512
+#define LOCK_GUARD(mtx) lock_guard<decltype(mtx)> lck(mtx)
 
 namespace toolkit {
 
@@ -50,22 +51,22 @@ public:
 };
 
 template<typename T>
-class RingStorage;
+class _RingStorage;
 
 template<typename T>
-class RingReader {
+class _RingReader {
 public:
-    typedef std::shared_ptr<RingReader> Ptr;
-    RingReader(const std::shared_ptr<RingStorage<T> > &buffer,bool useBuffer) {
+    typedef std::shared_ptr<_RingReader> Ptr;
+    _RingReader(const std::shared_ptr<_RingStorage<T> > &buffer,bool useBuffer) {
         _buffer = buffer;
         _curpos = buffer->getPos(true);
         _useBuffer = useBuffer;
     }
 
-    ~RingReader() {}
+    ~_RingReader() {}
 
     void setReadCB(const function<void(const T &)> &cb) {
-        lock_guard<mutex> lck(_mtxCB);
+        LOCK_GUARD(_mtxCB);
         if (!cb) {
             _readCB = [](const T &) {};
         } else {
@@ -75,7 +76,7 @@ public:
     }
 
     void setDetachCB(const function<void()> &cb) {
-        lock_guard<mutex> lck(_mtxCB);
+        LOCK_GUARD(_mtxCB);
         if (!cb) {
             _detachCB = []() {};
         } else {
@@ -100,7 +101,7 @@ public:
     }
 
     void onRead(const T &data) {
-        lock_guard<mutex> lck(_mtxCB);
+        LOCK_GUARD(_mtxCB);
         if(!_useBuffer){
             _readCB(data);
         }else{
@@ -112,12 +113,12 @@ public:
     }
 
     void onDetach() const {
-        lock_guard<mutex> lck(_mtxCB);
+        LOCK_GUARD(_mtxCB);
         _detachCB();
     }
 private:
     //读环形缓冲
-    const T *read(std::shared_ptr<RingStorage<T> > &ring) {
+    const T *read(std::shared_ptr<_RingStorage<T> > &ring) {
         if (_curpos == ring->getPos(false)) {
             return nullptr;
         }
@@ -128,18 +129,18 @@ private:
 private:
     function<void(const T &)> _readCB = [](const T &) {};
     function<void(void)> _detachCB = []() {};
-    weak_ptr<RingStorage<T> > _buffer;
-    mutable mutex _mtxCB;
+    weak_ptr<_RingStorage<T> > _buffer;
+    mutable recursive_mutex _mtxCB;
     int _curpos;
     bool _useBuffer;
 };
 
 template<typename T>
-class RingStorage{
+class _RingStorage{
 public:
-    typedef std::shared_ptr<RingStorage> Ptr;
+    typedef std::shared_ptr<_RingStorage> Ptr;
 
-    RingStorage(int size = 0){
+    _RingStorage(int size = 0){
         if(size <= 0){
             size = RING_MIN_SIZE;
             _canReSize = true;
@@ -150,12 +151,12 @@ public:
         _ringKeyPos = 0;
     }
 
-    ~RingStorage(){
+    ~_RingStorage(){
         delete[] _dataRing;
     }
 
     void setDelegate(const typename RingDelegate<T>::Ptr &delegate){
-        lock_guard<mutex> lck(_mtx_delegate);
+        LOCK_GUARD(_mtx_delegate);
         _delegate = delegate;
     }
 
@@ -167,7 +168,7 @@ public:
      */
     bool write(const T &in,bool isKey = true) {
         {
-            lock_guard<mutex> lck(_mtx_delegate);
+            LOCK_GUARD(_mtx_delegate);
             if (_delegate) {
                 _delegate->onWrite(in, isKey);
             }
@@ -243,24 +244,24 @@ private:
     int _lastKeyCnt = 0;
     bool _canReSize = false;
     typename RingDelegate<T>::Ptr _delegate;
-    mutex _mtx_delegate;
+    recursive_mutex _mtx_delegate;
 };
 
 template<typename T>
 class RingBuffer;
 
 template<typename T>
-class RingReaderDispatcher: public enable_shared_from_this<RingReaderDispatcher<T> > {
+class _RingReaderDispatcher: public enable_shared_from_this<_RingReaderDispatcher<T> > {
 public:
-	typedef std::shared_ptr<RingReaderDispatcher> Ptr;
-    typedef RingReader<T> RingReader;
-    typedef RingStorage<T> RingStorage;
+	typedef std::shared_ptr<_RingReaderDispatcher> Ptr;
+    typedef _RingReader<T> RingReader;
+    typedef _RingStorage<T> RingStorage;
     friend class RingBuffer<T>;
 
-	~RingReaderDispatcher() {
+	~_RingReaderDispatcher() {
         decltype(_readerMap) mapCopy;
         {
-            lock_guard<mutex> lck(_mtx_reader);
+            LOCK_GUARD(_mtx_reader);
             mapCopy.swap(_readerMap);
         }
         for (auto &pr : mapCopy) {
@@ -272,12 +273,12 @@ public:
 	}
 
 private:
-    RingReaderDispatcher(const typename RingStorage::Ptr &storage ) {
+    _RingReaderDispatcher(const typename RingStorage::Ptr &storage ) {
         _storage = storage;
     }
 
     void emitRead(const T &in){
-        lock_guard<mutex> lck(_mtx_reader);
+        LOCK_GUARD(_mtx_reader);
         for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
             auto reader = it->second.lock();
             if(!reader){
@@ -291,12 +292,12 @@ private:
 
 	//是否某读取器
 	void release(void *ptr){
-        lock_guard<mutex> lck(_mtx_reader);
+        LOCK_GUARD(_mtx_reader);
         _readerMap.erase(ptr);
 	}
 
     void resetPos(bool keypos = true)  {
-        lock_guard<mutex> lck(_mtx_reader);
+        LOCK_GUARD(_mtx_reader);
         for (auto &pr : _readerMap) {
             auto reader = pr.second.lock();
             if(reader){
@@ -306,7 +307,7 @@ private:
     }
 
     std::shared_ptr<RingReader> attach(bool useBuffer, const function<void() > &deallocCB) {
-        weak_ptr<RingReaderDispatcher> weakSelf = this->shared_from_this();
+        weak_ptr<_RingReaderDispatcher> weakSelf = this->shared_from_this();
         std::shared_ptr<RingReader> ptr(new RingReader(_storage,useBuffer),[weakSelf,deallocCB](RingReader *ptr){
             auto strongSelf = weakSelf.lock();
             if(strongSelf){
@@ -315,18 +316,18 @@ private:
             deallocCB();
             delete ptr;
         });
-        lock_guard<mutex> lck(_mtx_reader);
+        LOCK_GUARD(_mtx_reader);
         _readerMap.emplace(ptr.get(),ptr);
         return ptr;
     }
 
     int readerCount(){
-        lock_guard<mutex> lck(_mtx_reader);
+        LOCK_GUARD(_mtx_reader);
         return _readerMap.size();
     }
 private:
     typename RingStorage::Ptr _storage;
-    mutex _mtx_reader;
+    recursive_mutex _mtx_reader;
     unordered_map<void *,std::weak_ptr<RingReader> > _readerMap;
 };
 
@@ -334,9 +335,9 @@ template<typename T>
 class RingBuffer :  public enable_shared_from_this<RingBuffer<T> > {
 public:
     typedef std::shared_ptr<RingBuffer> Ptr;
-    typedef RingReader<T> RingReader;
-    typedef RingStorage<T> RingStorage;
-    typedef RingReaderDispatcher<T> RingReaderDispatcher;
+    typedef _RingReader<T> RingReader;
+    typedef _RingStorage<T> RingStorage;
+    typedef _RingReaderDispatcher<T> RingReaderDispatcher;
 
     RingBuffer(int size = 0) {
         _storage = std::make_shared<RingStorage>(size);
@@ -358,7 +359,7 @@ public:
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool useBuffer = true) {
         typename RingReaderDispatcher::Ptr ring;
         {
-            lock_guard<decltype(_mtx_map)> lck(_mtx_map);
+            LOCK_GUARD(_mtx_map);
             auto &ref = _dispatcherMap[poller];
             if (!ref) {
                 ref.reset(new RingReaderDispatcher(_storage),[poller](RingReaderDispatcher *ptr){
@@ -386,7 +387,7 @@ public:
     }
 
     int readerCount() {
-        lock_guard<decltype(_mtx_map)> lck(_mtx_map);
+        LOCK_GUARD(_mtx_map);
         int total = 0;
         for (auto &pr : _dispatcherMap){
             total += pr.second->readerCount();
@@ -395,13 +396,13 @@ public:
     }
 private:
     void resetPos(bool keypos = true ) {
-        lock_guard<decltype(_mtx_map)> lck(_mtx_map);
+        LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcherMap) {
             pr.second->resetPos(keypos);
         }
     }
     void emitRead(const T &in){
-        lock_guard<decltype(_mtx_map)> lck(_mtx_map);
+        LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcherMap) {
             if(pr.first){
                 auto ring = pr.second;
@@ -414,7 +415,7 @@ private:
         }
     }
     void check(const EventPoller::Ptr &poller){
-        lock_guard<decltype(_mtx_map)> lck(_mtx_map);
+        LOCK_GUARD(_mtx_map);
         auto it = _dispatcherMap.find(poller);
         if(it == _dispatcherMap.end()){
             return;
@@ -432,7 +433,7 @@ private:
     };
 private:
     typename RingStorage::Ptr _storage;
-    mutex _mtx_map;
+    recursive_mutex _mtx_map;
     unordered_map<EventPoller::Ptr,typename RingReaderDispatcher::Ptr,HashOfPtr > _dispatcherMap;
 };
 
