@@ -250,14 +250,14 @@ template<typename T>
 class RingBuffer;
 
 template<typename T>
-class RingBufferSimple: public enable_shared_from_this<RingBufferSimple<T> > {
+class RingReaderDispatcher: public enable_shared_from_this<RingReaderDispatcher<T> > {
 public:
-	typedef std::shared_ptr<RingBufferSimple> Ptr;
+	typedef std::shared_ptr<RingReaderDispatcher> Ptr;
     typedef RingReader<T> RingReader;
     typedef RingStorage<T> RingStorage;
     friend class RingBuffer<T>;
 
-	~RingBufferSimple() {
+	~RingReaderDispatcher() {
         decltype(_readerMap) mapCopy;
         {
             lock_guard<mutex> lck(_mtx_reader);
@@ -272,7 +272,7 @@ public:
 	}
 
 private:
-    RingBufferSimple(const typename RingStorage::Ptr &storage ) {
+    RingReaderDispatcher(const typename RingStorage::Ptr &storage ) {
         _storage = storage;
     }
 
@@ -306,7 +306,7 @@ private:
     }
 
     std::shared_ptr<RingReader> attach(bool useBuffer, const function<void() > &deallocCB) {
-        weak_ptr<RingBufferSimple> weakSelf = this->shared_from_this();
+        weak_ptr<RingReaderDispatcher> weakSelf = this->shared_from_this();
         std::shared_ptr<RingReader> ptr(new RingReader(_storage,useBuffer),[weakSelf,deallocCB](RingReader *ptr){
             auto strongSelf = weakSelf.lock();
             if(strongSelf){
@@ -336,7 +336,7 @@ public:
     typedef std::shared_ptr<RingBuffer> Ptr;
     typedef RingReader<T> RingReader;
     typedef RingStorage<T> RingStorage;
-    typedef RingBufferSimple<T> RingBufferSimple;
+    typedef RingReaderDispatcher<T> RingReaderDispatcher;
 
     RingBuffer(int size = 0) {
         _storage = std::make_shared<RingStorage>(size);
@@ -356,12 +356,12 @@ public:
     }
 
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller = nullptr, bool useBuffer = true) {
-        typename RingBufferSimple::Ptr ring;
+        typename RingReaderDispatcher::Ptr ring;
         {
             lock_guard<decltype(_mtx_map)> lck(_mtx_map);
-            auto &ref = _bufferMap[poller];
+            auto &ref = _dispatcherMap[poller];
             if (!ref) {
-                ref.reset(new RingBufferSimple(_storage));
+                ref.reset(new RingReaderDispatcher(_storage));
             }
             ring = ref;
         }
@@ -380,7 +380,7 @@ public:
     int readerCount() {
         lock_guard<decltype(_mtx_map)> lck(_mtx_map);
         int total = 0;
-        for (auto &pr : _bufferMap){
+        for (auto &pr : _dispatcherMap){
             total += pr.second->readerCount();
         }
         return total;
@@ -388,13 +388,13 @@ public:
 private:
     void resetPos(bool keypos = true ) {
         lock_guard<decltype(_mtx_map)> lck(_mtx_map);
-        for (auto &pr : _bufferMap) {
+        for (auto &pr : _dispatcherMap) {
             pr.second->resetPos(keypos);
         }
     }
     void emitRead(const T &in){
         lock_guard<decltype(_mtx_map)> lck(_mtx_map);
-        for (auto &pr : _bufferMap) {
+        for (auto &pr : _dispatcherMap) {
             if(pr.first){
                 auto ring = pr.second;
                 pr.first->async([ring,in](){
@@ -407,18 +407,25 @@ private:
     }
     void check(const EventPoller::Ptr &poller){
         lock_guard<decltype(_mtx_map)> lck(_mtx_map);
-        auto it = _bufferMap.find(poller);
-        if(it == _bufferMap.end()){
+        auto it = _dispatcherMap.find(poller);
+        if(it == _dispatcherMap.end()){
             return;
         }
         if(!it->second->readerCount()){
-            _bufferMap.erase(it);
+            _dispatcherMap.erase(it);
         }
     }
 private:
+    struct HashOfPtr {
+        std::size_t operator()(const EventPoller::Ptr &key) const
+        {
+            return (uint64_t)key.get();
+        }
+    };
+private:
     typename RingStorage::Ptr _storage;
     mutex _mtx_map;
-    map<EventPoller::Ptr,typename RingBufferSimple::Ptr > _bufferMap;
+    unordered_map<EventPoller::Ptr,typename RingReaderDispatcher::Ptr,HashOfPtr > _dispatcherMap;
 };
 
 }; /* namespace toolkit */
