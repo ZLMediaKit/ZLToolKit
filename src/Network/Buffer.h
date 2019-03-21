@@ -116,12 +116,16 @@ struct msghdr {
 	int			msg_controllen;	/* [XSI] ancillary data buffer len */
 	int			msg_flags;	/* [XSI] flags on received message */
 };
-#define IOV_MAX 1024
 #define sendmsg send_iovec
 #else
 #include <sys/uio.h>
 #include <limits.h>
 #endif
+
+#if !defined(IOV_MAX)
+#define IOV_MAX 1024
+#endif
+
 class BufferList : public noncopyable {
 public:
     typedef std::shared_ptr<BufferList> Ptr;
