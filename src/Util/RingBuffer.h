@@ -355,13 +355,21 @@ public:
         _storage->setDelegate(delegate);
     }
 
-    std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller = nullptr, bool useBuffer = true) {
+    std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool useBuffer = true) {
         typename RingReaderDispatcher::Ptr ring;
         {
             lock_guard<decltype(_mtx_map)> lck(_mtx_map);
             auto &ref = _dispatcherMap[poller];
             if (!ref) {
-                ref.reset(new RingReaderDispatcher(_storage));
+                ref.reset(new RingReaderDispatcher(_storage),[poller](RingReaderDispatcher *ptr){
+                    if(!poller){
+                        delete ptr;
+                        return;
+                    }
+                    poller->async([ptr](){
+                        delete ptr;
+                    });
+                });
             }
             ring = ref;
         }
