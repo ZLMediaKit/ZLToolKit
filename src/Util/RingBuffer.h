@@ -141,14 +141,12 @@ public:
             _canReSize = true;
         }
         _ringSize = size;
-        _dataRing = new T[_ringSize];
+        _dataRing.resize(size);
         _ringPos = 0;
         _ringKeyPos = 0;
     }
 
-    ~_RingStorage(){
-        delete[] _dataRing;
-    }
+    ~_RingStorage(){}
 
     void setDelegate(const typename RingDelegate<T>::Ptr &delegate){
         LOCK_GUARD(_mtx_delegate);
@@ -168,7 +166,7 @@ public:
                 _delegate->onWrite(in, isKey);
             }
         }
-        auto flag = computeGopSize(isKey);
+        auto flag = computeGopSize(isKey,in);
         _dataRing[_ringPos] = in;
         if (isKey) {
             _ringKeyPos = _ringPos; //设置读取器可以定位的点
@@ -194,15 +192,14 @@ public:
         return _dataRing[pos];
     }
 private:
-    void reSize(){
+    void reSize(const T &in){
         _ringSize = _besetSize;
-        delete [] _dataRing;
-        _dataRing = new T[_ringSize];
+        _dataRing.resize(_ringSize,in);
         _ringPos = 0;
         _ringKeyPos = 0;
     }
 
-    bool computeGopSize(bool isKey){
+    bool computeGopSize(bool isKey,const T &in){
         if(!_canReSize || _besetSize){
             return false;
         }
@@ -225,11 +222,11 @@ private:
         if(_besetSize > RING_MAX_SIZE){
             _besetSize = RING_MAX_SIZE;
         }
-        reSize();
+        reSize(in);
         return true;
     }
 private:
-    T *_dataRing;
+    vector<T> _dataRing;
     int _ringPos;
     int _ringKeyPos;
     int _ringSize;
