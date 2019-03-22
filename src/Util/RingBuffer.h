@@ -428,11 +428,7 @@ private:
     }
     void erase(const EventPoller::Ptr &poller){
         LOCK_GUARD(_mtx_map);
-        auto it = _dispatcherMap.find(poller);
-        if(it == _dispatcherMap.end()){
-            return;
-        }
-        _dispatcherMap.erase(it);
+        _dispatcherMap.erase(poller);
     }
 private:
     struct HashOfPtr {
