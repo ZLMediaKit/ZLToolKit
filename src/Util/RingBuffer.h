@@ -56,6 +56,13 @@ class _RingStorage;
 template<typename T>
 class _RingReaderDispatcher;
 
+/**
+ * 环形缓存读取器
+ * 该对象的事件触发都会在绑定的poller线程中执行
+ * 所以把锁去掉了
+ * 对该对象的一切操作都应该在poller线程中执行
+ * @tparam T
+ */
 template<typename T>
 class _RingReader {
 public:
@@ -71,7 +78,6 @@ public:
     ~_RingReader() {}
 
     void setReadCB(const function<void(const T &)> &cb) {
-        LOCK_GUARD(_mtxCB);
         if (!cb) {
             _readCB = [](const T &) {};
         } else {
@@ -81,7 +87,6 @@ public:
     }
 
     void setDetachCB(const function<void()> &cb) {
-        LOCK_GUARD(_mtxCB);
         if (!cb) {
             _detachCB = []() {};
         } else {
@@ -89,22 +94,12 @@ public:
         }
     }
 
-    const T* read(){
-        if (_curpos == _storage->getPos(false)) {
-            return nullptr;
-        }
-        const T *data = &((*_storage)[_curpos]); //返回包
-        _curpos = _storage->next(_curpos); //更新位置
-        return data;
-    }
-
-    //重新定位读取器至最新的数据位置
+    //重新定位至最新的数据位置
     void resetPos(bool keypos = true) {
         _curpos = _storage->getPos(keypos);
     }
 private:
     void onRead(const T &data) {
-        LOCK_GUARD(_mtxCB);
         if(!_useBuffer){
             _readCB(data);
         }else{
@@ -116,14 +111,21 @@ private:
     }
 
     void onDetach() const {
-        LOCK_GUARD(_mtxCB);
         _detachCB();
+    }
+
+    const T* read(){
+        if (_curpos == _storage->getPos(false)) {
+            return nullptr;
+        }
+        const T *data = &((*_storage)[_curpos]); //返回包
+        _curpos = _storage->next(_curpos); //更新位置
+        return data;
     }
 private:
     function<void(const T &)> _readCB = [](const T &) {};
     function<void(void)> _detachCB = []() {};
     shared_ptr<_RingStorage<T> > _storage;
-    mutable recursive_mutex _mtxCB;
     int _curpos;
     bool _useBuffer;
 };
@@ -243,6 +245,10 @@ private:
 template<typename T>
 class RingBuffer;
 
+/**
+ * 环形缓存事件派发器，只能一个poller线程操作它
+ * @tparam T
+ */
 template<typename T>
 class _RingReaderDispatcher: public enable_shared_from_this<_RingReaderDispatcher<T> > {
 public:
@@ -253,10 +259,7 @@ public:
 
 	~_RingReaderDispatcher() {
         decltype(_readerMap) mapCopy;
-        {
-            LOCK_GUARD(_mtx_reader);
-            mapCopy.swap(_readerMap);
-        }
+        mapCopy.swap(_readerMap);
         for (auto &pr : mapCopy) {
             auto reader = pr.second.lock();
             if(reader){
@@ -266,16 +269,19 @@ public:
 	}
 
 private:
-    _RingReaderDispatcher(const typename RingStorage::Ptr &storage ) {
+    _RingReaderDispatcher(const typename RingStorage::Ptr &storage,const function<void() > &onClear ) {
         _storage = storage;
+        _readerSize = 0;
+        _onClear = onClear;
     }
 
     void emitRead(const T &in){
-        LOCK_GUARD(_mtx_reader);
         for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
             auto reader = it->second.lock();
             if(!reader){
                 it = _readerMap.erase(it);
+                --_readerSize;
+                onSizeChanged();
                 continue;
             }
             reader->onRead(in);
@@ -283,44 +289,57 @@ private:
         }
 	}
 
-	//是否某读取器
-	void release(void *ptr){
-        LOCK_GUARD(_mtx_reader);
-        _readerMap.erase(ptr);
-	}
-
     void resetPos(bool keypos = true)  {
-        LOCK_GUARD(_mtx_reader);
-        for (auto &pr : _readerMap) {
-            auto reader = pr.second.lock();
-            if(reader){
-                reader->resetPos(keypos);
+        for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
+            auto reader = it->second.lock();
+            if(!reader){
+                it = _readerMap.erase(it);
+                --_readerSize;
+                onSizeChanged();
+                continue;
             }
+            reader->resetPos(keypos);
+            ++it;
         }
     }
 
-    std::shared_ptr<RingReader> attach(bool useBuffer, const function<void() > &deallocCB) {
+    std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller,bool useBuffer) {
+	    if(!poller->isCurrentThread()){
+	        throw std::runtime_error("必须在绑定的poller线程中执行attach操作");
+	    }
+
         weak_ptr<_RingReaderDispatcher> weakSelf = this->shared_from_this();
-        std::shared_ptr<RingReader> ptr(new RingReader(_storage,useBuffer),[weakSelf,deallocCB](RingReader *ptr){
-            auto strongSelf = weakSelf.lock();
-            if(strongSelf){
-                strongSelf->release(ptr);
-            }
-            deallocCB();
-            delete ptr;
-        });
-        LOCK_GUARD(_mtx_reader);
-        _readerMap.emplace(ptr.get(),ptr);
-        return ptr;
+	    auto onDealloc = [weakSelf,poller](RingReader *ptr){
+            poller->async([weakSelf,ptr](){
+                auto strongSelf = weakSelf.lock();
+                if(strongSelf && strongSelf->_readerMap.erase(ptr)){
+                    --strongSelf->_readerSize;
+                    strongSelf->onSizeChanged();
+                }
+                delete ptr;
+            });
+	    };
+
+        std::shared_ptr<RingReader> reader(new RingReader(_storage,useBuffer),onDealloc);
+        _readerMap[reader.get()] = std::move(reader);
+        ++ _readerSize;
+        onSizeChanged();
+        return reader;
     }
 
     int readerCount(){
-        LOCK_GUARD(_mtx_reader);
-        return _readerMap.size();
-    }
+        return _readerSize;
+	}
+
+    void onSizeChanged(){
+        if(_readerSize == 0){
+            _onClear();
+        }
+	}
 private:
+    function<void() > _onClear;
+    atomic_int _readerSize;
     typename RingStorage::Ptr _storage;
-    recursive_mutex _mtx_reader;
     unordered_map<void *,std::weak_ptr<RingReader> > _readerMap;
 };
 
@@ -350,33 +369,34 @@ public:
     }
 
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool useBuffer = true) {
-        typename RingReaderDispatcher::Ptr ring;
+        if(!poller){
+            const_cast<EventPoller::Ptr &>(poller) = EventPollerPool::Instance().getPoller();
+        }
+        typename RingReaderDispatcher::Ptr dispatcher;
         {
             LOCK_GUARD(_mtx_map);
             auto &ref = _dispatcherMap[poller];
             if (!ref) {
-                ref.reset(new RingReaderDispatcher(_storage),[poller](RingReaderDispatcher *ptr){
-                    if(!poller){
-                        delete ptr;
+                weak_ptr<RingBuffer> weakSelf = this->shared_from_this();
+                auto onClear = [weakSelf,poller](){
+                    auto strongSelf = weakSelf.lock();
+                    if(!strongSelf){
                         return;
                     }
+                    strongSelf->erase(poller);
+                };
+
+                auto onDealloc = [poller](RingReaderDispatcher *ptr){
                     poller->async([ptr](){
                         delete ptr;
                     });
-                });
+                };
+                ref.reset(new RingReaderDispatcher(_storage,std::move(onClear)),std::move(onDealloc));
             }
-            ring = ref;
+            dispatcher = ref;
         }
 
-        weak_ptr<RingBuffer> weakSelf = this->shared_from_this();
-        auto lam = [weakSelf,poller](){
-            auto strongSelf = weakSelf.lock();
-            if(!strongSelf){
-                return;
-            }
-            strongSelf->check(poller);
-        };
-        return ring->attach(useBuffer,lam);
+        return dispatcher->attach(poller,useBuffer);
     }
 
     int readerCount() {
@@ -391,31 +411,28 @@ private:
     void resetPos(bool keypos = true ) {
         LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcherMap) {
-            pr.second->resetPos(keypos);
+            auto second = pr.second;
+            pr.first->async([second,keypos](){
+                second->resetPos(keypos);
+            });
         }
     }
     void emitRead(const T &in){
         LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcherMap) {
-            if(pr.first){
-                auto ring = pr.second;
-                pr.first->async([ring,in](){
-                    ring->emitRead(in);
-                });
-            }else{
-                pr.second->emitRead(in);
-            }
+            auto second = pr.second;
+            pr.first->async([second,in](){
+                second->emitRead(in);
+            });
         }
     }
-    void check(const EventPoller::Ptr &poller){
+    void erase(const EventPoller::Ptr &poller){
         LOCK_GUARD(_mtx_map);
         auto it = _dispatcherMap.find(poller);
         if(it == _dispatcherMap.end()){
             return;
         }
-        if(!it->second->readerCount()){
-            _dispatcherMap.erase(it);
-        }
+        _dispatcherMap.erase(it);
     }
 private:
     struct HashOfPtr {
