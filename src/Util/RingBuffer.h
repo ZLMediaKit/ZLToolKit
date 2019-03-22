@@ -239,7 +239,7 @@ private:
     int _lastKeyCnt = 0;
     bool _canReSize = false;
     typename RingDelegate<T>::Ptr _delegate;
-    recursive_mutex _mtx_delegate;
+    mutex _mtx_delegate;
 };
 
 template<typename T>
@@ -414,7 +414,7 @@ private:
             auto second = pr.second;
             pr.first->async([second,keypos](){
                 second->resetPos(keypos);
-            });
+            },false);
         }
     }
     void emitRead(const T &in){
@@ -423,7 +423,7 @@ private:
             auto second = pr.second;
             pr.first->async([second,in](){
                 second->emitRead(in);
-            });
+            },false);
         }
     }
     void erase(const EventPoller::Ptr &poller){
@@ -439,7 +439,7 @@ private:
     };
 private:
     typename RingStorage::Ptr _storage;
-    recursive_mutex _mtx_map;
+    mutex _mtx_map;
     unordered_map<EventPoller::Ptr,typename RingReaderDispatcher::Ptr,HashOfPtr > _dispatcherMap;
 };
 
