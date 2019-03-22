@@ -54,12 +54,17 @@ template<typename T>
 class _RingStorage;
 
 template<typename T>
+class _RingReaderDispatcher;
+
+template<typename T>
 class _RingReader {
 public:
     typedef std::shared_ptr<_RingReader> Ptr;
-    _RingReader(const std::shared_ptr<_RingStorage<T> > &buffer,bool useBuffer) {
-        _buffer = buffer;
-        _curpos = buffer->getPos(true);
+    friend class _RingReaderDispatcher<T>;
+
+    _RingReader(const std::shared_ptr<_RingStorage<T> > &storage,bool useBuffer) {
+        _storage = storage;
+        _curpos = storage->getPos(true);
         _useBuffer = useBuffer;
     }
 
@@ -85,21 +90,19 @@ public:
     }
 
     const T* read(){
-        auto strongBuffer=_buffer.lock();
-        if(!strongBuffer){
+        if (_curpos == _storage->getPos(false)) {
             return nullptr;
         }
-        return read(strongBuffer);
+        const T *data = &((*_storage)[_curpos]); //返回包
+        _curpos = _storage->next(_curpos); //更新位置
+        return data;
     }
 
     //重新定位读取器至最新的数据位置
     void resetPos(bool keypos = true) {
-        auto strongBuffer = _buffer.lock();
-        if (strongBuffer) {
-            _curpos = strongBuffer->getPos(keypos);
-        }
+        _curpos = _storage->getPos(keypos);
     }
-
+private:
     void onRead(const T &data) {
         LOCK_GUARD(_mtxCB);
         if(!_useBuffer){
@@ -117,19 +120,9 @@ public:
         _detachCB();
     }
 private:
-    //读环形缓冲
-    const T *read(std::shared_ptr<_RingStorage<T> > &ring) {
-        if (_curpos == ring->getPos(false)) {
-            return nullptr;
-        }
-        const T *data = &((*ring)[_curpos]); //返回包
-        _curpos = ring->next(_curpos); //更新位置
-        return data;
-    }
-private:
     function<void(const T &)> _readCB = [](const T &) {};
     function<void(void)> _detachCB = []() {};
-    weak_ptr<_RingStorage<T> > _buffer;
+    shared_ptr<_RingStorage<T> > _storage;
     mutable recursive_mutex _mtxCB;
     int _curpos;
     bool _useBuffer;
