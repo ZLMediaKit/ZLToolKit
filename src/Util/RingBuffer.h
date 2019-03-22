@@ -369,9 +369,6 @@ public:
     }
 
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool useBuffer = true) {
-        if(!poller){
-            const_cast<EventPoller::Ptr &>(poller) = EventPollerPool::Instance().getPoller();
-        }
         typename RingReaderDispatcher::Ptr dispatcher;
         {
             LOCK_GUARD(_mtx_map);
