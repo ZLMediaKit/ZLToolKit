@@ -32,6 +32,7 @@
 #include <atomic>
 #include <functional>
 #include "logger.h"
+#include "List.h"
 #include "Network/Buffer.h"
 
 #if defined(ENABLE_OPENSSL)
@@ -123,7 +124,7 @@ private:
 	BIO *_read_bio, *_write_bio;
 	function<void(const Buffer::Ptr &)> _onDec;
 	function<void(const Buffer::Ptr &)> _onEnc;
-	std::string _bufferOut;
+	List<Buffer::Ptr> _bufferOut;
 };
 
 #else

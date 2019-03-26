@@ -30,7 +30,7 @@ public:
     virtual char *data() const = 0 ;
     virtual uint32_t size() const = 0;
 
-    string toString() const {
+    virtual string toString() const {
         return string(data(),size());
     }
 };
@@ -47,6 +47,10 @@ public:
     }
     uint32_t size() const override{
         return _data.size();
+    }
+
+    string toString() const override {
+        return _data;
     }
 private:
     string _data;

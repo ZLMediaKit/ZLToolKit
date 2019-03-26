@@ -32,7 +32,7 @@
 #include <openssl/conf.h>
 #include "Util/util.h"
 
-#define SSL_BUF_SIZE 1024*4
+#define SSL_BUF_SIZE (1024*4 - 1)
 
 namespace toolkit {
 
@@ -186,51 +186,80 @@ void SSL_Box::onSend(const Buffer::Ptr &buffer) {
 		_sendHandshake = true;
 		SSL_do_handshake(_ssl);
 	}
-	_bufferOut.append(buffer->data(), buffer->size());
+	_bufferOut.emplace_back(buffer);
 	flush();
 }
 void SSL_Box::flushWriteBio() {
+	auto buffer = std::make_shared<BufferRaw>(SSL_BUF_SIZE + 1);
+	int total = 0;
 	int nread = 0;
-	auto buffer = std::make_shared<BufferRaw>(SSL_BUF_SIZE);
-	//write to socket
-	while ((nread = BIO_read(_write_bio, buffer->data(), SSL_BUF_SIZE - 1)) > 0) {
-		if (_onEnc) {
-			//send
-			buffer->data()[nread] = '\0';
-			buffer->setSize(nread);
-            _onEnc(buffer);
+	do{
+		nread = BIO_read(_write_bio, buffer->data() + total, SSL_BUF_SIZE - total);
+		if(nread > 0){
+			total += nread;
 		}
+	}while(nread > 0 && SSL_BUF_SIZE - total  > 0);
+
+	if(!total){
+		//未有数据
+		return;
+	}
+
+	//触发此次回调
+	buffer->data()[total] = '\0';
+	buffer->setSize(total);
+	if(_onEnc){
+		_onEnc(buffer);
+	}
+
+	if(nread > 0){
+		//还有剩余数据，读取剩余数据
+		flushWriteBio();
 	}
 }
 
 void SSL_Box::flushReadBio() {
+	auto buffer = std::make_shared<BufferRaw>(SSL_BUF_SIZE + 1);
+	int total = 0;
 	int nread = 0;
-	auto buffer = std::make_shared<BufferRaw>(SSL_BUF_SIZE);
-	//recv from bio
-	while ((nread = SSL_read(_ssl, buffer->data(), SSL_BUF_SIZE - 1)) > 0) {
-		if (_onDec) {
-			//recv
-			buffer->data()[nread] = '\0';
-			buffer->setSize(nread);
-			_onDec(buffer);
+	do{
+		nread = SSL_read(_ssl, buffer->data() + total, SSL_BUF_SIZE - total);
+		if(nread > 0){
+			total += nread;
 		}
+	}while(nread > 0 && SSL_BUF_SIZE - total  > 0);
+
+	if(!total){
+		//未有数据
+		return;
+	}
+
+	//触发此次回调
+	buffer->data()[total] = '\0';
+	buffer->setSize(total);
+	if(_onDec){
+		_onDec(buffer);
+	}
+
+	if(nread > 0){
+		//还有剩余数据，读取剩余数据
+		flushReadBio();
 	}
 }
 void SSL_Box::flush() {
-	int nread = 0;
 	flushReadBio();
 	flushWriteBio();
 	//write to bio
-	if (SSL_is_init_finished(_ssl) && _bufferOut.size()) {
-		nread = SSL_write(_ssl, _bufferOut.data(), _bufferOut.size());
-		if (nread >= 0) {
-			//success
-			_bufferOut.clear();
-			flushWriteBio();
-		} else {
-			int error = SSL_get_error(_ssl, nread);
-			ErrorL << "ssl error:" << error << endl;
+	if (SSL_is_init_finished(_ssl) && !_bufferOut.empty()) {
+		while (!_bufferOut.empty()){
+			auto nwrite = SSL_write(_ssl, _bufferOut.front()->data(), _bufferOut.front()->size());
+			if (nwrite > 0) {
+				_bufferOut.pop_front();
+				continue;
+			}
+			ErrorL << "ssl error:" << SSL_get_error(_ssl, nwrite) << endl;
 		}
+		flushWriteBio();
 	}
 }
 
