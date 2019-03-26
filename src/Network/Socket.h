@@ -195,7 +195,7 @@ public:
         _num = that._num;
         _poller = poller;
         if(_poller == that._poller){
-            throw invalid_argument("copy a SockFD with some poller!");
+            throw invalid_argument("copy a SockFD with same poller!");
         }
     }
 
