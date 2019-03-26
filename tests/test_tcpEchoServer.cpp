@@ -47,9 +47,8 @@ public:
 	}
 	virtual void onRecv(const Buffer::Ptr &buf) override{
 		//处理客户端发送过来的数据
-		TraceL << buf->data();
-		//把数据回显至客户端
-        *(this) << "recved " << buf->size() << ": " << buf;
+		TraceL << buf->data() <<  " from port:" << get_local_port();
+		send(buf);
 	}
 	virtual void onError(const SockException &err) override{
 		//客户端断开连接或其他原因导致该对象脱离TCPServer管理
@@ -58,9 +57,6 @@ public:
 	virtual void onManager() override{
 		//定时管理该对象，譬如会话超时检查
 		DebugL;
-		if(_ticker.createdTime() > 5 * 1000){
-			shutdown();
-		}
 	}
 
 private:
@@ -73,8 +69,14 @@ int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
+	//加载证书，该证书必须为pem格式，里面包含了公钥和私钥
+	SSL_Initor::Instance().loadServerPem((exePath() + ".pem").data());
+
 	TcpServer::Ptr server(new TcpServer());
 	server->start<EchoSession>(9000);//监听9000端口
+
+	TcpServer::Ptr serverSSL(new TcpServer());
+	serverSSL->start<TcpSessionWithSSL<EchoSession> >(9001);//监听9001端口
 
 	//退出程序事件处理
 	static semaphore sem;

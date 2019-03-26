@@ -63,29 +63,21 @@ template<typename TcpSessionType>
 class TcpSessionWithSSL: public TcpSessionType {
 public:
 	TcpSessionWithSSL(const Socket::Ptr &pSock):TcpSessionType(pSock){
-		_sslBox.setOnEncData([&](const char *data, uint32_t len){
-			public_send(data,len);
+		_sslBox.setOnEncData([&](const Buffer::Ptr &buffer){
+			return TcpSessionType::send(buffer);
 		});
-		_sslBox.setOnDecData([&](const char *data, uint32_t len){
-			public_onRecv(data,len);
+		_sslBox.setOnDecData([&](const Buffer::Ptr &buffer){
+			TcpSessionType::onRecv(buffer);
 		});
 	}
-	virtual ~TcpSessionWithSSL(){
-		//_sslBox.shutdown();
-	}
-	void onRecv(const Buffer::Ptr &pBuf) override{
-		_sslBox.onRecv(pBuf->data(), pBuf->size());
-	}
+	virtual ~TcpSessionWithSSL(){}
 
-	int public_send(const char *data, uint32_t len){
-		return TcpSessionType::send(TcpSessionType::obtainBuffer(data,len));
-	}
-	void public_onRecv(const char *data, uint32_t len){
-		TcpSessionType::onRecv(TcpSessionType::obtainBuffer(data,len));
+	void onRecv(const Buffer::Ptr &pBuf) override{
+		_sslBox.onRecv(pBuf);
 	}
 protected:
 	virtual int send(const Buffer::Ptr &buf) override{
-		_sslBox.onSend(buf->data(), buf->size());
+		_sslBox.onSend(buf);
 		return buf->size();
 	}
 private:

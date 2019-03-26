@@ -32,6 +32,7 @@
 #include <atomic>
 #include <functional>
 #include "logger.h"
+#include "Network/Buffer.h"
 
 #if defined(ENABLE_OPENSSL)
 
@@ -94,9 +95,9 @@ public:
 	~SSL_Box();
 
 	//收到密文后，调用此函数解密
-	void onRecv(const char *data, uint32_t data_len);
+	void onRecv(const Buffer::Ptr &buffer);
 	//需要加密明文调用此函数
-	void onSend(const char *data, uint32_t data_len);
+	void onSend(const Buffer::Ptr &buffer);
 
 	//设置解密后获取明文的回调
 	template<typename F>
@@ -112,16 +113,16 @@ public:
 	void shutdown();
 private:
 	void flush();
-	void flushWriteBio(char *buf, int bufsize);
-	void flushReadBio(char *buf, int bufsize);
+	void flushWriteBio();
+	void flushReadBio();
 private:
 	bool _isServer;
 	bool _enable;
 	bool _sendHandshake;
 	SSL *_ssl;
 	BIO *_read_bio, *_write_bio;
-	function<void(const char *data, uint32_t len)> _onDec;
-	function<void(const char *data, uint32_t len)> _onEnc;
+	function<void(const Buffer::Ptr &)> _onDec;
+	function<void(const Buffer::Ptr &)> _onEnc;
 	std::string _bufferOut;
 };
 
@@ -152,12 +153,12 @@ public:
 	~SSL_Box(){};
 
 	//收到密文后，调用此函数解密
-	void onRecv(const char *data, uint32_t data_len){
-		_onDec(data,data_len);
+	void onRecv(const Buffer::Ptr &buffer){
+		_onDec(buffer);
 	};
 	//需要加密明文调用此函数
-	void onSend(const char *data, uint32_t data_len){
-		_onEnc(data,data_len);
+	void onSend(const Buffer::Ptr &buffer){
+		_onEnc(buffer);
 	};
 
 	//设置解密后获取明文的回调
@@ -173,8 +174,8 @@ public:
 	}
 	void shutdown(){};
 private:
-	function<void(const char *data, uint32_t len)> _onDec;
-	function<void(const char *data, uint32_t len)> _onEnc;
+	function<void(const Buffer::Ptr &)> _onDec;
+	function<void(const Buffer::Ptr &)> _onEnc;
 };
 #endif //defined(ENABLE_OPENSSL)
 

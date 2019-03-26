@@ -29,6 +29,10 @@ public:
     //返回数据长度
     virtual char *data() const = 0 ;
     virtual uint32_t size() const = 0;
+
+    string toString() const {
+        return string(data(),size());
+    }
 };
 
 //字符串缓存

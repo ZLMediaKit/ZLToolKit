@@ -30,6 +30,7 @@
 #include <functional>
 #include "Socket.h"
 #include "Util/TimeTicker.h"
+#include "Util/SSLBox.h"
 
 using namespace std;
 
@@ -73,6 +74,45 @@ private:
     std::shared_ptr<Timer> _managerTimer;
     string _netAdapter = "0.0.0.0";
 };
+
+template<typename TcpClientType>
+class TcpClientWithSSL: public TcpClientType {
+public:
+    typedef std::shared_ptr<TcpClientWithSSL> Ptr;
+
+    template<typename ...ArgsType>
+    TcpClientWithSSL(ArgsType &&...args):TcpClientType(std::forward<ArgsType>(args)...){}
+    virtual ~TcpClientWithSSL(){}
+
+    void onRecv(const Buffer::Ptr &pBuf) override{
+        _sslBox->onRecv(pBuf);
+    }
+
+    int send(const Buffer::Ptr &buf) override{
+        _sslBox->onSend(buf);
+        return buf->size();
+    }
+
+protected:
+    void onConnect(const SockException &ex)  override {
+        if(!ex){
+            _sslBox.reset(new SSL_Box(false));
+            _sslBox->setOnDecData([this](const Buffer::Ptr &pBuf){
+                TcpClientType::onRecv(pBuf);
+            });
+            _sslBox->setOnEncData([this](const Buffer::Ptr &pBuf){
+                TcpClientType::send(pBuf);
+            });
+        }
+        TcpClientType::onConnect(ex);
+    }
+private:
+    std::shared_ptr<SSL_Box> _sslBox;
+};
+
+
+
+
 
 } /* namespace toolkit */
 

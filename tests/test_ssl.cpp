@@ -44,31 +44,29 @@ int main(int argc,char *argv[]) {
 		SSL_Box client(false), server(true);
 
 		//设置客户端解密输出回调
-		client.setOnDecData([&](const char *data, uint32_t len) {
-			string str(data, len);
+		client.setOnDecData([&](const Buffer::Ptr &buffer) {
 			//打印来自服务端数据解密后的明文
-			InfoL << "client recv:" << str;
+			InfoL << "client recv:" << buffer->toString();
 		});
 
 		//设置客户端加密输出回调
-		client.setOnEncData([&](const char *data, uint32_t len) {
+		client.setOnEncData([&](const Buffer::Ptr &buffer) {
 			//把客户端加密后的密文发送给服务端
-			server.onRecv(data, len);
+			server.onRecv(buffer);
 		});
 
 		//设置服务端解密输出回调
-		server.setOnDecData([&](const char *data, uint32_t len) {
+		server.setOnDecData([&](const Buffer::Ptr &buffer) {
 			//打印来自客户端数据解密后的明文
-			string str(data, len);
-			InfoL << "server recv:" << str;
+			InfoL << "server recv:" << buffer->toString();
 			//把数据回显给客户端
-			server.onSend(data, len);
+			server.onSend(buffer);
 		});
 
 		//设置服务端加密输出回调
-		server.setOnEncData([&](const char *data, uint32_t len) {
+		server.setOnEncData([&](const Buffer::Ptr &buffer) {
 			//把加密的回显信息回复给客户端;
-			client.onRecv(data, len);
+			client.onRecv(buffer);
 		});
 
 		InfoL << "请输入字符开始测试,输入quit停止测试:" << endl;
@@ -80,7 +78,7 @@ int main(int argc,char *argv[]) {
 				break;
 			}
 			//把明文数据输入给客户端
-			client.onSend(input.data(), input.size());
+			client.onSend(std::make_shared<BufferString>(std::move(input)));
 		}
 
 	}catch(...){
