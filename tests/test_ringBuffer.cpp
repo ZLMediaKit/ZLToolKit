@@ -64,18 +64,23 @@ int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	//从环形缓存获取一个读取器
-	auto ringReader = g_ringBuf->attach(nullptr);
+	auto poller = EventPollerPool::Instance().getPoller();
+	RingBuffer<string>::RingReader::Ptr ringReader;
+	poller->sync([&](){
+		//从环形缓存获取一个读取器
+		ringReader = g_ringBuf->attach(poller);
 
-	//设置读取事件
-	ringReader->setReadCB([](const string &pkt){
-		onReadEvent(pkt);
+		//设置读取事件
+		ringReader->setReadCB([](const string &pkt){
+			onReadEvent(pkt);
+		});
+
+		//设置环形缓存销毁事件
+		ringReader->setDetachCB([](){
+			onDetachEvent();
+		});
 	});
 
-	//设置环形缓存销毁事件
-	ringReader->setDetachCB([](){
-		onDetachEvent();
-	});
 
 	thread_group group;
 	//写线程
@@ -93,6 +98,7 @@ int main() {
 
 	//释放环形缓冲，此时触发Detach事件
 	g_ringBuf.reset();
+	sleep(1);
 	return 0;
 }
 
