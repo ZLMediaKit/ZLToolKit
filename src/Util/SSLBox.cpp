@@ -249,7 +249,6 @@ void SSL_Box::flushReadBio() {
 void SSL_Box::flush() {
 	flushReadBio();
 	flushWriteBio();
-	//write to bio
 	if (SSL_is_init_finished(_ssl) && !_bufferOut.empty()) {
 		while (!_bufferOut.empty()){
 			auto nwrite = SSL_write(_ssl, _bufferOut.front()->data(), _bufferOut.front()->size());

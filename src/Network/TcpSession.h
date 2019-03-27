@@ -62,12 +62,13 @@ public:
 template<typename TcpSessionType>
 class TcpSessionWithSSL: public TcpSessionType {
 public:
-	TcpSessionWithSSL(const Socket::Ptr &pSock):TcpSessionType(pSock){
+	template<typename ...ArgsType>
+	TcpSessionWithSSL(ArgsType &&...args):TcpSessionType(std::forward<ArgsType>(args)...){
 		_sslBox.setOnEncData([&](const Buffer::Ptr &buffer){
-			return TcpSessionType::send(buffer);
+			public_send(buffer);
 		});
 		_sslBox.setOnDecData([&](const Buffer::Ptr &buffer){
-			TcpSessionType::onRecv(buffer);
+            public_onRecv(buffer);
 		});
 	}
 	virtual ~TcpSessionWithSSL(){}
@@ -75,6 +76,14 @@ public:
 	void onRecv(const Buffer::Ptr &pBuf) override{
 		_sslBox.onRecv(pBuf);
 	}
+
+	//添加public_onRecv和public_send函数是解决较低版本gcc一个lambad中不能访问protected或private方法的bug
+	inline void public_onRecv(const Buffer::Ptr &pBuf){
+        TcpSessionType::onRecv(pBuf);
+    }
+    inline void public_send(const Buffer::Ptr &pBuf){
+        TcpSessionType::send(pBuf);
+    }
 protected:
 	virtual int send(const Buffer::Ptr &buf) override{
 		_sslBox.onSend(buf);

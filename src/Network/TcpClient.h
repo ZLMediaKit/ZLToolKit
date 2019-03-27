@@ -85,23 +85,37 @@ public:
     virtual ~TcpClientWithSSL(){}
 
     void onRecv(const Buffer::Ptr &pBuf) override{
-        _sslBox->onRecv(pBuf);
+        if(_sslBox){
+            _sslBox->onRecv(pBuf);
+        }else{
+            TcpClientType::onRecv(pBuf);
+        }
     }
 
     int send(const Buffer::Ptr &buf) override{
-        _sslBox->onSend(buf);
-        return buf->size();
+        if(_sslBox){
+            _sslBox->onSend(buf);
+            return buf->size();
+        }
+        return TcpClientType::send(buf);
     }
 
+    //添加public_onRecv和public_send函数是解决较低版本gcc一个lambad中不能访问protected或private方法的bug
+    inline void public_onRecv(const Buffer::Ptr &pBuf){
+        TcpClientType::onRecv(pBuf);
+    }
+    inline void public_send(const Buffer::Ptr &pBuf){
+        TcpClientType::send(pBuf);
+    }
 protected:
     void onConnect(const SockException &ex)  override {
         if(!ex){
             _sslBox.reset(new SSL_Box(false));
             _sslBox->setOnDecData([this](const Buffer::Ptr &pBuf){
-                TcpClientType::onRecv(pBuf);
+                public_onRecv(pBuf);
             });
             _sslBox->setOnEncData([this](const Buffer::Ptr &pBuf){
-                TcpClientType::send(pBuf);
+                public_send(pBuf);
             });
         }
         TcpClientType::onConnect(ex);
