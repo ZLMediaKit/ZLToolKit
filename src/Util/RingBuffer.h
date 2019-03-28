@@ -54,6 +54,9 @@ template<typename T>
 class _RingStorage;
 
 template<typename T>
+class _RingStorageInternal;
+
+template<typename T>
 class _RingReaderDispatcher;
 
 /**
@@ -71,7 +74,7 @@ public:
 
     _RingReader(const std::shared_ptr<_RingStorage<T> > &storage,bool useBuffer) {
         _storage = storage;
-        _curpos = storage->getPos(true);
+        resetPos(true);
         _useBuffer = useBuffer;
     }
 
@@ -96,7 +99,8 @@ public:
 
     //重新定位至最新的数据位置
     void resetPos(bool keypos = true) {
-        _curpos = _storage->getPos(keypos);
+        _storageInternal = _storage->getStorageInternal();
+        _curpos = _storageInternal->getPos(keypos);
     }
 private:
     void onRead(const T &data) {
@@ -115,19 +119,72 @@ private:
     }
 
     const T* read(){
-        if (_curpos == _storage->getPos(false)) {
+        if (_curpos == _storageInternal->getPos(false)) {
             return nullptr;
         }
-        const T *data = &((*_storage)[_curpos]); //返回包
-        _curpos = _storage->next(_curpos); //更新位置
+        const T *data = &((*_storageInternal)[_curpos]); //返回包
+        _curpos = _storageInternal->next(_curpos); //更新位置
         return data;
     }
 private:
     function<void(const T &)> _readCB = [](const T &) {};
     function<void(void)> _detachCB = []() {};
+
+    shared_ptr<_RingStorageInternal<T> > _storageInternal;
     shared_ptr<_RingStorage<T> > _storage;
     int _curpos;
     bool _useBuffer;
+};
+
+template<typename T>
+class _RingStorageInternal{
+public:
+    typedef std::shared_ptr<_RingStorageInternal> Ptr;
+    _RingStorageInternal(int size){
+        _dataRing.resize(size);
+        _ringSize = size;
+        _ringPos = 0;
+        _ringKeyPos = 0;
+    }
+
+    ~_RingStorageInternal(){}
+
+
+    /**
+     * 写入环形缓存数据
+     * @param in 数据
+     * @param isKey 是否为关键帧
+     * @return 是否触发重置环形缓存大小
+     */
+    void write(const T &in,bool isKey = true) {
+        _dataRing[_ringPos] = in;
+        if (isKey) {
+            _ringKeyPos = _ringPos; //设置读取器可以定位的点
+        }
+        _ringPos = next(_ringPos);
+    }
+
+    int getPos(bool keypos){
+        return  keypos ?  _ringKeyPos : _ringPos;
+    }
+
+    int next(int pos) {
+        //读取器下一位置
+        if (pos > _ringSize - 2) {
+            return 0;
+        } else {
+            return pos + 1;
+        }
+    }
+
+    T& operator[](int pos){
+        return _dataRing[pos];
+    }
+private:
+    vector<T> _dataRing;
+    int _ringPos;
+    int _ringKeyPos;
+    int _ringSize;
 };
 
 template<typename T>
@@ -140,10 +197,7 @@ public:
             size = RING_MIN_SIZE;
             _canReSize = true;
         }
-        _ringSize = size;
-        _dataRing.resize(size);
-        _ringPos = 0;
-        _ringKeyPos = 0;
+        _storageInternal = std::make_shared< _RingStorageInternal<T> >(size);
     }
 
     ~_RingStorage(){}
@@ -166,40 +220,18 @@ public:
                 _delegate->onWrite(in, isKey);
             }
         }
-        auto flag = computeGopSize(isKey,in);
-        _dataRing[_ringPos] = in;
-        if (isKey) {
-            _ringKeyPos = _ringPos; //设置读取器可以定位的点
-        }
-        _ringPos = next(_ringPos);
+        auto flag = computeGopSize(isKey);
+        _storageInternal->write(in,isKey);
         return flag;
     }
 
-    int getPos(bool keypos){
-        return  keypos ?  _ringKeyPos : _ringPos;
+    typename _RingStorageInternal<T>::Ptr getStorageInternal(){
+        lock_guard<mutex> lck(_mtx_storage);
+        return _storageInternal;
     }
 
-    int next(int pos) {
-        //读取器下一位置
-        if (pos > _ringSize - 2) {
-            return 0;
-        } else {
-            return pos + 1;
-        }
-    }
-
-    T& operator[](int pos){
-        return _dataRing[pos];
-    }
 private:
-    void reSize(const T &in){
-        _ringSize = _besetSize;
-        _dataRing.resize(_ringSize,in);
-        _ringPos = 0;
-        _ringKeyPos = 0;
-    }
-
-    bool computeGopSize(bool isKey,const T &in){
+    bool computeGopSize(bool isKey){
         if(!_canReSize || _besetSize){
             return false;
         }
@@ -222,21 +254,21 @@ private:
         if(_besetSize > RING_MAX_SIZE){
             _besetSize = RING_MAX_SIZE;
         }
-        reSize(in);
+        lock_guard<mutex> lck(_mtx_storage);
+        _storageInternal = std::make_shared< _RingStorageInternal<T> >(_besetSize);
         return true;
     }
 private:
-    vector<T> _dataRing;
-    int _ringPos;
-    int _ringKeyPos;
-    int _ringSize;
+    mutex _mtx_storage;
+    typename _RingStorageInternal<T>::Ptr _storageInternal;
+    //代理
+    typename RingDelegate<T>::Ptr _delegate;
+    mutex _mtx_delegate;
     //计算最佳环形缓存大小的参数
     int _besetSize = 0;
     int _totalCnt = 0;
     int _lastKeyCnt = 0;
     bool _canReSize = false;
-    typename RingDelegate<T>::Ptr _delegate;
-    mutex _mtx_delegate;
 };
 
 template<typename T>
