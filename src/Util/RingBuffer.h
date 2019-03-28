@@ -226,7 +226,7 @@ public:
     }
 
     typename _RingStorageInternal<T>::Ptr getStorageInternal(){
-        lock_guard<mutex> lck(_mtx_storage);
+        LOCK_GUARD(_mtx_storage);
         return _storageInternal;
     }
 
@@ -254,7 +254,7 @@ private:
         if(_besetSize > RING_MAX_SIZE){
             _besetSize = RING_MAX_SIZE;
         }
-        lock_guard<mutex> lck(_mtx_storage);
+        LOCK_GUARD(_mtx_storage);
         _storageInternal = std::make_shared< _RingStorageInternal<T> >(_besetSize);
         return true;
     }
