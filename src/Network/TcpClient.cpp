@@ -33,23 +33,11 @@ TcpClient::TcpClient(const EventPoller::Ptr &poller) : SocketHelper(nullptr) {
     setPoller(_poller);
 }
 
-TcpClient::~TcpClient() {
-}
+TcpClient::~TcpClient() {}
 
 void TcpClient::shutdown() {
-    try {
-        weak_ptr<TcpClient> weakSelf = shared_from_this();
-        async([weakSelf](){
-            auto strongSelf = weakSelf.lock();
-            if(!strongSelf){
-                return;
-            }
-            strongSelf->setSock(nullptr);
-            strongSelf->_managerTimer.reset();
-        });
-    }catch (std::exception &ex){
-        //ErrorL << "catch exception:" << ex.what();
-    }
+    _managerTimer.reset();
+    setSock(nullptr);
 }
 
 bool TcpClient::alive() {
@@ -58,74 +46,58 @@ bool TcpClient::alive() {
 }
 
 void TcpClient::setNetAdapter(const string &localIp){
-    weak_ptr<TcpClient> weakSelf = shared_from_this();
-    async([weakSelf,localIp](){
-        auto strongSelf = weakSelf.lock();
-        if(!strongSelf){
-            return;
-        }
-        strongSelf->_netAdapter = localIp;
-    });
+    _netAdapter = localIp;
 }
-
 
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
-    weak_ptr<TcpClient> weakSelf = shared_from_this();
-    async([strUrl,iPort,fTimeOutSec,weakSelf,this](){
-        auto strongSelf = weakSelf.lock();
-        if(!strongSelf){
-            return;
-        }
-        shutdown();
-        SocketHelper::setSock(std::make_shared<Socket>(_poller));
+    TcpClient::shutdown();
+    SocketHelper::setSock(std::make_shared<Socket>(_poller));
 
-        weak_ptr<TcpClient> weakSelf = shared_from_this();
-        _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
-            auto strongSelf = weakSelf.lock();
-            if(strongSelf){
-                if(err){
-                    strongSelf->SocketHelper::setSock(nullptr);
-                }
-                strongSelf->onSockConnect(err);
-            }
-        }, fTimeOutSec,_netAdapter.data(),0);
-    });
+    weak_ptr<TcpClient> weakSelf = shared_from_this();
+    _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
+        auto strongSelf = weakSelf.lock();
+        if(strongSelf){
+            strongSelf->onSockConnect(err);
+        }
+    }, fTimeOutSec,_netAdapter.data());
 }
 void TcpClient::onSockConnect(const SockException &ex) {
-	if(!ex && _sock) {
+    if(ex){
+        TcpClient::shutdown();
+    } else if(_sock){
         weak_ptr<TcpClient> weakSelf = shared_from_this();
         auto sock_ptr = _sock.get();
         _sock->setOnErr([weakSelf,sock_ptr](const SockException &ex) {
-			auto strongSelf = weakSelf.lock();
-			if (!strongSelf) {
-				return;
-			}
-			if(sock_ptr != strongSelf->_sock.get()){
+            auto strongSelf = weakSelf.lock();
+            if (!strongSelf) {
                 return;
-			}
+            }
+            if(sock_ptr != strongSelf->_sock.get()){
+                return;
+            }
             strongSelf->onSockErr(ex);
-		});
+        });
         _sock->setOnFlush([weakSelf,sock_ptr]() {
-			auto strongSelf = weakSelf.lock();
-			if (!strongSelf) {
-				return false;
-			}
+            auto strongSelf = weakSelf.lock();
+            if (!strongSelf) {
+                return false;
+            }
             if(sock_ptr != strongSelf->_sock.get()){
                 return false;
             }
             strongSelf->onSockSend();
-			return true;
-		});
+            return true;
+        });
         _sock->setOnRead([weakSelf,sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr *addr) {
-			auto strongSelf = weakSelf.lock();
-			if (!strongSelf) {
-				return;
-			}
+            auto strongSelf = weakSelf.lock();
+            if (!strongSelf) {
+                return;
+            }
             if(sock_ptr != strongSelf->_sock.get()){
                 return;
             }
             strongSelf->onSockRecv(pBuf);
-		});
+        });
         _managerTimer = std::make_shared<Timer>(2,[weakSelf](){
             auto strongSelf = weakSelf.lock();
             if (!strongSelf) {
@@ -134,7 +106,8 @@ void TcpClient::onSockConnect(const SockException &ex) {
             strongSelf->onManager();
             return true;
         },_poller);
-	}
+    }
+
     onConnect(ex);
 }
 
@@ -147,8 +120,8 @@ void TcpClient::onSockSend() {
 }
 
 void TcpClient::onSockErr(const SockException& ex) {
-	shutdown();
 	onErr(ex);
+    TcpClient::shutdown();
 }
 
 } /* namespace toolkit */
