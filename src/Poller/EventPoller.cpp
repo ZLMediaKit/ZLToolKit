@@ -61,6 +61,8 @@ EventPoller &EventPoller::Instance() {
 }
 
 EventPoller::EventPoller() {
+    _loopThreadId = this_thread::get_id();
+
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
 
