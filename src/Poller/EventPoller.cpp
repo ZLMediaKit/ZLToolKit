@@ -116,12 +116,12 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
         return -1;
     }
 #if defined(HAS_EPOLL)
-    lock_guard<mutex> lck(_mtx_event_map);
     struct epoll_event ev = {0};
     ev.events = (toEpoll(event)) | EPOLLEXCLUSIVE;
     ev.data.fd = fd;
     int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
     if (ret == 0) {
+        lock_guard<mutex> lck(_mtx_event_map);
         _event_map.emplace(fd, std::make_shared<PollEventCB>(cb));
     }
     return ret;
