@@ -173,9 +173,8 @@ private:
 
 	/**
 	 * 内部管道事件，用于唤醒轮询线程用
-	 * @return
 	 */
-	bool onPipeEvent();
+	void onPipeEvent();
 
 	/**
 	 * 切换线程并执行任务
@@ -257,6 +256,7 @@ private:
     //从其他线程切换过来的任务
     List<TaskExecutor::Task> _list_task;
     mutex _mtx_task;
+    bool _exit_flag;
 
 #if defined(HAS_EPOLL)
     //epoll相关
