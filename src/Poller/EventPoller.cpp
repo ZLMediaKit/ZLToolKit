@@ -115,29 +115,31 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
         WarnL << "PollEventCB 为空!";
         return -1;
     }
-#if defined(HAS_EPOLL)
-    struct epoll_event ev = {0};
-    ev.events = (toEpoll(event)) | EPOLLEXCLUSIVE;
-    ev.data.fd = fd;
-    int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
-    if (ret == 0) {
-        lock_guard<mutex> lck(_mtx_event_map);
-        _event_map.emplace(fd, std::make_shared<PollEventCB>(cb));
-    }
-    return ret;
-#else
+
     if (isCurrentThread()) {
+#if defined(HAS_EPOLL)
+        struct epoll_event ev = {0};
+        ev.events = (toEpoll(event)) | EPOLLEXCLUSIVE;
+        ev.data.fd = fd;
+        int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+        if (ret == 0) {
+            _event_map.emplace(fd, cb);
+        }
+        return ret;
+#else
         Poll_Record::Ptr record(new Poll_Record);
         record->event = event;
         record->callBack = cb;
         _event_map.emplace(fd, record);
         return 0;
+#endif //HAS_EPOLL
     }
+
     async([this, fd, event, cb]() {
         addEvent(fd, event, cb);
     });
     return 0;
-#endif //HAS_EPOLL
+
 }
 
 int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
@@ -145,30 +147,28 @@ int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
     if (!delCb) {
         const_cast<PollDelCB &>(delCb) = [](bool success) {};
     }
-#if defined(HAS_EPOLL)
-    int ret0 = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-    int ret1 = 0;
-    {
-        lock_guard<mutex> lck(_mtx_event_map);
-        ret1 = _event_map.erase(fd);
-    }
-    bool success = ret0 == 0 && ret1 > 0;
-    delCb(success);
-    return success ? 0 : -1;
-#else
+
     if (isCurrentThread()) {
+#if defined(HAS_EPOLL)
+        bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL) == 0 && _event_map.erase(fd) > 0;
+        delCb(success);
+        return success ? 0 : -1;
+#else
         if (_event_map.erase(fd)) {
             delCb(true);
         }else {
             delCb(false);
         }
         return 0;
+#endif //HAS_EPOLL
+
     }
+
+    //跨线程操作
     async([this, fd, delCb]() {
         delEvent(fd, delCb);
     });
     return 0;
-#endif //HAS_EPOLL
 }
 
 int EventPoller::modifyEvent(int fd, int event) {
@@ -319,19 +319,14 @@ void EventPoller::runLoop(bool blocked) {
                         continue;
                     }
                     // 其他文件描述符的事件
-                    std::shared_ptr<PollEventCB> eventCb;
-                    {
-                        lock_guard<mutex> lck(_mtx_event_map);
-                        auto it = _event_map.find(fd);
-                        if (it == _event_map.end()) {
-                            WarnL << "未找到Poll事件回调对象!";
-                            epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                            continue;
-                        }
-                        eventCb = it->second;
+                    auto it = _event_map.find(fd);
+                    if (it == _event_map.end()) {
+                        WarnL << "未找到Poll事件回调对象!";
+                        epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                        continue;
                     }
                     try{
-                        (*eventCb)(event);
+                        it->second(event);
                     }catch (std::exception &ex){
                         ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
                     }
