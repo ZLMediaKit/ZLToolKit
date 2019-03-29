@@ -72,7 +72,7 @@ EventPoller::EventPoller() {
         throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg());
     }
 
-    if (addEvent(_pipe.readFD(), Event_Read | Event_Error, [](int event) {}) == -1) {
+    if (addEvent(_pipe.readFD(), Event_Read, [](int event) {}) == -1) {
         throw std::runtime_error("epoll添加管道失败");
     }
 #endif //HAS_EPOLL
@@ -296,57 +296,52 @@ void EventPoller::runLoop(bool blocked) {
 #if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         bool run_flag = true;
-        while (run_flag) {
+        int pipe_event = 0;
+        while (true) {
             minDelay = getMinDelay();
             startSleep();//用于统计当前线程负载情况
             int ret = epoll_wait(_epoll_fd, events, EPOLL_SIZE, minDelay ? minDelay : -1);
             sleepWakeUp();//用于统计当前线程负载情况
-            if(ret > 0){
-                for (int i = 0; i < ret; ++i) {
-                    struct epoll_event &ev = events[i];
-                    int fd = ev.data.fd;
-                    int event = toPoller(ev.events);
-                    if (fd == _pipe.readFD()) {
-                        //内部管道事件，主要是其他线程切换到本线程执行的任务事件
-                        if (event & Event_Error) {
-                            WarnL << "Poller 异常退出监听:" << get_uv_errmsg();
-                            run_flag = false;
-                            continue;
-                        }
-                        if (!onPipeEvent()) {
-                            //收到退出事件
-                            run_flag = false;
-                            continue;
-                        }
-                        continue;
-                    }
-                    // 其他文件描述符的事件
-                    auto it = _event_map.find(fd);
-                    if (it == _event_map.end()) {
-                        WarnL << "未找到Poll事件回调对象!";
-                        epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-                        continue;
-                    }
-                    auto cb = it->second;
-                    try{
-                        (*cb)(event);
-                    }catch (std::exception &ex){
-                        ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
-                    }
-                }
+            if(ret <= 0){
+                //超时或被打断
                 continue;
             }
+            pipe_event = 0;
+            for (int i = 0; i < ret; ++i) {
+                struct epoll_event &ev = events[i];
+                int fd = ev.data.fd;
+                int event = toPoller(ev.events);
+                if (fd == _pipe.readFD()) {
+                    pipe_event = event;
+                    continue;
+                }
+                // 其他文件描述符的事件
+                auto it = _event_map.find(fd);
+                if (it == _event_map.end()) {
+                    epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                    continue;
+                }
+                auto cb = it->second;
+                try{
+                    (*cb)(event);
+                }catch (std::exception &ex){
+                    ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
+                }
+            }
 
-            if(ret == -1){
-                //阻塞操作被打断
-                WarnL << "epoll_wait interrupted:" << get_uv_errmsg();
-                continue;
+            //内部管道事件，主要是其他线程切换到本线程执行的任务事件
+            //把管道事件放到最后执行目的是为了防止管道事件中操作_event_map导致事件丢失
+            if(pipe_event & Event_Read){
+                if (!onPipeEvent()) {
+                    //收到退出事件
+                    break;
+                }
             }
         }
 #else
         int ret, maxFd;
         FdSet Set_read, Set_write, Set_err;
-        List<Poll_Record::Ptr> listCB;
+        List<Poll_Record::Ptr> callback_list;
         struct timeval tv;
 
         while (true) {
@@ -380,47 +375,42 @@ void EventPoller::runLoop(bool blocked) {
             ret = zl_select(maxFd + 1, &Set_read, &Set_write, &Set_err, minDelay ? &tv: NULL);
             sleepWakeUp();//用于统计当前线程负载情况
 
-            if(ret > 0){
-                //收集select事件类型
-                for (auto &pr : _event_map) {
-                    int event = 0;
-                    if (Set_read.isSet(pr.first)) {
-                        event |= Event_Read;
-                    }
-                    if (Set_write.isSet(pr.first)) {
-                        event |= Event_Write;
-                    }
-                    if (Set_err.isSet(pr.first)) {
-                        event |= Event_Error;
-                    }
-                    if (event != 0) {
-                        pr.second->attach = event;
-                        listCB.emplace_back(pr.second);
-                    }
-                }
-
-                listCB.for_each([](Poll_Record::Ptr &record){
-                    try{
-                        record->callBack(record->attach);
-                    }catch (std::exception &ex){
-                        ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
-                    }
-                });
-                listCB.clear();
-
-                if (Set_read.isSet(_pipe.readFD())) {
-                    //内部管道事件，主要是其他线程切换到本线程执行的任务事件
-                    if (!onPipeEvent()) {
-                        break;
-                    }
-                }
+            if(ret <= 0) {
+                //超时或被打断
                 continue;
             }
+            //收集select事件类型
+            for (auto &pr : _event_map) {
+                int event = 0;
+                if (Set_read.isSet(pr.first)) {
+                    event |= Event_Read;
+                }
+                if (Set_write.isSet(pr.first)) {
+                    event |= Event_Write;
+                }
+                if (Set_err.isSet(pr.first)) {
+                    event |= Event_Error;
+                }
+                if (event != 0) {
+                    pr.second->attach = event;
+                    callback_list.emplace_back(pr.second);
+                }
+            }
 
-            if(ret == -1){
-                //阻塞操作被打断
-                WarnL << "select interrupted:" << get_uv_errmsg();
-                continue;
+            callback_list.for_each([](Poll_Record::Ptr &record){
+                try{
+                    record->callBack(record->attach);
+                }catch (std::exception &ex){
+                    ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
+                }
+            });
+            callback_list.clear();
+
+            if (Set_read.isSet(_pipe.readFD())) {
+                //内部管道事件，主要是其他线程切换到本线程执行的任务事件
+                if (!onPipeEvent()) {
+                    break;
+                }
             }
         }
 #endif //HAS_EPOLL
