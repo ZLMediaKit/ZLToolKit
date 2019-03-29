@@ -278,12 +278,12 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 	int sock = pSock->rawFd();
 	while (_enableRecv) {
 #if defined(_WIN32)
-		unsigned long nread;
+		unsigned long nread = 0;
 #else
-		int nread;
+		int nread = 0;
 #endif //defined(_WIN32)
 		ioctl(sock, FIONREAD, &nread);
-		if (nread < 127) {
+		if (nread <= 0) {
 			nread = 127;
 		}
 		struct sockaddr peerAddr;
