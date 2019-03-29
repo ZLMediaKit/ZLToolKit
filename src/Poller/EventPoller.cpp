@@ -151,7 +151,7 @@ int EventPoller::delEvent(int fd, PollDelCB &&cb) {
     if (isCurrentThread()) {
 #if defined(HAS_EPOLL)
         bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL) == 0 && _event_map.erase(fd) > 0;
-        delCb(success);
+        cb(success);
         return success ? 0 : -1;
 #else
         if (_event_map.erase(fd)) {
