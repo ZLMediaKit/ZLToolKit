@@ -273,7 +273,6 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 }
 
 int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
-    TimeTicker1(1);
 	int ret = 0;
 	int sock = pSock->rawFd();
 	while (_enableRecv) {
