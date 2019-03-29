@@ -109,7 +109,7 @@ EventPoller::~EventPoller() {
     InfoL << this;
 }
 
-int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
+int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
     TimeTicker();
     if (!cb) {
         WarnL << "PollEventCB 为空!";
@@ -123,29 +123,29 @@ int EventPoller::addEvent(int fd, int event, const PollEventCB &cb) {
         ev.data.fd = fd;
         int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
         if (ret == 0) {
-            _event_map.emplace(fd, cb);
+            _event_map.emplace(fd, std::move(cb));
         }
         return ret;
 #else
         Poll_Record::Ptr record(new Poll_Record);
         record->event = event;
-        record->callBack = cb;
+        record->callBack = std::move(cb);
         _event_map.emplace(fd, record);
         return 0;
 #endif //HAS_EPOLL
     }
 
     async([this, fd, event, cb]() {
-        addEvent(fd, event, cb);
+        addEvent(fd, event, std::move(const_cast<PollEventCB &>(cb)));
     });
     return 0;
 
 }
 
-int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
+int EventPoller::delEvent(int fd, PollDelCB &&cb) {
     TimeTicker();
-    if (!delCb) {
-        const_cast<PollDelCB &>(delCb) = [](bool success) {};
+    if (!cb) {
+        cb = [](bool success) {};
     }
 
     if (isCurrentThread()) {
@@ -155,9 +155,9 @@ int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
         return success ? 0 : -1;
 #else
         if (_event_map.erase(fd)) {
-            delCb(true);
+            cb(true);
         }else {
-            delCb(false);
+            cb(false);
         }
         return 0;
 #endif //HAS_EPOLL
@@ -165,8 +165,8 @@ int EventPoller::delEvent(int fd, const PollDelCB &delCb) {
     }
 
     //跨线程操作
-    async([this, fd, delCb]() {
-        delEvent(fd, delCb);
+    async([this, fd, cb]() {
+        delEvent(fd, std::move(const_cast<PollDelCB &>(cb)));
     });
     return 0;
 }

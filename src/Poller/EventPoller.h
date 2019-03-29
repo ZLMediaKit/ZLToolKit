@@ -97,7 +97,7 @@ public:
 	 * @param eventCb 事件回调functional
 	 * @return -1:失败，0:成功
 	 */
-	int addEvent(int fd, int event, const PollEventCB &eventCb);
+	int addEvent(int fd, int event, PollEventCB &&eventCb);
 
 	/**
 	 * 删除事件监听
@@ -105,7 +105,7 @@ public:
 	 * @param delCb 删除成功回调functional
 	 * @return -1:失败，0:成功
 	 */
-	int delEvent(int fd, const PollDelCB &delCb = nullptr);
+	int delEvent(int fd, PollDelCB &&delCb = nullptr);
 
 	/**
 	 * 修改监听事件类型
