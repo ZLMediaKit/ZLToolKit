@@ -125,7 +125,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
         ev.data.fd = fd;
         int ret = epoll_ctl(_epoll_fd, EPOLL_CTL_ADD, fd, &ev);
         if (ret == 0) {
-            _event_map.emplace(fd, std::move(cb));
+            _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
         }
         return ret;
 #else
@@ -327,8 +327,9 @@ void EventPoller::runLoop(bool blocked) {
                         epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
                         continue;
                     }
+                    auto cb = it->second;
                     try{
-                        it->second(event);
+                        (*cb)(event);
                     }catch (std::exception &ex){
                         ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
                     }

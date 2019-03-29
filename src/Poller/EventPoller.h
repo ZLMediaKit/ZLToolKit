@@ -261,7 +261,7 @@ private:
 #if defined(HAS_EPOLL)
     //epoll相关
 	int _epoll_fd = -1;
-	unordered_map<int, PollEventCB > _event_map;
+	unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
 #else
     //select相关
 	struct Poll_Record{
