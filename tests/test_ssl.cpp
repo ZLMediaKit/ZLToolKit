@@ -24,9 +24,7 @@
 #include <iostream>
 #include "Util/logger.h"
 #include "Util/util.h"
-#if defined(ENABLE_OPENSSL)
 #include "Util/SSLBox.h"
-#endif
 using namespace std;
 using namespace toolkit;
 
@@ -35,58 +33,47 @@ int main(int argc,char *argv[]) {
 	Logger::Instance().add(std::make_shared<ConsoleChannel> ());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-#if defined(ENABLE_OPENSSL)
-	//请把证书"test_ssl.pem"放置在本程序同目录下
-	try {
-		//加载证书，该证书必须为pem格式，里面包含了公钥和私钥
-		SSL_Initor::Instance().loadServerPem((exePath() + ".pem").data());
-		//定义客户端和服务端
-		SSL_Box client(false), server(true);
+	//加载证书，证书包含公钥和私钥
+	SSL_Initor::Instance().loadServerPem((exeDir() + "ssl.pem").data());
+	//定义客户端和服务端
+	SSL_Box client(false), server(true);
 
-		//设置客户端解密输出回调
-		client.setOnDecData([&](const Buffer::Ptr &buffer) {
-			//打印来自服务端数据解密后的明文
-			InfoL << "client recv:" << buffer->toString();
-		});
+	//设置客户端解密输出回调
+	client.setOnDecData([&](const Buffer::Ptr &buffer) {
+		//打印来自服务端数据解密后的明文
+		InfoL << "client recv:" << buffer->toString();
+	});
 
-		//设置客户端加密输出回调
-		client.setOnEncData([&](const Buffer::Ptr &buffer) {
-			//把客户端加密后的密文发送给服务端
-			server.onRecv(buffer);
-		});
+	//设置客户端加密输出回调
+	client.setOnEncData([&](const Buffer::Ptr &buffer) {
+		//把客户端加密后的密文发送给服务端
+		server.onRecv(buffer);
+	});
 
-		//设置服务端解密输出回调
-		server.setOnDecData([&](const Buffer::Ptr &buffer) {
-			//打印来自客户端数据解密后的明文
-			InfoL << "server recv:" << buffer->toString();
-			//把数据回显给客户端
-			server.onSend(buffer);
-		});
+	//设置服务端解密输出回调
+	server.setOnDecData([&](const Buffer::Ptr &buffer) {
+		//打印来自客户端数据解密后的明文
+		InfoL << "server recv:" << buffer->toString();
+		//把数据回显给客户端
+		server.onSend(buffer);
+	});
 
-		//设置服务端加密输出回调
-		server.setOnEncData([&](const Buffer::Ptr &buffer) {
-			//把加密的回显信息回复给客户端;
-			client.onRecv(buffer);
-		});
+	//设置服务端加密输出回调
+	server.setOnEncData([&](const Buffer::Ptr &buffer) {
+		//把加密的回显信息回复给客户端;
+		client.onRecv(buffer);
+	});
 
-		InfoL << "请输入字符开始测试,输入quit停止测试:" << endl;
+	InfoL << "请输入字符开始测试,输入quit停止测试:" << endl;
 
-		string input;
-		while (true) {
-			std::cin >> input;
-			if (input == "quit") {
-				break;
-			}
-			//把明文数据输入给客户端
-			client.onSend(std::make_shared<BufferString>(std::move(input)));
+	string input;
+	while (true) {
+		std::cin >> input;
+		if (input == "quit") {
+			break;
 		}
-
-	}catch(...){
-		DebugL << "请把证书\"test_ssl.pem\"放置在：" << exeDir() << endl;
+		//把明文数据输入给客户端
+		client.onSend(std::make_shared<BufferString>(std::move(input)));
 	}
-
-#else
-	ErrorL << "ENABLE_OPENSSL 宏未打开";
-#endif //ENABLE_OPENSSL
 	return 0;
 }

@@ -69,8 +69,8 @@ int main() {
 	Logger::Instance().add(std::make_shared<ConsoleChannel>());
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	//加载证书，该证书必须为pem格式，里面包含了公钥和私钥
-	SSL_Initor::Instance().loadServerPem((exePath() + ".pem").data());
+	//加载证书，证书包含公钥和私钥
+	SSL_Initor::Instance().loadServerPem((exeDir() + "ssl.pem").data());
 
 	TcpServer::Ptr server(new TcpServer());
 	server->start<EchoSession>(9000);//监听9000端口
