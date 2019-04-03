@@ -33,7 +33,7 @@
 #include "Poller/Timer.h"
 #include "logger.h"
 #include "SqlConnection.h"
-#include "Thread/ThreadPool.h"
+#include "Thread/WorkThreadPool.h"
 #include "Util/ResourcePool.h"
 
 using namespace std;
@@ -120,7 +120,8 @@ public:
 	}
 
 private:
-	SqlPool() : _threadPool(new ThreadPool(1)) {
+	SqlPool()  {
+		_threadPool = WorkThreadPool::Instance().getExecutor();
 		_timer = std::make_shared<Timer>(30,[this](){
 			flushError();
 			return true;
@@ -182,7 +183,7 @@ private:
 	} ;
 private:
 	deque<sqlQuery> _error_query;
-	std::shared_ptr<ThreadPool> _threadPool;
+	TaskExecutor::Ptr _threadPool;
 	mutex _error_query_mutex;
 	std::shared_ptr<PoolType> _pool;
 	Timer::Ptr _timer;

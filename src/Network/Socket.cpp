@@ -30,8 +30,8 @@
 #include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
 #include "Thread/semaphore.h"
-#include "Thread/ThreadPool.h"
 #include "Poller/EventPoller.h"
+#include "Thread/WorkThreadPool.h"
 using namespace std;
 
 
@@ -136,11 +136,8 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
     weak_ptr<Socket> weakSelf = shared_from_this();
 	//是否已经触发连接超时回调
     shared_ptr<bool> timeOuted = std::make_shared<bool>(false);
-	//dns解析线程个数跟cpu个数一致，线程优先级最低
-	static ThreadPool s_dnsThreadPool(thread::hardware_concurrency() , ThreadPool::PRIORITY_LOWEST, true);
-
     //DNS解析放在后台线程执行
-	s_dnsThreadPool.async([weakSelf,poller,connectCB,timeOuted,url,port,strLocalIp,localPort](){
+    WorkThreadPool::Instance().getExecutor()->async([weakSelf,poller,connectCB,timeOuted,url,port,strLocalIp,localPort](){
 		//开始发起连接服务器，要等待可写事件才表明连接服务器成功
 		int sock = SockUtil::connect(url.data(), port, true, strLocalIp.data(), localPort);
 		poller->async([weakSelf,connectCB,timeOuted,sock](){
