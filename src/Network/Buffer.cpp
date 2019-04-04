@@ -11,7 +11,8 @@ bool BufferList::empty() {
     return _iovec_off == _iovec.size();
 }
 
-int BufferList::send_iovec(int fd, const struct msghdr *msg, int flags) {
+#if defined(_WIN32)
+int sendmsg(int fd, const struct msghdr *msg, int flags) {
     int n = 0;
     int total = 0;
     for(auto i = 0; i != msg->msg_iovlen ; ++i ){
@@ -30,10 +31,11 @@ int BufferList::send_iovec(int fd, const struct msghdr *msg, int flags) {
         //单次全部发送成功
         total += n;
     }
-
     //全部发送成功
     return total;
 }
+#endif // defined(_WIN32)
+
 int BufferList::send_l(int fd, int flags,bool udp) {
     int n;
     do {
@@ -42,13 +44,14 @@ int BufferList::send_l(int fd, int flags,bool udp) {
         msg.msg_namelen = 0;
         msg.msg_iov = &(_iovec[_iovec_off]);
         msg.msg_iovlen = _iovec.size() - _iovec_off;
-        if(msg.msg_iovlen > IOV_MAX){
-            msg.msg_iovlen = IOV_MAX;
+        int max = udp ? 1 : IOV_MAX;
+        if(msg.msg_iovlen > max){
+            msg.msg_iovlen = max;
         }
         msg.msg_control = NULL;
         msg.msg_controllen = 0;
         msg.msg_flags = flags;
-        n = udp ? send_iovec(fd,&msg,flags) : sendmsg(fd,&msg,flags);
+        n = sendmsg(fd,&msg,flags);
     } while (-1 == n && UV_EINTR == get_uv_error(true));
 
     if(n >= _remainSize){

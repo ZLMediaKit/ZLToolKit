@@ -124,7 +124,6 @@ struct msghdr {
 	int			msg_controllen;	/* [XSI] ancillary data buffer len */
 	int			msg_flags;	/* [XSI] flags on received message */
 };
-#define sendmsg send_iovec
 #else
 #include <sys/uio.h>
 #include <limits.h>
@@ -144,7 +143,6 @@ public:
 private:
     void reOffset(int n);
     int send_l(int fd,int flags,bool udp);
-    int send_iovec(int fd, const struct msghdr *msg, int flags);
 private:
     vector<struct iovec> _iovec;
     int _iovec_off = 0;
