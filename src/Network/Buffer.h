@@ -65,6 +65,11 @@ public:
             setCapacity(capacity);
         }
     }
+
+    BufferRaw(const char *data,int size = 0){
+        assign(data,size);
+    }
+
     ~BufferRaw() {
         if(_data){
             delete [] _data;
