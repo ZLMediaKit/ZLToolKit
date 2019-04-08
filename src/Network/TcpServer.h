@@ -125,7 +125,7 @@ public:
 		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this,std::placeholders::_1));
     }
 
-	~TcpServer() {
+	virtual ~TcpServer() {
 		_timer.reset();
         //先关闭socket监听，防止收到新的连接
 		_socket.reset();
@@ -156,9 +156,11 @@ public:
 			}
 			auto &serverRef = _clonedServer[poller.get()];
 			if(!serverRef){
-				serverRef = std::make_shared<TcpServer>(poller);
+				serverRef = onCreatServer(poller);
 			}
-			serverRef->cloneFrom(*this);
+			if(serverRef){
+				serverRef->cloneFrom(*this);
+			}
 		});
 	}
 
@@ -169,12 +171,31 @@ public:
 		return _socket->get_local_port();
 	}
 protected:
-	virtual Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &poller){
+	virtual TcpServer::Ptr onCreatServer(const EventPoller::Ptr &poller){
+		return std::make_shared<TcpServer>(poller);
+    }
+
+    virtual Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &poller){
     	/**
     	 * 服务器器模型socket是线程安全的，所以为了提高性能，关闭互斥锁
     	 */
 		return std::make_shared<Socket>(poller,false);
 	}
+
+	virtual void cloneFrom(const TcpServer &that){
+		if(!that._socket){
+			throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
+		}
+		_sessionMaker = that._sessionMaker;
+		_socket->cloneFromListenSocket(*(that._socket));
+		_timer = std::make_shared<Timer>(2, [this]()->bool {
+			this->onManagerSession();
+			return true;
+		},_poller);
+		this->mINI::operator=(that);
+		_cloned = true;
+	}
+
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr & sock) {
 		weak_ptr<TcpServer> weakSelf = shared_from_this();
@@ -240,20 +261,6 @@ protected:
 		});
 	}
 
-    //定时管理Session
-	void onManagerSession() {
-		for (auto &pr : _sessionMap) {
-			weak_ptr<TcpSession> weakSession = pr.second->session();
-			pr.second->session()->async([weakSession]() {
-				auto strongSession=weakSession.lock();
-				if(!strongSession) {
-					return;
-				}
-				strongSession->onManager();
-			}, false);
-		}
-	}
-
 private:
 	Socket::Ptr onBeforeAcceptConnection_l(const EventPoller::Ptr &poller){
 		return onBeforeAcceptConnection(poller);
@@ -263,19 +270,6 @@ private:
         onAcceptConnection(sock);
     }
 
-	void cloneFrom(const TcpServer &that){
-		if(!that._socket){
-			throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
-		}
-		_sessionMaker = that._sessionMaker;
-		_socket->cloneFromListenSocket(*(that._socket));
-		_timer = std::make_shared<Timer>(2, [this]()->bool {
-			this->onManagerSession();
-			return true;
-		},_poller);
-		this->mINI::operator=(that);
-        _cloned = true;
-	}
 
 	template <typename SessionType>
 	void start_l(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
@@ -296,6 +290,20 @@ private:
 			return true;
 		},_poller);
 		InfoL << "TCP Server listening on " << host << ":" << port;
+	}
+
+	//定时管理Session
+	void onManagerSession() {
+		for (auto &pr : _sessionMap) {
+			weak_ptr<TcpSession> weakSession = pr.second->session();
+			pr.second->session()->async([weakSession]() {
+				auto strongSession=weakSession.lock();
+				if(!strongSession) {
+					return;
+				}
+				strongSession->onManager();
+			}, false);
+		}
 	}
 private:
     EventPoller::Ptr _poller;
