@@ -14,6 +14,7 @@ if(WIN32)
     list(APPEND SUB_DIR_LIST "win32")
     #防止Windows.h包含Winsock.h
     add_definitions(-DWIN32_LEAN_AND_MEAN)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
 #使能GOP缓存
