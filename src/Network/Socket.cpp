@@ -142,7 +142,7 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
 		int sock = SockUtil::connect(url.data(), port, true, strLocalIp.data(), localPort);
 		poller->async([weakSelf,connectCB,timeOuted,sock](){
 			auto strongSelf = weakSelf.lock();
-			if(!strongSelf && *timeOuted ){
+			if(!strongSelf || *timeOuted ){
                 //本对象已经销毁或已经超时回调
                 if(sock != -1){
                     close(sock);
