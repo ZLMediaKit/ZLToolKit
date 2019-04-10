@@ -17,9 +17,6 @@ if(WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
-#使能GOP缓存
-add_definitions(-DENABLE_RING_USEBUF)
-
 #安装目录
 if(WIN32)
     set(INSTALL_PATH_LIB $ENV{HOME}/${CMAKE_PROJECT_NAME}/lib)
