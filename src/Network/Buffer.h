@@ -33,6 +33,10 @@ public:
     virtual string toString() const {
         return string(data(),size());
     }
+
+    virtual uint32_t getCapacity() const{
+        return size();
+    }
 };
 
 //字符串缓存
@@ -109,7 +113,7 @@ public:
         setSize(size);
     }
 
-    virtual uint32_t getCapacity() const{
+    uint32_t getCapacity() const override{
         return _capacity;
     }
 private:
