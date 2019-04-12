@@ -92,7 +92,7 @@ private:
 
 class SSL_Box {
 public:
-	SSL_Box(bool isServer = true, bool enable = true);
+	SSL_Box(bool isServer = true, bool enable = true , int buffSize = 4 * 1024);
 	~SSL_Box();
 
 	//收到密文后，调用此函数解密
@@ -125,6 +125,7 @@ private:
 	function<void(const Buffer::Ptr &)> _onDec;
 	function<void(const Buffer::Ptr &)> _onEnc;
 	List<Buffer::Ptr> _bufferOut;
+	BufferRaw::Ptr _bufferBio;
 };
 
 #else
@@ -146,7 +147,7 @@ private:
 
 class SSL_Box {
 public:
-	SSL_Box(bool isServer = true, bool enable = true){
+	SSL_Box(bool isServer = true, bool enable = true,int buffSize = 4 * 1024){
 		if(enable){
 			WarnL << "openssl disabled!";
 		}

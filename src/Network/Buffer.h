@@ -99,7 +99,7 @@ public:
         _size = size;
     }
     //赋值数据
-    void assign(const char *data,int size = 0){
+    void assign(const char *data,uint32_t size = 0){
         if(size <=0 ){
             size = strlen(data);
         }
@@ -108,10 +108,14 @@ public:
         _data[size] = '\0';
         setSize(size);
     }
+
+    virtual uint32_t getCapacity() const{
+        return _capacity;
+    }
 private:
     char *_data = nullptr;
-    int _capacity = 0;
-    int _size = 0;
+    uint32_t _capacity = 0;
+    uint32_t _size = 0;
 };
 
 

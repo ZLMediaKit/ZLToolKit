@@ -259,7 +259,7 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 			return;
 		}
 		if (event & Event_Read) {
-			strongSelf->onRead(strongSock,!isUdp);
+			strongSelf->onRead(strongSock,isUdp);
 		}
 		if (event & Event_Write) {
 			strongSelf->onWriteAble(strongSock);
@@ -269,29 +269,35 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 	return -1 != result;
 }
 
-int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
+void Socket::setReadBuffer(const BufferRaw::Ptr &readBuffer){
+    if(!readBuffer || readBuffer->getCapacity() < 128){
+        return;
+    }
+    weak_ptr<Socket> weakSelf = shared_from_this();
+    _poller->async([readBuffer,weakSelf](){
+        auto strongSelf = weakSelf.lock();
+        if(strongSelf){
+            strongSelf->_readBuffer = std::move(readBuffer);
+        }
+    });
+}
+int Socket::onRead(const SockFD::Ptr &pSock,bool isUdp) {
 	int ret = 0;
 	int sock = pSock->rawFd();
-	while (_enableRecv) {
-#if defined(_WIN32)
-		unsigned long nread = 0;
-#else
-		int nread = 0;
-#endif //defined(_WIN32)
-		ioctl(sock, FIONREAD, &nread);
-		if (nread <= 0) {
-			nread = 127;
-		}
-		struct sockaddr peerAddr;
-		socklen_t len = sizeof(struct sockaddr);
-        BufferRaw::Ptr buf = obtainBuffer();
-		buf->setCapacity(nread + 1);
+    if(!_readBuffer){
+        _readBuffer = std::make_shared<BufferRaw>(isUdp ? 1600 : 128 * 1024);
+    }
+    int nread = 0;
+    struct sockaddr peerAddr;
+    socklen_t len = sizeof(struct sockaddr);
+    auto capacity = _readBuffer->getCapacity() - 1;
+    while (_enableRecv) {
 		do {
-			nread = recvfrom(sock, buf->data(), nread, 0, &peerAddr, &len);
+			nread = recvfrom(sock, _readBuffer->data(), capacity, 0, &peerAddr, &len);
 		} while (-1 == nread && UV_EINTR == get_uv_error(true));
 
 		if (nread == 0) {
-			if (mayEof) {
+			if (!isUdp) {
 				emitErr(SockException(Err_eof, "end of file"));
 			}
 			return ret;
@@ -304,12 +310,10 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool mayEof) {
 			return ret;
 		}
 		ret += nread;
-		buf->data()[nread] = '\0';
-		buf->setSize(nread);
-
-        _readCB(buf, &peerAddr);
+        _readBuffer->data()[nread] = '\0';
+        _readBuffer->setSize(nread);
+        _readCB(_readBuffer, &peerAddr);
 	}
-
     return 0;
 }
 void Socket::onError(const SockFD::Ptr &pSock) {

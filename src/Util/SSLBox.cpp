@@ -32,7 +32,6 @@
 #include <openssl/conf.h>
 #include "Util/util.h"
 
-#define SSL_BUF_SIZE (1024*4 - 1)
 
 namespace toolkit {
 
@@ -135,7 +134,7 @@ inline std::string SSL_Initor::getLastError(){
 	} else
 		return "No error";
 }
-SSL_Box::SSL_Box(bool isServer, bool enable) :
+SSL_Box::SSL_Box(bool isServer, bool enable,int buffSize) :
 		_ssl(nullptr), _read_bio(nullptr), _write_bio(nullptr) {
 	_isServer = isServer;
 	_enable = enable;
@@ -145,6 +144,7 @@ SSL_Box::SSL_Box(bool isServer, bool enable) :
 	SSL_set_bio(_ssl, _read_bio, _write_bio);
 	_isServer ? SSL_set_accept_state(_ssl) : SSL_set_connect_state(_ssl);
 	_sendHandshake = false;
+	_bufferBio = std::make_shared<BufferRaw>(buffSize);
 }
 
 SSL_Box::~SSL_Box() {
@@ -190,15 +190,15 @@ void SSL_Box::onSend(const Buffer::Ptr &buffer) {
 	flush();
 }
 void SSL_Box::flushWriteBio() {
-	auto buffer = std::make_shared<BufferRaw>(SSL_BUF_SIZE + 1);
 	int total = 0;
 	int nread = 0;
+	int buf_size = _bufferBio->getCapacity() - 1;
 	do{
-		nread = BIO_read(_write_bio, buffer->data() + total, SSL_BUF_SIZE - total);
+		nread = BIO_read(_write_bio, _bufferBio->data() + total, buf_size - total);
 		if(nread > 0){
 			total += nread;
 		}
-	}while(nread > 0 && SSL_BUF_SIZE - total  > 0);
+	}while(nread > 0 && buf_size - total  > 0);
 
 	if(!total){
 		//未有数据
@@ -206,10 +206,10 @@ void SSL_Box::flushWriteBio() {
 	}
 
 	//触发此次回调
-	buffer->data()[total] = '\0';
-	buffer->setSize(total);
+	_bufferBio->data()[total] = '\0';
+	_bufferBio->setSize(total);
 	if(_onEnc){
-		_onEnc(buffer);
+		_onEnc(_bufferBio);
 	}
 
 	if(nread > 0){
@@ -219,15 +219,15 @@ void SSL_Box::flushWriteBio() {
 }
 
 void SSL_Box::flushReadBio() {
-	auto buffer = std::make_shared<BufferRaw>(SSL_BUF_SIZE + 1);
 	int total = 0;
 	int nread = 0;
+	int buf_size = _bufferBio->getCapacity() - 1;
 	do{
-		nread = SSL_read(_ssl, buffer->data() + total, SSL_BUF_SIZE - total);
+		nread = SSL_read(_ssl, _bufferBio->data() + total, buf_size - total);
 		if(nread > 0){
 			total += nread;
 		}
-	}while(nread > 0 && SSL_BUF_SIZE - total  > 0);
+	}while(nread > 0 && buf_size - total  > 0);
 
 	if(!total){
 		//未有数据
@@ -235,10 +235,10 @@ void SSL_Box::flushReadBio() {
 	}
 
 	//触发此次回调
-	buffer->data()[total] = '\0';
-	buffer->setSize(total);
+	_bufferBio->data()[total] = '\0';
+	_bufferBio->setSize(total);
 	if(_onDec){
-		_onDec(buffer);
+		_onDec(_bufferBio);
 	}
 
 	if(nread > 0){

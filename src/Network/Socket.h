@@ -324,12 +324,18 @@ public:
     bool setSendPeerAddr(const struct sockaddr *peerAddr);
     //设置发送flags
     void setSendFlags(int flags);
+
+    /**
+     * 设置接收缓存
+     * @param readBuffer 接收缓存
+     */
+    void setReadBuffer(const BufferRaw::Ptr &readBuffer);
 private:
     void closeSock();
     SockFD::Ptr setPeerSock(int fd);
 	bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
     int onAccept(const SockFD::Ptr &pSock,int event);
-    int onRead(const SockFD::Ptr &pSock,bool mayEof=true);
+    int onRead(const SockFD::Ptr &pSock,bool isUdp = false);
     void onError(const SockFD::Ptr &pSock);
     void onWriteAble(const SockFD::Ptr &pSock);
     void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
@@ -364,6 +370,7 @@ private:
     uint32_t _sendTimeOutSec = SEND_TIME_OUT_SEC;
     uint32_t _lastFlushStamp = 0;
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
+    BufferRaw::Ptr _readBuffer;
 };
 
 class SocketFlags{
