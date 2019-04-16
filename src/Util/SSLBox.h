@@ -25,74 +25,99 @@
 #ifndef CRYPTO_SSLBOX_H_
 #define CRYPTO_SSLBOX_H_
 
-#include <assert.h>
-#include <fcntl.h>
 #include <mutex>
 #include <string>
-#include <atomic>
 #include <functional>
 #include "logger.h"
 #include "List.h"
 #include "Network/Buffer.h"
-
-#if defined(ENABLE_OPENSSL)
-
-#include <openssl/bio.h>
-#include <openssl/ossl_typ.h>
-
-#if defined(_WIN32)
-#if defined(_WIN64)
-
-//64bit
-#if !defined(NDEBUG)
-#pragma  comment (lib,"libssl64MDd") 
-#pragma  comment (lib,"libcrypto64MDd") 
-#else
-#pragma  comment (lib,"libssl64MD") 
-#pragma  comment (lib,"libcrypto64MD") 
-#endif // !defined(NDEBUG)
-
-#else 
-
-//32 bit
-#if !defined(NDEBUG)
-#pragma  comment (lib,"libssl32MDd") 
-#pragma  comment (lib,"libcrypto32MDd") 
-#else
-#pragma  comment (lib,"libssl32MD") 
-#pragma  comment (lib,"libcrypto32MD") 
-#endif // !defined(NDEBUG)
-
-#endif //defined(_WIN64)
-#endif // defined(_WIN32)
-
-#endif // defined(ENABLE_OPENSSL)
-
 using namespace std;
+
+typedef struct x509_st X509;
+typedef struct evp_pkey_st EVP_PKEY;
+typedef struct ssl_ctx_st SSL_CTX;
+typedef struct ssl_st SSL;
+typedef struct bio_st BIO;
 
 namespace toolkit {
 
-#if defined(ENABLE_OPENSSL)
 class SSL_Initor {
 public:
-	friend class SSL_Box;
 	static SSL_Initor &Instance();
-	void loadServerPem(const char *keyAndCA_pem, const char *import_pwd = "");
-	void loadClientPem(const char *keyAndCA_pem, const char *import_pwd = "");
+
+	/**
+	 * 加载服务器证书,证书必须包含公钥和私钥，格式可以为pem和p12
+	 * 该接口已经过期，建议使用loadCertificate接口
+	 * @param pem_or_p12 证书文件路径
+	 * @param passwd 证书加密密码
+	 */
+	void loadServerPem(const char *pem_or_p12, const char *passwd = "");
+
+	/**
+	 * 加载客户端证书,证书必须包含公钥和私钥，格式可以为pem和p12
+	 * 该接口已经过期，建议使用loadCertificate接口
+	 * @param pem_or_p12 证书文件路径
+	 * @param passwd 证书加密密码
+	 */
+	void loadClientPem(const char *pem_or_p12, const char *passwd = "");
+
+	/**
+	 * 从文件或字符串中加载公钥和私钥
+	 * 该证书文件必须同时包含公钥和私钥(cer格式的证书只包括公钥，请使用后面的方法加载)
+	 * @param pem_or_p12 pem或p12文件路径或者文件内容字符串
+	 * @param serverMode 是否为服务器模式
+	 * @param passwd 私钥加密密码
+	 * @param isFile 参数pem_or_p12是否为文件路径
+	 */
+	void loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd = "" , bool isFile = true);
+
+	/**
+	 * 加载公钥和私钥
+	 * 公钥可以使用SSLUtil加载
+	 * @see SSLUtil
+	 * @param public_key 公钥
+	 * @param private_key 私钥
+	 * @param serverMode 是否为服务器模式
+	 */
+	void loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode);
+
+	/**
+	 * 设置ssl context
+	 * @param ctx ssl context
+	 * @param serverMode ssl context
+	 */
+	void setContext(const std::shared_ptr<SSL_CTX> &ctx,bool serverMode);
+
+	/**
+	 * 创建SSL对象
+	 * @param ctx
+	 * @return
+	 */
+	shared_ptr<SSL> makeSSL(bool serverMode);
+
+	/**
+	 * 是否忽略无效的证书
+	 * @param ignore 标记
+	 */
+	void ignoreInvalidCertificate(bool ignore = true);
 private:
-	static mutex *_mutexes;
-	SSL_CTX *ssl_server;
-	SSL_CTX *ssl_client;
 	SSL_Initor();
 	~SSL_Initor();
-	void setCtx(SSL_CTX *ctx);
-	void loadPem(SSL_CTX *ctx, const char *keyAndCA_pem,const char *import_pwd);
-	inline std::string getLastError();
+	void setupCtx(SSL_CTX *ctx);
+private:
+	mutex *_mutexes;
+	std::shared_ptr<SSL_CTX> _ctx_server;
+	std::shared_ptr<SSL_CTX> _ctx_client;
+	std::shared_ptr<SSL_CTX> _ctx_client_default;
 };
+
+////////////////////////////////////////////////////////////////////////////////////
 
 class SSL_Box {
 public:
-	SSL_Box(bool isServer = true, bool enable = true , int buffSize = 4 * 1024);
+	SSL_Box(bool serverMode = true,
+			bool enable = true ,
+			int buffSize = 4 * 1024);
 	~SSL_Box();
 
 	//收到密文后，调用此函数解密
@@ -117,69 +142,15 @@ private:
 	void flushWriteBio();
 	void flushReadBio();
 private:
-	bool _isServer;
-	bool _enable;
+	bool _serverMode;
 	bool _sendHandshake;
-	SSL *_ssl;
+	shared_ptr<SSL> _ssl;
 	BIO *_read_bio, *_write_bio;
 	function<void(const Buffer::Ptr &)> _onDec;
 	function<void(const Buffer::Ptr &)> _onEnc;
 	List<Buffer::Ptr> _bufferOut;
 	BufferRaw::Ptr _bufferBio;
 };
-
-#else
-class SSL_Initor {
-public:
-	friend class SSL_Box;
-	static SSL_Initor &Instance();
-	void loadServerPem(const char *keyAndCA_pem, const char *import_pwd = ""){
-        WarnL << "openssl disabled!";
-	};
-	void loadClientPem(const char *keyAndCA_pem, const char *import_pwd = ""){
-        WarnL << "openssl disabled!";
-	};
-private:
-	SSL_Initor(){};
-	~SSL_Initor(){};
-};
-
-
-class SSL_Box {
-public:
-	SSL_Box(bool isServer = true, bool enable = true,int buffSize = 4 * 1024){
-		if(enable){
-			WarnL << "openssl disabled!";
-		}
-	};
-	~SSL_Box(){};
-
-	//收到密文后，调用此函数解密
-	void onRecv(const Buffer::Ptr &buffer){
-		_onDec(buffer);
-	};
-	//需要加密明文调用此函数
-	void onSend(const Buffer::Ptr &buffer){
-		_onEnc(buffer);
-	};
-
-	//设置解密后获取明文的回调
-	template<typename F>
-	void setOnDecData(F &&fun) {
-		_onDec = std::forward<F>(fun);
-	}
-
-	//设置加密后获取密文的回调
-	template<typename F>
-	void setOnEncData(F &&fun) {
-		_onEnc = std::forward<F>(fun);;
-	}
-	void shutdown(){};
-private:
-	function<void(const Buffer::Ptr &)> _onDec;
-	function<void(const Buffer::Ptr &)> _onEnc;
-};
-#endif //defined(ENABLE_OPENSSL)
 
 
 } /* namespace toolkit */

@@ -22,22 +22,62 @@
  * SOFTWARE.
  */
 #include "SSLBox.h"
+#include <string.h>
+#include "Util/util.h"
+#include "SSLUtil.h"
 
 #if defined(ENABLE_OPENSSL)
-#include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
-#include "Util/util.h"
+#include <openssl/bio.h>
+#include <openssl/ossl_typ.h>
 
+#if defined(_WIN32)
+#if defined(_WIN64)
+
+//64bit
+#if !defined(NDEBUG)
+#pragma  comment (lib,"libssl64MDd")
+#pragma  comment (lib,"libcrypto64MDd")
+#else
+#pragma  comment (lib,"libssl64MD")
+#pragma  comment (lib,"libcrypto64MD")
+#endif // !defined(NDEBUG)
+
+#else
+
+//32 bit
+#if !defined(NDEBUG)
+#pragma  comment (lib,"libssl32MDd")
+#pragma  comment (lib,"libcrypto32MDd")
+#else
+#pragma  comment (lib,"libssl32MD")
+#pragma  comment (lib,"libcrypto32MD")
+#endif // !defined(NDEBUG)
+
+#endif //defined(_WIN64)
+#endif // defined(_WIN32)
+
+#endif //defined(ENABLE_OPENSSL)
 
 namespace toolkit {
 
-mutex *SSL_Initor::_mutexes;
+static bool s_ingroleSsl = true;
+
+SSL_Initor &SSL_Initor::Instance() {
+    static SSL_Initor obj;
+    return obj;
+}
+
+void SSL_Initor::ignoreInvalidCertificate(bool ignore) {
+    s_ingroleSsl = true;
+}
 
 SSL_Initor::SSL_Initor() {
+#if defined(ENABLE_OPENSSL)
 	SSL_library_init();
 	SSL_load_error_strings();
 	OpenSSL_add_all_digests();
@@ -58,46 +98,14 @@ SSL_Initor::SSL_Initor() {
 		return (unsigned long)GetCurrentThreadId();
 #endif
 	});
-	ssl_client = SSL_CTX_new(TLSv1_client_method());
-	ssl_server = SSL_CTX_new(TLSv1_server_method());
-	setCtx(ssl_client);
-	setCtx(ssl_server);
-}
 
-void SSL_Initor::loadServerPem(const char *keyAndCA_pem, const char *import_pwd){
-	loadPem(ssl_server,keyAndCA_pem,import_pwd);
-}
-void SSL_Initor::loadClientPem(const char *keyAndCA_pem, const char *import_pwd){
-	loadPem(ssl_client,keyAndCA_pem,import_pwd);
-}
-void SSL_Initor::loadPem(SSL_CTX *ctx, const char *keyAndCA_pem,const char *import_pwd) {
-	int errCode = SSL_CTX_use_PrivateKey_file(ctx, keyAndCA_pem,SSL_FILETYPE_PEM);
-	if (errCode != 1) {
-		throw std::runtime_error(std::string("SSL_CTX_use_PrivateKey_file: ") + getLastError());
-	}
-	errCode = SSL_CTX_use_certificate_file(ctx, keyAndCA_pem,SSL_FILETYPE_PEM);
-	if (errCode != 1) {
-		throw std::runtime_error(std::string("SSL_CTX_use_certificate_chain_file: ")+ getLastError());
-	}
-	SSL_CTX_set_default_passwd_cb_userdata(ctx, (void *) import_pwd);
-	SSL_CTX_set_default_passwd_cb(ctx,[](char *buf, int size, int rwflag, void *userdata)->int {
-				const char *privateKeyPwd=(const char *)userdata;
-				size_t privateKeyPwd_len=strlen(privateKeyPwd);
-				strncpy(buf, privateKeyPwd, size);
-				buf[size - 1] = '\0';
-				if (size > (int)privateKeyPwd_len)
-				size = privateKeyPwd_len;
-				return size;
-	});
-	errCode = SSL_CTX_check_private_key(ctx);
-	if (errCode != 1) {
-		throw std::runtime_error(std::string("SSL_CTX_check_private_key: ") + getLastError());
-	}
+	_ctx_client_default = SSLUtil::makeSSLContext(nullptr, nullptr, false);
+	setupCtx(_ctx_client_default.get());
+#endif //defined(ENABLE_OPENSSL)
 }
 
 SSL_Initor::~SSL_Initor() {
-	SSL_CTX_free(ssl_client);
-	SSL_CTX_free(ssl_server);
+#if defined(ENABLE_OPENSSL)
 	EVP_cleanup();
 	ERR_free_strings();
 	ERR_clear_error();
@@ -107,90 +115,141 @@ SSL_Initor::~SSL_Initor() {
 	CRYPTO_cleanup_all_ex_data();
 	CONF_modules_unload(1);
 	CONF_modules_free();
-	delete[] _mutexes;
+	delete [] _mutexes;
+#endif //defined(ENABLE_OPENSSL)
 }
-void SSL_Initor::setCtx(SSL_CTX *ctx) {
+
+void SSL_Initor::loadServerPem(const char *pem_or_p12, const char *passwd){
+	loadCertificate(pem_or_p12, true,passwd, true);
+
+}
+void SSL_Initor::loadClientPem(const char *pem_or_p12, const char *passwd){
+	loadCertificate(pem_or_p12,false,passwd, true);
+}
+
+void SSL_Initor::loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd , bool isFile){
+	loadCertificate(SSLUtil::loadPublicKey(pem_or_p12, passwd, isFile).get(),
+					SSLUtil::loadPrivateKey(pem_or_p12, passwd, isFile).get(),
+					serverMode);
+}
+void SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode) {
+	setContext(SSLUtil::makeSSLContext(public_key, private_key, serverMode),serverMode);
+}
+
+void SSL_Initor::setContext(const shared_ptr<SSL_CTX> &ctx, bool serverMode) {
+#if defined(ENABLE_OPENSSL)
+	auto &ref = serverMode ? _ctx_server : _ctx_client;
+	ref = ctx;
+	if(!ref){
+		throw std::runtime_error(std::string("setContext: null ctx" ) );
+	}
+	setupCtx(ref.get());
+#else
+	WarnL << "ENABLE_OPENSSL宏未启用,openssl相关功能将无效!";
+#endif //defined(ENABLE_OPENSSL)
+}
+
+
+void SSL_Initor::setupCtx(SSL_CTX *ctx) {
+#if defined(ENABLE_OPENSSL)
 	SSL_CTX_set_cipher_list(ctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
-	SSL_CTX_set_verify_depth(ctx, 9);
 	SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
 	SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE,[](int ok, X509_STORE_CTX *pStore) {
+
+	SSL_CTX_set_default_verify_paths(ctx);
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_FAIL_IF_NO_PEER_CERT,[](int ok, X509_STORE_CTX *pStore) {
 				if (!ok) {
 					int depth = X509_STORE_CTX_get_error_depth(pStore);
 					int err = X509_STORE_CTX_get_error(pStore);
 					std::string error(X509_verify_cert_error_string(err));
-					ErrorL<<depth<<" "<<error<<endl;
+					WarnL << depth << " " << error;
+				}
+				if(s_ingroleSsl){
 					ok = 1;
 				}
 				return ok;
 	});
+#endif //defined(ENABLE_OPENSSL)
 }
-inline std::string SSL_Initor::getLastError(){
-	unsigned long errCode = ERR_get_error();
-	if (errCode != 0) {
-		char buffer[256];
-		ERR_error_string_n(errCode, buffer, sizeof(buffer));
-		return std::string(buffer);
-	} else
-		return "No error";
+
+shared_ptr<SSL> SSL_Initor::makeSSL(bool serverMode) {
+#if defined(ENABLE_OPENSSL)
+    if(serverMode){
+		return _ctx_server ? SSLUtil::makeSSL(_ctx_server.get()) : nullptr;
+	}
+	return _ctx_client ? SSLUtil::makeSSL(_ctx_client.get()) : SSLUtil::makeSSL(_ctx_client_default.get());
+#else
+    return nullptr;
+#endif //defined(ENABLE_OPENSSL)
 }
-SSL_Box::SSL_Box(bool isServer, bool enable,int buffSize) :
-		_ssl(nullptr), _read_bio(nullptr), _write_bio(nullptr) {
-	_isServer = isServer;
-	_enable = enable;
-	_ssl = SSL_new(_isServer ?SSL_Initor::Instance().ssl_server :SSL_Initor::Instance().ssl_client);
-	_read_bio = BIO_new(BIO_s_mem());
-	_write_bio = BIO_new(BIO_s_mem());
-	SSL_set_bio(_ssl, _read_bio, _write_bio);
-	_isServer ? SSL_set_accept_state(_ssl) : SSL_set_connect_state(_ssl);
+////////////////////////////////////////////////////SSL_Box////////////////////////////////////////////////////////////
+
+SSL_Box::SSL_Box(bool serverMode,
+				 bool enable,
+				 int buffSize) {
+#if defined(ENABLE_OPENSSL)
+    _read_bio = BIO_new(BIO_s_mem());
+    _serverMode = serverMode;
+    if(enable){
+        _ssl =  SSL_Initor::Instance().makeSSL(serverMode) ;
+    }
+    if(_ssl){
+		_write_bio = BIO_new(BIO_s_mem());
+		SSL_set_bio(_ssl.get(), _read_bio, _write_bio);
+		_serverMode ? SSL_set_accept_state(_ssl.get()) : SSL_set_connect_state(_ssl.get());
+
+	} else {
+		WarnL << "ssl disabled!";
+	}
 	_sendHandshake = false;
 	_bufferBio = std::make_shared<BufferRaw>(buffSize);
+#endif //defined(ENABLE_OPENSSL)
 }
 
-SSL_Box::~SSL_Box() {
-	if (_ssl) {
-		SSL_free(_ssl);
-		_ssl = nullptr;
-	}
-	ERR_clear_error();
-	ERR_remove_state(0);
-}
+SSL_Box::~SSL_Box() {}
 
 void SSL_Box::shutdown() {
-	int ret = SSL_shutdown(_ssl);
+#if defined(ENABLE_OPENSSL)
+	int ret = SSL_shutdown(_ssl.get());
 	if (ret != 1) {
-		ErrorL << "SSL shutdown failed:"<< ERR_reason_error_string(ERR_get_error()) << endl;
+		ErrorL << "SSL shutdown failed:" << SSLUtil::getLastError();
 	} else {
 		flush();
 	}
+#endif //defined(ENABLE_OPENSSL)
 }
 void SSL_Box::onRecv(const Buffer::Ptr &buffer) {
-	if (!_enable) {
+    if (!_ssl) {
 		if (_onDec) {
 			_onDec(buffer);
 		}
 		return;
 	}
-	BIO_write(_read_bio, buffer->data(), buffer->size());
+#if defined(ENABLE_OPENSSL)
+    BIO_write(_read_bio, buffer->data(), buffer->size());
 	flush();
+#endif //defined(ENABLE_OPENSSL)
 }
 
 void SSL_Box::onSend(const Buffer::Ptr &buffer) {
-	if (!_enable) {
+	if (!_ssl) {
 		if (_onEnc) {
 			_onEnc(buffer);
 		}
 		return;
 	}
-	if (!_isServer && !_sendHandshake) {
+#if defined(ENABLE_OPENSSL)
+    if (!_serverMode && !_sendHandshake) {
 		_sendHandshake = true;
-		SSL_do_handshake(_ssl);
+		SSL_do_handshake(_ssl.get());
 	}
 	_bufferOut.emplace_back(buffer);
 	flush();
+#endif //defined(ENABLE_OPENSSL)
 }
 void SSL_Box::flushWriteBio() {
-	int total = 0;
+#if defined(ENABLE_OPENSSL)
+    int total = 0;
 	int nread = 0;
 	int buf_size = _bufferBio->getCapacity() - 1;
 	do{
@@ -216,14 +275,16 @@ void SSL_Box::flushWriteBio() {
 		//还有剩余数据，读取剩余数据
 		flushWriteBio();
 	}
+#endif //defined(ENABLE_OPENSSL)
 }
 
 void SSL_Box::flushReadBio() {
-	int total = 0;
+#if defined(ENABLE_OPENSSL)
+    int total = 0;
 	int nread = 0;
 	int buf_size = _bufferBio->getCapacity() - 1;
 	do{
-		nread = SSL_read(_ssl, _bufferBio->data() + total, buf_size - total);
+		nread = SSL_read(_ssl.get(), _bufferBio->data() + total, buf_size - total);
 		if(nread > 0){
 			total += nread;
 		}
@@ -245,33 +306,25 @@ void SSL_Box::flushReadBio() {
 		//还有剩余数据，读取剩余数据
 		flushReadBio();
 	}
+#endif //defined(ENABLE_OPENSSL)
 }
 void SSL_Box::flush() {
-	flushReadBio();
+#if defined(ENABLE_OPENSSL)
+    flushReadBio();
 	flushWriteBio();
-	if (SSL_is_init_finished(_ssl) && !_bufferOut.empty()) {
+	if (SSL_is_init_finished(_ssl.get()) && !_bufferOut.empty()) {
 		while (!_bufferOut.empty()){
-			auto nwrite = SSL_write(_ssl, _bufferOut.front()->data(), _bufferOut.front()->size());
+			auto nwrite = SSL_write(_ssl.get(), _bufferOut.front()->data(), _bufferOut.front()->size());
 			if (nwrite > 0) {
 				_bufferOut.pop_front();
 				continue;
 			}
-			ErrorL << "ssl error:" << SSL_get_error(_ssl, nwrite) << endl;
+			ErrorL << "ssl error:" << SSLUtil::getLastError() ;
 		}
 		flushWriteBio();
 	}
+#endif //defined(ENABLE_OPENSSL)
 }
 
-
-
-} /* namespace toolkit */
-#endif //ENABLE_OPENSSL
-
-namespace toolkit {
-
-SSL_Initor &SSL_Initor::Instance() {
-    static SSL_Initor obj;
-    return obj;
-}
 
 } /* namespace toolkit */
