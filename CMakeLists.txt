@@ -44,9 +44,14 @@ else()
     set(LINK_LIB_LIST)
 endif()
 
+
+set(ENABLE_OPENSSL true)
+set(ENABLE_MYSQL true)
+
+
 #查找openssl是否安装
 find_package(OpenSSL QUIET)
-if(OPENSSL_FOUND)
+if(OPENSSL_FOUND AND ENABLE_OPENSSL)
     message(STATUS "找到openssl库:\"${OPENSSL_INCLUDE_DIR}\",ENABLE_OPENSSL宏已打开")
     include_directories(${OPENSSL_INCLUDE_DIR})
     add_definitions(-DENABLE_OPENSSL)
@@ -55,7 +60,7 @@ endif()
 
 #查找mysql是否安装
 find_package(MYSQL QUIET)
-if(MYSQL_FOUND)
+if(MYSQL_FOUND AND ENABLE_MYSQL)
     message(STATUS "找到mysqlclient库:\"${MYSQL_INCLUDE_DIR}\",ENABLE_MYSQL宏已打开")
     include_directories(${MYSQL_INCLUDE_DIR})
     add_definitions(-DENABLE_MYSQL)
