@@ -105,7 +105,6 @@ private:
 	~SSL_Initor();
 	void setupCtx(SSL_CTX *ctx);
 private:
-	mutex *_mutexes;
 	std::shared_ptr<SSL_CTX> _ctx_server;
 	std::shared_ptr<SSL_CTX> _ctx_client;
 	std::shared_ptr<SSL_CTX> _ctx_client_default;

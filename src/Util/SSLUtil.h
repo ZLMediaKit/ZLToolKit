@@ -44,7 +44,7 @@ public:
     static shared_ptr<EVP_PKEY> loadPrivateKey(const string &file_path_or_data,const string &passwd = "",bool isFile = true);
 
     /**
-     * 创建SSL_CTX对象true
+     * 创建SSL_CTX对象
      * @param cer 公钥
      * @param key 私钥
      * @param serverMode 是否为服务器模式或客户端模式

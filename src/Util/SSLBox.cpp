@@ -21,9 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "SSLBox.h"
 #include <string.h>
-#include "Util/util.h"
+#include "SSLBox.h"
+#include "util.h"
+#include "onceToken.h"
 #include "SSLUtil.h"
 
 #if defined(ENABLE_OPENSSL)
@@ -83,14 +84,19 @@ SSL_Initor::SSL_Initor() {
 	OpenSSL_add_all_digests();
 	OpenSSL_add_all_ciphers();
 	OpenSSL_add_all_algorithms();
-	_mutexes = new mutex[CRYPTO_num_locks()];
 	CRYPTO_set_locking_callback([](int mode,int n,
 			const char *file,int line) {
-		if (mode & CRYPTO_LOCK)
-		_mutexes[n].lock();
-		else
-		_mutexes[n].unlock();
+        static mutex *s_mutexes = new mutex[CRYPTO_num_locks()];
+        static onceToken token(nullptr,[](){
+            delete [] s_mutexes;
+        });
+		if (mode & CRYPTO_LOCK){
+            s_mutexes[n].lock();
+        } else {
+            s_mutexes[n].unlock();
+        }
 	});
+
 	CRYPTO_set_id_callback([]() ->unsigned long {
 #if !defined(_WIN32)
 		return (unsigned long)pthread_self();
@@ -115,7 +121,6 @@ SSL_Initor::~SSL_Initor() {
 	CRYPTO_cleanup_all_ex_data();
 	CONF_modules_unload(1);
 	CONF_modules_free();
-	delete [] _mutexes;
 #endif //defined(ENABLE_OPENSSL)
 }
 
