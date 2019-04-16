@@ -35,8 +35,8 @@ std::string SSLUtil::getLastError(){
 shared_ptr<X509> SSLUtil::loadPublicKey(const string &file_path_or_data, const string &passwd,bool isFile) {
 #if defined(ENABLE_OPENSSL)
     BIO *bio = isFile ?
-              BIO_new_file(file_path_or_data.data(), "r") :
-              BIO_new_mem_buf(file_path_or_data.data(),file_path_or_data.size());
+              BIO_new_file((char*)file_path_or_data.data(), "r") :
+              BIO_new_mem_buf((char *)file_path_or_data.data(),file_path_or_data.size());
     if(!bio){
         WarnL << getLastError();
         return nullptr;
@@ -86,8 +86,8 @@ shared_ptr<X509> SSLUtil::loadPublicKey(const string &file_path_or_data, const s
 shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, const string &passwd,bool isFile) {
 #if defined(ENABLE_OPENSSL)
     BIO *bio = isFile ?
-               BIO_new_file(file_path_or_data.data(), "r") :
-               BIO_new_mem_buf(file_path_or_data.data(),file_path_or_data.size());
+               BIO_new_file((char*)file_path_or_data.data(), "r") :
+               BIO_new_mem_buf((char*)file_path_or_data.data(),file_path_or_data.size());
     if(!bio){
         WarnL << getLastError();
         return nullptr;
@@ -137,7 +137,7 @@ shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, co
 
 shared_ptr<SSL_CTX> SSLUtil::makeSSLContext(X509 *cer, EVP_PKEY *key,bool serverMode) {
 #if defined(ENABLE_OPENSSL)
-    SSL_CTX *ctx = SSL_CTX_new(serverMode ? TLS_server_method() : TLS_client_method() );
+    SSL_CTX *ctx = SSL_CTX_new(serverMode ? SSLv23_server_method() : SSLv23_client_method() );
     if(!ctx){
         WarnL << getLastError();
         return nullptr;
