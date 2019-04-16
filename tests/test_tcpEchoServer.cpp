@@ -70,7 +70,9 @@ int main() {
 	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 	//加载证书，证书包含公钥和私钥
-	SSL_Initor::Instance().loadServerPem((exeDir() + "ssl.pem").data());
+	SSL_Initor::Instance().loadCertificate((exeDir() + "ssl.p12").data());
+	SSL_Initor::Instance().trustCertificate((exeDir() + "ssl.p12").data());
+	SSL_Initor::Instance().ignoreInvalidCertificate(false);
 
 	TcpServer::Ptr server(new TcpServer());
 	server->start<EchoSession>(9000);//监听9000端口

@@ -74,7 +74,7 @@ SSL_Initor &SSL_Initor::Instance() {
 }
 
 void SSL_Initor::ignoreInvalidCertificate(bool ignore) {
-    s_ingroleSsl = true;
+    s_ingroleSsl = ignore;
 }
 
 SSL_Initor::SSL_Initor() {
@@ -167,7 +167,7 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
 	SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
 
 	SSL_CTX_set_default_verify_paths(ctx);
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE,[](int ok, X509_STORE_CTX *pStore) {
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER,[](int ok, X509_STORE_CTX *pStore) {
 				if (!ok) {
 					int depth = X509_STORE_CTX_get_error_depth(pStore);
 					int err = X509_STORE_CTX_get_error(pStore);
