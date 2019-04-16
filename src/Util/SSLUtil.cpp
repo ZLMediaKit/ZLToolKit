@@ -183,3 +183,35 @@ shared_ptr<SSL> SSLUtil::makeSSL(SSL_CTX *ctx) {
 #endif //defined(ENABLE_OPENSSL)
 }
 
+bool SSLUtil::loadDefaultCAs(SSL_CTX *ctx) {
+#if defined(ENABLE_OPENSSL)
+    if(!ctx){
+        return false;
+    }
+
+    if(!SSL_CTX_set_default_verify_paths(ctx)){
+        WarnL << getLastError();
+        return false;
+    }
+    return true;
+#else
+    return false;
+#endif //defined(ENABLE_OPENSSL)
+}
+
+bool SSLUtil::trustCertificate(SSL_CTX *ctx, X509 *cer) {
+#if defined(ENABLE_OPENSSL)
+    X509_STORE * store = SSL_CTX_get_cert_store(ctx);
+    if(store && cer){
+        if(!X509_STORE_add_cert(store,cer)){
+            WarnL << getLastError();
+            return false;
+        }
+        return true;
+    }
+#endif //defined(ENABLE_OPENSSL)
+    return false;
+}
+
+
+

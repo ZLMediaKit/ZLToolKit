@@ -105,8 +105,7 @@ SSL_Initor::SSL_Initor() {
 #endif
 	});
 
-	_ctx_client_default = SSLUtil::makeSSLContext(nullptr, nullptr, false);
-	setupCtx(_ctx_client_default.get());
+    setContext(SSLUtil::makeSSLContext(nullptr, nullptr, false),false);
 #endif //defined(ENABLE_OPENSSL)
 }
 
@@ -124,45 +123,51 @@ SSL_Initor::~SSL_Initor() {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-void SSL_Initor::loadServerPem(const char *pem_or_p12, const char *passwd){
-	loadCertificate(pem_or_p12, true,passwd, true);
+bool SSL_Initor::loadServerPem(const char *pem_or_p12, const char *passwd){
+	return loadCertificate(pem_or_p12, true,passwd, true);
 
 }
-void SSL_Initor::loadClientPem(const char *pem_or_p12, const char *passwd){
-	loadCertificate(pem_or_p12,false,passwd, true);
+bool SSL_Initor::loadClientPem(const char *pem_or_p12, const char *passwd){
+	return loadCertificate(pem_or_p12,false,passwd, true);
 }
 
-void SSL_Initor::loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd , bool isFile){
-	loadCertificate(SSLUtil::loadPublicKey(pem_or_p12, passwd, isFile).get(),
-					SSLUtil::loadPrivateKey(pem_or_p12, passwd, isFile).get(),
-					serverMode);
+bool SSL_Initor::loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd , bool isFile){
+	return loadCertificate(SSLUtil::loadPublicKey(pem_or_p12, passwd, isFile).get(),
+						   SSLUtil::loadPrivateKey(pem_or_p12, passwd, isFile).get(),
+						   serverMode);
 }
-void SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode) {
-	setContext(SSLUtil::makeSSLContext(public_key, private_key, serverMode),serverMode);
+bool SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode) {
+	return setContext(SSLUtil::makeSSLContext(public_key, private_key, serverMode),serverMode);
 }
 
-void SSL_Initor::setContext(const shared_ptr<SSL_CTX> &ctx, bool serverMode) {
+bool SSL_Initor::setContext(const shared_ptr<SSL_CTX> &ctx, bool serverMode) {
 #if defined(ENABLE_OPENSSL)
 	auto &ref = serverMode ? _ctx_server : _ctx_client;
 	ref = ctx;
 	if(!ref){
-		throw std::runtime_error(std::string("setContext: null ctx" ) );
+		WarnL << "证书无效!";
+		return false;
 	}
 	setupCtx(ref.get());
+	return true;
 #else
 	WarnL << "ENABLE_OPENSSL宏未启用,openssl相关功能将无效!";
+	return false;
 #endif //defined(ENABLE_OPENSSL)
 }
 
 
 void SSL_Initor::setupCtx(SSL_CTX *ctx) {
 #if defined(ENABLE_OPENSSL)
+	//加载默认信任证书
+	SSLUtil::loadDefaultCAs(ctx);
+
 	SSL_CTX_set_cipher_list(ctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
 	SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
 	SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
 
 	SSL_CTX_set_default_verify_paths(ctx);
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_FAIL_IF_NO_PEER_CERT,[](int ok, X509_STORE_CTX *pStore) {
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE,[](int ok, X509_STORE_CTX *pStore) {
 				if (!ok) {
 					int depth = X509_STORE_CTX_get_error_depth(pStore);
 					int err = X509_STORE_CTX_get_error(pStore);
@@ -174,6 +179,7 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
 				}
 				return ok;
 	});
+
 #endif //defined(ENABLE_OPENSSL)
 }
 
@@ -182,10 +188,18 @@ shared_ptr<SSL> SSL_Initor::makeSSL(bool serverMode) {
     if(serverMode){
 		return _ctx_server ? SSLUtil::makeSSL(_ctx_server.get()) : nullptr;
 	}
-	return _ctx_client ? SSLUtil::makeSSL(_ctx_client.get()) : SSLUtil::makeSSL(_ctx_client_default.get());
+	return _ctx_client ? SSLUtil::makeSSL(_ctx_client.get()) : nullptr;
 #else
     return nullptr;
 #endif //defined(ENABLE_OPENSSL)
+}
+
+bool SSL_Initor::trustCertificate(X509 *cer, bool serverMode) {
+	return SSLUtil::trustCertificate(serverMode ? _ctx_server.get() : _ctx_client.get(),cer);
+}
+
+bool SSL_Initor::trustCertificate(const string &pem_p12_cer, bool serverMode, const string &passwd, bool isFile) {
+	return trustCertificate(SSLUtil::loadPublicKey(pem_p12_cer,passwd,isFile).get(),serverMode);
 }
 ////////////////////////////////////////////////////SSL_Box////////////////////////////////////////////////////////////
 
@@ -224,6 +238,9 @@ void SSL_Box::shutdown() {
 #endif //defined(ENABLE_OPENSSL)
 }
 void SSL_Box::onRecv(const Buffer::Ptr &buffer) {
+	if(!buffer->size()){
+		return;
+	}
     if (!_ssl) {
 		if (_onDec) {
 			_onDec(buffer);
@@ -237,6 +254,9 @@ void SSL_Box::onRecv(const Buffer::Ptr &buffer) {
 }
 
 void SSL_Box::onSend(const Buffer::Ptr &buffer) {
+	if(!buffer->size()){
+		return;
+	}
 	if (!_ssl) {
 		if (_onEnc) {
 			_onEnc(buffer);

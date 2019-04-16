@@ -1,4 +1,4 @@
-﻿execute_process(COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/ssl.pem ${EXECUTABLE_OUTPUT_PATH}/)
+﻿execute_process(COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/ssl.p12 ${EXECUTABLE_OUTPUT_PATH}/)
 
 aux_source_directory(. TEST_SRC_LIST)
 foreach(TEST_SRC ${TEST_SRC_LIST})

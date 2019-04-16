@@ -51,42 +51,45 @@ public:
 	 * @param pem_or_p12 证书文件路径
 	 * @param passwd 证书加密密码
 	 */
-	void loadServerPem(const char *pem_or_p12, const char *passwd = "");
+	bool loadServerPem(const char *pem_or_p12, const char *passwd = "");
 
 	/**
 	 * 加载客户端证书,证书必须包含公钥和私钥，格式可以为pem和p12
 	 * 该接口已经过期，建议使用loadCertificate接口
+	 * 客户端默认可以不加载证书(除非服务器要求客户端提供证书)
 	 * @param pem_or_p12 证书文件路径
 	 * @param passwd 证书加密密码
 	 */
-	void loadClientPem(const char *pem_or_p12, const char *passwd = "");
+	bool loadClientPem(const char *pem_or_p12, const char *passwd = "");
 
 	/**
 	 * 从文件或字符串中加载公钥和私钥
 	 * 该证书文件必须同时包含公钥和私钥(cer格式的证书只包括公钥，请使用后面的方法加载)
+	 * 客户端默认可以不加载证书(除非服务器要求客户端提供证书)
 	 * @param pem_or_p12 pem或p12文件路径或者文件内容字符串
 	 * @param serverMode 是否为服务器模式
 	 * @param passwd 私钥加密密码
 	 * @param isFile 参数pem_or_p12是否为文件路径
 	 */
-	void loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd = "" , bool isFile = true);
+	bool loadCertificate(const string &pem_or_p12,  bool serverMode = true, const string &passwd = "" , bool isFile = true);
 
 	/**
 	 * 加载公钥和私钥
 	 * 公钥可以使用SSLUtil加载
+	 * 客户端默认可以不加载证书(除非服务器要求客户端提供证书)
 	 * @see SSLUtil
 	 * @param public_key 公钥
 	 * @param private_key 私钥
 	 * @param serverMode 是否为服务器模式
 	 */
-	void loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode);
+	bool loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode);
 
 	/**
 	 * 设置ssl context
 	 * @param ctx ssl context
 	 * @param serverMode ssl context
 	 */
-	void setContext(const std::shared_ptr<SSL_CTX> &ctx,bool serverMode);
+	bool setContext(const std::shared_ptr<SSL_CTX> &ctx,bool serverMode);
 
 	/**
 	 * 创建SSL对象
@@ -97,9 +100,29 @@ public:
 
 	/**
 	 * 是否忽略无效的证书
+	 * 默认忽略，强烈建议不要忽略！
 	 * @param ignore 标记
 	 */
 	void ignoreInvalidCertificate(bool ignore = true);
+
+	/**
+	 * 信任某证书,一般用于客户端信任自签名的证书或自签名CA签署的证书使用
+	 * 比如说我的客户端要信任我自己签发的证书，那么我们可以只信任这个证书
+	 * @param pem_p12_cer pem文件或p12文件或cer文件路径或内容
+	 * @param serverMode 是否为服务器模式
+	 * @param passwd pem或p12证书的密码
+	 * @param isFile 是否为文件路径
+	 * @return 是否加载成功
+	 */
+	bool trustCertificate(const string &pem_p12_cer,  bool serverMode = false, const string &passwd = "" , bool isFile = true) ;
+
+	/**
+	 * 信任某证书
+	 * @param cer 证书公钥
+	 * @param serverMode 是否为服务模式
+	 * @return 是否加载成功
+	 */
+	bool trustCertificate(X509 *cer,bool serverMode = false) ;
 private:
 	SSL_Initor();
 	~SSL_Initor();
@@ -107,7 +130,6 @@ private:
 private:
 	std::shared_ptr<SSL_CTX> _ctx_server;
 	std::shared_ptr<SSL_CTX> _ctx_client;
-	std::shared_ptr<SSL_CTX> _ctx_client_default;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////

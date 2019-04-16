@@ -58,6 +58,26 @@ public:
      * @return
      */
     static shared_ptr<SSL> makeSSL(SSL_CTX *ctx);
+
+
+    /**
+     * specifies that the default locations from which CA certificates are loaded should be used.
+     * There is one default directory and one default file.
+     * The default CA certificates directory is called "certs" in the default OpenSSL directory.
+     * Alternatively the SSL_CERT_DIR environment variable can be defined to override this location.
+     * The default CA certificates file is called "cert.pem" in the default OpenSSL directory.
+     *  Alternatively the SSL_CERT_FILE environment variable can be defined to override this location.
+     * 信任/usr/local/ssl/certs/目录下的所有证书/usr/local/ssl/cert.pem的证书
+     * 环境变量SSL_CERT_FILE将替换/usr/local/ssl/cert.pem的路径
+     * @param ctx
+     */
+    static bool loadDefaultCAs(SSL_CTX *ctx);
+
+    /**
+     * 信任某公钥
+     * @param cer
+     */
+    static bool trustCertificate(SSL_CTX *ctx , X509 *cer);
 };
 
 
