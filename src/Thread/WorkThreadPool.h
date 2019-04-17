@@ -27,23 +27,25 @@
 
 #include <memory>
 #include "ThreadPool.h"
+#include "Poller/EventPoller.h"
 
 using namespace std;
 
 namespace toolkit {
 
+
 class WorkThreadPool :
-        public std::enable_shared_from_this<WorkThreadPool> ,
-        public TaskExecutorGetterImp{
+	public std::enable_shared_from_this<WorkThreadPool> ,
+	public TaskExecutorGetterImp {
 public:
 	typedef std::shared_ptr<WorkThreadPool> Ptr;
-    ~WorkThreadPool(){};
-    static WorkThreadPool &Instance();
-
+	~WorkThreadPool(){};
+	static WorkThreadPool &Instance();
+	EventPoller::Ptr getPoller();
 private:
-    WorkThreadPool();
+	WorkThreadPool() ;
 };
-
+	
 } /* namespace toolkit */
 
 #endif /* UTIL_WORKTHREADPOOL_H_ */

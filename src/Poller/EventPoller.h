@@ -36,6 +36,7 @@
 #include "Util/util.h"
 #include "Util/List.h"
 #include "Thread/TaskExecutor.h"
+#include "Thread/ThreadPool.h"
 
 using namespace std;
 
@@ -80,7 +81,7 @@ class EventPoller : public TaskExecutor , public std::enable_shared_from_this<Ev
 public:
 	typedef std::shared_ptr<EventPoller> Ptr;
 	friend class EventPollerPool;
-
+	friend class WorkThreadPool;
 	~EventPoller();
 
     /**
@@ -163,7 +164,7 @@ private:
 	/**
 	 * 本对象只允许在EventPollerPool中构造
 	 */
-	EventPoller();
+	EventPoller(ThreadPool::Priority priority = ThreadPool::PRIORITY_HIGHEST);
 
 	/**
 	 * 执行事件轮询
@@ -243,6 +244,7 @@ private:
 
 	};
 private:
+	ThreadPool::Priority _priority;
     //正在运行事件循环时该锁处于被锁定状态
     mutex _mtx_runing;
     //执行事件循环的线程

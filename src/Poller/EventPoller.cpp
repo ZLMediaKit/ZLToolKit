@@ -60,7 +60,8 @@ EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
 
-EventPoller::EventPoller() {
+EventPoller::EventPoller(ThreadPool::Priority priority ) {
+    _priority = priority;
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
 
@@ -278,7 +279,7 @@ void EventPoller::wait() {
 
 void EventPoller::runLoop(bool blocked) {
     if (blocked) {
-        ThreadPool::setPriority(ThreadPool::PRIORITY_HIGHEST);
+        ThreadPool::setPriority(_priority);
         lock_guard<mutex> lck(_mtx_runing);
         _loopThreadId = this_thread::get_id();
         _sem_run_started.post();
