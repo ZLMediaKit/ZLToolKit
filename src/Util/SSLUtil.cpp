@@ -189,7 +189,7 @@ bool SSLUtil::loadDefaultCAs(SSL_CTX *ctx) {
         return false;
     }
 
-    if(!SSL_CTX_set_default_verify_paths(ctx)){
+    if(SSL_CTX_set_default_verify_paths(ctx) != 1){
         WarnL << getLastError();
         return false;
     }
@@ -203,7 +203,7 @@ bool SSLUtil::trustCertificate(SSL_CTX *ctx, X509 *cer) {
 #if defined(ENABLE_OPENSSL)
     X509_STORE * store = SSL_CTX_get_cert_store(ctx);
     if(store && cer){
-        if(!X509_STORE_add_cert(store,cer)){
+        if(X509_STORE_add_cert(store,cer) != 1){
             WarnL << getLastError();
             return false;
         }
@@ -213,5 +213,91 @@ bool SSLUtil::trustCertificate(SSL_CTX *ctx, X509 *cer) {
     return false;
 }
 
+bool SSLUtil::verifyX509(X509 *cer, ...) {
+#if defined(ENABLE_OPENSSL)
+    va_list args;
+    va_start(args, cer);
+    X509_STORE *store = X509_STORE_new();
+    do{
+        X509 *ca;
+        if((ca = va_arg(args, X509*)) == NULL){
+            break;
+        }
+        X509_STORE_add_cert(store,ca);
+    }while(true);
+    va_end(args);
+
+    X509_STORE_CTX *store_ctx = X509_STORE_CTX_new();
+    X509_STORE_CTX_init(store_ctx, store, cer, NULL);
+    auto ret = X509_verify_cert(store_ctx);
+    if ( ret != 1 ) {
+        int depth = X509_STORE_CTX_get_error_depth(store_ctx);
+        int err = X509_STORE_CTX_get_error(store_ctx);
+        std::string error(X509_verify_cert_error_string(err));
+        WarnL << depth << " " << error;
+    }
+
+    X509_STORE_CTX_free(store_ctx);
+    X509_STORE_free(store);
+    return ret == 1;
+#else
+    WarnL << "ENABLE_OPENSSL宏未启用,openssl相关功能将无效!";
+    return false;
+#endif //defined(ENABLE_OPENSSL)
+}
+
+string SSLUtil::cryptWithRsaPublicKey(X509 *cer, const string &in_str, bool enc_or_dec) {
+#if defined(ENABLE_OPENSSL)
+    EVP_PKEY *public_key = X509_get0_pubkey(cer);
+    if(!public_key){
+        return "";
+    }
+    RSA *rsa = EVP_PKEY_get0_RSA(public_key);
+    if(!rsa){
+        return "";
+    }
+    string out_str(RSA_size(rsa),'\0');
+    int ret = 0;
+    if(enc_or_dec){
+        ret = RSA_public_encrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+    } else {
+        ret = RSA_public_decrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+    }
+    if(ret > 0){
+        out_str.resize(ret);
+        return out_str;
+    }
+    WarnL << getLastError();
+    return "";
+#else
+    WarnL << "ENABLE_OPENSSL宏未启用,openssl相关功能将无效!";
+    return "";
+#endif //defined(ENABLE_OPENSSL)
+}
 
 
+
+string SSLUtil::cryptWithRsaPrivateKey(EVP_PKEY *private_key, const string &in_str, bool enc_or_dec) {
+#if defined(ENABLE_OPENSSL)
+    RSA *rsa = EVP_PKEY_get0_RSA(private_key);
+    if(!rsa){
+        return "";
+    }
+    string out_str(RSA_size(rsa),'\0');
+    int ret = 0;
+    if(enc_or_dec){
+        ret = RSA_private_encrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+    } else {
+        ret = RSA_private_decrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+    }
+    if(ret > 0){
+        out_str.resize(ret);
+        return out_str;
+    }
+    WarnL << getLastError();
+    return "";
+#else
+    WarnL << "ENABLE_OPENSSL宏未启用,openssl相关功能将无效!";
+    return "";
+#endif //defined(ENABLE_OPENSSL)
+}

@@ -78,6 +78,34 @@ public:
      * @param cer
      */
     static bool trustCertificate(SSL_CTX *ctx , X509 *cer);
+
+
+    /**
+     * 验证证书合法性
+     * @param cer 待验证的证书
+     * @param ... 信任的CA根证书，X509类型，以NULL结尾
+     * @return 是否合法
+     */
+    static bool verifyX509(X509 *cer,...);
+
+    /**
+     * 使用公钥加解密数据
+     * @param cer 公钥，必须为ras的公钥
+     * @param in_str 加密或解密的原始数据，实测加密最大支持245个字节，加密后数据长度固定为256个字节
+     * @param enc_or_dec true:加密,false:解密
+     * @return 加密或解密后的数据
+     */
+    static string cryptWithRsaPublicKey(X509 *cer , const string &in_str,bool enc_or_dec);
+
+    /**
+     * 使用私钥加解密数据
+     * @param private_key 私钥，必须为ras的私钥
+     * @param in_str 加密或解密的原始数据，实测加密最大支持245个字节，加密后数据长度固定为256个字节
+     * @param enc_or_dec true:加密,false:解密
+     * @return 加密或解密后的数据
+     */
+    static string cryptWithRsaPrivateKey(EVP_PKEY *private_key, const string &in_str, bool enc_or_dec);
+
 };
 
 
