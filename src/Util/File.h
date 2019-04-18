@@ -27,6 +27,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
+using namespace std;
 #if defined(__linux__)
 #include <limits.h>
 #endif
@@ -82,6 +84,21 @@ public:
 	static bool is_special_dir(const char *path);
 	//删除目录或文件
 	static void delete_file(const char *path) ;
+
+	/**
+	 * 加载文件内容至string
+	 * @param path 加载的文件路径
+	 * @return 文件内容
+	 */
+	static string loadFile(const char *path);
+
+	/**
+	 * 保存内容至文件
+	 * @param data 文件内容
+	 * @param path 保存的文件路径
+	 * @return 是否保存成功
+	 */
+	static bool saveFile(const string &data,const char *path);
 private:
 	File();
 	~File();
