@@ -246,6 +246,27 @@ bool SSLUtil::verifyX509(X509 *cer, ...) {
 #endif //defined(ENABLE_OPENSSL)
 }
 
+
+#ifndef X509_F_X509_PUBKEY_GET0
+EVP_PKEY *X509_get0_pubkey(X509 *x){
+    EVP_PKEY *ret = X509_get_pubkey(x);
+    if(ret){
+        EVP_PKEY_free(ret);
+    }
+    return ret;
+}
+#endif //X509_F_X509_PUBKEY_GET0
+
+#ifndef EVP_F_EVP_PKEY_GET0_RSA
+RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey){
+    RSA *ret = EVP_PKEY_get1_RSA(pkey);
+    if(ret){
+        RSA_free(ret);
+    }
+    return ret;
+}
+#endif //EVP_F_EVP_PKEY_GET0_RSA
+
 string SSLUtil::cryptWithRsaPublicKey(X509 *cer, const string &in_str, bool enc_or_dec) {
 #if defined(ENABLE_OPENSSL)
     EVP_PKEY *public_key = X509_get0_pubkey(cer);
