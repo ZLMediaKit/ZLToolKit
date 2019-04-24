@@ -206,8 +206,34 @@ void ConsoleChannel::write(const Logger &logger,const LogContextPtr &logContext)
 #else
     format(logger,std::cout,logContext, true);
 #endif
-
 }
+
+
+///////////////////SysLogChannel///////////////////
+#if defined(__MACH__) || defined(__linux) || defined(__linux__)
+#include <sys/syslog.h>
+SysLogChannel::SysLogChannel(const string &name, LogLevel level) : LogChannel(name, level) {
+}
+SysLogChannel:: ~SysLogChannel() {
+}
+void SysLogChannel::write(const Logger &logger,const LogContextPtr &logContext)  {
+    if (_level > logContext->_level) {
+        return;
+    }
+    static int s_syslog_lev[10];
+    static onceToken s_token([](){
+        s_syslog_lev[LTrace] = LOG_DEBUG;
+        s_syslog_lev[LDebug] = LOG_INFO;
+        s_syslog_lev[LInfo] = LOG_NOTICE;
+        s_syslog_lev[LWarn] = LOG_WARNING;
+        s_syslog_lev[LError] = LOG_ERR;
+    }, nullptr);
+
+    syslog(s_syslog_lev[logContext->_level],"-> %s %d\r\n",logContext->_file,logContext->_line);
+    syslog(s_syslog_lev[logContext->_level], "## %s %s | %s %s\r\n", printTime(logContext->_tv).data(),
+           LOG_CONST_TABLE[logContext->_level][2], logContext->_function, logContext->str().c_str());
+}
+#endif// defined(__MACH__) || defined(__linux) || defined(__linux__)
 
 ///////////////////LogChannel///////////////////
 LogChannel::LogChannel(const string &name, LogLevel level) : _name(name), _level(level) {}
