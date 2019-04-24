@@ -246,7 +246,7 @@ bool SSLUtil::verifyX509(X509 *cer, ...) {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-
+#ifdef ENABLE_OPENSSL
 #ifndef X509_F_X509_PUBKEY_GET0
 EVP_PKEY *X509_get0_pubkey(X509 *x){
     EVP_PKEY *ret = X509_get_pubkey(x);
@@ -266,6 +266,7 @@ RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey){
     return ret;
 }
 #endif //EVP_F_EVP_PKEY_GET0_RSA
+#endif //ENABLE_OPENSSL
 
 string SSLUtil::cryptWithRsaPublicKey(X509 *cer, const string &in_str, bool enc_or_dec) {
 #if defined(ENABLE_OPENSSL)
