@@ -319,7 +319,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool isUdp) {
 void Socket::onError(const SockFD::Ptr &pSock) {
 	emitErr(getSockErr(pSock));
 }
-bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
+bool Socket::emitErr(const SockException& err) {
 	{
 		LOCK_GUARD(_mtx_sockFd);
 		if (!_sockFd) {
@@ -328,9 +328,7 @@ bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
 		}
 	}
 
-	if(close){
-		closeSock();
-	}
+    closeSock();
 
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	_poller->async([weakSelf,err]() {
@@ -339,7 +337,7 @@ bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
 			return;
 		}
 		strongSelf->_errCB(err);
-	},maySync);
+	});
 
 	return true;
 }
@@ -538,7 +536,7 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			//把该peerfd加入poll监听，这个时候可能会触发其数据接收事件
 			if(!peerSock->attachEvent(sockFD, false)){
 				//加入poll监听失败，我们通知TcpServer该Socket无效
-				peerSock->emitErr(SockException(Err_eof,"attachEvent failed"), true);
+				peerSock->emitErr(SockException(Err_eof,"attachEvent failed"));
 			}
 		}
 
@@ -903,7 +901,7 @@ BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, int len) {
 //触发onError事件
 void SocketHelper::shutdown() {
     if (_sock) {
-        _sock->emitErr(SockException(Err_other, "self shutdown"),true,false);
+        _sock->emitErr(SockException(Err_other, "self shutdown"));
     }
 }
 

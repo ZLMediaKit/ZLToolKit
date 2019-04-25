@@ -120,8 +120,8 @@ void TcpClient::onSockSend() {
 }
 
 void TcpClient::onSockErr(const SockException& ex) {
-	onErr(ex);
     TcpClient::shutdown();
+    onErr(ex);
 }
 
 } /* namespace toolkit */

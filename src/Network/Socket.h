@@ -291,7 +291,7 @@ public:
 	int send(List<Buffer::Ptr> &buf);
 
     //关闭socket且触发onErr回调，onErr回调将在主线程中进行
-	bool emitErr(const SockException &err,bool closeSock = true,bool maySync = true);
+	bool emitErr(const SockException &err);
     //关闭或开启数据接收
 	void enableRecv(bool enabled);
     //获取裸文件描述符，请勿进行close操作(因为Socket对象会管理其生命周期)
