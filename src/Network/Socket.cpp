@@ -328,6 +328,10 @@ bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
 		}
 	}
 
+	if(close){
+		closeSock();
+	}
+
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	_poller->async([weakSelf,err]() {
 		auto strongSelf=weakSelf.lock();
@@ -337,9 +341,6 @@ bool Socket::emitErr(const SockException& err,bool close ,bool maySync) {
 		strongSelf->_errCB(err);
 	},maySync);
 
-    if(close){
-        closeSock();
-    }
 	return true;
 }
 
