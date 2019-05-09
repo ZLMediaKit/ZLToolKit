@@ -417,7 +417,7 @@ uint64_t EventPoller::getMinDelay() {
         //没有剩余的定时器了
         return 0;
     }
-    auto now =  Ticker::getNowTime();
+    auto now =  getCurrentMillisecond();
     if(it->first > now){
         //所有任务尚未到期
         return it->first - now;
@@ -428,7 +428,7 @@ uint64_t EventPoller::getMinDelay() {
 
 DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> &&task) {
     DelayTaskImp::Ptr ret = std::make_shared<DelayTaskImp>(std::move(task));
-    auto time_line = Ticker::getNowTime() + delayMS;
+    auto time_line = getCurrentMillisecond() + delayMS;
     async_first([time_line,ret,this](){
         //异步执行的目的是刷新select或epoll的休眠时间
         _delayTask.emplace(time_line,ret);

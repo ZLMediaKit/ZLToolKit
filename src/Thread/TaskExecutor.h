@@ -113,12 +113,6 @@ public:
     }
 
 private:
-    inline static uint64_t getCurrentMicrosecond() {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        return tv.tv_sec * 1000 * 1000 + tv.tv_usec;
-    }
-private:
     class TimeRecord {
     public:
         TimeRecord(uint64_t tm,bool slp){

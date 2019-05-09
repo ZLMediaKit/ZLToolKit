@@ -29,6 +29,7 @@
 #include <unordered_map>
 
 #include "util.h"
+#include "onceToken.h"
 #include "Util/File.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
@@ -128,7 +129,6 @@ string hexdump(const void *buf, size_t len) {
 	return ret;
 }
 
-static string s_exePath("./");
 string exePath() {
 	char buffer[PATH_MAX * 2 + 1] = {0};
 	int n = -1;
@@ -145,7 +145,7 @@ string exePath() {
 
 	string filePath;
 	if (n <= 0) {
-		filePath = s_exePath;
+		filePath = "./";
 	} else {
 		filePath = buffer;
 	}
@@ -161,9 +161,6 @@ string exePath() {
 
 	return filePath;
 }
-void setExePath(const string &path){
-    s_exePath=path;
-}
 string exeDir(){
 	auto path = exePath();
 	return path.substr(0, path.rfind('/') + 1);
@@ -173,29 +170,25 @@ string exeName(){
 	return path.substr(path.rfind('/') + 1);
 }
 // string转小写
-std::string &strToLower(std::string &str)
-{
+std::string &strToLower(std::string &str){
     transform(str.begin(), str.end(), str.begin(), towlower);
     return str;
 }
 // string转大写
-std::string &strToUpper(std::string &str)
-{
+std::string &strToUpper(std::string &str){
 	transform(str.begin(), str.end(), str.begin(), towupper);
 	return str;
 }
 
 // string转小写
-std::string strToLower(std::string &&str)
-{
+std::string strToLower(std::string &&str){
 	transform(str.begin(), str.end(), str.begin(), towlower);
-	return str;
+    return std::move(str);
 }
 // string转大写
-std::string strToUpper(std::string &&str)
-{
+std::string strToUpper(std::string &&str){
 	transform(str.begin(), str.end(), str.begin(), towupper);
-	return str;
+	return std::move(str);
 }
 
 vector<string> split(const string& s, const char *delim){
@@ -264,6 +257,39 @@ int gettimeofday(struct timeval *tp, void *tzp) {
 
 #endif //WIN32
 
+
+static inline uint64_t getCurrentMillisecondOrigin(){
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+static atomic<uint64_t> s_currentMillisecond(getCurrentMillisecondOrigin());
+
+static inline bool initMillisecondThread(){
+    static std::thread s_thread([](){
+        while(true){
+            s_currentMillisecond.store(getCurrentMillisecondOrigin(),memory_order_release);
+            //休眠0.5 ms
+            usleep(500);
+        }
+    });
+    static onceToken s_token([](){
+        s_thread.detach();
+    });
+    DebugL ;
+    return true;
+}
+
+uint64_t getCurrentMillisecond(){
+    static bool flag = initMillisecondThread();
+    return s_currentMillisecond.load(memory_order_acquire);
+}
+
+uint64_t getCurrentMicrosecond(){
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000000 + tv.tv_usec ;
+}
 
 }  // namespace toolkit
 
