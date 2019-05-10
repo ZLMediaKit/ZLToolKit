@@ -253,14 +253,14 @@ protected:
     string _path;
 };
 
-#if defined(__MACH__) || defined(__linux) || defined(__linux__)
+#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 class SysLogChannel : public LogChannel {
 public:
     SysLogChannel(const string &name = "SysLogChannel" , LogLevel level = LTrace) ;
     ~SysLogChannel();
     void write(const Logger &logger , const LogContextPtr &logContext) override;
 };
-#endif// defined(__MACH__) || defined(__linux) || defined(__linux__)
+#endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
 
 #define TraceL LogContextCapturer(Logger::Instance(), LTrace, __FILE__,__FUNCTION__, __LINE__)

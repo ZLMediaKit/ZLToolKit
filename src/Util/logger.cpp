@@ -210,7 +210,7 @@ void ConsoleChannel::write(const Logger &logger,const LogContextPtr &logContext)
 
 
 ///////////////////SysLogChannel///////////////////
-#if defined(__MACH__) || defined(__linux) || defined(__linux__)
+#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 #include <sys/syslog.h>
 SysLogChannel::SysLogChannel(const string &name, LogLevel level) : LogChannel(name, level) {
 }
@@ -233,7 +233,8 @@ void SysLogChannel::write(const Logger &logger,const LogContextPtr &logContext) 
     syslog(s_syslog_lev[logContext->_level], "## %s %s | %s %s\r\n", printTime(logContext->_tv).data(),
            LOG_CONST_TABLE[logContext->_level][2], logContext->_function, logContext->str().c_str());
 }
-#endif// defined(__MACH__) || defined(__linux) || defined(__linux__)
+
+#endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
 ///////////////////LogChannel///////////////////
 LogChannel::LogChannel(const string &name, LogLevel level) : _name(name), _level(level) {}
