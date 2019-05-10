@@ -823,20 +823,21 @@ int SockUtil::leaveMultiAddr(int sockFd, const char* strAddr,const char* strLoca
 	return ret;
 }
 
+template <typename A,typename B>
+static inline void write4Byte(A &&a,B &&b){
+	memcpy(&a,&b, sizeof(a));
+}
+
 int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
 		const char* strSrcIp, const char* strLocalIp) {
 	int ret = -1;
 #if defined(IP_ADD_SOURCE_MEMBERSHIP)
 	struct ip_mreq_source imr;
-#if defined(ANDROID)
-	imr.imr_multiaddr = inet_addr(strAddr);
-	imr.imr_sourceaddr = inet_addr(strSrcIp);
-	imr.imr_interface = inet_addr(strLocalIp);
-#else
-	imr.imr_multiaddr.s_addr = inet_addr(strAddr);
-	imr.imr_sourceaddr.s_addr = inet_addr(strSrcIp);
-	imr.imr_interface.s_addr =  inet_addr(strLocalIp);
-#endif
+
+	write4Byte(imr.imr_multiaddr,inet_addr(strAddr));
+	write4Byte(imr.imr_sourceaddr,inet_addr(strSrcIp));
+	write4Byte(imr.imr_interface,inet_addr(strLocalIp));
+
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
 			(char*) &imr, sizeof(struct ip_mreq_source));
 	if (ret == -1) {
@@ -852,15 +853,11 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
 	int ret = -1;
 #if defined(IP_DROP_SOURCE_MEMBERSHIP)
 	struct ip_mreq_source imr;
-#if defined(ANDROID)
-	imr.imr_multiaddr = inet_addr(strAddr);
-	imr.imr_sourceaddr = inet_addr(strSrcIp);
-	imr.imr_interface = inet_addr(strLocalIp);
-#else
-	imr.imr_multiaddr.s_addr = inet_addr(strAddr);
-	imr.imr_sourceaddr.s_addr = inet_addr(strSrcIp);
-	imr.imr_interface.s_addr = inet_addr(strLocalIp);
-#endif
+
+	write4Byte(imr.imr_multiaddr,inet_addr(strAddr));
+	write4Byte(imr.imr_sourceaddr,inet_addr(strSrcIp));
+	write4Byte(imr.imr_interface,inet_addr(strLocalIp));
+
 	ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
 			(char*) &imr, sizeof(struct ip_mreq_source));
 	if (ret == -1) {
