@@ -227,6 +227,18 @@ std::string trim(std::string &&s,const string &chars){
 	TRIM(s,chars);
 }
 
+void replace(string &str, const string &old_str, const string &new_str) {
+    if(old_str.empty() || old_str == new_str){
+        return;
+    }
+    auto pos = str.find(old_str);
+    if(pos == string::npos){
+        return;
+    }
+    str.replace(pos,old_str.size(),new_str);
+    replace(str,old_str,new_str);
+}
+
 #if defined(_WIN32)
 void sleep(int second) {
 	Sleep(1000 * second);

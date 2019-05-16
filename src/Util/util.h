@@ -111,6 +111,7 @@ std::string strToLower(std::string &&str);
 // string转大写
 std::string &strToUpper(std::string &str);
 std::string strToUpper(std::string &&str);
+void replace(string &str, const string &old_str, const string &new_str) ;
 
 
 #ifndef bzero
