@@ -330,8 +330,12 @@ public:
      * @param readBuffer 接收缓存
      */
     void setReadBuffer(const BufferRaw::Ptr &readBuffer);
-private:
+
+    /**
+     * 关闭套接字
+     */
     void closeSock();
+private:
     SockFD::Ptr setPeerSock(int fd);
 	bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
     int onAccept(const SockFD::Ptr &pSock,int event);
