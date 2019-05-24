@@ -94,7 +94,8 @@ public:
             mysql_close(&_sql);
             throw SqlException("mysql_real_connect",mysql_error(&_sql));
         }
-        my_bool reconnect = 1;
+        //兼容bool与my_bool
+        uint32_t reconnect = 0x01010101;
         mysql_options(&_sql, MYSQL_OPT_RECONNECT, &reconnect);
         mysql_set_character_set(&_sql, character.data());
     }
