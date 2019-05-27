@@ -326,10 +326,10 @@ public:
 	}
 
 private:
-    _RingReaderDispatcher(const typename RingStorage::Ptr &storage,const function<void() > &onClear ) {
+    _RingReaderDispatcher(const typename RingStorage::Ptr &storage,const function<void(int,bool) > &onSizeChanged ) {
         _storage = storage;
         _readerSize = 0;
-        _onClear = onClear;
+        _onSizeChanged = onSizeChanged;
     }
 
     void emitRead(const T &in,int targetPos){
@@ -338,7 +338,7 @@ private:
             if(!reader){
                 it = _readerMap.erase(it);
                 --_readerSize;
-                onSizeChanged();
+                onSizeChanged(false);
                 continue;
             }
             reader->onRead(in,targetPos);
@@ -352,7 +352,7 @@ private:
             if(!reader){
                 it = _readerMap.erase(it);
                 --_readerSize;
-                onSizeChanged();
+                onSizeChanged(false);
                 continue;
             }
             reader->resetPos(key);
@@ -371,7 +371,7 @@ private:
                 auto strongSelf = weakSelf.lock();
                 if(strongSelf && strongSelf->_readerMap.erase(ptr)){
                     --strongSelf->_readerSize;
-                    strongSelf->onSizeChanged();
+                    strongSelf->onSizeChanged(false);
                 }
                 delete ptr;
             });
@@ -380,7 +380,7 @@ private:
         std::shared_ptr<RingReader> reader(new RingReader(_storage,useBuffer),onDealloc);
         _readerMap[reader.get()] = std::move(reader);
         ++ _readerSize;
-        onSizeChanged();
+        onSizeChanged(true);
         return reader;
     }
 
@@ -388,13 +388,11 @@ private:
         return _readerSize;
 	}
 
-    void onSizeChanged(){
-        if(_readerSize == 0){
-            _onClear();
-        }
+    void onSizeChanged(bool add_flag){
+        _onSizeChanged(_readerSize,add_flag);
 	}
 private:
-    function<void() > _onClear;
+    function<void(int,bool) > _onSizeChanged;
     atomic_int _readerSize;
     typename RingStorage::Ptr _storage;
     unordered_map<void *,std::weak_ptr<RingReader> > _readerMap;
@@ -407,6 +405,7 @@ public:
     typedef _RingReader<T> RingReader;
     typedef _RingStorage<T> RingStorage;
     typedef _RingReaderDispatcher<T> RingReaderDispatcher;
+    typedef function<void(bool add_flag)> onReaderChanged;
 
     RingBuffer(int size = 0) {
         _storage = std::make_shared<RingStorage>(size);
@@ -425,6 +424,10 @@ public:
         _storage->setDelegate(delegate);
     }
 
+    void setOnReaderChangedCB(const onReaderChanged &cb){
+        _onReaderChanged = cb;
+    }
+
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool useBuffer = true) {
         typename RingReaderDispatcher::Ptr dispatcher;
         {
@@ -432,12 +435,12 @@ public:
             auto &ref = _dispatcherMap[poller];
             if (!ref) {
                 weak_ptr<RingBuffer> weakSelf = this->shared_from_this();
-                auto onClear = [weakSelf,poller](){
+                auto onSizeChanged = [weakSelf,poller](int size,bool add_flag){
                     auto strongSelf = weakSelf.lock();
                     if(!strongSelf){
                         return;
                     }
-                    strongSelf->erase(poller);
+                    strongSelf->onSizeChanged(poller,size,add_flag);
                 };
 
                 auto onDealloc = [poller](RingReaderDispatcher *ptr){
@@ -445,7 +448,7 @@ public:
                         delete ptr;
                     });
                 };
-                ref.reset(new RingReaderDispatcher(_storage,std::move(onClear)),std::move(onDealloc));
+                ref.reset(new RingReaderDispatcher(_storage,std::move(onSizeChanged)),std::move(onDealloc));
             }
             dispatcher = ref;
         }
@@ -480,9 +483,15 @@ private:
             },false);
         }
     }
-    void erase(const EventPoller::Ptr &poller){
-        LOCK_GUARD(_mtx_map);
-        _dispatcherMap.erase(poller);
+    void onSizeChanged(const EventPoller::Ptr &poller,int size,bool add_flag){
+        if(size == 0){
+            LOCK_GUARD(_mtx_map);
+            _dispatcherMap.erase(poller);
+        }
+
+        if(_onReaderChanged){
+            _onReaderChanged(add_flag);
+        }
     }
 private:
     struct HashOfPtr {
@@ -492,8 +501,9 @@ private:
         }
     };
 private:
-    typename RingStorage::Ptr _storage;
     mutex _mtx_map;
+    typename RingStorage::Ptr _storage;
+    onReaderChanged _onReaderChanged;
     unordered_map<EventPoller::Ptr,typename RingReaderDispatcher::Ptr,HashOfPtr > _dispatcherMap;
 };
 
