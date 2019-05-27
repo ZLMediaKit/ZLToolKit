@@ -60,7 +60,7 @@ public:
     }
     void for_each_session(const function<void(const string &id,const TcpSession::Ptr &session)> &cb){
         lock_guard<mutex> lck(_mtx_session);
-        for(auto it = _map_session.begin() ; it != _map_session.end() ; ++it){
+        for(auto it = _map_session.begin() ; it != _map_session.end() ; ){
             auto session = it->second.lock();
             if(!session){
                 it = _map_session.erase(it);
