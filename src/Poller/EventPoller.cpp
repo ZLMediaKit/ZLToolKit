@@ -276,12 +276,27 @@ void EventPoller::wait() {
     lock_guard<mutex> lck(_mtx_runing);
 }
 
+static map<thread::id,weak_ptr<EventPoller> > s_allThreads;
+static mutex s_allThreadsMtx;
 
+//static
+EventPoller::Ptr EventPoller::getCurrentPoller(){
+    lock_guard<mutex> lck(s_allThreadsMtx);
+    auto it = s_allThreads.find(this_thread::get_id());
+    if(it == s_allThreads.end()){
+        return nullptr;
+    }
+    return it->second.lock();
+}
 void EventPoller::runLoop(bool blocked) {
     if (blocked) {
         ThreadPool::setPriority(_priority);
         lock_guard<mutex> lck(_mtx_runing);
         _loopThreadId = this_thread::get_id();
+        {
+            lock_guard<mutex> lck(s_allThreadsMtx);
+            s_allThreads[_loopThreadId] = shared_from_this();
+        }
         _sem_run_started.post();
         _exit_flag = false;
         uint64_t minDelay;

@@ -407,8 +407,9 @@ public:
     typedef _RingReaderDispatcher<T> RingReaderDispatcher;
     typedef function<void(const EventPoller::Ptr &poller,int size,bool add_flag)> onReaderChanged;
 
-    RingBuffer(int size = 0) {
+    RingBuffer(int size = 0,const onReaderChanged &cb = nullptr) {
         _storage = std::make_shared<RingStorage>(size);
+        _onReaderChanged = cb;
     }
 
     ~RingBuffer() {}
@@ -422,10 +423,6 @@ public:
 
     void setDelegate(const typename RingDelegate<T>::Ptr &delegate) {
         _storage->setDelegate(delegate);
-    }
-
-    void setOnReaderChangedCB(const onReaderChanged &cb){
-        _onReaderChanged = cb;
     }
 
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool useBuffer = true) {

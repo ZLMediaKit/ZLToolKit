@@ -160,6 +160,12 @@ public:
 	 * @return 可取消的任务标签
 	 */
 	DelayTask::Ptr doDelayTask(uint64_t delayMS, function<uint64_t()> &&task);
+
+	/**
+	 * 获取当前线程关联的Poller实例
+	 * @return
+	 */
+    static EventPoller::Ptr getCurrentPoller();
 private:
 	/**
 	 * 本对象只允许在EventPollerPool中构造
