@@ -405,7 +405,7 @@ public:
     typedef _RingReader<T> RingReader;
     typedef _RingStorage<T> RingStorage;
     typedef _RingReaderDispatcher<T> RingReaderDispatcher;
-    typedef function<void(bool add_flag)> onReaderChanged;
+    typedef function<void(const EventPoller::Ptr &poller,int size,bool add_flag)> onReaderChanged;
 
     RingBuffer(int size = 0) {
         _storage = std::make_shared<RingStorage>(size);
@@ -490,7 +490,7 @@ private:
         }
 
         if(_onReaderChanged){
-            _onReaderChanged(add_flag);
+            _onReaderChanged(poller,size,add_flag);
         }
     }
 private:
