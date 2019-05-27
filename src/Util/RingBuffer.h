@@ -74,8 +74,8 @@ public:
 
     _RingReader(const std::shared_ptr<_RingStorage<T> > &storage,bool useBuffer) {
         _storage = storage;
-        resetPos(true);
         _useBuffer = useBuffer;
+        resetPos(true);
     }
 
     ~_RingReader() {}
@@ -86,7 +86,7 @@ public:
         } else {
             _readCB = cb;
         }
-        resetPos();
+        resetPos(true);
     }
 
     void setDetachCB(const function<void()> &cb) {
@@ -98,17 +98,17 @@ public:
     }
 
     //重新定位至最新的数据位置
-    void resetPos(bool keypos = true) {
+    void resetPos(bool key = true) {
         _storageInternal = _storage->getStorageInternal();
-        _curpos = _storageInternal->getPos(keypos);
+        _curpos = _storageInternal->getPos(key);
     }
 private:
-    void onRead(const T &data) {
+    void onRead(const T &data,int targetPos) {
         if(!_useBuffer){
             _readCB(data);
         }else{
             const T *pkt  = nullptr;
-            while((pkt = read())){
+            while((pkt = read(targetPos))){
                 _readCB(*pkt);
             }
         }
@@ -118,13 +118,16 @@ private:
         _detachCB();
     }
 
-    const T* read(){
-        if (_curpos == _storageInternal->getPos(false)) {
-            return nullptr;
+    const T* read(int targetPos){
+        while (_curpos != targetPos){
+            const T *data = (*_storageInternal)[_curpos]; //返回包
+            _curpos = _storageInternal->next(_curpos); //更新位置
+            if(!data){
+                continue;
+            }
+            return data;
         }
-        const T *data = &((*_storageInternal)[_curpos]); //返回包
-        _curpos = _storageInternal->next(_curpos); //更新位置
-        return data;
+        return nullptr;
     }
 private:
     function<void(const T &)> _readCB = [](const T &) {};
@@ -143,8 +146,8 @@ public:
     _RingStorageInternal(int size){
         _dataRing.resize(size);
         _ringSize = size;
+        _ringKeyPos = size;
         _ringPos = 0;
-        _ringKeyPos = 0;
     }
 
     ~_RingStorageInternal(){}
@@ -156,19 +159,31 @@ public:
      * @param isKey 是否为关键帧
      * @return 是否触发重置环形缓存大小
      */
-    void write(const T &in,bool isKey = true) {
-        _dataRing[_ringPos] = in;
-        if (isKey) {
+    inline void write(const T &in,bool key = true) {
+        _dataRing[_ringPos].second = in;
+        _dataRing[_ringPos].first = true;
+        if (key) {
             _ringKeyPos = _ringPos; //设置读取器可以定位的点
         }
         _ringPos = next(_ringPos);
     }
 
-    int getPos(bool keypos){
-        return  keypos ?  _ringKeyPos : _ringPos;
+    inline int getPos(bool key){
+        if(!key){
+            //不是定位关键帧，那么返回当前位置即可
+            return _ringPos;
+        }
+        //定位关键帧
+        if(_ringKeyPos != _ringSize){
+            //环线缓存中存在关键帧，返回之
+            return _ringKeyPos;
+        }
+
+        //不存在关键帧，返回当前帧下一帧，目的是环形缓存中的缓存全部一次性输出
+        return next(next(_ringPos));
     }
 
-    int next(int pos) {
+    inline int next(int pos) {
         //读取器下一位置
         if (pos > _ringSize - 2) {
             return 0;
@@ -177,11 +192,21 @@ public:
         }
     }
 
-    T& operator[](int pos){
-        return _dataRing[pos];
+    inline T* operator[](int pos){
+        auto &ref = _dataRing[pos];
+        if(!ref.first){
+            return nullptr;
+        }
+        return &ref.second;
     }
 private:
-    vector<T> _dataRing;
+    class DataPair : public std::pair<bool,T>{
+    public:
+        DataPair() : std::pair<bool,T>(false,T()) {}
+        ~DataPair() = default;
+    };
+private:
+    vector<DataPair> _dataRing;
     int _ringPos;
     int _ringKeyPos;
     int _ringSize;
@@ -230,6 +255,9 @@ public:
         return _storageInternal;
     }
 
+    inline int getPos(bool key){
+        return _storageInternal->getPos(key);
+    }
 private:
     bool computeGopSize(bool isKey){
         if(!_canReSize || _besetSize){
@@ -304,7 +332,7 @@ private:
         _onClear = onClear;
     }
 
-    void emitRead(const T &in){
+    void emitRead(const T &in,int targetPos){
         for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
             auto reader = it->second.lock();
             if(!reader){
@@ -313,12 +341,12 @@ private:
                 onSizeChanged();
                 continue;
             }
-            reader->onRead(in);
+            reader->onRead(in,targetPos);
             ++it;
         }
 	}
 
-    void resetPos(bool keypos = true)  {
+    void resetPos(bool key = true)  {
         for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
             auto reader = it->second.lock();
             if(!reader){
@@ -327,7 +355,7 @@ private:
                 onSizeChanged();
                 continue;
             }
-            reader->resetPos(keypos);
+            reader->resetPos(key);
             ++it;
         }
     }
@@ -390,7 +418,7 @@ public:
         if (_storage->write(in, isKey)) {
             resetPos();
         }
-        emitRead(in);
+        emitRead(in,_storage->getPos(false));
     }
 
     void setDelegate(const typename RingDelegate<T>::Ptr &delegate) {
@@ -434,21 +462,21 @@ public:
         return total;
     }
 private:
-    void resetPos(bool keypos = true ) {
+    void resetPos(bool key = true ) {
         LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcherMap) {
             auto second = pr.second;
-            pr.first->async([second,keypos](){
-                second->resetPos(keypos);
+            pr.first->async([second,key](){
+                second->resetPos(key);
             },false);
         }
     }
-    void emitRead(const T &in){
+    void emitRead(const T &in,int targetPos){
         LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcherMap) {
             auto second = pr.second;
-            pr.first->async([second,in](){
-                second->emitRead(in);
+            pr.first->async([second,in,targetPos](){
+                second->emitRead(in,targetPos);
             },false);
         }
     }
