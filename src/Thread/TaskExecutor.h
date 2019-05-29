@@ -133,12 +133,63 @@ private:
     mutex _mtx;
 };
 
+
+class TaskCancelable : public noncopyable{
+public:
+    TaskCancelable() = default;
+    virtual ~TaskCancelable() = default;
+    virtual void cancel() = 0;
+};
+
+template<class R, class... ArgTypes>
+class TaskCancelableImp;
+
+template<class R, class... ArgTypes>
+class TaskCancelableImp<R(ArgTypes...)> : public TaskCancelable {
+public:
+    typedef std::shared_ptr<TaskCancelableImp> Ptr;
+    typedef function< R(ArgTypes...) > func_type;
+    ~TaskCancelableImp() = default;
+
+    template <typename FUNC>
+    TaskCancelableImp(FUNC &&task) {
+        _strongTask = std::make_shared<func_type>(std::forward<FUNC>(task));
+        _weakTask = _strongTask;
+    }
+
+    void cancel() override {
+        _strongTask = nullptr;
+    };
+
+    operator bool (){
+        return _strongTask && *_strongTask;
+    }
+
+    void operator = (nullptr_t){
+        _strongTask = nullptr;
+    }
+
+    R operator()(ArgTypes ...args) const{
+        auto strongTask = _weakTask.lock();
+        if(strongTask && *strongTask){
+            return (*strongTask)(forward<ArgTypes>(args)...);
+        }
+        return R(nullptr);
+    }
+protected:
+    std::shared_ptr<func_type > _strongTask;
+    std::weak_ptr<func_type > _weakTask;
+};
+
+
+typedef function<void()> TaskIn;
+typedef TaskCancelableImp<void()> Task;
+
 /**
  * 任务执行器
  */
 class TaskExecutor : public ThreadLoadCounter{
 public:
-    typedef function<void()> Task;
     typedef shared_ptr<TaskExecutor> Ptr;
 
     /**
@@ -154,7 +205,7 @@ public:
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
      */
-    virtual bool async(Task &&task, bool may_sync = true) = 0;
+    virtual Task::Ptr async(TaskIn &&task, bool may_sync = true) = 0;
 
     /**
      * 最高优先级方式异步执行任务
@@ -162,7 +213,7 @@ public:
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
      */
-    virtual bool async_first(Task &&task, bool may_sync = true) {
+    virtual Task::Ptr async_first(TaskIn &&task, bool may_sync = true) {
         return async(std::move(task),may_sync);
     };
 
@@ -171,17 +222,32 @@ public:
      * @param task
      * @return
      */
-    virtual bool sync(Task &&task) = 0;
+    void sync(TaskIn &&task){
+        semaphore sem;
+        auto ret = async([&](){
+            task();
+            sem.post();
+        });
+        if(ret){
+            sem.wait();
+        }
+    }
 
     /**
      * 最高优先级方式同步执行任务
      * @param task
      * @return
      */
-    virtual bool sync_first(Task &&task) {
-        return sync(std::move(task));
+    void sync_first(TaskIn &&task) {
+        semaphore sem;
+        auto ret = async_first([&]() {
+            task();
+            sem.post();
+        });
+        if (ret) {
+            sem.wait();
+        }
     };
-
 };
 
 class TaskExecutorGetter {

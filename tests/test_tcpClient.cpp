@@ -46,7 +46,7 @@ protected:
 		//接收数据事件
 		DebugL << pBuf->data() << " from port:" << get_peer_port();
 	}
-	virtual void onSend() override{
+	virtual void onFlush() override{
 		//发送阻塞后，缓存清空事件
 		DebugL;
 	}

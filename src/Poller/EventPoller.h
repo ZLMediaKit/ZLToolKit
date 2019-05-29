@@ -40,7 +40,6 @@
 
 using namespace std;
 
-
 #if defined(__linux__) || defined(__linux)
 #define HAS_EPOLL
 #endif //__linux__
@@ -56,26 +55,7 @@ typedef enum {
 
 typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
-
-class DelayTask : public noncopyable{
-public:
-	typedef std::shared_ptr<DelayTask> Ptr;
-	DelayTask(){}
-	~DelayTask(){}
-
-	/**
-	 * 取消任务
-	 * 在跨线程取消延时任务时(取消线程和EventPoller线程不是一个线程)，
-	 * 可能会在cancel后再次最多执行一次tick事件
-	 */
-	virtual void cancel() = 0;
-
-	/**
-	 * 执行任务
-	 * @return
-	 */
-	virtual uint64_t operator()() const = 0;
-};
+typedef TaskCancelableImp<uint64_t(void)> DelayTask;
 
 class EventPoller : public TaskExecutor , public std::enable_shared_from_this<EventPoller> {
 public:
@@ -123,7 +103,7 @@ public:
 	 * @param may_sync 如果调用该函数的线程就是本对象的轮询线程，那么may_sync为true时就是同步执行任务
 	 * @return 是否成功，一定会返回true
 	 */
-	bool async(TaskExecutor::Task &&task, bool may_sync = true) override ;
+    Task::Ptr async(TaskIn &&task, bool may_sync = true) override ;
 
 	/**
 	 * 同async方法，不过是把任务打入任务列队头，这样任务优先级最高
@@ -131,21 +111,8 @@ public:
 	 * @param may_sync 如果调用该函数的线程就是本对象的轮询线程，那么may_sync为true时就是同步执行任务
 	 * @return 是否成功，一定会返回true
 	 */
-    bool async_first(TaskExecutor::Task &&task, bool may_sync = true) override ;
+    Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override ;
 
-    /**
-     * 在轮询线程中执行任务并且等待其执行结束
-     * @param task 任务
-     * @return 是否成功，一定会返回true
-     */
-	bool sync(TaskExecutor::Task &&task) override;
-
-	/**
-    * 同sync方法，不过是把任务打入任务列队头，这样任务优先级最高
-    * @param task 任务
-    * @return 是否成功，一定会返回true
-    */
-    bool sync_first(TaskExecutor::Task &&task) override;
 
 	/**
 	 * 判断执行该接口的线程是否为本对象的轮询线程
@@ -190,8 +157,7 @@ private:
 	 * @param first
 	 * @return
 	 */
-    bool async_l(TaskExecutor::Task &&task, bool may_sync = true,bool first = false) ;
-    bool sync_l(TaskExecutor::Task &&task,bool first = false);
+    Task::Ptr async_l(TaskIn &&task, bool may_sync = true,bool first = false) ;
 
 	/**
      * 阻塞当前线程，等待轮询线程退出;
@@ -221,34 +187,6 @@ private:
         ExitException(){}
         ~ExitException(){}
     };
-
-	class DelayTaskImp : public DelayTask{
-	public:
-		typedef std::shared_ptr<DelayTaskImp> Ptr;
-		template <typename FUN>
-		DelayTaskImp(FUN &&task) {
-			_strongTask = std::make_shared<function<uint64_t()> >(std::forward<FUN>(task));
-			_weakTask = _strongTask;
-		}
-
-		~DelayTaskImp(){}
-
-		void cancel() override {
-			_strongTask = nullptr;
-		};
-
-		uint64_t operator()() const override{
-			auto strongTask = _weakTask.lock();
-			if(strongTask){
-				return (*strongTask)();
-			}
-			return 0;
-		}
-	private:
-		std::shared_ptr<function<uint64_t()> > _strongTask;
-		std::weak_ptr<function<uint64_t()> > _weakTask;
-
-	};
 private:
 	ThreadPool::Priority _priority;
     //正在运行事件循环时该锁处于被锁定状态
@@ -262,7 +200,7 @@ private:
 	//内部事件管道
     PipeWrap _pipe;
     //从其他线程切换过来的任务
-    List<TaskExecutor::Task> _list_task;
+    List<Task::Ptr> _list_task;
     mutex _mtx_task;
     bool _exit_flag;
 
@@ -282,7 +220,7 @@ private:
 #endif //HAS_EPOLL
 
     //定时器相关
-    multimap<uint64_t,DelayTaskImp::Ptr > _delayTask;
+    multimap<uint64_t,DelayTask::Ptr > _delayTask;
 	//保持日志可用
     Logger::Ptr _logger;
 };

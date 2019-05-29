@@ -132,57 +132,72 @@ void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, 
     closeSock();
 
 	auto poller = _poller;
-    string strLocalIp = localIp;
     weak_ptr<Socket> weakSelf = shared_from_this();
 	//是否已经触发连接超时回调
     shared_ptr<bool> timeOuted = std::make_shared<bool>(false);
-    //DNS解析放在后台线程执行
-    WorkThreadPool::Instance().getExecutor()->async([weakSelf,poller,connectCB,timeOuted,url,port,strLocalIp,localPort](){
-		//开始发起连接服务器，要等待可写事件才表明连接服务器成功
-		int sock = SockUtil::connect(url.data(), port, true, strLocalIp.data(), localPort);
-		poller->async([weakSelf,connectCB,timeOuted,sock](){
-			auto strongSelf = weakSelf.lock();
-			if(!strongSelf || *timeOuted ){
+
+    auto asyncConnectCB = std::make_shared<function<void(int)> >([poller,weakSelf,connectCB,timeOuted](int sock){
+        poller->async([weakSelf,connectCB,timeOuted,sock](){
+            auto strongSelf = weakSelf.lock();
+            if(!strongSelf || *timeOuted ){
                 //本对象已经销毁或已经超时回调
                 if(sock != -1){
                     close(sock);
                 }
                 return;
-			}
+            }
 
-			if(sock == -1){
+            if(sock == -1){
                 //发起连接服务器失败，一般都是dns解析失败导致
                 connectCB(SockException(Err_dns, get_uv_errmsg(true)));
                 //取消超时定时器
                 strongSelf->_conTimer.reset();
                 return;
-			}
+            }
 
-			auto sockFD = strongSelf->makeSock(sock,SockNum::Sock_TCP);
+            auto sockFD = strongSelf->makeSock(sock,SockNum::Sock_TCP);
             weak_ptr<SockFD> weakSock = sockFD;
             //监听该socket是否可写，可写表明已经连接服务器成功
-			int result  = strongSelf->_poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,timeOuted](int event) {
+            int result  = strongSelf->_poller->addEvent(sock, Event_Write, [weakSelf,weakSock,connectCB,timeOuted](int event) {
                 auto strongSelf = weakSelf.lock();
                 auto strongSock = weakSock.lock();
                 if(!strongSelf || !strongSock || *timeOuted) {
-                	//自己或该Socket已经被销毁或已经触发超时回调
+                    //自己或该Socket已经被销毁或已经触发超时回调
                     return;
                 }
                 //socket可写事件，说明已经连接服务器成功
                 strongSelf->onConnected(strongSock,connectCB);
-			});
-			if(result == -1){
-				WarnL << "开始Poll监听失败";
-				connectCB(SockException(Err_other,"开始Poll监听失败"));
-				strongSelf->_conTimer.reset();
-				return;
-			}
-			//保存fd
-			LOCK_GUARD(strongSelf->_mtx_sockFd);
-			strongSelf->_sockFd = sockFD;
-		});
+            });
+            if(result == -1){
+                WarnL << "开始Poll监听失败";
+                connectCB(SockException(Err_other,"开始Poll监听失败"));
+                strongSelf->_conTimer.reset();
+                return;
+            }
+            //保存fd
+            LOCK_GUARD(strongSelf->_mtx_sockFd);
+            strongSelf->_sockFd = sockFD;
+        });
+    });
+
+    weak_ptr<function<void(int)> > weakTask = asyncConnectCB;
+    _asyncConnectCB = asyncConnectCB;
+
+    //DNS解析放在后台线程执行
+    string strLocalIp = localIp;
+    WorkThreadPool::Instance().getExecutor()->async([url,port,strLocalIp,localPort,weakTask](){
+        //注释式dns解析，并且异步连接服务器
+		int sock = SockUtil::connect(url.data(), port, true, strLocalIp.data(), localPort);
+		auto strongTask = weakTask.lock();
+		if(strongTask){
+            (*strongTask)(sock);
+		} else if(sock != -1){
+		    //本次连接被取消
+		    close(sock);
+		}
 	});
 
+    //连接超时定时器
 	_conTimer = std::make_shared<Timer>(timeoutSec, [weakSelf,connectCB,timeOuted]() {
 		auto strongSelf = weakSelf.lock();
 		if(!strongSelf) {
@@ -442,6 +457,7 @@ void Socket::onFlushed(const SockFD::Ptr &pSock) {
 
 void Socket::closeSock() {
 	_conTimer.reset();
+    _asyncConnectCB.reset();
 	LOCK_GUARD(_mtx_sockFd);
 	_sockFd.reset();
 }
@@ -899,9 +915,9 @@ BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, int len) {
 };
 
 //触发onError事件
-void SocketHelper::shutdown() {
+void SocketHelper::shutdown(const SockException &ex) {
     if (_sock) {
-        _sock->emitErr(SockException(Err_other, "self shutdown"));
+        _sock->emitErr(ex);
     }
 }
 
@@ -941,17 +957,20 @@ bool SocketHelper::isSocketBusy() const{
     return _sock->isSocketBusy();
 }
 
-bool SocketHelper::async(TaskExecutor::Task &&task, bool may_sync) {
+Task::Ptr SocketHelper::async(TaskIn &&task, bool may_sync) {
 	return _poller->async(std::move(task),may_sync);
-};
-bool SocketHelper::async_first(TaskExecutor::Task &&task, bool may_sync) {
+}
+
+Task::Ptr SocketHelper::async_first(TaskIn &&task, bool may_sync) {
 	return _poller->async_first(std::move(task),may_sync);
-};
-bool SocketHelper::sync(TaskExecutor::Task &&task) {
-	return _poller->sync(std::move(task));
-};
-bool SocketHelper::sync_first(TaskExecutor::Task &&task) {
-	return _poller->sync_first(std::move(task));
+}
+
+void SocketHelper::sync(TaskIn &&task) {
+    _poller->sync(std::move(task));
+}
+
+void SocketHelper::sync_first(TaskIn &&task) {
+    _poller->sync_first(std::move(task));
 }
 
 }  // namespace toolkit

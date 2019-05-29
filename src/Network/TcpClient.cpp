@@ -30,16 +30,13 @@ TcpClient::TcpClient(const EventPoller::Ptr &poller) : SocketHelper(nullptr) {
     if(!_poller){
         _poller = EventPollerPool::Instance().getPoller();
     }
-    setPoller(_poller);
 }
 
 TcpClient::~TcpClient() {}
 
-void TcpClient::shutdown() {
+void TcpClient::shutdown(const SockException &ex) {
     _managerTimer.reset();
-    if(_sock){
-        _sock->closeSock();
-    }
+    SocketHelper::shutdown(ex);
 }
 
 bool TcpClient::alive() {
@@ -52,10 +49,10 @@ void TcpClient::setNetAdapter(const string &localIp){
 }
 
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
-    TcpClient::shutdown();
-    SocketHelper::setSock(std::make_shared<Socket>(_poller));
-
     weak_ptr<TcpClient> weakSelf = shared_from_this();
+
+    _managerTimer.reset();
+    _sock = std::make_shared<Socket>(_poller);
     _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
         auto strongSelf = weakSelf.lock();
         if(strongSelf){
@@ -65,57 +62,46 @@ void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOut
 }
 void TcpClient::onSockConnect(const SockException &ex) {
     if(ex){
-        TcpClient::shutdown();
+        //连接失败
+        _managerTimer.reset();
+        onConnect(ex);
         return;
     }
 
-    if(_sock){
-        weak_ptr<TcpClient> weakSelf = shared_from_this();
-        _sock->setOnErr([weakSelf](const SockException &ex) {
-            auto strongSelf = weakSelf.lock();
-            if (!strongSelf) {
-                return;
-            }
-            strongSelf->onSockErr(ex);
-        });
-        _sock->setOnFlush([weakSelf]() {
-            auto strongSelf = weakSelf.lock();
-            if (!strongSelf) {
-                return false;
-            }
-            strongSelf->onSockSend();
-            return true;
-        });
-        _sock->setOnRead([weakSelf](const Buffer::Ptr &pBuf, struct sockaddr *addr) {
-            auto strongSelf = weakSelf.lock();
-            if (!strongSelf) {
-                return;
-            }
-            strongSelf->onSockRecv(pBuf);
-        });
-        _managerTimer = std::make_shared<Timer>(2,[weakSelf](){
-            auto strongSelf = weakSelf.lock();
-            if (!strongSelf) {
-                return false;
-            }
-            strongSelf->onManager();
-            return true;
-        },_poller);
-    }
+    weak_ptr<TcpClient> weakSelf = shared_from_this();
+    _sock->setOnErr([weakSelf](const SockException &ex) {
+        auto strongSelf = weakSelf.lock();
+        if (!strongSelf) {
+            return;
+        }
+        strongSelf->_managerTimer.reset();
+        strongSelf->onErr(ex);
+    });
+    _sock->setOnFlush([weakSelf]() {
+        auto strongSelf = weakSelf.lock();
+        if (!strongSelf) {
+            return false;
+        }
+        strongSelf->onFlush();
+        return true;
+    });
+    _sock->setOnRead([weakSelf](const Buffer::Ptr &pBuf, struct sockaddr *addr) {
+        auto strongSelf = weakSelf.lock();
+        if (!strongSelf) {
+            return;
+        }
+        strongSelf->onRecv(pBuf);
+    });
+    _managerTimer = std::make_shared<Timer>(2,[weakSelf](){
+        auto strongSelf = weakSelf.lock();
+        if (!strongSelf) {
+            return false;
+        }
+        strongSelf->onManager();
+        return true;
+    },_poller);
+
     onConnect(ex);
-}
-
-void TcpClient::onSockRecv(const Buffer::Ptr& pBuf) {
-	onRecv(pBuf);
-}
-
-void TcpClient::onSockSend() {
-	onSend();
-}
-
-void TcpClient::onSockErr(const SockException& ex) {
-    TcpClient::shutdown();
-    onErr(ex);
 }
 
 } /* namespace toolkit */

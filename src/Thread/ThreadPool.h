@@ -62,43 +62,24 @@ public:
 	}
 
 	//把任务打入线程池并异步执行
-	bool async(Task &&task,bool may_sync = true) override {
+    Task::Ptr async(TaskIn &&task,bool may_sync = true) override {
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
-		} else {
-			_queue.push_task(std::move(task));
+            return nullptr;
 		}
-		return true;
+        auto ret = std::make_shared<Task>(std::move(task));
+        _queue.push_task(ret);
+		return ret;
 	}
-	bool async_first(Task &&task,bool may_sync = true) override{
+    Task::Ptr async_first(TaskIn &&task,bool may_sync = true) override{
 		if (may_sync && _thread_group.is_this_thread_in()) {
 			task();
-		} else {
-			_queue.push_task_first(std::move(task));
+            return nullptr;
 		}
-		return true;
-	}
-	bool sync(Task &&task) override{
-		semaphore sem;
-		bool flag = async([&](){
-			task();
-			sem.post();
-		});
-		if(flag){
-			sem.wait();
-		}
-		return flag;
-	}
-	bool sync_first(Task &&task) override{
-		semaphore sem;
-		bool flag = async_first([&]() {
-			task();
-			sem.post();
-		});
-		if (flag) {
-			sem.wait();
-		}
-		return flag;
+
+        auto ret = std::make_shared<Task>(std::move(task));
+        _queue.push_task_first(ret);
+		return ret;
 	}
 
     uint64_t size(){
@@ -147,7 +128,7 @@ public:
 private:
 	void run() {
 		ThreadPool::setPriority(_priority);
-		TaskExecutor::Task task;
+        Task::Ptr task;
 		while (true) {
 			startSleep();
 			if (!_queue.get_task(task)) {
@@ -156,7 +137,7 @@ private:
             }
             sleepWakeUp();
             try {
-                task();
+                (*task)();
                 task = nullptr;
             } catch (std::exception &ex) {
 				ErrorL << "ThreadPool执行任务捕获到异常:" << ex.what();
@@ -172,7 +153,7 @@ private:
 		_queue.push_exit(_thread_num);
 	}
 private:
-	TaskQueue<TaskExecutor::Task> _queue;
+	TaskQueue<Task::Ptr> _queue;
 	thread_group _thread_group;
 	int _thread_num;
 	Priority _priority;

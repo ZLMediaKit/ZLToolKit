@@ -189,55 +189,33 @@ int EventPoller::modifyEvent(int fd, int event) {
 #endif //HAS_EPOLL
 }
 
-bool EventPoller::sync(TaskExecutor::Task &&task) {
-    return sync_l(std::move(task), false);
-}
 
-bool EventPoller::sync_first(TaskExecutor::Task &&task) {
-    return sync_l(std::move(task), true);
-}
-bool EventPoller::sync_l(TaskExecutor::Task &&task,bool first){
-    TimeTicker();
-    if (!task) {
-        return false;
-    }
-    semaphore sem;
-    async_l([&]() {
-        task();
-        sem.post();
-    }, true,first);
-    sem.wait();
-    return true;
-}
-
-bool EventPoller::async(TaskExecutor::Task &&task, bool may_sync) {
+Task::Ptr EventPoller::async(TaskIn &&task, bool may_sync) {
     return async_l(std::move(task),may_sync, false);
 }
-bool EventPoller::async_first(TaskExecutor::Task &&task, bool may_sync) {
+Task::Ptr EventPoller::async_first(TaskIn &&task, bool may_sync) {
     return async_l(std::move(task),may_sync, true);
 }
 
-bool EventPoller::async_l(TaskExecutor::Task &&task,bool may_sync, bool first) {
+Task::Ptr EventPoller::async_l(TaskIn &&task,bool may_sync, bool first) {
     TimeTicker();
-    if (!task) {
-        return false;
-    }
     if (may_sync && isCurrentThread()) {
         task();
-        return true;
+        return nullptr;
     }
 
+    auto ret = std::make_shared<Task>(std::move(task));
     {
         lock_guard<mutex> lck(_mtx_task);
         if(first){
-            _list_task.emplace_front(std::move(task));
+            _list_task.emplace_front(ret);
         }else{
-            _list_task.emplace_back(std::move(task));
+            _list_task.emplace_back(ret);
         }
     }
     //写数据到管道,唤醒主线程
     _pipe.write("",1);
-    return true;
+    return ret;
 }
 
 bool EventPoller::isCurrentThread() {
@@ -261,9 +239,9 @@ inline void EventPoller::onPipeEvent() {
         _list_swap.swap(_list_task);
     }
 
-    _list_swap.for_each([&](const TaskExecutor::Task &task){
+    _list_swap.for_each([&](const Task::Ptr &task){
         try {
-            task();
+            (*task)();
         }catch (ExitException &ex){
             _exit_flag = true;
         }catch (std::exception &ex){
@@ -442,7 +420,7 @@ uint64_t EventPoller::getMinDelay() {
 }
 
 DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> &&task) {
-    DelayTaskImp::Ptr ret = std::make_shared<DelayTaskImp>(std::move(task));
+    DelayTask::Ptr ret = std::make_shared<DelayTask>(std::move(task));
     auto time_line = getCurrentMillisecond() + delayMS;
     async_first([time_line,ret,this](){
         //异步执行的目的是刷新select或epoll的休眠时间

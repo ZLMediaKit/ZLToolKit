@@ -78,7 +78,8 @@ typedef enum {
 	Err_timeout, //超时
 	Err_refused,//连接别拒绝
 	Err_dns,//dns解析失败
-	Err_other,//其他错误
+	Err_shutdown,//主动关闭
+	Err_other = 0xFF,//其他错误
 } ErrCode;
 
 //错误信息类
@@ -375,6 +376,7 @@ private:
     uint32_t _lastFlushStamp = 0;
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
     BufferRaw::Ptr _readBuffer;
+    std::shared_ptr<function<void(int)> > _asyncConnectCB;
 };
 
 class SocketFlags{
@@ -434,7 +436,7 @@ public:
     BufferRaw::Ptr obtainBuffer();
     BufferRaw::Ptr obtainBuffer(const void *data,int len);
     //触发onError事件
-    virtual void shutdown();
+    virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
     /////////获取ip或端口///////////
     const string &get_local_ip();
     uint16_t get_local_port();
@@ -443,14 +445,14 @@ public:
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
 
-    bool async(TaskExecutor::Task &&task, bool may_sync = true);
-    bool async_first(TaskExecutor::Task &&task, bool may_sync = true);
-    bool sync(TaskExecutor::Task &&task) ;
-    bool sync_first(TaskExecutor::Task &&task);
+    Task::Ptr async(TaskIn &&task, bool may_sync = true);
+    Task::Ptr async_first(TaskIn &&task, bool may_sync = true);
+    void sync(TaskIn &&task) ;
+    void sync_first(TaskIn &&task);
 protected:
     Socket::Ptr _sock;
-private:
     EventPoller::Ptr _poller;
+private:
     string _local_ip;
     uint16_t _local_port = 0;
     string _peer_ip;

@@ -38,12 +38,12 @@ string TcpSession::getIdentifier() const{
     return to_string(reinterpret_cast<uint64_t>(this));
 }
 
-void TcpSession::safeShutdown(){
+void TcpSession::safeShutdown(const SockException &ex){
     std::weak_ptr<TcpSession> weakSelf = shared_from_this();
-    async_first([weakSelf](){
+    async_first([weakSelf,ex](){
         auto strongSelf = weakSelf.lock();
         if(strongSelf){
-            strongSelf->shutdown();
+            strongSelf->shutdown(ex);
         }
     });
 }

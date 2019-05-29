@@ -56,7 +56,7 @@ public:
     //作为该TcpSession的唯一标识符
     virtual string getIdentifier() const;
     //安全的脱离TcpServer并触发onError事件
-    void safeShutdown();
+    void safeShutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
 };
 
 template<typename TcpSessionType>

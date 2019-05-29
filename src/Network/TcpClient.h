@@ -48,7 +48,7 @@ public:
     //开始连接服务器，strUrl可以是域名或ip
     void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
     //主动断开服务器
-    void shutdown() override ;
+    void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override ;
     //是否与服务器连接中
     bool alive();
     //设置网卡适配器
@@ -59,18 +59,14 @@ protected:
     //收到数据回调
     virtual void onRecv(const Buffer::Ptr &pBuf) {}
     //数据全部发送完毕后回调
-    virtual void onSend() {}
+    virtual void onFlush() {}
     //被动断开连接回调
     virtual void onErr(const SockException &ex) {}
     //tcp连接成功后每2秒触发一次该事件
     virtual void onManager() {}
 private:
 	void onSockConnect(const SockException &ex);
-	void onSockRecv(const Buffer::Ptr &pBuf);
-	void onSockSend();
-	void onSockErr(const SockException &ex);
 private:
-    EventPoller::Ptr _poller;
     std::shared_ptr<Timer> _managerTimer;
     string _netAdapter = "0.0.0.0";
 };

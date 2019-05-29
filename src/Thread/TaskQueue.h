@@ -42,17 +42,19 @@ template<typename T>
 class TaskQueue {
 public:
 	//打入任务至列队
-	void push_task(T &&task_func) {
+    template<typename C>
+	void push_task(C &&task_func) {
 		{
 			lock_guard<decltype(_mutex)> lock(_mutex);
-			_queue.emplace_back(std::move(task_func));
+			_queue.emplace_back(std::forward<C>(task_func));
 		}
 		_sem.post();
 	}
-	void push_task_first(T &&task_func) {
+    template<typename C>
+	void push_task_first(C &&task_func) {
 		{
             lock_guard<decltype(_mutex)> lock(_mutex);
-			_queue.emplace_front(std::move(task_func));
+			_queue.emplace_front(std::forward<C>(task_func));
 		}
 		_sem.post();
 	}

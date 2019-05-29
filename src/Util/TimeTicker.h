@@ -35,40 +35,39 @@ class Ticker {
 public:
 	Ticker(int64_t minMs = 0,
 		   const char *where = "",
-		   LogContextCapturer && stream = LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
-		   bool printLog=false):_stream(stream) {
+		   LogContextCapturer && ctx = LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
+		   bool printLog=false):_ctx(ctx) {
 		if(!printLog){
-			_stream.clear();
+			_ctx.clear();
 		}
-		_begin = getCurrentMillisecond();
-		_created = _begin;
+        _created = _begin = getCurrentMillisecond();
 		_minMs = minMs;
 		_where = where;
 	}
 	~Ticker() {
 		int64_t tm = getCurrentMillisecond() - _begin;
 		if (tm > _minMs) {
-			_stream << _where << " take time:" << tm << endl;
+			_ctx << _where << "take time:" << tm << "ms" << endl;
 		} else {
-			_stream.clear();
+			_ctx.clear();
 		}
 	}
 	uint64_t elapsedTime() {
-		_stream.clear();
+		_ctx.clear();
 		return getCurrentMillisecond() - _begin;
 	}
 	uint64_t createdTime() {
-		_stream.clear();
+		_ctx.clear();
 		return getCurrentMillisecond() - _created;
 	}
 	void resetTime() {
-		_stream.clear();
+		_ctx.clear();
 		_begin = getCurrentMillisecond();
 	}
 private:
 	uint64_t _begin;
 	uint64_t _created;
-	LogContextCapturer _stream;
+	LogContextCapturer _ctx;
 	const char *_where;
 	int64_t _minMs;
 
@@ -92,7 +91,7 @@ public:
 		uint64_t elapseTime = (nowTime - _firstTime);
 		uint64_t retTime = _lastTime + elapseTime / ++_pktCount;
 		_lastTime = retTime;
-		if (elapseTime > 10000) {
+		if (elapseTime > _resetMs) {
 			_firstTime = 0;
 		}
 		return retTime;
