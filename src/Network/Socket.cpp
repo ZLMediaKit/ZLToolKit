@@ -285,7 +285,7 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 }
 
 void Socket::setReadBuffer(const BufferRaw::Ptr &readBuffer){
-    if(!readBuffer || readBuffer->getCapacity() < 128){
+    if(!readBuffer || readBuffer->getCapacity() < 2){
         return;
     }
     weak_ptr<Socket> weakSelf = shared_from_this();
