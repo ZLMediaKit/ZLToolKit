@@ -131,7 +131,7 @@ std::string to_string(T value){
 int gettimeofday(struct timeval *tp, void *tzp);
 void usleep(int micro_seconds);
 void sleep(int second);
-
+int asprintf(char **strp, const char *fmt, ...);
 #if !defined(strcasecmp)
 #define strcasecmp _stricmp
 #endif

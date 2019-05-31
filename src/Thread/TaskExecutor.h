@@ -174,8 +174,25 @@ public:
         if(strongTask && *strongTask){
             return (*strongTask)(forward<ArgTypes>(args)...);
         }
-        return R(nullptr);
+        return defaultValue<R>();
     }
+
+	template<typename T>
+	static typename std::enable_if<std::is_void<T>::value,void>::type
+	defaultValue(){}
+
+	template<typename T>
+	static typename std::enable_if<std::is_pointer<T>::value,T>::type
+	defaultValue(){
+		return nullptr;
+	}
+
+	template<typename T>
+	static typename std::enable_if<std::is_integral<T>::value, T>::type
+		defaultValue() {
+		return 0;
+	}
+
 protected:
     std::shared_ptr<func_type > _strongTask;
     std::weak_ptr<func_type > _weakTask;

@@ -36,6 +36,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "Util/logger.h"
+#include "Util/util.h"
 
 #if defined(_WIN32)
 #include <mysql.h>
@@ -187,7 +188,6 @@ public:
 		return ret;
 	}
 
-#if !defined(_WIN32)
 	template<typename ...Args>
 	static string queryString(const char *fmt, Args && ...arg) {
 		char *ptr_out = NULL;
@@ -199,7 +199,6 @@ public:
 		}
 		return "";
 	}
-#endif //defined(_WIN32)
 
     template<typename ...Args>
     static string queryString(const string &fmt, Args && ...args) {
