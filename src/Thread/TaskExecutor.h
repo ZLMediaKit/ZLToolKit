@@ -245,7 +245,7 @@ public:
             task();
             sem.post();
         });
-        if(ret){
+        if(ret && *ret){
             sem.wait();
         }
     }
@@ -261,7 +261,7 @@ public:
             task();
             sem.post();
         });
-        if (ret) {
+        if (ret && *ret) {
             sem.wait();
         }
     };

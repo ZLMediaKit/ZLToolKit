@@ -34,6 +34,10 @@ namespace toolkit {
 INSTANCE_IMP(WorkThreadPool);
 
 EventPoller::Ptr WorkThreadPool::getPoller(){
+    auto poller = EventPoller::getCurrentPoller();
+    if(poller){
+        return poller;
+    }
 	return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 

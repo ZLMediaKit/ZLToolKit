@@ -440,6 +440,10 @@ EventPoller::Ptr EventPollerPool::getFirstPoller(){
 }
 
 EventPoller::Ptr EventPollerPool::getPoller(){
+    auto poller = EventPoller::getCurrentPoller();
+    if(poller){
+        return poller;
+    }
     return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
