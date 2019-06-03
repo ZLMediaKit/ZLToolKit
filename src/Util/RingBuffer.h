@@ -101,16 +101,18 @@ public:
     void resetPos(bool key = true) {
         _storageInternal = _storage->getStorageInternal();
         _curpos = _storageInternal->getPos(key);
+        _newReset = true;
     }
 private:
     void onRead(const T &data,int targetPos) {
-        if(!_useBuffer){
+        if(!_newReset || !_useBuffer){
             _readCB(data);
         }else{
             const T *pkt  = nullptr;
             while((pkt = read(targetPos))){
                 _readCB(*pkt);
             }
+            _newReset = false;
         }
     }
 
@@ -137,6 +139,7 @@ private:
     shared_ptr<_RingStorage<T> > _storage;
     int _curpos;
     bool _useBuffer;
+    bool _newReset = false;
 };
 
 template<typename T>
@@ -179,8 +182,15 @@ public:
             return _ringKeyPos;
         }
 
-        //不存在关键帧，返回当前帧下一帧，目的是环形缓存中的缓存全部一次性输出
-        return next(next(_ringPos));
+        //如果环形缓存中没有关键帧，
+        //那么我们返回当前位置后面的偏移RING_MIN_SIZE/2的位置
+        //目的是为了防止读的时候被覆盖
+        //同时又能把环形缓存中的大部分缓存一次性输出
+        int ret = _ringPos + (RING_MIN_SIZE / 2);
+        if(ret < _ringSize){
+            return ret;
+        }
+        return ret - _ringSize;
     }
 
     inline int next(int pos) {
