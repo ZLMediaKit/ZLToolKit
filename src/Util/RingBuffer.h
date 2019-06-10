@@ -237,10 +237,6 @@ public:
 
     ~_RingStorage(){}
 
-    void setDelegate(const typename RingDelegate<T>::Ptr &delegate){
-        LOCK_GUARD(_mtx_delegate);
-        _delegate = delegate;
-    }
 
     /**
      * 写入环形缓存数据
@@ -248,13 +244,7 @@ public:
      * @param isKey 是否为关键帧
      * @return 是否触发重置环形缓存大小
      */
-    bool write(const T &in,bool isKey = true) {
-        {
-            LOCK_GUARD(_mtx_delegate);
-            if (_delegate) {
-                _delegate->onWrite(in, isKey);
-            }
-        }
+    inline bool write(const T &in,bool isKey = true) {
         auto flag = computeGopSize(isKey);
         _storageInternal->write(in,isKey);
         return flag;
@@ -269,7 +259,7 @@ public:
         return _storageInternal->getPos(key);
     }
 private:
-    bool computeGopSize(bool isKey){
+    inline bool computeGopSize(bool isKey){
         if(!_canReSize || _besetSize){
             return false;
         }
@@ -299,9 +289,6 @@ private:
 private:
     mutex _mtx_storage;
     typename _RingStorageInternal<T>::Ptr _storageInternal;
-    //代理
-    typename RingDelegate<T>::Ptr _delegate;
-    mutex _mtx_delegate;
     //计算最佳环形缓存大小的参数
     int _besetSize = 0;
     int _totalCnt = 0;
@@ -336,10 +323,17 @@ public:
 	}
 
 private:
-    _RingReaderDispatcher(const typename RingStorage::Ptr &storage,const function<void(int,bool) > &onSizeChanged ) {
-        _storage = storage;
+    _RingReaderDispatcher(int size,const function<void(int,bool) > &onSizeChanged ) {
+        _storage = std::make_shared<RingStorage>(size);
         _readerSize = 0;
         _onSizeChanged = onSizeChanged;
+    }
+
+    void write(const T &in, bool isKey = true) {
+        if (_storage->write(in, isKey)) {
+            resetPos();
+        }
+        emitRead(in,_storage->getPos(false));
     }
 
     void emitRead(const T &in,int targetPos){
@@ -418,21 +412,28 @@ public:
     typedef function<void(const EventPoller::Ptr &poller,int size,bool add_flag)> onReaderChanged;
 
     RingBuffer(int size = 0,const onReaderChanged &cb = nullptr) {
-        _storage = std::make_shared<RingStorage>(size);
+        _size = size;
         _onReaderChanged = cb;
     }
 
     ~RingBuffer() {}
 
     void write(const T &in, bool isKey = true) {
-        if (_storage->write(in, isKey)) {
-            resetPos();
+        if(_delegate){
+            _delegate->onWrite(in,isKey);
         }
-        emitRead(in,_storage->getPos(false));
+
+        LOCK_GUARD(_mtx_map);
+        for (auto &pr : _dispatcherMap) {
+            auto second = pr.second;
+            pr.first->async([second,in,isKey](){
+                second->write(in,isKey);
+            },false);
+        }
     }
 
     void setDelegate(const typename RingDelegate<T>::Ptr &delegate) {
-        _storage->setDelegate(delegate);
+        _delegate = delegate;
     }
 
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool useBuffer = true) {
@@ -455,7 +456,7 @@ public:
                         delete ptr;
                     });
                 };
-                ref.reset(new RingReaderDispatcher(_storage,std::move(onSizeChanged)),std::move(onDealloc));
+                ref.reset(new RingReaderDispatcher(_size,std::move(onSizeChanged)),std::move(onDealloc));
             }
             dispatcher = ref;
         }
@@ -472,24 +473,6 @@ public:
         return total;
     }
 private:
-    void resetPos(bool key = true ) {
-        LOCK_GUARD(_mtx_map);
-        for (auto &pr : _dispatcherMap) {
-            auto second = pr.second;
-            pr.first->async([second,key](){
-                second->resetPos(key);
-            },false);
-        }
-    }
-    void emitRead(const T &in,int targetPos){
-        LOCK_GUARD(_mtx_map);
-        for (auto &pr : _dispatcherMap) {
-            auto second = pr.second;
-            pr.first->async([second,in,targetPos](){
-                second->emitRead(in,targetPos);
-            },false);
-        }
-    }
     void onSizeChanged(const EventPoller::Ptr &poller,int size,bool add_flag){
         if(size == 0){
             LOCK_GUARD(_mtx_map);
@@ -509,7 +492,8 @@ private:
     };
 private:
     mutex _mtx_map;
-    typename RingStorage::Ptr _storage;
+    int _size;
+    typename RingDelegate<T>::Ptr _delegate;
     onReaderChanged _onReaderChanged;
     unordered_map<EventPoller::Ptr,typename RingReaderDispatcher::Ptr,HashOfPtr > _dispatcherMap;
 };
