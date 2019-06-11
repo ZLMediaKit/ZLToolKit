@@ -40,8 +40,15 @@ int BufferList::send_l(int fd, int flags,bool udp) {
     int n;
     do {
         struct msghdr msg;
-        msg.msg_name = udp ? _pkt_list.front()->_addr : NULL;
-        msg.msg_namelen = udp ? _pkt_list.front()->_addr_len : 0;
+        if(!udp){
+            msg.msg_name =  NULL;
+            msg.msg_namelen = 0;
+        }else{
+            BufferSock *buffer = static_cast<BufferSock *>(_pkt_list.front().get());
+            msg.msg_name = buffer->_addr;
+            msg.msg_namelen = buffer->_addr_len;
+        }
+
         msg.msg_iov = &(_iovec[_iovec_off]);
         msg.msg_iovlen = _iovec.size() - _iovec_off;
         int max = udp ? 1 : IOV_MAX;
@@ -110,10 +117,10 @@ void BufferList::reOffset(int n) {
     }
 }
 
-BufferList::BufferList(List<BufferSock::Ptr> &list) : _iovec(list.size()) {
+BufferList::BufferList(List<Buffer::Ptr> &list) : _iovec(list.size()) {
     _pkt_list.swap(list);
     auto it = _iovec.begin();
-    _pkt_list.for_each([&](BufferSock::Ptr &buffer){
+    _pkt_list.for_each([&](Buffer::Ptr &buffer){
         it->iov_base = buffer->data();
         it->iov_len = buffer->size();
         _remainSize += it->iov_len;

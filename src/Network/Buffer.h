@@ -164,7 +164,7 @@ private:
 class BufferList : public noncopyable {
 public:
     typedef std::shared_ptr<BufferList> Ptr;
-    BufferList(List<BufferSock::Ptr> &list);
+    BufferList(List<Buffer::Ptr> &list);
     ~BufferList(){}
     bool empty();
     int send(int fd,int flags,bool udp);
@@ -175,7 +175,7 @@ private:
     vector<struct iovec> _iovec;
     int _iovec_off = 0;
     int _remainSize = 0;
-    List<BufferSock::Ptr> _pkt_list;
+    List<Buffer::Ptr> _pkt_list;
 };
 
 }//namespace toolkit

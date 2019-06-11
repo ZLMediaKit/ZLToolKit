@@ -377,48 +377,39 @@ int Socket::send(string &&buf , struct sockaddr *addr, socklen_t addr_len) {
     return send(std::make_shared<BufferString>(std::move(buf)),addr,addr_len);
 }
 
-bool Socket::send_l() {
-    //数据可写入
-    if(_canSendSock){
-        //该socket可写
-		SockFD::Ptr sock;
-		{
-			LOCK_GUARD(_mtx_sockFd);
-			sock = _sockFd;
-		}
-
-		if (!sock ) {
-			//如果已断开连接或者发送超时
-			return false;
-		}
-        return flushData(sock, false);
-    }
-
-    //判断发送超时
-    if(_lastFlushTicker.elapsedTime() > _sendTimeOutMS){
-        //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
-        emitErr(SockException(Err_other, "Socket send timeout"));
-        return false;
-    }
-
-    //成功
-    return true;
-}
 
 int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_len){
 	if(!buf || !buf->size()){
 		return 0;
 	}
 
-	{
-		LOCK_GUARD(_mtx_bufferWaiting);
-		_bufferWaiting.emplace_back(std::make_shared<BufferSock>(buf,addr,addr_len));
-	}
+    SockFD::Ptr sock;
+    {
+        LOCK_GUARD(_mtx_sockFd);
+        sock = _sockFd;
+    }
 
-	if(!send_l()){
-		return -1;
-	}
+    if (!sock) {
+        //如果已断开连接或者发送超时
+        return -1;
+    }
 
+    {
+        LOCK_GUARD(_mtx_bufferWaiting);
+        _bufferWaiting.emplace_back(sock->type() == SockNum::Sock_UDP ? std::make_shared<BufferSock>(buf,addr,addr_len) : buf);
+    }
+
+    if(_canSendSock){
+        //该socket可写
+        return flushData(sock, false) ?  buf->size() : -1;
+    }
+
+    //该socket不可写,判断发送超时
+    if(_lastFlushTicker.elapsedTime() > _sendTimeOutMS){
+        //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
+        emitErr(SockException(Err_other, "Socket send timeout"));
+        return -1;
+    }
 	return buf->size();
 
 }

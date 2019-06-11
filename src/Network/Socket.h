@@ -350,7 +350,6 @@ private:
     static SockException getSockErr(const SockFD::Ptr &pSock,bool tryErrno=true);
     bool listen(const SockFD::Ptr &fd);
     bool flushData(const SockFD::Ptr &pSock,bool bPollerThread);
-    bool send_l();
 private:
     EventPoller::Ptr _poller;
     std::shared_ptr<Timer> _conTimer;
@@ -358,7 +357,7 @@ private:
     mutable MutexWrapper<recursive_mutex> _mtx_sockFd;
     /////////////////////
     MutexWrapper<recursive_mutex> _mtx_bufferWaiting;
-    List<BufferSock::Ptr> _bufferWaiting;
+    List<Buffer::Ptr> _bufferWaiting;
     MutexWrapper<recursive_mutex> _mtx_bufferSending;
     List<BufferList::Ptr> _bufferSending;
     /////////////////////
