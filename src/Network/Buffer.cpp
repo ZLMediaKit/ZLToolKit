@@ -46,7 +46,7 @@ int BufferList::send_l(int fd, int flags,bool udp) {
         }else{
             BufferSock *buffer = static_cast<BufferSock *>(_pkt_list.front().get());
             msg.msg_name = buffer->_addr;
-            msg.msg_namelen = buffer->_addr_len;
+            msg.msg_namelen = buffer->_addr->sa_len;
         }
 
         msg.msg_iov = &(_iovec[_iovec_off]);
@@ -132,7 +132,7 @@ BufferSock::BufferSock(const Buffer::Ptr &buffer,struct sockaddr *addr, int addr
     if(addr && addr_len){
         _addr = (struct sockaddr *)malloc(addr_len);
         memcpy(_addr,addr,addr_len);
-        _addr_len = addr_len;
+        _addr->sa_len = addr_len;
     }
     _buffer = buffer;
 }

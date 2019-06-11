@@ -158,7 +158,6 @@ public:
 private:
     Buffer::Ptr _buffer;
     struct sockaddr *_addr = nullptr;
-    int  _addr_len = 0;
 };
 
 class BufferList : public noncopyable {
