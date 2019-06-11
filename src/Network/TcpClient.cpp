@@ -85,7 +85,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
         strongSelf->onFlush();
         return true;
     });
-    _sock->setOnRead([weakSelf](const Buffer::Ptr &pBuf, struct sockaddr *addr) {
+    _sock->setOnRead([weakSelf](const Buffer::Ptr &pBuf, struct sockaddr * , int) {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
             return;

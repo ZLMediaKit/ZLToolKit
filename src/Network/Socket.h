@@ -248,7 +248,7 @@ class Socket: public std::enable_shared_from_this<Socket> ,
 public:
     typedef std::shared_ptr<Socket> Ptr;
     //接收数据回调
-    typedef function<void(const Buffer::Ptr &buf, struct sockaddr *addr)> onReadCB;
+    typedef function<void(const Buffer::Ptr &buf, struct sockaddr *addr , int addr_len)> onReadCB;
     //发生错误回调
     typedef function<void(const SockException &err)> onErrCB;
     //tcp监听接收到连接请求

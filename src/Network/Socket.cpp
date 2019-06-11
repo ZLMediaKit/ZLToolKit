@@ -49,7 +49,7 @@ Socket::Socket(const EventPoller::Ptr &poller,bool enableMutex) :
 	}
 
     _canSendSock = true;
-	_readCB = [](const Buffer::Ptr &buf,struct sockaddr *) {
+	_readCB = [](const Buffer::Ptr &buf,struct sockaddr * , int) {
 		WarnL << "Socket not set readCB";
 	};
 	_errCB = [](const SockException &err) {
@@ -74,7 +74,7 @@ void Socket::setOnRead(const onReadCB &cb) {
 		if (cb) {
 			_readCB = cb;
 		} else {
-			_readCB = [](const Buffer::Ptr &buf,struct sockaddr *) {
+			_readCB = [](const Buffer::Ptr &buf,struct sockaddr * , int) {
 				WarnL << "Socket not set readCB";
 			};
 		}
@@ -327,8 +327,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool isUdp) {
 		ret += nread;
         _readBuffer->data()[nread] = '\0';
         _readBuffer->setSize(nread);
-        peerAddr.sa_len = len;
-        _readCB(_readBuffer, &peerAddr);
+        _readCB(_readBuffer, &peerAddr , len);
 	}
     return 0;
 }

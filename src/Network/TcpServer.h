@@ -232,7 +232,7 @@ protected:
 
         weak_ptr<TcpSession> weakSession(session);
 		//会话接收数据事件
-		sock->setOnRead([weakSession](const Buffer::Ptr &buf, struct sockaddr *addr){
+		sock->setOnRead([weakSession](const Buffer::Ptr &buf, struct sockaddr *, int ){
 			//获取会话强应用
 			auto strongSession=weakSession.lock();
 			if(!strongSession) {
