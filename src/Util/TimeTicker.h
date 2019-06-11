@@ -108,12 +108,11 @@ private:
 #if !defined(NDEBUG)
 	#define TimeTicker() Ticker __ticker(5,WarnL,true)
 	#define TimeTicker1(tm) Ticker __ticker1(tm,WarnL,true)
-	#define TimeTicker2(tm,log) Ticker __ticker3(tm,log,true)
+	#define TimeTicker2(tm,log) Ticker __ticker2(tm,log,true)
 #else
 	#define TimeTicker()
 	#define TimeTicker1(tm)
-	#define TimeTicker2(tm,where)
-	#define TimeTicker3(tm,where,log)
+	#define TimeTicker2(tm,log)
 #endif
 
 } /* namespace toolkit */
