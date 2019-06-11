@@ -395,7 +395,7 @@ bool Socket::send_l() {
     }
 
     //判断发送超时
-    if(_lastFlushStamp && time(NULL) - _lastFlushStamp > _sendTimeOutSec){
+    if(_lastFlushTicker.elapsedTime() > _sendTimeOutMS){
         //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
         emitErr(SockException(Err_other, "Socket send timeout"));
         return false;
@@ -615,7 +615,7 @@ bool Socket::flushData(const SockFD::Ptr &pSock,bool bPollerThread) {
     }
 
 	if (bufferSendingTmp.empty()) {
-		_lastFlushStamp = time(NULL);
+        _lastFlushTicker.resetTime();
 		do{
 			{
 				//_bufferSending列队中数据为空，那么我们接着消费_bufferWaiting列队中的数据
@@ -746,7 +746,7 @@ int Socket::rawFD() const{
 }
 
 void Socket::setSendTimeOutSecond(uint32_t second){
-    _sendTimeOutSec = second;
+    _sendTimeOutMS = second * 1000;
 }
 
 BufferRaw::Ptr Socket::obtainBuffer() {

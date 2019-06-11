@@ -34,34 +34,29 @@ namespace toolkit {
 class Ticker {
 public:
 	Ticker(int64_t minMs = 0,
-		   const char *where = "",
 		   LogContextCapturer && ctx = LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
-		   bool printLog=false):_ctx(ctx) {
+		   bool printLog = false):_ctx(ctx) {
 		if(!printLog){
 			_ctx.clear();
 		}
         _created = _begin = getCurrentMillisecond();
 		_minMs = minMs;
-		_where = where;
 	}
 	~Ticker() {
-		int64_t tm = getCurrentMillisecond() - _begin;
+		int64_t tm = createdTime();
 		if (tm > _minMs) {
-			_ctx << _where << "take time:" << tm << "ms" << endl;
+			_ctx << "take time:" << tm << "ms" << endl;
 		} else {
 			_ctx.clear();
 		}
 	}
 	uint64_t elapsedTime() {
-		_ctx.clear();
 		return getCurrentMillisecond() - _begin;
 	}
 	uint64_t createdTime() {
-		_ctx.clear();
 		return getCurrentMillisecond() - _created;
 	}
 	void resetTime() {
-		_ctx.clear();
 		_begin = getCurrentMillisecond();
 	}
 private:
@@ -111,10 +106,9 @@ private:
 };
 
 #if !defined(NDEBUG)
-	#define TimeTicker() Ticker __ticker(5,"",WarnL,true)
-	#define TimeTicker1(tm) Ticker __ticker1(tm,"",WarnL,true)
-	#define TimeTicker2(tm,where) Ticker __ticker2(tm,where,WarnL,true)
-	#define TimeTicker3(tm,where,log) Ticker __ticker3(tm,where,log,true)
+	#define TimeTicker() Ticker __ticker(5,WarnL,true)
+	#define TimeTicker1(tm) Ticker __ticker1(tm,WarnL,true)
+	#define TimeTicker2(tm,log) Ticker __ticker3(tm,log,true)
 #else
 	#define TimeTicker()
 	#define TimeTicker1(tm)

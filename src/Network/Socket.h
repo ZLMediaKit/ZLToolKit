@@ -372,8 +372,8 @@ private:
     atomic<bool> _enableRecv;
     atomic<bool> _canSendSock;
     //发送超时时间
-    uint32_t _sendTimeOutSec = SEND_TIME_OUT_SEC;
-    uint32_t _lastFlushStamp = 0;
+    uint32_t _sendTimeOutMS = SEND_TIME_OUT_SEC * 1000;
+    Ticker _lastFlushTicker;
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
     BufferRaw::Ptr _readBuffer;
     std::shared_ptr<function<void(int)> > _asyncConnectCB;
