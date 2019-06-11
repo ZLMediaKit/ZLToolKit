@@ -327,6 +327,7 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool isUdp) {
 		ret += nread;
         _readBuffer->data()[nread] = '\0';
         _readBuffer->setSize(nread);
+        peerAddr.sa_len = len;
         _readCB(_readBuffer, &peerAddr);
 	}
     return 0;
