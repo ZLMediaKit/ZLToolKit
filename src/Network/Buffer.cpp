@@ -40,8 +40,8 @@ int BufferList::send_l(int fd, int flags,bool udp) {
     int n;
     do {
         struct msghdr msg;
-        msg.msg_name = NULL;
-        msg.msg_namelen = 0;
+        msg.msg_name = udp ? _pkt_list.front()->_addr : NULL;
+        msg.msg_namelen = udp ? _pkt_list.front()->_addr_len : 0;
         msg.msg_iov = &(_iovec[_iovec_off]);
         msg.msg_iovlen = _iovec.size() - _iovec_off;
         int max = udp ? 1 : IOV_MAX;
@@ -110,15 +110,38 @@ void BufferList::reOffset(int n) {
     }
 }
 
-BufferList::BufferList(List<Buffer::Ptr> &list) : _iovec(list.size()) {
+BufferList::BufferList(List<BufferSock::Ptr> &list) : _iovec(list.size()) {
     _pkt_list.swap(list);
     auto it = _iovec.begin();
-    _pkt_list.for_each([&](Buffer::Ptr &pkt){
-        it->iov_base = pkt->data();
-        it->iov_len = pkt->size();
+    _pkt_list.for_each([&](BufferSock::Ptr &buffer){
+        it->iov_base = buffer->data();
+        it->iov_len = buffer->size();
         _remainSize += it->iov_len;
         ++it;
     });
+}
+
+BufferSock::BufferSock(const Buffer::Ptr &buffer,struct sockaddr *addr, int addr_len){
+    if(addr && addr_len){
+        _addr = (struct sockaddr *)malloc(addr_len);
+        memcpy(_addr,addr,addr_len);
+        _addr_len = addr_len;
+    }
+    _buffer = buffer;
+}
+
+BufferSock::~BufferSock(){
+    if(_addr){
+        free(_addr);
+    }
+}
+
+char *BufferSock::data() const {
+    return _buffer->data();
+}
+
+uint32_t BufferSock::size() const {
+    return _buffer->size();
 }
 
 }//namespace toolkit

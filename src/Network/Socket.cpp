@@ -358,7 +358,7 @@ bool Socket::emitErr(const SockException& err) {
 }
 
 
-int Socket::send(const char* buf, int size) {
+int Socket::send(const char* buf, int size , struct sockaddr *addr, socklen_t addr_len) {
     if (size <= 0) {
         size = strlen(buf);
         if (!size) {
@@ -367,14 +367,14 @@ int Socket::send(const char* buf, int size) {
     }
     BufferRaw::Ptr ptr = obtainBuffer();
     ptr->assign(buf,size);
-    return send(ptr);
+    return send(ptr,addr,addr_len);
 }
-int Socket::send(const string &buf) {
-    return send(std::make_shared<BufferString>(buf));
+int Socket::send(const string &buf , struct sockaddr *addr, socklen_t addr_len) {
+    return send(std::make_shared<BufferString>(buf),addr,addr_len);
 }
 
-int Socket::send(string &&buf) {
-    return send(std::make_shared<BufferString>(std::move(buf)));
+int Socket::send(string &&buf , struct sockaddr *addr, socklen_t addr_len) {
+    return send(std::make_shared<BufferString>(std::move(buf)),addr,addr_len);
 }
 
 bool Socket::send_l() {
@@ -405,36 +405,14 @@ bool Socket::send_l() {
     return true;
 }
 
-int Socket::send(List<Buffer::Ptr> &list){
-	if(list.empty()){
-		return 0;
-	}
-
-	int total = 0;
-    list.for_each([&](const Buffer::Ptr &buf){
-        total += buf->size();
-    });
-
-    {
-		LOCK_GUARD(_mtx_bufferWaiting);
-        _bufferWaiting.append(list);
-    }
-
-    if(!send_l()){
-        return -1;
-    }
-
-	return total;
-}
-
-int Socket::send(const Buffer::Ptr &buf){
+int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_len){
 	if(!buf || !buf->size()){
 		return 0;
 	}
 
 	{
 		LOCK_GUARD(_mtx_bufferWaiting);
-		_bufferWaiting.emplace_back(buf);
+		_bufferWaiting.emplace_back(std::make_shared<BufferSock>(buf,addr,addr_len));
 	}
 
 	if(!send_l()){
