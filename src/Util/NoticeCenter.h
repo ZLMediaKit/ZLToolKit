@@ -73,6 +73,26 @@ public:
 		return listenerMap.size();
 	}
 
+    template<typename ...ArgsType>
+    bool emitEventNoCopy(const string &strEvent,ArgsType &&...args){
+        lock_guard<recursive_mutex> lck(_mtxListener);
+        auto it0 = _mapListener.find(strEvent);
+        if (it0 == _mapListener.end()) {
+            return false;
+        }
+        auto &listenerMap = it0->second;
+        for(auto &pr : listenerMap){
+            typedef function<void(decltype(std::forward<ArgsType>(args))...)> funType;
+            funType *obj = (funType *)(pr.second.get());
+            try{
+                (*obj)(std::forward<ArgsType>(args)...);
+            }catch(InterruptException &ex){
+                break;
+            }
+        }
+        return listenerMap.size();
+    }
+
 	int listenerSize(const string &strEvent){
         lock_guard<recursive_mutex> lck(_mtxListener);
         auto it0 = _mapListener.find(strEvent);
