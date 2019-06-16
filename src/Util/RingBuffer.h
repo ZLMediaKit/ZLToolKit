@@ -274,6 +274,7 @@ public:
         ret->_lastKeyCnt = _lastKeyCnt;
         ret->_canReSize = _canReSize;
         ret->_storageInternal = _storageInternal->clone();
+        return ret;
     }
 private:
     _RingStorage() = default;
