@@ -209,12 +209,21 @@ public:
         }
         return &ref.second;
     }
+    Ptr clone() const{
+        Ptr ret(new _RingStorageInternal());
+        ret->_dataRing = _dataRing;
+        ret->_ringPos = _ringPos;
+        ret->_ringKeyPos = _ringKeyPos;
+        ret->_ringSize = _ringSize;
+        return ret;
+    }
 private:
     class DataPair : public std::pair<bool,T>{
     public:
         DataPair() : std::pair<bool,T>(false,T()) {}
         ~DataPair() = default;
     };
+    _RingStorageInternal() = default;
 private:
     vector<DataPair> _dataRing;
     int _ringPos;
@@ -227,7 +236,7 @@ class _RingStorage{
 public:
     typedef std::shared_ptr<_RingStorage> Ptr;
 
-    _RingStorage(int size = 0){
+    _RingStorage(int size){
         if(size <= 0){
             size = RING_MIN_SIZE;
             _canReSize = true;
@@ -251,14 +260,24 @@ public:
     }
 
     typename _RingStorageInternal<T>::Ptr getStorageInternal(){
-        LOCK_GUARD(_mtx_storage);
         return _storageInternal;
     }
 
     inline int getPos(bool key){
         return _storageInternal->getPos(key);
     }
+
+    Ptr clone() const{
+        Ptr ret(new _RingStorage());
+        ret->_besetSize = _besetSize;
+        ret->_totalCnt = _totalCnt;
+        ret->_lastKeyCnt = _lastKeyCnt;
+        ret->_canReSize = _canReSize;
+        ret->_storageInternal = _storageInternal->clone();
+    }
 private:
+    _RingStorage() = default;
+
     inline bool computeGopSize(bool isKey){
         if(!_canReSize || _besetSize){
             return false;
@@ -282,12 +301,10 @@ private:
         if(_besetSize > RING_MAX_SIZE){
             _besetSize = RING_MAX_SIZE;
         }
-        LOCK_GUARD(_mtx_storage);
         _storageInternal = std::make_shared< _RingStorageInternal<T> >(_besetSize);
         return true;
     }
 private:
-    mutex _mtx_storage;
     typename _RingStorageInternal<T>::Ptr _storageInternal;
     //计算最佳环形缓存大小的参数
     int _besetSize = 0;
@@ -323,8 +340,8 @@ public:
 	}
 
 private:
-    _RingReaderDispatcher(int size,const function<void(int,bool) > &onSizeChanged ) {
-        _storage = std::make_shared<RingStorage>(size);
+    _RingReaderDispatcher(const typename RingStorage::Ptr &storage,const function<void(int,bool) > &onSizeChanged ) {
+        _storage = storage;
         _readerSize = 0;
         _onSizeChanged = onSizeChanged;
     }
@@ -412,8 +429,8 @@ public:
     typedef function<void(const EventPoller::Ptr &poller,int size,bool add_flag)> onReaderChanged;
 
     RingBuffer(int size = 0,const onReaderChanged &cb = nullptr) {
-        _size = size;
         _onReaderChanged = cb;
+        _storage = std::make_shared<RingStorage>(size);
     }
 
     ~RingBuffer() {}
@@ -424,6 +441,7 @@ public:
         }
 
         LOCK_GUARD(_mtx_map);
+        _storage->write(in, isKey);
         for (auto &pr : _dispatcherMap) {
             auto second = pr.second;
             pr.first->async([second,in,isKey](){
@@ -456,7 +474,7 @@ public:
                         delete ptr;
                     });
                 };
-                ref.reset(new RingReaderDispatcher(_size,std::move(onSizeChanged)),std::move(onDealloc));
+                ref.reset(new RingReaderDispatcher(_storage->clone(),std::move(onSizeChanged)),std::move(onDealloc));
             }
             dispatcher = ref;
         }
@@ -492,7 +510,7 @@ private:
     };
 private:
     mutex _mtx_map;
-    int _size;
+    typename RingStorage::Ptr _storage;
     typename RingDelegate<T>::Ptr _delegate;
     onReaderChanged _onReaderChanged;
     unordered_map<EventPoller::Ptr,typename RingReaderDispatcher::Ptr,HashOfPtr > _dispatcherMap;
