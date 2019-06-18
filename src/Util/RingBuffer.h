@@ -444,7 +444,7 @@ public:
         LOCK_GUARD(_mtx_map);
         _storage->write(in, isKey);
         for (auto &pr : _dispatcherMap) {
-            auto second = pr.second;
+            auto &second = pr.second;
             pr.first->async([second,in,isKey](){
                 second->write(in,isKey);
             },false);
