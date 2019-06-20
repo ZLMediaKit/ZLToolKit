@@ -9,6 +9,7 @@
 #include <functional>
 #include "Util/List.h"
 #include "Util/util.h"
+#include "Util/onceToken.h"
 #include "Util/TimeTicker.h"
 
 using namespace std;
@@ -242,8 +243,12 @@ public:
     void sync(TaskIn &&task){
         semaphore sem;
         auto ret = async([&](){
+            onceToken token(nullptr,[&](){
+                //通过RAII原理防止抛异常导致不执行这句代码
+                sem.post();
+            });
             task();
-            sem.post();
+
         });
         if(ret && *ret){
             sem.wait();
@@ -258,8 +263,11 @@ public:
     void sync_first(TaskIn &&task) {
         semaphore sem;
         auto ret = async_first([&]() {
+            onceToken token(nullptr,[&](){
+                //通过RAII原理防止抛异常导致不执行这句代码
+                sem.post();
+            });
             task();
-            sem.post();
         });
         if (ret && *ret) {
             sem.wait();

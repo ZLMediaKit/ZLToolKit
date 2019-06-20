@@ -60,6 +60,7 @@ public:
 			sem_post(&_sem);
 		}
 #else
+		unique_lock<mutex> lock(_mutex);
         _count += n;
         if(n == 1){
 			_condition.notify_one();
@@ -84,7 +85,7 @@ private:
 #if defined(HAVE_SEM)
 	sem_t _sem;
 #else
-	atomic_int _count;
+	int _count;
 	mutex _mutex;
 	condition_variable_any _condition;
 #endif
