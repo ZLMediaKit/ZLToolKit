@@ -302,10 +302,9 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool isUdp) {
     int nread = 0;
     struct sockaddr peerAddr;
     socklen_t len = sizeof(struct sockaddr);
-    auto capacity = _readBuffer->getCapacity() - 1;
     while (_enableRecv) {
 		do {
-			nread = recvfrom(sock, _readBuffer->data(), capacity, 0, &peerAddr, &len);
+            nread = recvfrom(sock, _readBuffer->data(), _readBuffer->getCapacity() - 1, 0, &peerAddr, &len);
 		} while (-1 == nread && UV_EINTR == get_uv_error(true));
 
 		if (nread == 0) {
