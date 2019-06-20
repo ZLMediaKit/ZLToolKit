@@ -42,7 +42,8 @@ namespace toolkit {
 Socket::Socket(const EventPoller::Ptr &poller,bool enableMutex) :
 		_mtx_sockFd(enableMutex),
 		_mtx_bufferWaiting(enableMutex),
-		_mtx_bufferSending(enableMutex) {
+		_mtx_bufferSending(enableMutex),
+		_mtx_event(enableMutex){
 	_poller = poller;
 	if(!_poller){
 		_poller = EventPollerPool::Instance().getPoller();
@@ -58,6 +59,7 @@ Socket::Socket(const EventPoller::Ptr &poller,bool enableMutex) :
 	_acceptCB = [](Socket::Ptr &sock) {
 		WarnL << "Socket not set acceptCB";
 	};
+
 	_flushCB = []() {return true;};
 
 	_beforeAcceptCB = [](const EventPoller::Ptr &poller){
@@ -70,61 +72,56 @@ Socket::~Socket() {
 }
 
 void Socket::setOnRead(const onReadCB &cb) {
-	_poller->sync([&](){
-		if (cb) {
-			_readCB = cb;
-		} else {
-			_readCB = [](const Buffer::Ptr &buf,struct sockaddr * , int) {
-				WarnL << "Socket not set readCB";
-			};
-		}
-	});
+	LOCK_GUARD(_mtx_event);
+	if (cb) {
+		_readCB = cb;
+	} else {
+		_readCB = [](const Buffer::Ptr &buf,struct sockaddr * , int) {
+			WarnL << "Socket not set readCB";
+		};
+	}
 }
 
 void Socket::setOnErr(const onErrCB &cb) {
-	_poller->sync([&]() {
-		if (cb) {
-			_errCB = cb;
-		} else {
-			_errCB = [](const SockException &err) {
-				WarnL << "Socket not set errCB";
-			};
-		}
-	});
+	LOCK_GUARD(_mtx_event);
+	if (cb) {
+		_errCB = cb;
+	} else {
+		_errCB = [](const SockException &err) {
+			WarnL << "Socket not set errCB";
+		};
+	}
 }
 void Socket::setOnAccept(const onAcceptCB &cb) {
-	_poller->sync([&]() {
-		if (cb) {
-			_acceptCB = cb;
-		} else {
-			_acceptCB = [](Socket::Ptr &sock) {
-				WarnL << "Socket not set acceptCB";
-			};
-		}
-	});
+	LOCK_GUARD(_mtx_event);
+	if (cb) {
+		_acceptCB = cb;
+	} else {
+		_acceptCB = [](Socket::Ptr &sock) {
+			WarnL << "Socket not set acceptCB";
+		};
+	}
 }
 
 void Socket::setOnFlush(const onFlush &cb) {
-	_poller->sync([&]() {
-		if (cb) {
-			_flushCB = cb;
-		} else {
-			_flushCB = []() {return true;};
-		}
-	});
+	LOCK_GUARD(_mtx_event);
+	if (cb) {
+		_flushCB = cb;
+	} else {
+		_flushCB = []() {return true;};
+	}
 }
 
 //设置Socket生成拦截器
 void Socket::setOnBeforeAccept(const onBeforeAcceptCB &cb){
-	_poller->sync([&]() {
-		if (cb) {
-			_beforeAcceptCB = cb;
-		} else {
-			_beforeAcceptCB = [](const EventPoller::Ptr &poller) {
-				return nullptr;
-			};
-		}
-	});
+	LOCK_GUARD(_mtx_event);
+	if (cb) {
+		_beforeAcceptCB = cb;
+	} else {
+		_beforeAcceptCB = [](const EventPoller::Ptr &poller) {
+			return nullptr;
+		};
+	}
 }
 
 void Socket::connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec,const char *localIp,uint16_t localPort) {
@@ -327,7 +324,9 @@ int Socket::onRead(const SockFD::Ptr &pSock,bool isUdp) {
 		ret += nread;
         _readBuffer->data()[nread] = '\0';
         _readBuffer->setSize(nread);
-        _readCB(_readBuffer, &peerAddr , len);
+
+		LOCK_GUARD(_mtx_event);
+		_readCB(_readBuffer, &peerAddr , len);
 	}
     return 0;
 }
@@ -351,6 +350,7 @@ bool Socket::emitErr(const SockException& err) {
 		if (!strongSelf) {
 			return;
 		}
+		LOCK_GUARD(strongSelf->_mtx_event);
 		strongSelf->_errCB(err);
 	});
 
@@ -417,7 +417,8 @@ int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
     bool flag;
     {
-        flag = _flushCB();
+		LOCK_GUARD(_mtx_event);
+		flag = _flushCB();
     }
 	if (!flag) {
 		setOnFlush(nullptr);
@@ -504,7 +505,12 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 			//拦截默认的Socket构造行为，
 			//在TcpServer中，默认的行为是子Socket的网络事件会派发到其他poll线程
 			//这样就可以发挥最大的网络性能
-			Socket::Ptr peerSock = _beforeAcceptCB(_poller);
+			Socket::Ptr peerSock ;
+
+			{
+				LOCK_GUARD(_mtx_event);
+				peerSock = _beforeAcceptCB(_poller);
+			}
 
 			if(!peerSock){
 				//此处是默认构造行为，也就是子Socket
@@ -517,7 +523,10 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
 
 			//在accept事件中，TcpServer对象会创建TcpSession对象并绑定该Socket的相关事件(onRead/onErr)
 			//所以在这之前千万不能就把peerfd加入poll监听
-			_acceptCB(peerSock);
+			{
+				LOCK_GUARD(_mtx_event);
+				_acceptCB(peerSock);
+			}
 			//把该peerfd加入poll监听，这个时候可能会触发其数据接收事件
 			if(!peerSock->attachEvent(sockFD, false)){
 				//加入poll监听失败，我们通知TcpServer该Socket无效
