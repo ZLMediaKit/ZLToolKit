@@ -254,11 +254,23 @@ public:
 
 	/**
 	 * 根据负载情况获取轻负载的实例
+	 * 如果优先返回当前线程，那么会返回当前线程
+	 * 返回当前线程的目的是为了提高线程安全性
 	 * @return
 	 */
 	EventPoller::Ptr getPoller();
+
+	/**
+	 * 设置 getPoller() 是否优先返回当前线程
+	 * 在批量创建Socket对象时，如果优先返回当前线程，
+	 * 那么将导致负载不够均衡，所以可以暂时关闭然后再开启
+	 * @param flag 是否优先返回当前线程
+	 */
+	void preferCurrentThread(bool flag = true);
 private:
 	EventPollerPool() ;
+private:
+	bool _preferCurrentThread = true;
 	static int s_pool_size;
 };
 
