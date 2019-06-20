@@ -40,8 +40,9 @@ using namespace std;
 
 namespace toolkit {
 
-class SqlPool {
+class SqlPool : public std::enable_shared_from_this<SqlPool> {
 public:
+	typedef std::shared_ptr<SqlPool> Ptr;
 	typedef ResourcePool<SqlConnection> PoolType;
 	typedef vector<vector<string> > SqlRetType;
 
