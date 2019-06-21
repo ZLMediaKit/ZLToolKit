@@ -378,22 +378,24 @@ void EventPoller::runLoop(bool blocked) {
 }
 
 uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
-    decltype(_delayTask) taskUpdated;
+    decltype(_delayTask) taskCopy;
+    taskCopy.swap(_delayTask);
 
-    for(auto it = _delayTask.begin() ; it != _delayTask.end() && it->first <= now_time ; it = _delayTask.erase(it)){
+    for(auto it = taskCopy.begin() ; it != taskCopy.end() && it->first <= now_time ; it = taskCopy.erase(it)){
         //已到期的任务
         try {
             auto next_delay = (*(it->second))();
             if(next_delay){
                 //可重复任务,更新时间截止线
-                taskUpdated.emplace(next_delay + now_time,std::move(it->second));
+                _delayTask.emplace(next_delay + now_time,std::move(it->second));
             }
         }catch (std::exception &ex){
             ErrorL << "EventPoller执行延时任务捕获到异常:" << ex.what();
         }
     }
 
-    _delayTask.insert(taskUpdated.begin(),taskUpdated.end());
+    taskCopy.insert(_delayTask.begin(),_delayTask.end());
+    taskCopy.swap(_delayTask);
 
     auto it = _delayTask.begin();
     if(it == _delayTask.end()){
