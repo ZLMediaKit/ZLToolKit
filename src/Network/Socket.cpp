@@ -48,23 +48,12 @@ Socket::Socket(const EventPoller::Ptr &poller,bool enableMutex) :
 	if(!_poller){
 		_poller = EventPollerPool::Instance().getPoller();
 	}
-
     _canSendSock = true;
-	_readCB = [](const Buffer::Ptr &buf,struct sockaddr * , int) {
-		WarnL << "Socket not set readCB";
-	};
-	_errCB = [](const SockException &err) {
-		WarnL << "Socket not set errCB:" << err.what();
-	};
-	_acceptCB = [](Socket::Ptr &sock) {
-		WarnL << "Socket not set acceptCB";
-	};
-
-	_flushCB = []() {return true;};
-
-	_beforeAcceptCB = [](const EventPoller::Ptr &poller){
-		return nullptr;
-	};
+    setOnRead(nullptr);
+    setOnErr(nullptr);
+    setOnAccept(nullptr);
+    setOnFlush(nullptr);
+    setOnBeforeAccept(nullptr);
 }
 Socket::~Socket() {
 	closeSock();
