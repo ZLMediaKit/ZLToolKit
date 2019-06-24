@@ -90,6 +90,14 @@ public:
     //分配内存大小
     void setCapacity(uint32_t capacity){
         if(_data){
+            if(_capacity < 2 * 1024){
+                //2K以下，不重复开辟内存，直接复用
+                return;
+            }
+            if(capacity <= _capacity && 2 * capacity > _capacity){
+                //如果请求的内存小于当前内存大小并且大于一半，那么也复用
+                return;
+            }
             delete [] _data;
         }
         _data = new char[capacity];
