@@ -248,7 +248,9 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
 	weak_ptr<Socket> weakSelf = shared_from_this();
 	weak_ptr<SockFD> weakSock = pSock;
 	_enableRecv = true;
-
+    if(!_readBuffer){
+        _readBuffer = std::make_shared<BufferRaw>(isUdp ? 1600 : 128 * 1024);
+    }
 	int result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write, [weakSelf,weakSock,isUdp](int event) {
 		auto strongSelf = weakSelf.lock();
 		auto strongSock = weakSock.lock();
@@ -283,39 +285,43 @@ void Socket::setReadBuffer(const BufferRaw::Ptr &readBuffer){
     });
 }
 int Socket::onRead(const SockFD::Ptr &pSock,bool isUdp) {
-	int ret = 0;
-	int sock = pSock->rawFd();
-    if(!_readBuffer){
-        _readBuffer = std::make_shared<BufferRaw>(isUdp ? 1600 : 128 * 1024);
-    }
-    int nread = 0;
+	int ret = 0 , nread = 0 ,sock = pSock->rawFd();
     struct sockaddr peerAddr;
     socklen_t len = sizeof(struct sockaddr);
+    //保存_readBuffer的临时变量，防止onRead事件中设置_readBuffer
+    auto readBuffer = _readBuffer;
+    auto data = readBuffer->data();
+    //最后一个字节设置为'\0'
+    auto capacity =  readBuffer->getCapacity() - 1;
+
     while (_enableRecv) {
-		do {
-            nread = recvfrom(sock, _readBuffer->data(), _readBuffer->getCapacity() - 1, 0, &peerAddr, &len);
-		} while (-1 == nread && UV_EINTR == get_uv_error(true));
+        do {
+            nread = recvfrom(sock, data, capacity, 0, &peerAddr, &len);
+        } while (-1 == nread && UV_EINTR == get_uv_error(true));
 
-		if (nread == 0) {
-			if (!isUdp) {
-				emitErr(SockException(Err_eof, "end of file"));
-			}
-			return ret;
-		}
+        if (nread == 0) {
+            if (!isUdp) {
+                emitErr(SockException(Err_eof, "end of file"));
+            }
+            return ret;
+        }
 
-		if (nread == -1) {
-			if (get_uv_error(true) != UV_EAGAIN) {
-				onError(pSock);
-			}
-			return ret;
-		}
-		ret += nread;
-        _readBuffer->data()[nread] = '\0';
-        _readBuffer->setSize(nread);
+        if (nread == -1) {
+            if (get_uv_error(true) != UV_EAGAIN) {
+                onError(pSock);
+            }
+            return ret;
+        }
 
-		LOCK_GUARD(_mtx_event);
-		_readCB(_readBuffer, &peerAddr , len);
-	}
+        ret += nread;
+        data[nread] = '\0';
+        //设置buffer有效数据大小
+        readBuffer->setSize(nread);
+
+        //触发回调
+        LOCK_GUARD(_mtx_event);
+        _readCB(readBuffer, &peerAddr, len);
+    }
     return 0;
 }
 void Socket::onError(const SockFD::Ptr &pSock) {
