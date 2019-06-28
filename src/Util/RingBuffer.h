@@ -439,6 +439,7 @@ public:
     void write(const T &in, bool isKey = true) {
         if(_delegate){
             _delegate->onWrite(in,isKey);
+            return;
         }
 
         LOCK_GUARD(_mtx_map);
