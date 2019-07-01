@@ -100,20 +100,16 @@ public:
     void resetPos(bool key = true) {
         _storageInternal = _storage->getStorageInternal();
         _curpos = _storageInternal->getPos(key);
-        if(key){
-            flushPacket(_storageInternal->getPos(false));
+        if(key && _useBuffer){
+            flushGop(_storageInternal->getPos(false));
         }
     }
 private:
     void onRead(const T &data,int targetPos) {
-        if(!_useBuffer){
-            _readCB(data);
-        }else{
-            flushPacket(targetPos);
-        }
+        _readCB(data);
     }
 
-    inline void flushPacket(int targetPos){
+    inline void flushGop(int targetPos){
         const T *pkt  = nullptr;
         while((pkt = read(targetPos))){
             _readCB(*pkt);
