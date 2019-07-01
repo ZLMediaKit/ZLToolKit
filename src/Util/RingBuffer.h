@@ -75,7 +75,6 @@ public:
     _RingReader(const std::shared_ptr<_RingStorage<T> > &storage,bool useBuffer) {
         _storage = storage;
         _useBuffer = useBuffer;
-        resetPos(true);
     }
 
     ~_RingReader() {}
@@ -101,18 +100,23 @@ public:
     void resetPos(bool key = true) {
         _storageInternal = _storage->getStorageInternal();
         _curpos = _storageInternal->getPos(key);
-        _newReset = true;
+        if(key){
+            flushPacket(_storageInternal->getPos(false));
+        }
     }
 private:
     void onRead(const T &data,int targetPos) {
-        if(!_newReset || !_useBuffer){
+        if(!_useBuffer){
             _readCB(data);
         }else{
-            const T *pkt  = nullptr;
-            while((pkt = read(targetPos))){
-                _readCB(*pkt);
-            }
-            _newReset = false;
+            flushPacket(targetPos);
+        }
+    }
+
+    inline void flushPacket(int targetPos){
+        const T *pkt  = nullptr;
+        while((pkt = read(targetPos))){
+            _readCB(*pkt);
         }
     }
 
@@ -139,7 +143,6 @@ private:
     shared_ptr<_RingStorage<T> > _storage;
     int _curpos;
     bool _useBuffer;
-    bool _newReset = false;
 };
 
 template<typename T>
