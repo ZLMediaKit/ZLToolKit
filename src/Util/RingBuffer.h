@@ -84,8 +84,8 @@ public:
             _readCB = [](const T &) {};
         } else {
             _readCB = cb;
+            resetPos(true);
         }
-        resetPos(true);
     }
 
     void setDetachCB(const function<void()> &cb) {
@@ -101,16 +101,17 @@ public:
         _storageInternal = _storage->getStorageInternal();
         _curpos = _storageInternal->getPos(key);
         if(key && _useBuffer){
-            flushGop(_storageInternal->getPos(false));
+            flushGop();
         }
     }
 private:
-    void onRead(const T &data,int targetPos) {
+    void onRead(const T &data) {
         _readCB(data);
     }
 
-    inline void flushGop(int targetPos){
+    void flushGop(){
         const T *pkt  = nullptr;
+        auto targetPos = _storageInternal->getPos(false);
         while((pkt = read(targetPos))){
             _readCB(*pkt);
         }
@@ -349,11 +350,12 @@ private:
     void write(const T &in, bool isKey = true) {
         if (_storage->write(in, isKey)) {
             resetPos();
+        }else{
+            emitRead(in);
         }
-        emitRead(in,_storage->getPos(false));
     }
 
-    void emitRead(const T &in,int targetPos){
+    void emitRead(const T &in){
         for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
             auto reader = it->second.lock();
             if(!reader){
@@ -362,7 +364,7 @@ private:
                 onSizeChanged(false);
                 continue;
             }
-            reader->onRead(in,targetPos);
+            reader->onRead(in);
             ++it;
         }
 	}
