@@ -55,11 +55,13 @@ class_name &class_name::Instance() { \
 #include <string>
 #include <sstream>
 #include <vector>
+#include <unordered_map>
 
 using namespace std;
 
 namespace toolkit {
 
+#define StrPrinter _StrPrinter()
 class _StrPrinter : public string {
 public:
     _StrPrinter() {}
@@ -80,8 +82,7 @@ private:
 };
 
 //禁止拷贝基类
-class noncopyable
-{
+class noncopyable {
 protected:
     noncopyable() {}
     ~noncopyable() {}
@@ -93,7 +94,63 @@ private:
     noncopyable &operator=(noncopyable &&that) = delete;
 };
 
-#define StrPrinter _StrPrinter()
+//可以保存任意的对象
+class Any{
+public:
+    typedef std::shared_ptr<Any> Ptr;
+
+    Any() = default;
+    ~Any() = default;
+
+    template <typename C,typename ...ArgsType>
+    void set(ArgsType &&...args){
+        _data.reset(new C(std::forward<ArgsType>(args)...),[](void *ptr){
+            delete (C*) ptr;
+        });
+    }
+    template <typename C>
+    C& get(){
+        if(!_data){
+            throw std::invalid_argument("Any is empty");
+        }
+        C *ptr = (C *)_data.get();
+        return *ptr;
+    }
+
+    operator bool() {
+        return _data.operator bool ();
+    }
+private:
+    std::shared_ptr<void> _data;
+};
+
+//用于保存一些外加属性
+class AnyStorage : public unordered_map<string,Any>{
+public:
+    AnyStorage() = default;
+    ~AnyStorage() = default;
+    typedef std::shared_ptr<AnyStorage> Ptr;
+};
+
+//对象安全的构建和析构
+//构建后执行onCreate函数
+//析构前执行onDestory函数
+//在函数onCreate和onDestory中可以执行构造或析构中不能调用的方法，比如说shared_from_this或者虚函数
+class Creator {
+public:
+    template<typename C,typename ...ArgsType>
+    static std::shared_ptr<C> create(ArgsType &&...args){
+        std::shared_ptr<C> ret(new C(std::forward<ArgsType>(args)...),[](C *ptr){
+            ptr->onDestory();
+            delete ptr;
+        });
+        ret->onCreate();
+        return ret;
+    }
+private:
+    Creator() = default;
+    virtual ~Creator() = default;
+};
 
 string makeRandStr(int sz, bool printable = true);
 string hexdump(const void *buf, size_t len);
