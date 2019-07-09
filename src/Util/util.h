@@ -52,6 +52,7 @@ class_name &class_name::Instance() { \
 
 #include <stdio.h>
 #include <string.h>
+#include <memory>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -149,7 +150,7 @@ public:
     }
 private:
     Creator() = default;
-    virtual ~Creator() = default;
+    ~Creator() = default;
 };
 
 string makeRandStr(int sz, bool printable = true);
