@@ -183,10 +183,9 @@ public:
         }
 
         //如果环形缓存中没有关键帧，
-        //那么我们返回当前位置后面的偏移RING_MIN_SIZE/2的位置
-        //目的是为了防止读的时候被覆盖
-        //同时又能把环形缓存中的大部分缓存一次性输出
-        int ret = _ringPos + (RING_MIN_SIZE / 2);
+        //那么我们返回当前位置后面的偏移1的位置,
+        //这样能把环形缓存中的所有缓存一次性输出
+        int ret = _ringPos + 1;
         if(ret < _ringSize){
             return ret;
         }
