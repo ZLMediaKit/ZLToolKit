@@ -66,6 +66,9 @@ public:
 		(*_parser) << Option('b', "block",    Option::ArgRequired, to_string(1024 * 1024).data(), false, "客户端模式：测试数据块大小",           nullptr);
 		//默认1秒发送10次，总速度率为1MB/s * 10 * 10 = 100MB/s
 		(*_parser) << Option('i', "interval", Option::ArgRequired, to_string(100).data(),         false, "客户端模式：测试数据发送间隔，单位毫秒", nullptr);
+		//客户端启动间隔时间
+		(*_parser) << Option('d', "delay",   Option::ArgRequired, "50",                           false, "服务器模式：客户端启动间隔时间",        nullptr);
+
 		//指定服务器地址
 		(*_parser) << Option('s', "server",   Option::ArgRequired, "127.0.0.1:10000",             false, "客户端模式：测试服务器地址", []
 				(const std::shared_ptr<ostream> &stream, const string &arg) {
@@ -119,6 +122,7 @@ int main(int argc,char *argv[]){
 		int block 	 = cmd["block"];
 		auto ip      = cmd.splitedVal("server")[0];
 		int port     = cmd.splitedVal("server")[1];
+		int delay    = cmd["delay"];
         BufferRaw::Ptr buffer = std::make_shared<BufferRaw>(block);
         buffer->setSize(block);
 
@@ -133,13 +137,25 @@ int main(int argc,char *argv[]){
 					WarnL << err.what();
 					return;
 				}
-				socket->setOnRead([](const Buffer::Ptr &buf, struct sockaddr *addr , int addr_len){});
-				poller->doDelayTask(interval,[socket,interval,buffer](){
-					socket->send(buffer);
-					return interval;
-				});
-			});
+                socket->setOnErr([](const SockException &err){
+                    WarnL << err.what();
+                });
+                socket->setOnRead([interval,socket](const Buffer::Ptr &buffer, struct sockaddr *addr , int addr_len){
+                    if(!interval){
+                        socket->send(buffer);
+                    }
+                });
 
+                if(interval){
+                    poller->doDelayTask(interval,[socket,interval,buffer](){
+                        socket->send(buffer);
+                        return interval;
+                    });
+                }else{
+                    socket->send(buffer);
+                }
+			});
+			usleep(delay * 1000);
 		}
 
 		//设置退出信号处理函数
