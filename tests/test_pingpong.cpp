@@ -65,7 +65,7 @@ public:
 		//默认每次发送1MB的数据
 		(*_parser) << Option('b', "block",    Option::ArgRequired, to_string(1024 * 1024).data(), false, "客户端模式：测试数据块大小",           nullptr);
 		//默认1秒发送10次，总速度率为1MB/s * 10 * 10 = 100MB/s
-		(*_parser) << Option('i', "interval", Option::ArgRequired, to_string(100).data(),         false, "客户端模式：测试数据发送间隔，单位毫米", nullptr);
+		(*_parser) << Option('i', "interval", Option::ArgRequired, to_string(100).data(),         false, "客户端模式：测试数据发送间隔，单位毫秒", nullptr);
 		//指定服务器地址
 		(*_parser) << Option('s', "server",   Option::ArgRequired, "127.0.0.1:10000",             false, "客户端模式：测试服务器地址", []
 				(const std::shared_ptr<ostream> &stream, const string &arg) {
