@@ -142,8 +142,9 @@ private:
 	/**
 	 * 执行事件轮询
 	 * @param blocked 是否用执行该接口的线程执行轮询
+	 * @param registCurrentPoller 是否注册到全局map
 	 */
-	void runLoop(bool blocked = true);
+	void runLoop(bool blocked , bool registCurrentPoller);
 
 	/**
 	 * 内部管道事件，用于唤醒轮询线程用

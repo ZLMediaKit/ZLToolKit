@@ -40,15 +40,7 @@ EventPoller::Ptr WorkThreadPool::getFirstPoller(){
 }
 
 EventPoller::Ptr WorkThreadPool::getPoller(){
-	auto poller = EventPoller::getCurrentPoller();
-	if(_preferCurrentThread && poller){
-		return poller;
-	}
 	return dynamic_pointer_cast<EventPoller>(getExecutor());
-}
-
-void WorkThreadPool::preferCurrentThread(bool flag){
-	_preferCurrentThread = flag;
 }
 
 WorkThreadPool::WorkThreadPool(){
@@ -56,7 +48,7 @@ WorkThreadPool::WorkThreadPool(){
 	auto size = s_pool_size ? s_pool_size : thread::hardware_concurrency();
 	createThreads([](){
 		EventPoller::Ptr ret(new EventPoller(ThreadPool::PRIORITY_LOWEST));
-		ret->runLoop(false);
+		ret->runLoop(false, false);
 		return ret;
 	},size);
 }

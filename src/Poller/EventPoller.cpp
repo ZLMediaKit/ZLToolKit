@@ -266,12 +266,12 @@ EventPoller::Ptr EventPoller::getCurrentPoller(){
     }
     return it->second.lock();
 }
-void EventPoller::runLoop(bool blocked) {
+void EventPoller::runLoop(bool blocked,bool registCurrentPoller) {
     if (blocked) {
         ThreadPool::setPriority(_priority);
         lock_guard<mutex> lck(_mtx_runing);
         _loopThreadId = this_thread::get_id();
-        {
+        if(registCurrentPoller){
             lock_guard<mutex> lck(s_allThreadsMtx);
             s_allThreads[_loopThreadId] = shared_from_this();
         }
@@ -372,7 +372,7 @@ void EventPoller::runLoop(bool blocked) {
         }
 #endif //HAS_EPOLL
     }else{
-        _loopThread = new thread(&EventPoller::runLoop, this, true);
+        _loopThread = new thread(&EventPoller::runLoop, this, true,registCurrentPoller);
         _sem_run_started.wait();
     }
 }
@@ -457,7 +457,7 @@ EventPollerPool::EventPollerPool(){
     auto size = s_pool_size ? s_pool_size : thread::hardware_concurrency();
     createThreads([](){
         EventPoller::Ptr ret(new EventPoller);
-        ret->runLoop(false);
+        ret->runLoop(false, true);
         return ret;
     },size);
     InfoL << "创建EventPoller个数:" << size;
