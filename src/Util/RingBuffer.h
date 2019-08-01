@@ -216,6 +216,10 @@ public:
         ret->_ringSize = _ringSize;
         return ret;
     }
+
+    int size() const{
+        return _ringSize;
+    }
 private:
     class DataPair : public std::pair<bool,T>{
     public:
@@ -294,7 +298,8 @@ private:
         }
 
         //第二次获取关键帧，计算两个I帧之间的包个数
-        _besetSize = _totalCnt - _lastKeyCnt;
+        //缓存最多2个GOP，确保缓存中最少有一个GOP
+        _besetSize = (_totalCnt - _lastKeyCnt) * 2;
         if(_besetSize < RING_MIN_SIZE){
             _besetSize = RING_MIN_SIZE;
         }
