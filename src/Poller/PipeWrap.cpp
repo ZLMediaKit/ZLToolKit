@@ -54,7 +54,8 @@ PipeWrap::PipeWrap(){
 	checkFD(_pipe_fd[1])
 	_pipe_fd[0] = accept(_listenerFd, nullptr, nullptr);
 	checkFD(_pipe_fd[0])
-
+	SockUtil::setNoDelay(_pipe_fd[0]);
+    SockUtil::setNoDelay(_pipe_fd[1]);
 #else
 	if (pipe(_pipe_fd) == -1) {
 		throw runtime_error(StrPrinter << "create posix pipe failed:" << get_uv_errmsg());\
