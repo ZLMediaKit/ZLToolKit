@@ -387,7 +387,7 @@ void FileChannel::clean(){
     auto today = getDay(time(NULL));
     //遍历所有日志文件，删除老日志
     for(auto it = _log_file_map.begin(); it != _log_file_map.end() ; ){
-        if(today - it->first <=  _log_max_day){
+        if(today < it->first + _log_max_day){
             //这个日志文件距今不超过_log_max_day天
             break;
         }
