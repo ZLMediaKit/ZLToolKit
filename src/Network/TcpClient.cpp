@@ -51,11 +51,6 @@ void TcpClient::setNetAdapter(const string &localIp){
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
     weak_ptr<TcpClient> weakSelf = shared_from_this();
     _managerTimer.reset();
-    if(_sock){
-        _sock->setOnFlush(nullptr);
-        _sock->setOnErr(nullptr);
-        _sock->setOnRead(nullptr);
-    }
     _sock = std::make_shared<Socket>(_poller);
     _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
         auto strongSelf = weakSelf.lock();
@@ -73,25 +68,38 @@ void TcpClient::onSockConnect(const SockException &ex) {
     }
 
     weak_ptr<TcpClient> weakSelf = shared_from_this();
-    _sock->setOnErr([weakSelf](const SockException &ex) {
+    auto sock_ptr = _sock.get();
+    _sock->setOnErr([weakSelf,sock_ptr](const SockException &ex) {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
+            return;
+        }
+        if(sock_ptr != strongSelf->_sock.get()){
+            //已经重连socket，上传socket的事件忽略掉
             return;
         }
         strongSelf->_managerTimer.reset();
         strongSelf->onErr(ex);
     });
-    _sock->setOnFlush([weakSelf]() {
+    _sock->setOnFlush([weakSelf,sock_ptr]() {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
+            return false;
+        }
+        if(sock_ptr != strongSelf->_sock.get()){
+            //已经重连socket，上传socket的事件忽略掉
             return false;
         }
         strongSelf->onFlush();
         return true;
     });
-    _sock->setOnRead([weakSelf](const Buffer::Ptr &pBuf, struct sockaddr * , int) {
+    _sock->setOnRead([weakSelf,sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr * , int) {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
+            return;
+        }
+        if(sock_ptr != strongSelf->_sock.get()){
+            //已经重连socket，上传socket的事件忽略掉
             return;
         }
         strongSelf->onRecv(pBuf);
