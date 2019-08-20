@@ -121,6 +121,9 @@ public:
     operator bool() {
         return _data.operator bool ();
     }
+    bool empty(){
+        return !bool();
+    }
 private:
     std::shared_ptr<void> _data;
 };
