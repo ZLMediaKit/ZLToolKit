@@ -50,7 +50,7 @@ public:
           bool continueWhenException = true );
     ~Timer();
 private:
-    DelayTask::Ptr _tag;
+    weak_ptr<DelayTask> _tag;
     //定时器保持EventPoller的强引用
     EventPoller::Ptr _poller;
 };

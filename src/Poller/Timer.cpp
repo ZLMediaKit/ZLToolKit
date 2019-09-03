@@ -50,7 +50,10 @@ Timer::Timer(float second,
 }
 
 Timer::~Timer() {
-	_tag->cancel();
+    auto tag = _tag.lock();
+    if(tag){
+        tag->cancel();
+    }
 }
 
 }  // namespace toolkit
