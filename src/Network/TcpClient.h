@@ -46,7 +46,7 @@ public:
 	TcpClient(const EventPoller::Ptr &poller = nullptr);
 	virtual ~TcpClient();
     //开始连接服务器，strUrl可以是域名或ip
-    void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
+    virtual void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
     //主动断开服务器
     void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override ;
     //是否与服务器连接中
