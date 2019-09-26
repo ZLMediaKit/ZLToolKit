@@ -79,13 +79,14 @@ public:
 		auto nowTime = _ticker.elapsedTime();
 		if (_firstTime == 0) {
 			_firstTime = nowTime;
-			_lastTime = nowTime;
 			_pktCount = 0;
+			_timeInc = 0;
 			return nowTime;
 		}
-		uint64_t elapseTime = (nowTime - _firstTime);
-		uint64_t retTime = _lastTime + elapseTime / ++_pktCount;
-		_lastTime = retTime;
+
+		double elapseTime = (nowTime - _firstTime);
+		_timeInc += elapseTime / ++_pktCount;
+		uint64_t retTime = _firstTime + _timeInc;
 		if (elapseTime > _resetMs) {
 			_firstTime = 0;
 		}
@@ -94,13 +95,12 @@ public:
     void resetTime(){
 		_firstTime = 0;
 		_pktCount = 0;
-		_lastTime = 0;
 		_ticker.resetTime();
     }
 private:
+	double _timeInc = 0;
 	uint64_t _firstTime = 0;
 	uint64_t _pktCount = 0;
-	uint64_t _lastTime = 0;
 	uint64_t _resetMs;
 	Ticker _ticker;
 };
