@@ -30,13 +30,33 @@
 
 namespace toolkit {
 
+#ifdef _WIN32
+#define CLEAR_COLOR 7
+	static const WORD LOG_CONST_TABLE[][3] = {
+			{0x97, 0x09 , 0x54},//蓝底灰字，黑底蓝字，window console默认黑底
+			{0xA7, 0x0A , 0x44},//绿底灰字，黑底绿字
+			{0xB7, 0x0B , 0x49},//天蓝底灰字，黑底天蓝字
+			{0xE7, 0x0E , 0x57},//黄底灰字，黑底黄字
+			{0xC7, 0x0C , 0x45} };//红底灰字，黑底红字
+
+	bool SetConsoleColor(WORD Color)
+	{
+		HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
+		if (handle == 0)
+			return false;
+
+		BOOL ret = SetConsoleTextAttribute(handle, Color);
+		return(ret == TRUE);
+	}
+#else
 #define CLEAR_COLOR "\033[0m"
-static const char *LOG_CONST_TABLE[][3] = {
-        {"\033[44;37m", "\033[34m" , "T"},
-        {"\033[42;37m", "\033[32m" , "D"},
-        {"\033[46;37m", "\033[36m" , "I"},
-        {"\033[43;37m", "\033[33m" , "W"},
-        {"\033[41;37m", "\033[31m" , "E"}};
+	static const char* LOG_CONST_TABLE[][3] = {
+			{"\033[44;37m", "\033[34m" , "T"},
+			{"\033[42;37m", "\033[32m" , "D"},
+			{"\033[46;37m", "\033[36m" , "I"},
+			{"\033[43;37m", "\033[33m" , "W"},
+			{"\033[41;37m", "\033[31m" , "E"} };
+#endif
 
 ///////////////////Logger///////////////////
 INSTANCE_IMP(Logger,exeName());
@@ -192,8 +212,10 @@ void ConsoleChannel::write(const Logger &logger,const LogContextPtr &logContext)
         return;
     }
 
-#if defined(_WIN32) || defined(OS_IPHONE)
-    format(logger,std::cout, logContext , false);
+#if defined(_WIN32)
+    format(logger,std::cout, logContext , true, true);
+#elif defined(OS_IPHONE)
+	format(logger, std::cout, logContext, false);
 #elif defined(ANDROID)
     static android_LogPriority LogPriorityArr[10];
     static onceToken s_token([](){
@@ -273,10 +295,16 @@ void LogChannel::format(const Logger &logger,ostream &ost,const LogContextPtr & 
     }
 
     if (enableColor) {
+#ifdef _WIN32
+		SetConsoleColor(LOG_CONST_TABLE[logContext->_level][1]);
+		ost << printTime(logContext->_tv) << " " << (char)LOG_CONST_TABLE[logContext->_level][2] << " | ";
+#else
         ost << LOG_CONST_TABLE[logContext->_level][1];
+		ost << printTime(logContext->_tv) << " " << LOG_CONST_TABLE[logContext->_level][2] << " | ";
+#endif
     }
 
-    ost << printTime(logContext->_tv) << " " << LOG_CONST_TABLE[logContext->_level][2] << " | ";
+    
 
     if (enableDetail) {
         ost << logContext->_function << " ";
@@ -285,7 +313,11 @@ void LogChannel::format(const Logger &logger,ostream &ost,const LogContextPtr & 
     ost << logContext->str();
 
     if (enableColor) {
-        ost << CLEAR_COLOR;
+#ifdef _WIN32
+		SetConsoleColor(CLEAR_COLOR);
+#else
+		ost << CLEAR_COLOR;
+#endif
     }
 
     ost << endl;
