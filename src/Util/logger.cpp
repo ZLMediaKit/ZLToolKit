@@ -33,11 +33,11 @@ namespace toolkit {
 #ifdef _WIN32
 #define CLEAR_COLOR 7
 	static const WORD LOG_CONST_TABLE[][3] = {
-			{0x97, 0x09 , 0x54},//蓝底灰字，黑底蓝字，window console默认黑底
-			{0xA7, 0x0A , 0x44},//绿底灰字，黑底绿字
-			{0xB7, 0x0B , 0x49},//天蓝底灰字，黑底天蓝字
-			{0xE7, 0x0E , 0x57},//黄底灰字，黑底黄字
-			{0xC7, 0x0C , 0x45} };//红底灰字，黑底红字
+			{0x97, 0x09 , 'T'},//蓝底灰字，黑底蓝字，window console默认黑底
+			{0xA7, 0x0A , 'D'},//绿底灰字，黑底绿字
+			{0xB7, 0x0B , 'I'},//天蓝底灰字，黑底天蓝字
+			{0xE7, 0x0E , 'W'},//黄底灰字，黑底黄字
+			{0xC7, 0x0C , 'E'} };//红底灰字，黑底红字
 
 	bool SetConsoleColor(WORD Color)
 	{
