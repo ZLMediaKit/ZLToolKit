@@ -296,15 +296,17 @@ void LogChannel::format(const Logger &logger,ostream &ost,const LogContextPtr & 
 
     if (enableColor) {
 #ifdef _WIN32
-		SetConsoleColor(LOG_CONST_TABLE[logContext->_level][1]);
-		ost << printTime(logContext->_tv) << " " << (char)LOG_CONST_TABLE[logContext->_level][2] << " | ";
+        SetConsoleColor(LOG_CONST_TABLE[logContext->_level][1]);
 #else
         ost << LOG_CONST_TABLE[logContext->_level][1];
-		ost << printTime(logContext->_tv) << " " << LOG_CONST_TABLE[logContext->_level][2] << " | ";
 #endif
     }
 
-    
+#ifdef _WIN32
+    ost << printTime(logContext->_tv) << " " << (char)LOG_CONST_TABLE[logContext->_level][2] << " | ";
+#else
+    ost << printTime(logContext->_tv) << " " << LOG_CONST_TABLE[logContext->_level][2] << " | ";
+#endif
 
     if (enableDetail) {
         ost << logContext->_function << " ";
