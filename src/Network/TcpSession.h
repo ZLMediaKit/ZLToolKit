@@ -71,7 +71,9 @@ public:
             public_onRecv(buffer);
 		});
 	}
-	virtual ~TcpSessionWithSSL(){}
+	virtual ~TcpSessionWithSSL(){
+		_sslBox.flush();
+	}
 
 	void onRecv(const Buffer::Ptr &pBuf) override{
 		_sslBox.onRecv(pBuf);

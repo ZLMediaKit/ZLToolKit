@@ -158,8 +158,9 @@ public:
 		_onEnc = std::forward<F>(fun);;
 	}
 	void shutdown();
-private:
+
 	void flush();
+private:
 	void flushWriteBio();
 	void flushReadBio();
 private:

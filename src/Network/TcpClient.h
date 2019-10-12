@@ -78,7 +78,11 @@ public:
 
     template<typename ...ArgsType>
     TcpClientWithSSL(ArgsType &&...args):TcpClientType(std::forward<ArgsType>(args)...){}
-    virtual ~TcpClientWithSSL(){}
+    virtual ~TcpClientWithSSL(){
+        if(_sslBox){
+            _sslBox->flush();
+        }
+    }
 
     void onRecv(const Buffer::Ptr &pBuf) override{
         if(_sslBox){
