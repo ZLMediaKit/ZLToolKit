@@ -280,14 +280,14 @@ private:
 	 * @param second
 	 * @return
 	 */
-	uint64_t getDay(time_t second);
+	int64_t getDay(time_t second);
 	/**
 	 * 删除老文件
 	 */
 	void clean();
 private:
 	string _dir;
-	uint64_t _last_day = 0;
+	int64_t _last_day = -1;
 	map<uint64_t,string> _log_file_map;
 	int _log_max_day = 30;
 };

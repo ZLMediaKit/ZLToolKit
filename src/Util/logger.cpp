@@ -386,7 +386,7 @@ FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) 
 FileChannel::~FileChannel() {}
 
 static const auto s_second_per_day = 24 * 60 * 60;
-uint64_t FileChannel::getDay(time_t second) {
+int64_t FileChannel::getDay(time_t second) {
     return second / s_second_per_day;
 }
 
