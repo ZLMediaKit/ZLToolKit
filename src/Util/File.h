@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include "util.h"
+
 using namespace std;
 #if defined(__linux__)
 #include <limits.h>
@@ -99,6 +101,22 @@ public:
 	 * @return 是否保存成功
 	 */
 	static bool saveFile(const string &data,const char *path);
+
+	/**
+	 * 获取父文件夹
+	 * @param path 路径
+	 * @return 文件夹
+	 */
+	static string parentDir(const string &path);
+
+    /**
+     * 替换"../"，获取绝对路径
+     * @param path 相对路径，里面可能包含 "../"
+	 * @param canAccessParent 能否访问父目录之外的目录
+     * @param currentPath 当前目录
+     * @return 替换"../"之后的路径
+     */
+	static string absolutePath(const string &path, bool canAccessParent = true, const string &currentPath = exeDir());
 private:
 	File();
 	~File();

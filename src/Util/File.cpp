@@ -36,6 +36,7 @@
 #include "Util/util.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
+#include "Util/onceToken.h"
 
 using namespace std;
 using namespace toolkit;
@@ -260,4 +261,53 @@ bool File::saveFile(const string &data, const char *path) {
 	return true;
 }
 
+string File::parentDir(const string &path) {
+	auto parent_dir = path;
+	if(parent_dir.back() == '/'){
+		parent_dir.pop_back();
+	}
+	auto pos = parent_dir.rfind('/');
+	if(pos != string::npos){
+		parent_dir = parent_dir.substr(0,pos + 1);
+	}
+	return std::move(parent_dir);
+}
+
+string File::absolutePath(const string &path, bool canAccessParent, const string &currentPath_in) {
+    string currentPath = currentPath_in;
+    auto dir_vec = split(path,"/");
+	for(auto &dir : dir_vec){
+		if(dir.empty() || dir == "."){
+			//空或当前目录
+			continue;
+		}
+		if(dir == ".."){
+			//访问上级目录
+			if(!canAccessParent && currentPath.size() <= currentPath_in.size()){
+				//不能访问根目录之外的目录
+				return "";
+			}
+			currentPath = parentDir(currentPath);
+			continue;
+		}
+		currentPath.append(dir);
+		currentPath.append("/");
+	}
+
+	if(path.back() != '/' && currentPath.back() == '/'){
+		currentPath.pop_back();
+	}
+	return currentPath;
+}
+
+//onceToken onceToken1([](){
+//    cout << "####" << endl;
+//	cout << File::absolutePath("../../release/bin/httpRoot/jscms/web", true) << endl;
+//	cout << File::absolutePath("/") << endl;
+//	cout << File::absolutePath("../a/b/./c//1") << endl;
+//	cout << File::absolutePath("aa/../b/./c//2") << endl;
+//	cout << File::absolutePath("/aa/../b/./c//3") << endl;
+//	cout << File::absolutePath("/aa/../b/../c//4") << endl;
+//	cout << File::absolutePath("/aa/../b/../c//5/../") << endl;
+//});
 } /* namespace toolkit */
