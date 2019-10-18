@@ -273,11 +273,11 @@ string File::parentDir(const string &path) {
 	return std::move(parent_dir);
 }
 
-string File::absolutePath(const string &path, bool canAccessParent, const string &currentPath_in) {
+string File::absolutePath(const string &path,const string &currentPath_in,bool canAccessParent) {
 	string currentPath = currentPath_in;
 	if(currentPath.front() == '.'){
         //如果当前目录是相对路径，那么先转换成绝对路径
-		currentPath = absolutePath(currentPath_in, true, exeDir());
+		currentPath = absolutePath(currentPath_in,exeDir(),true);
 	}
 	if(currentPath.back() != '/'){
 		//确保当前目录最后字节为'/'
@@ -310,15 +310,4 @@ string File::absolutePath(const string &path, bool canAccessParent, const string
 	return currentPath;
 }
 
-//onceToken onceToken1([](){
-//    cout << "####" << endl;
-//	cout << File::absolutePath("/jscms/web",true,"../release/bin/httpRoot") << endl;
-//	cout << File::absolutePath("../../release/bin/httpRoot/jscms/web", true) << endl;
-//	cout << File::absolutePath("/") << endl;
-//	cout << File::absolutePath("../a/b/./c//1") << endl;
-//	cout << File::absolutePath("aa/../b/./c//2") << endl;
-//	cout << File::absolutePath("/aa/../b/./c//3") << endl;
-//	cout << File::absolutePath("/aa/../b/../c//4") << endl;
-//	cout << File::absolutePath("/aa/../b/../c//5/../") << endl;
-//});
 } /* namespace toolkit */

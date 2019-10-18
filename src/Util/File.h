@@ -112,11 +112,11 @@ public:
     /**
      * 替换"../"，获取绝对路径
      * @param path 相对路径，里面可能包含 "../"
-	 * @param canAccessParent 能否访问父目录之外的目录
      * @param currentPath 当前目录
+	 * @param canAccessParent 能否访问父目录之外的目录
      * @return 替换"../"之后的路径
      */
-	static string absolutePath(const string &path, bool canAccessParent = true, const string &currentPath = exeDir());
+	static string absolutePath(const string &path, const string &currentPath,bool canAccessParent = false);
 private:
 	File();
 	~File();
