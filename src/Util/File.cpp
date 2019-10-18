@@ -274,11 +274,20 @@ string File::parentDir(const string &path) {
 }
 
 string File::absolutePath(const string &path, bool canAccessParent, const string &currentPath_in) {
-    string currentPath = currentPath_in;
+	string currentPath = currentPath_in;
+	if(currentPath.front() == '.'){
+        //如果当前目录是相对路径，那么先转换成绝对路径
+		currentPath = absolutePath(currentPath_in, true, exeDir());
+	}
+	if(currentPath.back() != '/'){
+		//确保当前目录最后字节为'/'
+		currentPath.push_back('/');
+	}
+
     auto dir_vec = split(path,"/");
 	for(auto &dir : dir_vec){
 		if(dir.empty() || dir == "."){
-			//空或当前目录
+			//忽略空或本文件夹
 			continue;
 		}
 		if(dir == ".."){
@@ -295,6 +304,7 @@ string File::absolutePath(const string &path, bool canAccessParent, const string
 	}
 
 	if(path.back() != '/' && currentPath.back() == '/'){
+		//在路径是文件的情况下，防止转换成目录
 		currentPath.pop_back();
 	}
 	return currentPath;
@@ -302,6 +312,7 @@ string File::absolutePath(const string &path, bool canAccessParent, const string
 
 //onceToken onceToken1([](){
 //    cout << "####" << endl;
+//	cout << File::absolutePath("/jscms/web",true,"../release/bin/httpRoot") << endl;
 //	cout << File::absolutePath("../../release/bin/httpRoot/jscms/web", true) << endl;
 //	cout << File::absolutePath("/") << endl;
 //	cout << File::absolutePath("../a/b/./c//1") << endl;
