@@ -248,6 +248,7 @@ string File::loadFile(const char *path) {
 	fseek(fp,0,SEEK_SET);
 	string str(len,'\0');
 	fread((char *)str.data(),str.size(),1,fp);
+    fclose(fp);
 	return str;
 }
 
