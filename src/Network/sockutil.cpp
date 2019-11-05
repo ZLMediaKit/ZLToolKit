@@ -373,9 +373,9 @@ void for_each_netAdapter_win32(FUN && fun) { //type: PIP_ADAPTER_INFO
 template<typename FUN>
 void for_each_netAdapter_posix(FUN &&fun){ //type: struct ifreq *
 	struct ifconf ifconf;
-	char buf[512];
+	char buf[1024 * 10];
 	//初始化ifconf
-	ifconf.ifc_len = 512;
+	ifconf.ifc_len = sizeof(buf);
 	ifconf.ifc_buf = buf;
     int sockfd = ::socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
