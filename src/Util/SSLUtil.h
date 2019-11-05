@@ -127,6 +127,12 @@ public:
      */
     static string cryptWithRsaPrivateKey(EVP_PKEY *private_key, const string &in_str, bool enc_or_dec);
 
+    /**
+     * 获取证书域名
+     * @param cer 证书公钥
+     * @return 证书域名
+     */
+    static string getServerName(X509 *cer);
 };
 
 }//namespace toolkit

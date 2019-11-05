@@ -105,7 +105,8 @@ SSL_Initor::SSL_Initor() {
 #endif
 	});
 
-    setContext(SSLUtil::makeSSLContext(nullptr, nullptr, false),false);
+    setContext("",SSLUtil::makeSSLContext(nullptr, nullptr, false),false);
+    setContext("",SSLUtil::makeSSLContext(nullptr, nullptr, true),true);
 #endif //defined(ENABLE_OPENSSL)
 }
 
@@ -137,18 +138,58 @@ bool SSL_Initor::loadCertificate(const string &pem_or_p12,  bool serverMode, con
 						   serverMode);
 }
 bool SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode) {
-	return setContext(SSLUtil::makeSSLContext(public_key, private_key, serverMode),serverMode);
+	return setContext(SSLUtil::getServerName(public_key),SSLUtil::makeSSLContext(public_key, private_key, serverMode),serverMode);
 }
 
-bool SSL_Initor::setContext(const shared_ptr<SSL_CTX> &ctx, bool serverMode) {
-#if defined(ENABLE_OPENSSL)
-	auto &ref = serverMode ? _ctx_server : _ctx_client;
-	ref = ctx;
-	if(!ref){
+int SSL_Initor::findCertificate(SSL *ssl, int *ad, void *arg) {
+#if !defined(ENABLE_OPENSSL)
+	return SSL_TLSEXT_ERR_NOACK;
+#else
+	if(ssl == NULL){
+		return SSL_TLSEXT_ERR_ALERT_FATAL;
+	}
+
+	SSL_CTX* ctx = NULL;
+	const char *vhost = SSL_get_servername(ssl,TLSEXT_NAMETYPE_host_name);
+	if (vhost && vhost[0] != '\0') {
+		//从map中找到vhost对应的SSL_CTX
+		ctx =  SSL_Initor::Instance().getSSLCtx(vhost,(bool)(arg)).get();
+	} else {
+		//选一个默认的SSL_CTX
+		ctx =  SSL_Initor::Instance().getSSLCtx("",(bool)(arg)).get();
+		vhost = "default vhost";
+	}
+
+	if(!ctx){
+		//未找到对应的证书
+		DebugL << "can not find any certificate of host:" << vhost;
+		return SSL_TLSEXT_ERR_ALERT_FATAL;
+	}
+
+	SSL_set_SSL_CTX(ssl, ctx);
+	return SSL_TLSEXT_ERR_OK;
+#endif
+}
+
+bool SSL_Initor::setContext(const string &vhost,const shared_ptr<SSL_CTX> &ctx, bool serverMode) {
+	if(!ctx){
 		WarnL << "证书无效!";
 		return false;
 	}
-	setupCtx(ref.get());
+	setupCtx(ctx.get());
+
+#if defined(ENABLE_OPENSSL)
+    if(vhost.empty()){
+		_ctx_empty[serverMode] = ctx;
+		if(serverMode){
+			SSL_CTX_set_tlsext_servername_callback(ctx.get(), findCertificate);
+			SSL_CTX_set_tlsext_servername_arg(ctx.get(),serverMode);
+		}
+    }else{
+		_ctxs[serverMode][vhost] = ctx;
+		_default_vhost[serverMode] = vhost;
+        DebugL << "add certificate of: " << vhost;
+    }
 	return true;
 #else
 	WarnL << "ENABLE_OPENSSL宏未启用,openssl相关功能将无效!";
@@ -183,22 +224,31 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
 
 shared_ptr<SSL> SSL_Initor::makeSSL(bool serverMode) {
 #if defined(ENABLE_OPENSSL)
-    if(serverMode){
-		return _ctx_server ? SSLUtil::makeSSL(_ctx_server.get()) : nullptr;
-	}
-	return _ctx_client ? SSLUtil::makeSSL(_ctx_client.get()) : nullptr;
+	return SSLUtil::makeSSL(_ctx_empty[serverMode].get());;
 #else
     return nullptr;
 #endif //defined(ENABLE_OPENSSL)
 }
 
 bool SSL_Initor::trustCertificate(X509 *cer, bool serverMode) {
-	return SSLUtil::trustCertificate(serverMode ? _ctx_server.get() : _ctx_client.get(),cer);
+	return SSLUtil::trustCertificate(_ctx_empty[serverMode].get(),cer);
 }
 
 bool SSL_Initor::trustCertificate(const string &pem_p12_cer, bool serverMode, const string &passwd, bool isFile) {
 	return trustCertificate(SSLUtil::loadPublicKey(pem_p12_cer,passwd,isFile).get(),serverMode);
 }
+
+std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost,bool serverMode){
+	if(vhost.empty()){
+		return _ctxs[serverMode][_default_vhost[serverMode]];
+	}
+	return _ctxs[serverMode][vhost];
+}
+
+void SSL_Initor::setDefaultCertificate(const string &default_vhost,bool serverMode) {
+	_default_vhost[serverMode] = default_vhost;
+}
+
 ////////////////////////////////////////////////////SSL_Box////////////////////////////////////////////////////////////
 
 SSL_Box::SSL_Box(bool serverMode,

@@ -84,12 +84,6 @@ public:
 	 */
 	bool loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode);
 
-	/**
-	 * 设置ssl context
-	 * @param ctx ssl context
-	 * @param serverMode ssl context
-	 */
-	bool setContext(const std::shared_ptr<SSL_CTX> &ctx,bool serverMode);
 
 	/**
 	 * 创建SSL对象
@@ -123,13 +117,51 @@ public:
 	 * @return 是否加载成功
 	 */
 	bool trustCertificate(X509 *cer,bool serverMode = false) ;
+
+	/**
+	 * 设置默认虚拟主机
+	 * @param default_vhost 默认虚拟主机
+	 * @param serverMode 是否为服务器模式
+	 */
+	void setDefaultCertificate(const string &default_vhost,bool serverMode = true);
 private:
 	SSL_Initor();
 	~SSL_Initor();
+
+	/**
+	 * 设置ssl context
+	 * @param vhost 虚拟主机名
+	 * @param ctx ssl context
+	 * @param serverMode ssl context
+	 */
+	bool setContext(const string &vhost,const std::shared_ptr<SSL_CTX> &ctx,bool serverMode);
+
+	/**
+	 * 设置SSL_CTX的默认配置
+	 * @param ctx 对象指针
+	 */
 	void setupCtx(SSL_CTX *ctx);
+
+	/**
+	 * 根据虚拟主机获取SSL_CTX对象
+	 * @param vhost 虚拟主机名
+	 * @param serverMode 是否为服务器模式
+	 * @return SSL_CTX对象
+	 */
+	std::shared_ptr<SSL_CTX> getSSLCtx(const string &vhost,bool serverMode);
+
+	/**
+	 * 完成vhost name 匹配的回调函数
+	 * @param ssl
+	 * @param ad
+	 * @param arg
+	 * @return
+	 */
+	static int findCertificate(SSL *ssl, int *ad, void *arg);
 private:
-	std::shared_ptr<SSL_CTX> _ctx_server;
-	std::shared_ptr<SSL_CTX> _ctx_client;
+	std::shared_ptr<SSL_CTX> _ctx_empty[2];
+	map<string,std::shared_ptr<SSL_CTX> > _ctxs[2];
+	string _default_vhost[2];
 };
 
 ////////////////////////////////////////////////////////////////////////////////////
