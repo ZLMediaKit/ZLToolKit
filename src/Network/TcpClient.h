@@ -107,6 +107,11 @@ public:
     inline void public_send(const Buffer::Ptr &pBuf){
         TcpClientType::send(pBuf);
     }
+
+    void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3) override{
+        _host = strUrl;
+        TcpClientType::startConnect(strUrl,iPort,fTimeOutSec);
+    }
 protected:
     void onConnect(const SockException &ex)  override {
         if(!ex){
@@ -117,11 +122,17 @@ protected:
             _sslBox->setOnEncData([this](const Buffer::Ptr &pBuf){
                 public_send(pBuf);
             });
+
+            if(!isIP(_host.data())){
+                //设置ssl域名
+                _sslBox->setHost(_host.data());
+            }
         }
         TcpClientType::onConnect(ex);
     }
 private:
     std::shared_ptr<SSL_Box> _sslBox;
+    string _host;
 };
 
 

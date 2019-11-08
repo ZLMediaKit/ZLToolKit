@@ -64,6 +64,11 @@
 
 #endif //defined(ENABLE_OPENSSL)
 
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+//openssl版本是否支持sni
+#define SSL_ENABLE_SNI
+#endif
+
 namespace toolkit {
 
 static bool s_ingroleSsl = true;
@@ -137,7 +142,7 @@ bool SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool s
 }
 
 int SSL_Initor::findCertificate(SSL *ssl, int *ad, void *arg) {
-#if !defined(ENABLE_OPENSSL)
+#if !defined(ENABLE_OPENSSL) || !defined(SSL_ENABLE_SNI)
 	return 0;
 #else
 	if(!ssl){
@@ -181,10 +186,14 @@ bool SSL_Initor::setContext(const string &vhost,const shared_ptr<SSL_CTX> &ctx, 
 #if defined(ENABLE_OPENSSL)
     if(vhost.empty()){
 		_ctx_empty[serverMode] = ctx;
+
+#ifdef SSL_ENABLE_SNI
 		if(serverMode){
 			SSL_CTX_set_tlsext_servername_callback(ctx.get(), findCertificate);
 			SSL_CTX_set_tlsext_servername_arg(ctx.get(),serverMode);
 		}
+#endif // SSL_ENABLE_SNI
+
     }else{
 		_ctxs[serverMode][vhost] = ctx;
 		if(isDefault){
@@ -226,7 +235,13 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
 
 shared_ptr<SSL> SSL_Initor::makeSSL(bool serverMode) {
 #if defined(ENABLE_OPENSSL)
-	return SSLUtil::makeSSL(_ctx_empty[serverMode].get());;
+#ifdef SSL_ENABLE_SNI
+    //openssl 版本支持SNI
+	return SSLUtil::makeSSL(_ctx_empty[serverMode].get());
+#else
+    //openssl 版本不支持SNI，选择默认证书
+	return SSLUtil::makeSSL(getSSLCtx("",serverMode).get());
+#endif//SSL_CTRL_SET_TLSEXT_HOSTNAME
 #else
     return nullptr;
 #endif //defined(ENABLE_OPENSSL)
@@ -241,6 +256,10 @@ bool SSL_Initor::trustCertificate(const string &pem_p12_cer, bool serverMode, co
 }
 
 std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost,bool serverMode){
+    if(!serverMode){
+		return _ctx_empty[serverMode];
+    }
+
 	if(vhost.empty()){
 		return _ctxs[serverMode][_default_vhost[serverMode]];
 	}
@@ -397,6 +416,12 @@ void SSL_Box::flush() {
 		flushWriteBio();
 	}
 #endif //defined(ENABLE_OPENSSL)
+}
+
+bool SSL_Box::setHost(const char *host) {
+#ifdef SSL_ENABLE_SNI
+	return 0 != SSL_set_tlsext_host_name(_ssl.get(), host);
+#endif//SSL_ENABLE_SNI
 }
 
 

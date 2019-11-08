@@ -347,7 +347,7 @@ string SSLUtil::cryptWithRsaPrivateKey(EVP_PKEY *private_key, const string &in_s
 }
 
 string SSLUtil::getServerName(X509 *cer) {
-#if defined(ENABLE_OPENSSL)
+#if defined(ENABLE_OPENSSL) && defined(SSL_CTRL_SET_TLSEXT_HOSTNAME)
     if(!cer){
         return "";
     }

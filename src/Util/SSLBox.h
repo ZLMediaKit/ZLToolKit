@@ -198,6 +198,13 @@ public:
 	 * 清空数据
 	 */
 	void flush();
+
+	/**
+	 * 设置虚拟主机名
+	 * @param host 虚拟主机名
+	 * @return 是否成功
+	 */
+	bool setHost(const char *host);
 private:
 	void flushWriteBio();
 	void flushReadBio();

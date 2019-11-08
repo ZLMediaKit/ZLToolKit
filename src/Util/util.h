@@ -173,7 +173,7 @@ std::string strToLower(std::string &&str);
 std::string &strToUpper(std::string &str);
 std::string strToUpper(std::string &&str);
 void replace(string &str, const string &old_str, const string &new_str) ;
-
+bool isIP(const char *str);
 
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));

@@ -33,6 +33,7 @@
 #include "Util/File.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
+#include "Network/sockutil.h"
 
 #if defined(_WIN32)
 #include <shlwapi.h>  
@@ -241,6 +242,10 @@ void replace(string &str, const string &old_str, const string &new_str) {
 	}
 	str.replace(pos, old_str.size(), new_str);
 	replace(str, old_str, new_str);
+}
+
+bool isIP(const char *str){
+	return INADDR_NONE != inet_addr(str);
 }
 
 #if defined(_WIN32)
