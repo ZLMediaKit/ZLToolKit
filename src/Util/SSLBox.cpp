@@ -143,7 +143,7 @@ bool SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool s
 
 int SSL_Initor::findCertificate(SSL *ssl, int *ad, void *arg) {
 #if !defined(ENABLE_OPENSSL)
-	return SSL_TLSEXT_ERR_NOACK;
+	return 0;
 #else
 	if(ssl == NULL){
 		return SSL_TLSEXT_ERR_ALERT_FATAL;
