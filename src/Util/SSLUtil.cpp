@@ -348,13 +348,16 @@ string SSLUtil::cryptWithRsaPrivateKey(EVP_PKEY *private_key, const string &in_s
 
 string SSLUtil::getServerName(X509 *cer) {
 #if defined(ENABLE_OPENSSL)
+    if(!cer){
+        return "";
+    }
     //获取证书里的域名
     X509_NAME* name = X509_get_subject_name(cer);
     char ret[256] = { 0 };
     X509_NAME_get_text_by_NID(name, NID_commonName, ret, sizeof(ret));
     return ret;
 #else
-    return std::string();
+    return "";
 #endif
 }
 

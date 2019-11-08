@@ -124,40 +124,41 @@ SSL_Initor::~SSL_Initor() {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-bool SSL_Initor::loadServerPem(const char *pem_or_p12, const char *passwd){
-	return loadCertificate(pem_or_p12, true,passwd, true);
-
-}
-bool SSL_Initor::loadClientPem(const char *pem_or_p12, const char *passwd){
-	return loadCertificate(pem_or_p12,false,passwd, true);
+bool SSL_Initor::loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd , bool isFile,bool isDefault){
+    return loadCertificate(SSLUtil::loadPublicKey(pem_or_p12, passwd, isFile).get(),
+                               SSLUtil::loadPrivateKey(pem_or_p12, passwd, isFile).get(),
+                               serverMode,isDefault);
 }
 
-bool SSL_Initor::loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd , bool isFile){
-	return loadCertificate(SSLUtil::loadPublicKey(pem_or_p12, passwd, isFile).get(),
-						   SSLUtil::loadPrivateKey(pem_or_p12, passwd, isFile).get(),
-						   serverMode);
-}
-bool SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode) {
-	return setContext(SSLUtil::getServerName(public_key),SSLUtil::makeSSLContext(public_key, private_key, serverMode),serverMode);
+bool SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode,bool isDefault) {
+	return setContext(SSLUtil::getServerName(public_key),
+					  SSLUtil::makeSSLContext(public_key, private_key, serverMode),
+					  serverMode,isDefault);
 }
 
 int SSL_Initor::findCertificate(SSL *ssl, int *ad, void *arg) {
 #if !defined(ENABLE_OPENSSL)
 	return 0;
 #else
-	if(ssl == NULL){
+	if(!ssl){
 		return SSL_TLSEXT_ERR_ALERT_FATAL;
 	}
 
 	SSL_CTX* ctx = NULL;
+	static auto &ref = SSL_Initor::Instance();
 	const char *vhost = SSL_get_servername(ssl,TLSEXT_NAMETYPE_host_name);
+
 	if (vhost && vhost[0] != '\0') {
 		//从map中找到vhost对应的SSL_CTX
-		ctx =  SSL_Initor::Instance().getSSLCtx(vhost,(bool)(arg)).get();
+		ctx =  ref.getSSLCtx(vhost,(bool)(arg)).get();
 	} else {
 		//选一个默认的SSL_CTX
-		ctx =  SSL_Initor::Instance().getSSLCtx("",(bool)(arg)).get();
-		vhost = "default vhost";
+		ctx =  ref.getSSLCtx("",(bool)(arg)).get();
+		if(ctx){
+			DebugL << "client does not specify host, select default certificate of host: " << ref.defaultVhost((bool)(arg));
+		} else{
+			vhost = "default host";
+		}
 	}
 
 	if(!ctx){
@@ -171,9 +172,8 @@ int SSL_Initor::findCertificate(SSL *ssl, int *ad, void *arg) {
 #endif
 }
 
-bool SSL_Initor::setContext(const string &vhost,const shared_ptr<SSL_CTX> &ctx, bool serverMode) {
+bool SSL_Initor::setContext(const string &vhost,const shared_ptr<SSL_CTX> &ctx, bool serverMode, bool isDefault) {
 	if(!ctx){
-		WarnL << "证书无效!";
 		return false;
 	}
 	setupCtx(ctx.get());
@@ -187,7 +187,9 @@ bool SSL_Initor::setContext(const string &vhost,const shared_ptr<SSL_CTX> &ctx, 
 		}
     }else{
 		_ctxs[serverMode][vhost] = ctx;
-		_default_vhost[serverMode] = vhost;
+		if(isDefault){
+			_default_vhost[serverMode] = vhost;
+		}
         DebugL << "add certificate of: " << vhost;
     }
 	return true;
@@ -245,26 +247,24 @@ std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost,bool serverMo
 	return _ctxs[serverMode][vhost];
 }
 
-void SSL_Initor::setDefaultCertificate(const string &default_vhost,bool serverMode) {
-	_default_vhost[serverMode] = default_vhost;
+string SSL_Initor::defaultVhost(bool serverMode) {
+	return _default_vhost[serverMode];
 }
 
 ////////////////////////////////////////////////////SSL_Box////////////////////////////////////////////////////////////
+SSL_Box::~SSL_Box() {}
 
-SSL_Box::SSL_Box(bool serverMode,
-				 bool enable,
-				 int buffSize) {
+SSL_Box::SSL_Box(bool serverMode, bool enable, int buffSize) {
 #if defined(ENABLE_OPENSSL)
     _read_bio = BIO_new(BIO_s_mem());
     _serverMode = serverMode;
     if(enable){
-        _ssl =  SSL_Initor::Instance().makeSSL(serverMode) ;
+        _ssl = SSL_Initor::Instance().makeSSL(serverMode);
     }
     if(_ssl){
 		_write_bio = BIO_new(BIO_s_mem());
 		SSL_set_bio(_ssl.get(), _read_bio, _write_bio);
 		_serverMode ? SSL_set_accept_state(_ssl.get()) : SSL_set_connect_state(_ssl.get());
-
 	} else {
 		WarnL << "ssl disabled!";
 	}
@@ -272,8 +272,6 @@ SSL_Box::SSL_Box(bool serverMode,
 	_bufferBio = std::make_shared<BufferRaw>(buffSize);
 #endif //defined(ENABLE_OPENSSL)
 }
-
-SSL_Box::~SSL_Box() {}
 
 void SSL_Box::shutdown() {
 #if defined(ENABLE_OPENSSL)
@@ -285,6 +283,7 @@ void SSL_Box::shutdown() {
 	}
 #endif //defined(ENABLE_OPENSSL)
 }
+
 void SSL_Box::onRecv(const Buffer::Ptr &buffer) {
 	if(!buffer->size()){
 		return;
@@ -320,6 +319,7 @@ void SSL_Box::onSend(const Buffer::Ptr &buffer) {
 	flush();
 #endif //defined(ENABLE_OPENSSL)
 }
+
 void SSL_Box::flushWriteBio() {
 #if defined(ENABLE_OPENSSL)
     int total = 0;

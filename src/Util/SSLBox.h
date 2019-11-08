@@ -43,24 +43,8 @@ namespace toolkit {
 
 class SSL_Initor {
 public:
+	friend class SSL_Box;
 	static SSL_Initor &Instance();
-
-	/**
-	 * 加载服务器证书,证书必须包含公钥和私钥，格式可以为pem和p12
-	 * 该接口已经过期，建议使用loadCertificate接口
-	 * @param pem_or_p12 证书文件路径
-	 * @param passwd 证书加密密码
-	 */
-	bool loadServerPem(const char *pem_or_p12, const char *passwd = "");
-
-	/**
-	 * 加载客户端证书,证书必须包含公钥和私钥，格式可以为pem和p12
-	 * 该接口已经过期，建议使用loadCertificate接口
-	 * 客户端默认可以不加载证书(除非服务器要求客户端提供证书)
-	 * @param pem_or_p12 证书文件路径
-	 * @param passwd 证书加密密码
-	 */
-	bool loadClientPem(const char *pem_or_p12, const char *passwd = "");
 
 	/**
 	 * 从文件或字符串中加载公钥和私钥
@@ -70,8 +54,9 @@ public:
 	 * @param serverMode 是否为服务器模式
 	 * @param passwd 私钥加密密码
 	 * @param isFile 参数pem_or_p12是否为文件路径
+	 * @param isDefault 是否为默认证书
 	 */
-	bool loadCertificate(const string &pem_or_p12,  bool serverMode = true, const string &passwd = "" , bool isFile = true);
+	bool loadCertificate(const string &pem_or_p12, bool serverMode = true, const string &passwd = "", bool isFile = true, bool isDefault = true);
 
 	/**
 	 * 加载公钥和私钥
@@ -81,16 +66,9 @@ public:
 	 * @param public_key 公钥
 	 * @param private_key 私钥
 	 * @param serverMode 是否为服务器模式
+	 * @param isDefault 是否为默认证书
 	 */
-	bool loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode);
-
-
-	/**
-	 * 创建SSL对象
-	 * @param ctx
-	 * @return
-	 */
-	shared_ptr<SSL> makeSSL(bool serverMode);
+	bool loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode = true, bool isDefault = true);
 
 	/**
 	 * 是否忽略无效的证书
@@ -108,7 +86,7 @@ public:
 	 * @param isFile 是否为文件路径
 	 * @return 是否加载成功
 	 */
-	bool trustCertificate(const string &pem_p12_cer,  bool serverMode = false, const string &passwd = "" , bool isFile = true) ;
+	bool trustCertificate(const string &pem_p12_cer, bool serverMode = false, const string &passwd = "", bool isFile = true);
 
 	/**
 	 * 信任某证书
@@ -116,25 +94,27 @@ public:
 	 * @param serverMode 是否为服务模式
 	 * @return 是否加载成功
 	 */
-	bool trustCertificate(X509 *cer,bool serverMode = false) ;
+	bool trustCertificate(X509 *cer,bool serverMode = false);
 
-	/**
-	 * 设置默认虚拟主机
-	 * @param default_vhost 默认虚拟主机
-	 * @param serverMode 是否为服务器模式
-	 */
-	void setDefaultCertificate(const string &default_vhost,bool serverMode = true);
 private:
 	SSL_Initor();
 	~SSL_Initor();
+
+    /**
+	 * 创建SSL对象
+	 * @param ctx
+	 * @return
+	 */
+    shared_ptr<SSL> makeSSL(bool serverMode);
 
 	/**
 	 * 设置ssl context
 	 * @param vhost 虚拟主机名
 	 * @param ctx ssl context
 	 * @param serverMode ssl context
+	 * @param isDefault 是否为默认证书
 	 */
-	bool setContext(const string &vhost,const std::shared_ptr<SSL_CTX> &ctx,bool serverMode);
+	bool setContext(const string &vhost, const std::shared_ptr<SSL_CTX> &ctx, bool serverMode, bool isDefault = true);
 
 	/**
 	 * 设置SSL_CTX的默认配置
@@ -148,9 +128,16 @@ private:
 	 * @param serverMode 是否为服务器模式
 	 * @return SSL_CTX对象
 	 */
-	std::shared_ptr<SSL_CTX> getSSLCtx(const string &vhost,bool serverMode);
+	std::shared_ptr<SSL_CTX> getSSLCtx(const string &vhost, bool serverMode);
 
-	/**
+    /**
+     * 获取默认的虚拟主机
+     * @param serverMode
+     * @return
+     */
+    string defaultVhost(bool serverMode);
+
+    /**
 	 * 完成vhost name 匹配的回调函数
 	 * @param ssl
 	 * @param ad
@@ -158,6 +145,7 @@ private:
 	 * @return
 	 */
 	static int findCertificate(SSL *ssl, int *ad, void *arg);
+
 private:
 	std::shared_ptr<SSL_CTX> _ctx_empty[2];
 	map<string,std::shared_ptr<SSL_CTX> > _ctxs[2];
@@ -168,29 +156,47 @@ private:
 
 class SSL_Box {
 public:
-	SSL_Box(bool serverMode = true,
-			bool enable = true ,
-			int buffSize = 4 * 1024);
+	SSL_Box(bool serverMode = true, bool enable = true, int buffSize = 32 * 1024);
 	~SSL_Box();
 
-	//收到密文后，调用此函数解密
+	/**
+	 * 收到密文后，调用此函数解密
+	 * @param buffer 收到的密文数据
+	 */
 	void onRecv(const Buffer::Ptr &buffer);
-	//需要加密明文调用此函数
+
+	/**
+	 * 需要加密明文调用此函数
+	 * @param buffer 需要加密的明文数据
+	 */
 	void onSend(const Buffer::Ptr &buffer);
 
-	//设置解密后获取明文的回调
+	/**
+	 * 设置解密后获取明文的回调
+	 * @param fun 回调对象
+	 */
 	template<typename F>
 	void setOnDecData(F &&fun) {
 		_onDec = std::forward<F>(fun);
 	}
 
-	//设置加密后获取密文的回调
+	/**
+	 * 设置加密后获取密文的回调
+	 * @param fun 回调对象
+	 */
 	template<typename F>
 	void setOnEncData(F &&fun) {
-		_onEnc = std::forward<F>(fun);;
+		_onEnc = std::forward<F>(fun);
 	}
+
+	/**
+	 * 终结ssl
+	 */
 	void shutdown();
 
+	/**
+	 * 清空数据
+	 */
 	void flush();
 private:
 	void flushWriteBio();
