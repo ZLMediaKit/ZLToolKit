@@ -403,30 +403,33 @@ void SSL_Box::flushReadBio() {
 void SSL_Box::flush() {
 #if defined(ENABLE_OPENSSL)
     flushReadBio();
-	flushWriteBio();
-	if (SSL_is_init_finished(_ssl.get()) && !_bufferOut.empty()) {
-		while (!_bufferOut.empty()){
-            auto &front = _bufferOut.front();
-            uint32_t offset = 0;
-            while(offset < front->size()){
-                auto nwrite = SSL_write(_ssl.get(), front->data() + offset, front->size() - offset);
-                if (nwrite > 0) {
-                    //部分或全部写入完毕
-                    offset += nwrite;
-                    continue;
-                }
-                //nwrite <= 0,出现异常
-                break;
-            }
-            if(offset != front->size()){
-                //这个包未消费完毕，出现了异常
-                ErrorL << "ssl error:" << SSLUtil::getLastError() ;
-                break;
-            }
-            //这个包消费完毕，开始消费下一个包
-            _bufferOut.pop_front();
-		}
+	if (!SSL_is_init_finished(_ssl.get()) || _bufferOut.empty()) {
+		//ssl未握手结束或没有需要发送的数据
 		flushWriteBio();
+        return;
+	}
+
+	while (!_bufferOut.empty()){
+		auto &front = _bufferOut.front();
+		uint32_t offset = 0;
+		while(offset < front->size()){
+			auto nwrite = SSL_write(_ssl.get(), front->data() + offset, front->size() - offset);
+			if (nwrite > 0) {
+				//部分或全部写入完毕
+				offset += nwrite;
+				flushWriteBio();
+				continue;
+			}
+			//nwrite <= 0,出现异常
+			break;
+		}
+		if(offset != front->size()){
+			//这个包未消费完毕，出现了异常
+			ErrorL << "ssl error:" << SSLUtil::getLastError() ;
+			break;
+		}
+		//这个包消费完毕，开始消费下一个包
+		_bufferOut.pop_front();
 	}
 #endif //defined(ENABLE_OPENSSL)
 }
