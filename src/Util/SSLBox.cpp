@@ -406,12 +406,25 @@ void SSL_Box::flush() {
 	flushWriteBio();
 	if (SSL_is_init_finished(_ssl.get()) && !_bufferOut.empty()) {
 		while (!_bufferOut.empty()){
-			auto nwrite = SSL_write(_ssl.get(), _bufferOut.front()->data(), _bufferOut.front()->size());
-			if (nwrite > 0) {
-				_bufferOut.pop_front();
-				continue;
-			}
-			ErrorL << "ssl error:" << SSLUtil::getLastError() ;
+            auto &front = _bufferOut.front();
+            uint32_t offset = 0;
+            while(offset < front->size()){
+                auto nwrite = SSL_write(_ssl.get(), front->data() + offset, front->size() - offset);
+                if (nwrite > 0) {
+                    //部分或全部写入完毕
+                    offset += nwrite;
+                    continue;
+                }
+                //nwrite <= 0,出现异常
+                break;
+            }
+            if(offset != front->size()){
+                //这个包未消费完毕，出现了异常
+                ErrorL << "ssl error:" << SSLUtil::getLastError() ;
+                break;
+            }
+            //这个包消费完毕，开始消费下一个包
+            _bufferOut.pop_front();
 		}
 		flushWriteBio();
 	}
