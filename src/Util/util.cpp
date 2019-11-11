@@ -207,7 +207,7 @@ vector<string> split(const string& s, const char *delim) {
 		last = index + strlen(delim);
 		index = s.find(delim, last);
 	}
-	if (s.size() - last > 0) {
+	if (!s.size() || s.size() - last > 0) {
 		ret.push_back(s.substr(last));
 	}
 	return ret;
