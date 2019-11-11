@@ -294,6 +294,7 @@ SSL_Box::SSL_Box(bool serverMode, bool enable, int buffSize) {
 
 void SSL_Box::shutdown() {
 #if defined(ENABLE_OPENSSL)
+	_bufferOut.clear();
 	int ret = SSL_shutdown(_ssl.get());
 	if (ret != 1) {
 		ErrorL << "SSL shutdown failed:" << SSLUtil::getLastError();
@@ -314,8 +315,20 @@ void SSL_Box::onRecv(const Buffer::Ptr &buffer) {
 		return;
 	}
 #if defined(ENABLE_OPENSSL)
-    BIO_write(_read_bio, buffer->data(), buffer->size());
-	flush();
+	uint32_t offset = 0;
+	while(offset < buffer->size()){
+		auto nwrite = BIO_write(_read_bio, buffer->data() + offset, buffer->size() - offset);
+		if (nwrite > 0) {
+			//部分或全部写入bio完毕
+			offset += nwrite;
+			flush();
+			continue;
+		}
+		//nwrite <= 0,出现异常
+		ErrorL << "ssl error:" << SSLUtil::getLastError();
+		shutdown();
+		break;
+	}
 #endif //defined(ENABLE_OPENSSL)
 }
 
@@ -409,6 +422,7 @@ void SSL_Box::flush() {
         return;
 	}
 
+	//加密数据并发送
 	while (!_bufferOut.empty()){
 		auto &front = _bufferOut.front();
 		uint32_t offset = 0;
@@ -423,11 +437,14 @@ void SSL_Box::flush() {
 			//nwrite <= 0,出现异常
 			break;
 		}
+
 		if(offset != front->size()){
-			//这个包未消费完毕，出现了异常
+			//这个包未消费完毕，出现了异常,清空数据并断开ssl
 			ErrorL << "ssl error:" << SSLUtil::getLastError() ;
+			shutdown();
 			break;
 		}
+
 		//这个包消费完毕，开始消费下一个包
 		_bufferOut.pop_front();
 	}
