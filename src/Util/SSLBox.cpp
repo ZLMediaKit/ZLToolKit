@@ -190,7 +190,7 @@ bool SSL_Initor::setContext(const string &vhost,const shared_ptr<SSL_CTX> &ctx, 
 #ifdef SSL_ENABLE_SNI
 		if(serverMode){
 			SSL_CTX_set_tlsext_servername_callback(ctx.get(), findCertificate);
-			SSL_CTX_set_tlsext_servername_arg(ctx.get(),serverMode);
+			SSL_CTX_set_tlsext_servername_arg(ctx.get(),(void*)serverMode);
 		}
 #endif // SSL_ENABLE_SNI
 
