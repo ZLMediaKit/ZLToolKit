@@ -288,7 +288,7 @@ SSL_Box::SSL_Box(bool serverMode, bool enable, int buffSize) {
 		WarnL << "ssl disabled!";
 	}
 	_sendHandshake = false;
-	_bufferBio = std::make_shared<BufferRaw>(buffSize);
+	_buffSize = buffSize;
 #endif //defined(ENABLE_OPENSSL)
 }
 
@@ -356,9 +356,11 @@ void SSL_Box::flushWriteBio() {
 #if defined(ENABLE_OPENSSL)
     int total = 0;
 	int nread = 0;
-	int buf_size = _bufferBio->getCapacity() - 1;
+	auto bufferBio = _bufferPool.obtain();
+	bufferBio->setCapacity(_buffSize);
+	int buf_size = bufferBio->getCapacity() - 1;
 	do{
-		nread = BIO_read(_write_bio, _bufferBio->data() + total, buf_size - total);
+		nread = BIO_read(_write_bio, bufferBio->data() + total, buf_size - total);
 		if(nread > 0){
 			total += nread;
 		}
@@ -370,10 +372,10 @@ void SSL_Box::flushWriteBio() {
 	}
 
 	//触发此次回调
-	_bufferBio->data()[total] = '\0';
-	_bufferBio->setSize(total);
+	bufferBio->data()[total] = '\0';
+	bufferBio->setSize(total);
 	if(_onEnc){
-		_onEnc(_bufferBio);
+		_onEnc(bufferBio);
 	}
 
 	if(nread > 0){
@@ -387,9 +389,11 @@ void SSL_Box::flushReadBio() {
 #if defined(ENABLE_OPENSSL)
     int total = 0;
 	int nread = 0;
-	int buf_size = _bufferBio->getCapacity() - 1;
+	auto bufferBio = _bufferPool.obtain();
+	bufferBio->setCapacity(_buffSize);
+	int buf_size = bufferBio->getCapacity() - 1;
 	do{
-		nread = SSL_read(_ssl.get(), _bufferBio->data() + total, buf_size - total);
+		nread = SSL_read(_ssl.get(), bufferBio->data() + total, buf_size - total);
 		if(nread > 0){
 			total += nread;
 		}
@@ -401,10 +405,10 @@ void SSL_Box::flushReadBio() {
 	}
 
 	//触发此次回调
-	_bufferBio->data()[total] = '\0';
-	_bufferBio->setSize(total);
+	bufferBio->data()[total] = '\0';
+	bufferBio->setSize(total);
 	if(_onDec){
-		_onDec(_bufferBio);
+		_onDec(bufferBio);
 	}
 
 	if(nread > 0){

@@ -31,6 +31,7 @@
 #include "logger.h"
 #include "List.h"
 #include "Network/Buffer.h"
+#include "Util/ResourcePool.h"
 using namespace std;
 
 typedef struct x509_st X509;
@@ -216,7 +217,8 @@ private:
 	function<void(const Buffer::Ptr &)> _onDec;
 	function<void(const Buffer::Ptr &)> _onEnc;
 	List<Buffer::Ptr> _bufferOut;
-	BufferRaw::Ptr _bufferBio;
+	ResourcePool<BufferRaw> _bufferPool;
+	int _buffSize;
 };
 
 
