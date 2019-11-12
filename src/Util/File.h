@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string>
 #include "util.h"
+#include <functional>
 
 using namespace std;
 #if defined(__linux__)
