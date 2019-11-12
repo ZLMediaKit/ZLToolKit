@@ -458,6 +458,8 @@ void SSL_Box::flush() {
 bool SSL_Box::setHost(const char *host) {
 #ifdef SSL_ENABLE_SNI
 	return 0 != SSL_set_tlsext_host_name(_ssl.get(), host);
+#else
+	return false;
 #endif//SSL_ENABLE_SNI
 }
 
