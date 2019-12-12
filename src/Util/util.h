@@ -213,6 +213,13 @@ uint64_t getCurrentMillisecond();
  */
 uint64_t getCurrentMicrosecond();
 
+/**
+ * 获取时间字符串
+ * @param fmt 时间格式，譬如%Y-%m-%d %H:%M:%S
+ * @return 时间字符串
+ */
+string getTimeStr(const char *fmt,time_t time = 0);
+
 }  // namespace toolkit
 
 #endif /* UTIL_UTIL_H_ */

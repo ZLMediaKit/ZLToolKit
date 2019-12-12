@@ -344,5 +344,22 @@ uint64_t getCurrentMicrosecond() {
 	return s_currentMicrosecond.load(memory_order_acquire);
 }
 
+string getTimeStr(const char *fmt,time_t time){
+    std::tm tm_snapshot;
+    if(!time){
+        time = ::time(NULL);
+    }
+#if defined(_WIN32)
+    localtime_s(&tm_snapshot, &time); // thread-safe
+#else
+    localtime_r(&time, &tm_snapshot); // POSIX
+#endif
+    char buffer[1024];
+    auto success = std::strftime(buffer, sizeof(buffer), fmt, &tm_snapshot);
+    if (0 == success)
+        return string(fmt);
+    return buffer;
+}
+
 }  // namespace toolkit
 
