@@ -31,6 +31,7 @@
 #pragma comment (lib,"WS2_32")
 #else
 #include <unistd.h>
+#include <sys/time.h>
 #endif // defined(_WIN32)
 
 #if defined(__APPLE__)
