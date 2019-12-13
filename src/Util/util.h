@@ -25,12 +25,12 @@
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
 
+#include <time.h>
 #if defined(_WIN32)
 #include <WinSock2.h>
 #pragma comment (lib,"WS2_32")
 #else
 #include <unistd.h>
-#include <sys/time.h>
 #endif // defined(_WIN32)
 
 #if defined(__APPLE__)
