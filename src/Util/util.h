@@ -25,7 +25,7 @@
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
 
-#include <time.h>
+#include <ctime>
 #if defined(_WIN32)
 #include <WinSock2.h>
 #pragma comment (lib,"WS2_32")
