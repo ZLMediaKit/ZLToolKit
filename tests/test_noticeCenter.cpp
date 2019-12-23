@@ -49,12 +49,25 @@ int main() {
 	NoticeCenter::Instance().addListener(0,NOTICE_NAME1,
 			[](int &a,const char * &b,double &c,string &d){
 		DebugL << a << " " << b << " " << c << " " << d;
+		NoticeCenter::Instance().delListener(0,NOTICE_NAME1);
+
+		NoticeCenter::Instance().addListener(0,NOTICE_NAME1,
+											 [](int &a,const char * &b,double &c,string &d){
+												 InfoL << a << " " << b << " " << c << " " << d;
+											 });
 	});
 
 	//监听NOTICE_NAME2事件
 	NoticeCenter::Instance().addListener(0,NOTICE_NAME2,
 			[](string &d,double &c,const char *&b,int &a){
 		DebugL << a << " " << b << " " << c << " " << d;
+		NoticeCenter::Instance().delListener(0,NOTICE_NAME2);
+
+		NoticeCenter::Instance().addListener(0,NOTICE_NAME2,
+											 [](string &d,double &c,const char *&b,int &a){
+												 WarnL << a << " " << b << " " << c << " " << d;
+											 });
+
 	});
 	int a = 0;
 	while(!g_bExitFlag){
