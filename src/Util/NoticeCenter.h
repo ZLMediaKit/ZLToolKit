@@ -38,7 +38,7 @@ using namespace std;
 
 namespace toolkit {
 
-class NoticeCenter {
+class NoticeCenter : public std::enable_shared_from_this<NoticeCenter>{
 public:
 	class InterruptException : public std::runtime_error {
 	public:
@@ -47,6 +47,8 @@ public:
 	};
 
 	typedef unordered_map<string,unordered_multimap<void *,std::shared_ptr<void> > > MapType;
+	typedef std::shared_ptr<NoticeCenter> Ptr;
+
 	~NoticeCenter(){}
 	static NoticeCenter &Instance();
 
