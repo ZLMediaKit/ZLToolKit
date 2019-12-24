@@ -57,14 +57,18 @@ public:
 		onceToken token([&] {
 			//上锁，记录锁定线程id
 			_mtxListener.lock();
-			_lock_thread = this_thread::get_id();
+			if(_lock_depth++ == 0){
+				_lock_thread = this_thread::get_id();
+			}
 		}, [&]() {
 			//释放锁，取消锁定线程id
-			_lock_thread = thread::id();
-			if(_map_moved){
-				//还原_mapListener
-				_map_moved = false;
-				_mapListener = std::move(_mapListenerTemp);
+			if(--_lock_depth == 0){
+				_lock_thread = thread::id();
+				if(_map_moved){
+					//还原_mapListener
+					_map_moved = false;
+					_mapListener = std::move(_mapListenerTemp);
+				}
 			}
 			_mtxListener.unlock();
 		});
@@ -148,6 +152,7 @@ private:
 	}
 private:
 	bool _map_moved = false;
+	int _lock_depth = 0;
 	thread::id _lock_thread;
 	recursive_mutex _mtxListener;
 	MapType _mapListener;
