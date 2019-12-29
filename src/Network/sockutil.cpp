@@ -58,6 +58,13 @@ namespace toolkit {
 	}
 #endif // defined(_WIN32)
 
+static string socket_toa(struct in_addr &addr) {
+    char buf[20];
+    unsigned char *p = (unsigned char *) &(addr);
+    sprintf(buf, "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
+    return buf;
+}
+
 int SockUtil::setCloseWait(int sockFd, int second) {
 	linger m_sLinger;
 	//在调用closesocket()时还有数据未发送完，允许等待
@@ -318,7 +325,7 @@ string SockUtil::get_local_ip(int fd) {
 	if (0 == getsockname(fd, &addr, &addr_len)) {
 		if (addr.sa_family == AF_INET) {
 			addr_v4 = (sockaddr_in*) &addr;
-			return string(inet_ntoa(addr_v4->sin_addr));
+			return socket_toa(addr_v4->sin_addr);
 		}
 	}
 	return "";
@@ -428,7 +435,7 @@ string SockUtil::get_local_ip() {
 #if defined(__APPLE__)
     string address = "127.0.0.1";
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+        string ip = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
         return check_ip(address,ip);
     });
     return address;
@@ -449,7 +456,7 @@ string SockUtil::get_local_ip() {
 #else
 	string address = "127.0.0.1";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        string ip = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
         return check_ip(address,ip);
     });
 	return address;
@@ -461,7 +468,7 @@ vector<map<string,string> > SockUtil::getInterfaceList(){
 #if defined(__APPLE__)
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
         map<string,string> obj;
-        obj["ip"] = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+        obj["ip"] = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
         obj["name"] = adapter->ifa_name;
         ret.emplace_back(std::move(obj));
         return false;
@@ -481,7 +488,7 @@ vector<map<string,string> > SockUtil::getInterfaceList(){
 #else
 	for_each_netAdapter_posix([&](struct ifreq *adapter){
 		map<string,string> obj;
-		obj["ip"] = inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+		obj["ip"] = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
 		obj["name"] = adapter->ifr_name;
 		ret.emplace_back(std::move(obj));
 		return false;
@@ -512,7 +519,7 @@ string SockUtil::get_peer_ip(int fd) {
 	if (0 == getpeername(fd, &addr, &addr_len)) {
 		if (addr.sa_family == AF_INET) {
 			addr_v4 = (sockaddr_in*) &addr;
-			return string(inet_ntoa(addr_v4->sin_addr));
+			return socket_toa(addr_v4->sin_addr);
 		}
 	}
 	return "";
@@ -571,7 +578,7 @@ string SockUtil::get_ifr_ip(const char *ifrName){
 	string ret;
 	for_each_netAdapter_apple([&](struct ifaddrs *adapter){
 		if(strcmp(adapter->ifa_name,ifrName) == 0) {
-			ret = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+			ret = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
 			return true;
 		}
 		return false;
@@ -596,7 +603,7 @@ string SockUtil::get_ifr_ip(const char *ifrName){
     string ret;
     for_each_netAdapter_posix([&](struct ifreq *adapter){
         if(strcmp(adapter->ifr_name,ifrName) == 0) {
-			ret = inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+			ret = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
 			return true;
 		}
 		return false;
@@ -609,7 +616,7 @@ string SockUtil::get_ifr_name(const char *localIp){
 #if defined(__APPLE__)
     string ret = "en0";
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+        string ip = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
         if(ip == localIp) {
             ret = adapter->ifa_name;
             return true;
@@ -635,7 +642,7 @@ string SockUtil::get_ifr_name(const char *localIp){
 #else
     string ret = "en0";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        string ip = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
         if(ip == localIp) {
             ret = adapter->ifr_name;
             return true;
@@ -652,7 +659,7 @@ string SockUtil::get_ifr_mask(const char* ifrName) {
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
         if(strcmp(ifrName,adapter->ifa_name) == 0) {
-            ret = inet_ntoa(((struct sockaddr_in *)adapter->ifa_netmask)->sin_addr);
+            ret = socket_toa(((struct sockaddr_in *)adapter->ifa_netmask)->sin_addr);
             return true;
         }
         return false;
@@ -687,7 +694,7 @@ string SockUtil::get_ifr_mask(const char* ifrName) {
 		return "";
 	}
 	close(sockFd);
-	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
+	return socket_toa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
 #endif // defined(_WIN32)
 }
 
@@ -696,7 +703,7 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
         if(strcmp(ifrName,adapter->ifa_name) == 0){
-            ret = inet_ntoa(((struct sockaddr_in*) adapter->ifa_broadaddr)->sin_addr);
+            ret = socket_toa(((struct sockaddr_in*) adapter->ifa_broadaddr)->sin_addr);
             return true;
         }
         return false;
@@ -710,7 +717,7 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
 			IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
             in_addr broadcast;
             broadcast.S_un.S_addr = (inet_addr(ipAddr->IpAddress.String) & inet_addr(ipAddr->IpMask.String)) | (~inet_addr(ipAddr->IpMask.String));
-			ret = inet_ntoa(broadcast);
+			ret = socket_toa(broadcast);
 			return true;
 		}
 		return false;
@@ -732,7 +739,7 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
 		return "";
 	}
 	close(sockFd);
-	return inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
+	return socket_toa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
 #endif
 }
 
