@@ -276,13 +276,23 @@ string File::parentDir(const string &path) {
 
 string File::absolutePath(const string &path,const string &currentPath_in,bool canAccessParent) {
 	string currentPath = currentPath_in;
-	if(currentPath.front() == '.'){
-        //如果当前目录是相对路径，那么先转换成绝对路径
-		currentPath = absolutePath(currentPath_in,exeDir(),true);
+	if(!currentPath.empty()){
+		//当前目录不为空
+		if(currentPath.front() == '.'){
+			//如果当前目录是相对路径，那么先转换成绝对路径
+			currentPath = absolutePath(currentPath_in,exeDir(),true);
+		}
+		if(currentPath.back() != '/'){
+			//确保当前目录最后字节为'/'
+			currentPath.push_back('/');
+		}
+	} else{
+		currentPath = exeDir();
 	}
-	if(currentPath.back() != '/'){
-		//确保当前目录最后字节为'/'
-		currentPath.push_back('/');
+
+	if(path.empty()){
+		//相对路径为空，那么返回当前目录
+		return currentPath;
 	}
 
     auto dir_vec = split(path,"/");
