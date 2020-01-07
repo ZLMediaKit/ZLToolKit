@@ -282,10 +282,6 @@ string File::absolutePath(const string &path,const string &currentPath_in,bool c
 			//如果当前目录是相对路径，那么先转换成绝对路径
 			currentPath = absolutePath(currentPath_in,exeDir(),true);
 		}
-		if(currentPath.back() != '/'){
-			//确保当前目录最后字节为'/'
-			currentPath.push_back('/');
-		}
 	} else{
 		currentPath = exeDir();
 	}
@@ -293,6 +289,11 @@ string File::absolutePath(const string &path,const string &currentPath_in,bool c
 	if(path.empty()){
 		//相对路径为空，那么返回当前目录
 		return currentPath;
+	}
+
+	if(currentPath.back() != '/'){
+		//确保当前目录最后字节为'/'
+		currentPath.push_back('/');
 	}
 
     auto dir_vec = split(path,"/");
