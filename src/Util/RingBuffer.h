@@ -83,6 +83,7 @@ public:
         if (!cb) {
             _readCB = [](const T &) {};
         } else {
+            _got_key = false;
             _readCB = cb;
             resetPos(true);
         }
@@ -105,15 +106,26 @@ public:
         }
     }
 private:
-    void onRead(const T &data) {
-        _readCB(data);
+    void onRead(const T &data,bool isKey) {
+        if(_got_key || !_useBuffer){
+            //已经获取到关键帧或者不要求第一帧是关键帧
+            _readCB(data);
+            return;
+        }
+
+        if(!_got_key && isKey){
+            //尚未获取到关键帧，并且此帧是关键帧
+            _got_key = true;
+            _readCB(data);
+        }
     }
 
     void flushGop(){
         const T *pkt  = nullptr;
         auto targetPos = _storageInternal->getPos(false);
-        while((pkt = read(targetPos))){
-            _readCB(*pkt);
+        bool isKey;
+        while((pkt = read(targetPos,isKey))){
+            onRead(*pkt,isKey);
         }
     }
 
@@ -121,9 +133,9 @@ private:
         _detachCB();
     }
 
-    const T* read(int targetPos){
+    const T* read(int targetPos, bool &isKey){
         while (_curpos != targetPos){
-            const T *data = (*_storageInternal)[_curpos]; //返回包
+            const T *data = (*_storageInternal).get(_curpos,isKey); //返回包
             _curpos = _storageInternal->next(_curpos); //更新位置
             if(!data){
                 continue;
@@ -140,6 +152,7 @@ private:
     shared_ptr<_RingStorage<T> > _storage;
     int _curpos;
     bool _useBuffer;
+    bool _got_key = false;
 };
 
 template<typename T>
@@ -163,8 +176,10 @@ public:
      * @return 是否触发重置环形缓存大小
      */
     inline void write(const T &in,bool key = true) {
-        _dataRing[_ringPos].second = in;
-        _dataRing[_ringPos].first = true;
+        auto &ref = _dataRing[_ringPos];
+        ref.data = in;
+        ref.isEmpty = false;
+        ref.isKey = key;
         if (key) {
             _ringKeyPos = _ringPos; //设置读取器可以定位的点
         }
@@ -201,12 +216,13 @@ public:
         }
     }
 
-    inline T* operator[](int pos){
+    inline T* get(int pos,bool &isKey){
         auto &ref = _dataRing[pos];
-        if(!ref.first){
+        if(ref.isEmpty){
             return nullptr;
         }
-        return &ref.second;
+        isKey = ref.isKey;
+        return &ref.data;
     }
     Ptr clone() const{
         Ptr ret(new _RingStorageInternal());
@@ -221,10 +237,13 @@ public:
         return _ringSize;
     }
 private:
-    class DataPair : public std::pair<bool,T>{
+    class DataPair{
     public:
-        DataPair() : std::pair<bool,T>(false,T()) {}
+        DataPair() =  default;
         ~DataPair() = default;
+        bool isKey;
+        bool isEmpty = true;
+        T data;
     };
     _RingStorageInternal() = default;
 private:
@@ -355,11 +374,11 @@ private:
         if (_storage->write(in, isKey)) {
             resetPos();
         }else{
-            emitRead(in);
+            emitRead(in,isKey);
         }
     }
 
-    void emitRead(const T &in){
+    void emitRead(const T &in, bool isKey){
         for (auto it = _readerMap.begin() ; it != _readerMap.end() ;) {
             auto reader = it->second.lock();
             if(!reader){
@@ -368,7 +387,7 @@ private:
                 onSizeChanged(false);
                 continue;
             }
-            reader->onRead(in);
+            reader->onRead(in,isKey);
             ++it;
         }
 	}
