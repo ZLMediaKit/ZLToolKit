@@ -199,7 +199,7 @@ public:
 
     _RingStorage(int size, int max_size) {
         if (size <= 0) {
-            size = RING_MIN_SIZE;
+            size = max_size;
             _can_resize = true;
             _max_size = max_size;
         }
