@@ -233,14 +233,10 @@ public:
         Ptr ret(new _RingStorage());
         ret->_beset_size = _beset_size;
         ret->_storage_internal = _storage_internal->clone();
-
-        if(!_beset_size){
-            //尚未求出最佳GOP缓存大小
-            ret->_total_count = _total_count;
-            ret->_last_key_count = _last_key_count;
-            ret->_can_resize = _can_resize;
-            ret->_max_size = _max_size;
-        }
+        ret->_total_count = _total_count;
+        ret->_last_key_count = _last_key_count;
+        ret->_can_resize = _can_resize;
+        ret->_max_size = _max_size;
         return ret;
     }
 
