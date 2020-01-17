@@ -285,10 +285,10 @@ public:
     ////////////线程安全的数据发送，udp套接字请传入peerAddr，否则置空////////////
     //发送裸指针数据，内部会把数据拷贝至内部缓存列队，如果要避免数据拷贝，可以调用send(const Buffer::Ptr &buf...）接口
     //返回值:-1代表该socket已经不可用；0代表缓存列队已满，并未产生实质操作(在关闭主动丢包时有效)；否则返回数据长度
-    int send(const char *buf, int size = 0,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
-	int send(const string &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
-	int send(string &&buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
-	int send(const Buffer::Ptr &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
+    int send(const char *buf, int size = 0,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+	int send(const string &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+	int send(string &&buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+	int send(const Buffer::Ptr &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     //关闭socket且触发onErr回调，onErr回调将在主线程中进行
 	bool emitErr(const SockException &err);
