@@ -217,7 +217,7 @@ public:
      * @return 是否触发重置环形缓存大小
      */
     inline void write(const T &in, bool is_key = true) {
-        computeGopSize(is_key);
+//        computeGopSize(is_key);
         _storage_internal->write(in, is_key);
     }
 
