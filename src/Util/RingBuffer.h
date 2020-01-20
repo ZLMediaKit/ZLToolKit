@@ -32,11 +32,10 @@
 #include <functional>
 #include <deque>
 #include "Poller/EventPoller.h"
-
 using namespace std;
 
-//自适应环形缓存大小的取值范围
-#define RING_MIN_SIZE 1
+//GOP缓存最大长度下限值
+#define RING_MIN_SIZE 32
 #define LOCK_GUARD(mtx) lock_guard<decltype(mtx)> lck(mtx)
 
 namespace toolkit {
@@ -52,9 +51,6 @@ public:
 
 template<typename T>
 class _RingStorage;
-
-template<typename T>
-class _RingStorageInternal;
 
 template<typename T>
 class _RingReaderDispatcher;
@@ -83,8 +79,6 @@ public:
         if (!cb) {
             _read_cb = [](const T &) {};
         } else {
-            _ignored_count = 0;
-            _start_on_read = false;
             _read_cb = cb;
             flushGop();
         }
@@ -100,23 +94,7 @@ public:
 
 private:
     void onRead(const T &data, bool is_key) {
-        if (_start_on_read || !_use_cache) {
-            //已经获取到关键帧或者不要求第一帧是关键帧
-            _read_cb(data);
-            return;
-        }
-
-        if (!_start_on_read && is_key) {
-            //尚未获取到关键帧，并且此帧是关键帧
-            _start_on_read = true;
-            _read_cb(data);
-            return;
-        }
-
-        if(++_ignored_count >= _storage->maxSize()){
-            //忽略了太多的数据，强制开始触发onRead回调
-            _start_on_read = true;
-        }
+        _read_cb(data);
     }
 
     void onDetach() const {
@@ -138,21 +116,22 @@ private:
     function<void(void)> _detach_cb = []() {};
     shared_ptr<_RingStorage<T> > _storage;
     bool _use_cache;
-    bool _start_on_read = false;
-    int _ignored_count = 0;
 };
 
 template<typename T>
-class _RingStorageInternal {
+class _RingStorage {
 public:
-    typedef std::shared_ptr<_RingStorageInternal> Ptr;
+    typedef std::shared_ptr<_RingStorage> Ptr;
 
-    _RingStorageInternal(int max_size) {
+    _RingStorage(int max_size) {
+        //gop缓存个数不能小于32
+        if(max_size < RING_MIN_SIZE){
+            max_size = RING_MIN_SIZE;
+        }
         _max_size = max_size;
     }
 
-    ~_RingStorageInternal() {}
-
+    ~_RingStorage() {}
 
     /**
      * 写入环形缓存数据
@@ -162,123 +141,35 @@ public:
      */
     inline void write(const T &in, bool is_key = true) {
         if (is_key) {
+            //遇到I帧，那么移除老数据
             _data_cache.clear();
+            _size = 0;
         }
         _data_cache.emplace_back(std::make_pair(is_key, std::move(in)));
-        if (_data_cache.size() > _max_size) {
+        if (++_size > _max_size) {
+            //GOP缓存溢出，需要移除老数据
             _data_cache.pop_front();
+            --_size;
         }
     }
 
     Ptr clone() const {
-        Ptr ret(new _RingStorageInternal());
+        Ptr ret(new _RingStorage());
         ret->_data_cache = _data_cache;
         ret->_max_size = _max_size;
+        ret->_size = _size;
         return ret;
     }
 
     const deque<pair<bool, T> > &getCache() const {
         return _data_cache;
     }
-
-    int maxSize() const{
-        return _max_size;
-    }
 private:
-    _RingStorageInternal() = default;
-
+    _RingStorage() = default;
 private:
     deque<pair<bool, T> > _data_cache;
     int _max_size;
-};
-
-template<typename T>
-class _RingStorage {
-public:
-    typedef std::shared_ptr<_RingStorage> Ptr;
-
-    _RingStorage(int size, int max_size) {
-        if (size <= 0) {
-            size = max_size;
-            _can_resize = true;
-            _max_size = max_size;
-        }
-
-        _storage_internal = std::make_shared<_RingStorageInternal<T> >(size);
-    }
-
-    ~_RingStorage() {}
-
-
-    /**
-     * 写入环形缓存数据
-     * @param in 数据
-     * @param is_key 是否为关键帧
-     * @return 是否触发重置环形缓存大小
-     */
-    inline void write(const T &in, bool is_key = true) {
-//        computeGopSize(is_key);
-        _storage_internal->write(in, is_key);
-    }
-
-    const deque<pair<bool, T> > &getCache() const {
-        return _storage_internal->getCache();
-    }
-
-    int maxSize() const {
-        return _storage_internal->maxSize();
-    }
-
-    Ptr clone() const {
-        Ptr ret(new _RingStorage());
-        ret->_beset_size = _beset_size;
-        ret->_storage_internal = _storage_internal->clone();
-        ret->_total_count = _total_count;
-        ret->_last_key_count = _last_key_count;
-        ret->_can_resize = _can_resize;
-        ret->_max_size = _max_size;
-        return ret;
-    }
-
-private:
-    _RingStorage() = default;
-
-    inline bool computeGopSize(bool is_key) {
-        if (!_can_resize || _beset_size) {
-            return false;
-        }
-        _total_count++;
-        if (!is_key) {
-            return false;
-        }
-        //关键帧
-        if (!_last_key_count) {
-            //第一次获取关键帧
-            _last_key_count = _total_count;
-            return false;
-        }
-
-        //第二次获取关键帧，计算两个I帧之间的包个数
-        //缓存最多2个GOP，确保缓存中最少有一个GOP
-        _beset_size = (_total_count - _last_key_count) * 2;
-        if (_beset_size > _max_size) {
-            _beset_size = _max_size;
-        }
-        if (_beset_size < RING_MIN_SIZE) {
-            _beset_size = RING_MIN_SIZE;
-        }
-        _storage_internal = std::make_shared<_RingStorageInternal<T> >(_beset_size);
-        return true;
-    }
-
-private:
-    typename _RingStorageInternal<T>::Ptr _storage_internal;
-    //计算最佳环形缓存大小的参数
-    int _beset_size = 0;
-    int _total_count = 0;
-    int _last_key_count = 0;
-    bool _can_resize = false;
-    int _max_size;
+    int _size = 0;
 };
 
 template<typename T>
@@ -378,9 +269,9 @@ public:
     typedef _RingReaderDispatcher<T> RingReaderDispatcher;
     typedef function<void(const EventPoller::Ptr &poller, int size, bool add_flag)> onReaderChanged;
 
-    RingBuffer(int size = 0, int max_size = 1024, const onReaderChanged &cb = nullptr) {
+    RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr) {
         _on_reader_changed = cb;
-        _storage = std::make_shared<RingStorage>(size, max_size);
+        _storage = std::make_shared<RingStorage>(max_size);
     }
 
     ~RingBuffer() {}
