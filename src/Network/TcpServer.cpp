@@ -25,13 +25,9 @@
 
 #include "TcpServer.h"
 
-
 namespace toolkit {
 
-SessionMap &SessionMap::Instance(){
-	static SessionMap instance;
-	return instance;
-}
+INSTANCE_IMP(SessionMap);
 
 } /* namespace toolkit */
 
