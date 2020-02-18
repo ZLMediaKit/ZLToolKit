@@ -239,27 +239,28 @@ protected:
 			strongSession->onRecv(buf);
 		});
 
-		auto ptr = sessionHelper.get();
+        TcpSessionHelper *ptr = sessionHelper.get();
 		//会话接收到错误事件
 		sock->setOnErr([weakSelf,weakSession,ptr](const SockException &err){
 		    //在本函数作用域结束时移除会话对象
             //目的是确保移除会话前执行其onError函数
             //同时避免其onError函数抛异常时没有移除会话对象
-		    onceToken token(nullptr,[&](){
-                //移除掉会话
-                auto strongSelf = weakSelf.lock();
-                if(!strongSelf) {
-                    return;
-                }
-                //在TcpServer对应线程中移除map相关记录
-                strongSelf->_poller->async([weakSelf,ptr](){
-                    auto strongSelf = weakSelf.lock();
-                    if(!strongSelf){
-                        return;
-                    }
-                    strongSelf->_sessionMap.erase(ptr);
-                });
-		    });
+			onceToken token(nullptr, [ptr, &weakSelf]() {
+				//移除掉会话
+				auto strongSelf = weakSelf.lock();
+				if (!strongSelf) {
+					return;
+				}
+				//在TcpServer对应线程中移除map相关记录
+				strongSelf->_poller->async([weakSelf, ptr]() {
+					auto strongSelf = weakSelf.lock();
+					if (!strongSelf) {
+						return;
+					}
+					strongSelf->_sessionMap.erase(ptr);
+				});
+			});
+
 			//获取会话强应用
 			auto strongSession = weakSession.lock();
             if(strongSession) {

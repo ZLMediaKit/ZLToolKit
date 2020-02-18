@@ -124,11 +124,12 @@ private:
 /**
  * 日志上下文
  */
-struct LogContext : public ostringstream{
+class LogContext : public ostringstream{
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
-
+public:
     LogContext(LogLevel level,const char *file,const char *function,int line);
+	~LogContext() = default;
     LogLevel _level;
     int _line;
     string _file;
