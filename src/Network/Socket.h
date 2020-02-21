@@ -76,7 +76,7 @@ typedef enum {
 	Err_success = 0, //成功
 	Err_eof, //eof
 	Err_timeout, //超时
-	Err_refused,//连接别拒绝
+	Err_refused,//连接被拒绝
 	Err_dns,//dns解析失败
 	Err_shutdown,//主动关闭
 	Err_other = 0xFF,//其他错误
