@@ -27,14 +27,14 @@
 namespace toolkit {
 
 Timer::Timer(float second,
-			 const function<bool()> &cb,
-			 const EventPoller::Ptr &poller,
+             const function<bool()> &cb,
+             const EventPoller::Ptr &poller,
              bool continueWhenException) {
     _poller = poller;
-	if(!_poller){
+    if(!_poller){
         _poller = EventPollerPool::Instance().getPoller();
-	}
-	_tag = _poller->doDelayTask(second * 1000, [cb, second , continueWhenException]() {
+    }
+    _tag = _poller->doDelayTask(second * 1000, [cb, second , continueWhenException]() {
         try {
             if (cb()) {
                 //重复的任务

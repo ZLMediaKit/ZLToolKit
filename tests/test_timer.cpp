@@ -32,8 +32,8 @@ using namespace std;
 using namespace toolkit;
 
 int main() {
-	//设置日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>());
+    //设置日志
+    Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
 

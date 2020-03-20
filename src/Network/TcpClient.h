@@ -42,9 +42,9 @@ class TcpClient :
         public std::enable_shared_from_this<TcpClient> ,
         public SocketHelper{
 public:
-	typedef std::shared_ptr<TcpClient> Ptr;
-	TcpClient(const EventPoller::Ptr &poller = nullptr);
-	virtual ~TcpClient();
+    typedef std::shared_ptr<TcpClient> Ptr;
+    TcpClient(const EventPoller::Ptr &poller = nullptr);
+    virtual ~TcpClient();
     //开始连接服务器，strUrl可以是域名或ip
     virtual void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
     //主动断开服务器
@@ -65,7 +65,7 @@ protected:
     //tcp连接成功后每2秒触发一次该事件
     virtual void onManager() {}
 private:
-	void onSockConnect(const SockException &ex);
+    void onSockConnect(const SockException &ex);
 private:
     std::shared_ptr<Timer> _managerTimer;
     string _netAdapter = "0.0.0.0";
