@@ -82,6 +82,7 @@ private:
                 (*obj)(std::forward<ArgsType>(args)...);
                 ++ret;
             } catch (InterruptException &ex) {
+                ++ret;
                 break;
             }
         }
