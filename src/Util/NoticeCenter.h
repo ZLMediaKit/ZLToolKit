@@ -35,36 +35,37 @@
 #include "function_traits.h"
 #include "onceToken.h"
 using namespace std;
-
 namespace toolkit {
 
-class NoticeCenter : public std::enable_shared_from_this<NoticeCenter>{
+class EventDispatcher {
 public:
+    friend class NoticeCenter;
+    typedef std::shared_ptr<EventDispatcher> Ptr;
+    ~EventDispatcher() = default;
+
+private:
+    typedef unordered_multimap<void *, std::shared_ptr<void> > MapType;
+    EventDispatcher() = default;
+
     class InterruptException : public std::runtime_error {
     public:
-        InterruptException():std::runtime_error("InterruptException"){}
-        ~InterruptException(){}
+        InterruptException() : std::runtime_error("InterruptException") {}
+        ~InterruptException() {}
     };
 
-    typedef unordered_map<string,unordered_multimap<void *,std::shared_ptr<void> > > MapType;
-    typedef std::shared_ptr<NoticeCenter> Ptr;
-
-    ~NoticeCenter(){}
-    static NoticeCenter &Instance();
-
     template<typename ...ArgsType>
-    bool emitEvent(const string &strEvent,ArgsType &&...args){
+    int emitEvent(ArgsType &&...args) {
         onceToken token([&] {
             //上锁，记录锁定线程id
             _mtxListener.lock();
-            if(_lock_depth++ == 0){
+            if (_lock_depth++ == 0) {
                 _lock_thread = this_thread::get_id();
             }
         }, [&]() {
             //释放锁，取消锁定线程id
-            if(--_lock_depth == 0){
+            if (--_lock_depth == 0) {
                 _lock_thread = thread::id();
-                if(_map_moved){
+                if (_map_moved) {
                     //还原_mapListener
                     _map_moved = false;
                     _mapListener = std::move(_mapListenerTemp);
@@ -73,75 +74,47 @@ public:
             _mtxListener.unlock();
         });
 
-        auto it0 = _mapListener.find(strEvent);
-        if (it0 == _mapListener.end()) {
-            return false;
-        }
-        auto &listenerMap = it0->second;
-        for (auto &pr : listenerMap) {
+        int ret = 0;
+        for (auto &pr : _mapListener) {
             typedef function<void(decltype(std::forward<ArgsType>(args))...)> funType;
             funType *obj = (funType *) (pr.second.get());
             try {
                 (*obj)(std::forward<ArgsType>(args)...);
+                ++ret;
             } catch (InterruptException &ex) {
                 break;
             }
         }
-        return listenerMap.size();
+        return ret;
     }
 
-    template<typename FUN>
-    void addListener(void *tag, const string &strEvent, const FUN &fun) {
-        typedef typename function_traits<FUN>::stl_function_type funType;
-        std::shared_ptr<void> pListener(new funType(fun), [](void *ptr) {
+    template<typename FUNC>
+    void addListener(void *tag, FUNC &&func) {
+        typedef typename function_traits<typename std::remove_reference<FUNC>::type>::stl_function_type funType;
+        std::shared_ptr<void> pListener(new funType(std::forward<FUNC>(func)), [](void *ptr) {
             funType *obj = (funType *) ptr;
             delete obj;
         });
         lock_guard<recursive_mutex> lck(_mtxListener);
-        getListenerMap()[strEvent].emplace(tag, pListener);
+        getListenerMap().emplace(tag, pListener);
     }
 
-
-    void delListener(void *tag,const string &strEvent){
+    void delListener(void *tag, bool &empty) {
         lock_guard<recursive_mutex> lck(_mtxListener);
-        auto &listenerMap = getListenerMap();
-        auto it = listenerMap.find(strEvent);
-        if (it == listenerMap.end()) {
-            return;
-        }
-        it->second.erase(tag);
-        if (it->second.empty()) {
-            listenerMap.erase(it);
-        }
-    }
-    void delListener(void *tag){
-        lock_guard<recursive_mutex> lck(_mtxListener);
-        auto &listenerMap = getListenerMap();
-        for (auto it = listenerMap.begin(); it != listenerMap.end();) {
-            it->second.erase(tag);
-            if (it->second.empty()) {
-                it = listenerMap.erase(it);
-                continue;
-            }
-            ++it;
-        }
+        auto &ref = getListenerMap();
+        ref.erase(tag);
+        empty = ref.empty();
     }
 
-    void clearAll(){
-        lock_guard<recursive_mutex> lck(_mtxListener);
-        getListenerMap().clear();
-    }
-private:
-    NoticeCenter(){}
-    MapType &getListenerMap(){
-        if(_lock_thread != this_thread::get_id()){
+    MapType &getListenerMap() {
+        if (_lock_thread != this_thread::get_id()) {
             //本次操作并不包含在emitEvent函数栈生命周期内
             return _mapListener;
         }
 
         //在emitEvent函数中执行_mapListener遍历操作的同时，还可能在回调中对_mapListener进行操作
         //所以我们要先把_mapListener拷贝到一个临时变量然后操作之(防止遍历时做删除或添加操作)
-        if(_map_moved){
+        if (_map_moved) {
             //对象已经移动至_mapListenerTemp，所以请勿重复移动并覆盖
             return _mapListenerTemp;
         }
@@ -150,6 +123,7 @@ private:
         _mapListenerTemp = _mapListener;
         return _mapListenerTemp;
     }
+
 private:
     bool _map_moved = false;
     int _lock_depth = 0;
@@ -159,6 +133,88 @@ private:
     MapType _mapListenerTemp;
 };
 
-} /* namespace toolkit */
+class NoticeCenter : public std::enable_shared_from_this<NoticeCenter> {
+public:
+    typedef std::shared_ptr<NoticeCenter> Ptr;
+    ~NoticeCenter() {}
+    static NoticeCenter &Instance();
 
+    template<typename ...ArgsType>
+    int emitEvent(const string &strEvent, ArgsType &&...args) {
+        auto dispatcher = getDispatcher(strEvent);
+        if (!dispatcher) {
+            //该事件无人监听
+            return 0;
+        }
+        return dispatcher->emitEvent(std::forward<ArgsType>(args)...);
+    }
+
+    template<typename FUNC>
+    void addListener(void *tag, const string &event, FUNC &&func) {
+        getDispatcher(event, true)->addListener(tag, std::forward<FUNC>(func));
+    }
+
+    void delListener(void *tag, const string &event) {
+        auto dispatcher = getDispatcher(event);
+        if (!dispatcher) {
+            //不存在该事件
+            return;
+        }
+        bool empty;
+        dispatcher->delListener(tag, empty);
+        if (empty) {
+            delDispatcher(event, dispatcher);
+        }
+    }
+
+    //这个方法性能比较差
+    void delListener(void *tag) {
+        lock_guard<recursive_mutex> lck(_mtxListener);
+        bool empty;
+        for (auto it = _mapListener.begin(); it != _mapListener.end();) {
+            it->second->delListener(tag, empty);
+            if (empty) {
+                it = _mapListener.erase(it);
+                continue;
+            }
+            ++it;
+        }
+    }
+
+    void clearAll() {
+        lock_guard<recursive_mutex> lck(_mtxListener);
+        _mapListener.clear();
+    }
+private:
+    EventDispatcher::Ptr getDispatcher(const string &event, bool create = false) {
+        lock_guard<recursive_mutex> lck(_mtxListener);
+        auto it = _mapListener.find(event);
+        if (it != _mapListener.end()) {
+            return it->second;
+        }
+        if (create) {
+            //如果为空则创建一个
+            EventDispatcher::Ptr dispatcher(new EventDispatcher());
+            _mapListener.emplace(event, dispatcher);
+            return dispatcher;
+        }
+        return nullptr;
+    }
+
+    void delDispatcher(const string &event, const EventDispatcher::Ptr &dispatcher) {
+        lock_guard<recursive_mutex> lck(_mtxListener);
+        auto it = _mapListener.find(event);
+        if (it != _mapListener.end() && dispatcher == it->second) {
+            //两者相同则删除
+            _mapListener.erase(it);
+        }
+    }
+
+    NoticeCenter() {}
+private:
+    recursive_mutex _mtxListener;
+    unordered_map<string, EventDispatcher::Ptr> _mapListener;
+};
+
+} /* namespace toolkit */
 #endif /* SRC_UTIL_NOTICECENTER_H_ */
