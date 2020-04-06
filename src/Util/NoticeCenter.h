@@ -65,7 +65,6 @@ private:
 
         int ret = 0;
         for (auto &pr : copy) {
-            typedef function<void(decltype(std::forward<ArgsType>(args))...)> funType;
             funType *obj = (funType *) (pr.second.get());
             try {
                 (*obj)(std::forward<ArgsType>(args)...);
