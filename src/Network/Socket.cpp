@@ -249,7 +249,8 @@ bool Socket::attachEvent(const SockFD::Ptr &pSock,bool isUdp) {
     weak_ptr<SockFD> weakSock = pSock;
     _enableRecv = true;
     if(!_readBuffer){
-        _readBuffer = std::make_shared<BufferRaw>(isUdp ? 1600 : 128 * 1024);
+        //udp包最大能达到64KB
+        _readBuffer = std::make_shared<BufferRaw>(isUdp ? 0xFFFF : 128 * 1024);
     }
     int result = _poller->addEvent(pSock->rawFd(), Event_Read | Event_Error | Event_Write, [weakSelf,weakSock,isUdp](int event) {
         auto strongSelf = weakSelf.lock();
@@ -372,7 +373,8 @@ int Socket::send(string &&buf, struct sockaddr *addr, socklen_t addr_len, bool t
 }
 
 int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_len, bool try_flush){
-    if (!buf || !buf->size()) {
+    auto size = buf ? buf->size() : 0;
+    if (!size) {
         return 0;
     }
 
@@ -395,7 +397,7 @@ int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_
     if(try_flush){
         if (_canSendSock) {
             //该socket可写
-            return flushData(sock, false) ? buf->size() : -1;
+            return flushData(sock, false) ? size : -1;
         }
 
         //该socket不可写,判断发送超时
@@ -406,7 +408,7 @@ int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_
         }
     }
 
-    return buf->size();
+    return size;
 }
 
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
@@ -867,7 +869,7 @@ int SocketHelper::send(const Buffer::Ptr &buf) {
     if (!_sock) {
         return -1;
     }
-    return _sock->send(buf);
+    return _sock->send(buf, nullptr, 0, _try_flush);
 }
 
 ////////其他方法////////
@@ -944,6 +946,10 @@ void SocketHelper::sync(TaskIn &&task) {
 
 void SocketHelper::sync_first(TaskIn &&task) {
     _poller->sync_first(std::move(task));
+}
+
+void SocketHelper::setSendFlushFlag(bool try_flush){
+    _try_flush = try_flush;
 }
 
 }  // namespace toolkit

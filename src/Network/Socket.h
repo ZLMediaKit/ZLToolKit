@@ -173,8 +173,7 @@ private:
 //socket 文件描述符的包装
 //在析构时自动溢出监听并close套接字
 //防止描述符溢出
-class SockFD : public noncopyable
-{
+class SockFD : public noncopyable {
 public:
     typedef std::shared_ptr<SockFD> Ptr;
     /**
@@ -304,36 +303,24 @@ public:
     string get_peer_ip();
     //获取对方端口号
     uint16_t get_peer_port();
-
     //设置发送超时主动断开时间;默认10秒
     void setSendTimeOutSecond(uint32_t second);
     //获取一片缓存
     BufferRaw::Ptr obtainBuffer();
-    
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
-
     //获取poller对象
     const EventPoller::Ptr &getPoller() const;
-
     //从另外一个Socket克隆
     //目的是一个socket可以被多个poller对象监听，提高性能
     bool cloneFromListenSocket(const Socket &other);
-
     //设置UDP发送数据时的对端地址
     bool setSendPeerAddr(const struct sockaddr *peerAddr);
     //设置发送flags
     void setSendFlags(int flags);
-
-    /**
-     * 设置接收缓存
-     * @param readBuffer 接收缓存
-     */
+    //设置接收缓存
     void setReadBuffer(const BufferRaw::Ptr &readBuffer);
-
-    /**
-     * 关闭套接字
-     */
+    //关闭套接字
     void closeSock();
 private:
     SockFD::Ptr setPeerSock(int fd);
@@ -444,10 +431,14 @@ public:
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
 
+    /////////线程切换接口///////////
     Task::Ptr async(TaskIn &&task, bool may_sync = true);
     Task::Ptr async_first(TaskIn &&task, bool may_sync = true);
     void sync(TaskIn &&task) ;
     void sync_first(TaskIn &&task);
+
+    //设置批量发送标记,用于提升性能
+    void setSendFlushFlag(bool try_flush);
 protected:
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
@@ -456,6 +447,7 @@ private:
     uint16_t _local_port = 0;
     string _peer_ip;
     uint16_t _peer_port = 0;
+    bool _try_flush = true;
 };
 
 
