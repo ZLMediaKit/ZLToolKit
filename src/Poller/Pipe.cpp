@@ -33,46 +33,46 @@ using namespace std;
 namespace toolkit {
 
 Pipe::Pipe(const function<void(int size, const char *buf)> &onRead,
-		   const EventPoller::Ptr &poller) {
-	_poller = poller;
-	if(!_poller){
-		_poller =  EventPollerPool::Instance().getPoller();
-	}
-	_pipe = std::make_shared<PipeWrap>();
-	auto pipeCopy = _pipe;
-	_poller->addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {
+           const EventPoller::Ptr &poller) {
+    _poller = poller;
+    if(!_poller){
+        _poller =  EventPollerPool::Instance().getPoller();
+    }
+    _pipe = std::make_shared<PipeWrap>();
+    auto pipeCopy = _pipe;
+    _poller->addEvent(_pipe->readFD(), Event_Read, [onRead, pipeCopy](int event) {
 #if defined(_WIN32)
-		unsigned long nread = 1024;
+        unsigned long nread = 1024;
 #else
-		int nread = 1024;
+        int nread = 1024;
 #endif //defined(_WIN32)
-		ioctl(pipeCopy->readFD(), FIONREAD, &nread);
+        ioctl(pipeCopy->readFD(), FIONREAD, &nread);
 #if defined(_WIN32)
-		std::shared_ptr<char> buf(new char[nread + 1], [](char *ptr) {delete[] ptr; });
-		buf.get()[nread] = '\0';
-		nread = pipeCopy->read(buf.get(), nread + 1);
-		if (onRead) {
-			onRead(nread, buf.get());
-		}
+        std::shared_ptr<char> buf(new char[nread + 1], [](char *ptr) {delete[] ptr; });
+        buf.get()[nread] = '\0';
+        nread = pipeCopy->read(buf.get(), nread + 1);
+        if (onRead) {
+            onRead(nread, buf.get());
+        }
 #else
-		char buf[nread + 1];
-		buf[nread] = '\0';
-		nread = pipeCopy->read(buf, sizeof(buf));
-		if (onRead) {
-			onRead(nread, buf);
-		}
+        char buf[nread + 1];
+        buf[nread] = '\0';
+        nread = pipeCopy->read(buf, sizeof(buf));
+        if (onRead) {
+            onRead(nread, buf);
+        }
 #endif // defined(_WIN32)
-		
-	});
+        
+    });
 }
 Pipe::~Pipe() {
-	if (_pipe) {
-		auto pipeCopy = _pipe;
-		_poller->delEvent(pipeCopy->readFD(), [pipeCopy](bool success) {});
-	}
+    if (_pipe) {
+        auto pipeCopy = _pipe;
+        _poller->delEvent(pipeCopy->readFD(), [pipeCopy](bool success) {});
+    }
 }
 void Pipe::send(const char *buf, int size) {
-	_pipe->write(buf,size);
+    _pipe->write(buf,size);
 }
 
 

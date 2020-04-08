@@ -42,9 +42,9 @@ class TcpClient :
         public std::enable_shared_from_this<TcpClient> ,
         public SocketHelper{
 public:
-	typedef std::shared_ptr<TcpClient> Ptr;
-	TcpClient(const EventPoller::Ptr &poller = nullptr);
-	virtual ~TcpClient();
+    typedef std::shared_ptr<TcpClient> Ptr;
+    TcpClient(const EventPoller::Ptr &poller = nullptr);
+    virtual ~TcpClient();
     //开始连接服务器，strUrl可以是域名或ip
     virtual void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3);
     //主动断开服务器
@@ -65,7 +65,7 @@ protected:
     //tcp连接成功后每2秒触发一次该事件
     virtual void onManager() {}
 private:
-	void onSockConnect(const SockException &ex);
+    void onSockConnect(const SockException &ex);
 private:
     std::shared_ptr<Timer> _managerTimer;
     string _netAdapter = "0.0.0.0";
@@ -78,7 +78,11 @@ public:
 
     template<typename ...ArgsType>
     TcpClientWithSSL(ArgsType &&...args):TcpClientType(std::forward<ArgsType>(args)...){}
-    virtual ~TcpClientWithSSL(){}
+    virtual ~TcpClientWithSSL(){
+        if(_sslBox){
+            _sslBox->flush();
+        }
+    }
 
     void onRecv(const Buffer::Ptr &pBuf) override{
         if(_sslBox){
@@ -103,6 +107,11 @@ public:
     inline void public_send(const Buffer::Ptr &pBuf){
         TcpClientType::send(pBuf);
     }
+
+    void startConnect(const string &strUrl, uint16_t iPort, float fTimeOutSec = 3) override{
+        _host = strUrl;
+        TcpClientType::startConnect(strUrl,iPort,fTimeOutSec);
+    }
 protected:
     void onConnect(const SockException &ex)  override {
         if(!ex){
@@ -113,11 +122,17 @@ protected:
             _sslBox->setOnEncData([this](const Buffer::Ptr &pBuf){
                 public_send(pBuf);
             });
+
+            if(!isIP(_host.data())){
+                //设置ssl域名
+                _sslBox->setHost(_host.data());
+            }
         }
         TcpClientType::onConnect(ex);
     }
 private:
     std::shared_ptr<SSL_Box> _sslBox;
+    string _host;
 };
 
 

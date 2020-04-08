@@ -44,11 +44,14 @@ namespace toolkit {
 
 //全局的TcpSession记录对象，方便后面管理
 //线程安全的
-class SessionMap {
+class SessionMap : public std::enable_shared_from_this<SessionMap> {
 public:
-    friend class TcpServer;
+    friend class TcpSessionHelper;
+    typedef std::shared_ptr<SessionMap> Ptr;
     //单例
     static SessionMap &Instance();
+    ~SessionMap(){};
+
     //获取Session
     TcpSession::Ptr get(const string &tag){
         lock_guard<mutex> lck(_mtx_session);
@@ -72,7 +75,6 @@ public:
     }
 private:
     SessionMap(){};
-    ~SessionMap(){};
     //添加Session
     bool add(const string &tag,const TcpSession::Ptr &session){
         //InfoL ;
@@ -80,7 +82,7 @@ private:
         return _map_session.emplace(tag,session).second;
     }
     //移除Session
-    bool remove(const string &tag){
+    bool del(const string &tag){
         //InfoL ;
         lock_guard<mutex> lck(_mtx_session);
         return _map_session.erase(tag);
@@ -93,24 +95,33 @@ private:
 class TcpServer;
 class TcpSessionHelper {
 public:
-	typedef std::shared_ptr<TcpSessionHelper> Ptr;
+    typedef std::shared_ptr<TcpSessionHelper> Ptr;
 
-	TcpSessionHelper(const std::weak_ptr<TcpServer> &server,TcpSession::Ptr &&session){
-		_server = server;
-		_session = std::move(session);
-	}
-	~TcpSessionHelper(){
-		if(!_server.lock()){
-			_session->onError(SockException(Err_other,"Tcp server shutdown!"));
-		}
-	}
+    TcpSessionHelper(const std::weak_ptr<TcpServer> &server,TcpSession::Ptr &&session){
+        _server = server;
+        _session = std::move(session);
+        //记录session至全局的map，方便后面管理
+        _session_map = SessionMap::Instance().shared_from_this();
+        _identifier = _session->getIdentifier();
+        _session_map->add(_identifier,_session);
+    }
+    ~TcpSessionHelper(){
+        if(!_server.lock()){
+            //务必通知TcpSession已从TcpServer脱离
+            _session->onError(SockException(Err_other,"Tcp server shutdown!"));
+        }
+        //从全局map移除相关记录
+        _session_map->del(_identifier);
+    }
 
-	const TcpSession::Ptr &session() const{
-		return _session;
-	}
+    const TcpSession::Ptr &session() const{
+        return _session;
+    }
 private:
-	std::weak_ptr<TcpServer> _server;
-	TcpSession::Ptr _session;
+    std::weak_ptr<TcpServer> _server;
+    TcpSession::Ptr _session;
+    SessionMap::Ptr _session_map;
+    string _identifier;
 };
 
 
@@ -118,212 +129,198 @@ private:
 //该对象是非线程安全的，务必在主线程中操作
 class TcpServer : public mINI , public std::enable_shared_from_this<TcpServer>{
 public:
-	typedef std::shared_ptr<TcpServer> Ptr;
+    typedef std::shared_ptr<TcpServer> Ptr;
 
-	/**
-	 * 创建Tcp服务器，父文件描述符的accept事件在某固定的poller循环中触发
+    /**
+     * 创建Tcp服务器，父文件描述符的accept事件在某固定的poller循环中触发
      * 但是子文件描述符的所有事件、数据读取、数据处理都是在从EventPollerPool中获取的poller线程中执行
      * 所以这种方式网络事件的触发会派发到多个poller线程中执行
      * 这种方式网络吞吐量最大
-	 */
+     */
 
     TcpServer(const EventPoller::Ptr &poller = nullptr) {
-		_poller = poller;
-		if(!_poller){
-			_poller =  EventPollerPool::Instance().getPoller();
-		}
-		_socket = std::make_shared<Socket>(_poller);
+        _poller = poller;
+        if(!_poller){
+            _poller =  EventPollerPool::Instance().getPoller();
+        }
+        _socket = std::make_shared<Socket>(_poller);
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
-		_socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this,std::placeholders::_1));
+        _socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this,std::placeholders::_1));
     }
 
-	virtual ~TcpServer() {
-		_timer.reset();
+    virtual ~TcpServer() {
+        _timer.reset();
         //先关闭socket监听，防止收到新的连接
-		_socket.reset();
+        _socket.reset();
 
         if(!_cloned) {
             TraceL << "start clean tcp server...";
         }
-        //务必通知TcpSession已从TcpServer脱离
-		for (auto &pr : _sessionMap) {
-            //从全局的map中移除记录
-            SessionMap::Instance().remove(pr.first);
-		}
-		_sessionMap.clear();
-		_clonedServer.clear();
+        _sessionMap.clear();
+        _clonedServer.clear();
         if(!_cloned){
             TraceL << "clean tcp server completed!";
         }
-	}
+    }
 
     //开始监听服务器
     template <typename SessionType>
-	void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
-		start_l<SessionType>(port,host,backlog);
-		EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor){
-			EventPoller::Ptr poller = dynamic_pointer_cast<EventPoller>(executor);
-			if(poller == _poller || !poller){
-				return;
-			}
-			auto &serverRef = _clonedServer[poller.get()];
-			if(!serverRef){
-				serverRef = onCreatServer(poller);
-			}
-			if(serverRef){
-				serverRef->cloneFrom(*this);
-			}
-		});
-	}
+    void start(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
+        start_l<SessionType>(port,host,backlog);
+        EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor){
+            EventPoller::Ptr poller = dynamic_pointer_cast<EventPoller>(executor);
+            if(poller == _poller || !poller){
+                return;
+            }
+            auto &serverRef = _clonedServer[poller.get()];
+            if(!serverRef){
+                serverRef = onCreatServer(poller);
+            }
+            if(serverRef){
+                serverRef->cloneFrom(*this);
+            }
+        });
+    }
 
-	uint16_t getPort(){
-		if(!_socket){
-			return 0;
-		}
-		return _socket->get_local_port();
-	}
+    uint16_t getPort(){
+        if(!_socket){
+            return 0;
+        }
+        return _socket->get_local_port();
+    }
 protected:
-	virtual TcpServer::Ptr onCreatServer(const EventPoller::Ptr &poller){
-		return std::make_shared<TcpServer>(poller);
+    virtual TcpServer::Ptr onCreatServer(const EventPoller::Ptr &poller){
+        return std::make_shared<TcpServer>(poller);
     }
 
     virtual Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &poller){
-    	/**
-    	 * 服务器器模型socket是线程安全的，所以为了提高性能，关闭互斥锁
-    	 */
-		return std::make_shared<Socket>(poller,false);
-	}
+        /**
+         * 服务器器模型socket是线程安全的，所以为了提高性能，关闭互斥锁
+         */
+        return std::make_shared<Socket>(poller,false);
+    }
 
-	virtual void cloneFrom(const TcpServer &that){
-		if(!that._socket){
-			throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
-		}
-		_sessionMaker = that._sessionMaker;
-		_socket->cloneFromListenSocket(*(that._socket));
-		_timer = std::make_shared<Timer>(2, [this]()->bool {
-			this->onManagerSession();
-			return true;
-		},_poller);
-		this->mINI::operator=(that);
-		_cloned = true;
-	}
+    virtual void cloneFrom(const TcpServer &that){
+        if(!that._socket){
+            throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
+        }
+        _sessionMaker = that._sessionMaker;
+        _socket->cloneFromListenSocket(*(that._socket));
+        _timer = std::make_shared<Timer>(2, [this]()->bool {
+            this->onManagerSession();
+            return true;
+        },_poller);
+        this->mINI::operator=(that);
+        _cloned = true;
+    }
 
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr & sock) {
-		weak_ptr<TcpServer> weakSelf = shared_from_this();
+        weak_ptr<TcpServer> weakSelf = shared_from_this();
         //创建一个TcpSession;这里实现创建不同的服务会话实例
-		auto sessionHelper = _sessionMaker(weakSelf,sock);
-		auto &session = sessionHelper->session();
+        auto sessionHelper = _sessionMaker(weakSelf,sock);
+        auto &session = sessionHelper->session();
         //把本服务器的配置传递给TcpSession
         session->attachServer(*this);
 
-        //TcpSession的唯一识别符，可以是guid之类的
-        auto sessionId = session->getIdentifier();
-        //记录该TcpSession
-        if(!SessionMap::Instance().add(sessionId,session)){
-            //有同名session，说明getIdentifier生成的标识符有问题
-            WarnL << "SessionMap::add failed:" << sessionId;
-            return;
-        }
-        //SessionMap中没有相关记录，那么_sessionMap更不可能有相关记录了；
-        //所以_sessionMap::emplace肯定能成功
-        auto success = _sessionMap.emplace(sessionId, sessionHelper).second;
+        //_sessionMap::emplace肯定能成功
+        auto success = _sessionMap.emplace(sessionHelper.get(), sessionHelper).second;
         assert(success == true);
 
         weak_ptr<TcpSession> weakSession(session);
-		//会话接收数据事件
-		sock->setOnRead([weakSession](const Buffer::Ptr &buf, struct sockaddr *, int ){
-			//获取会话强应用
-			auto strongSession=weakSession.lock();
-			if(!strongSession) {
-				//会话对象已释放
-				return;
-			}
-			strongSession->onRecv(buf);
-		});
+        //会话接收数据事件
+        sock->setOnRead([weakSession](const Buffer::Ptr &buf, struct sockaddr *, int ){
+            //获取会话强应用
+            auto strongSession=weakSession.lock();
+            if(!strongSession) {
+                //会话对象已释放
+                return;
+            }
+            strongSession->onRecv(buf);
+        });
 
-
-		//会话接收到错误事件
-		sock->setOnErr([weakSelf,weakSession,sessionId](const SockException &err){
-		    //在本函数作用域结束时移除会话对象
+        TcpSessionHelper *ptr = sessionHelper.get();
+        //会话接收到错误事件
+        sock->setOnErr([weakSelf,weakSession,ptr](const SockException &err){
+            //在本函数作用域结束时移除会话对象
             //目的是确保移除会话前执行其onError函数
             //同时避免其onError函数抛异常时没有移除会话对象
-		    onceToken token(nullptr,[&](){
+            onceToken token(nullptr, [ptr, &weakSelf]() {
                 //移除掉会话
-                SessionMap::Instance().remove(sessionId);
                 auto strongSelf = weakSelf.lock();
-                if(!strongSelf) {
+                if (!strongSelf) {
                     return;
                 }
                 //在TcpServer对应线程中移除map相关记录
-                strongSelf->_poller->async([weakSelf,sessionId](){
+                strongSelf->_poller->async([weakSelf, ptr]() {
                     auto strongSelf = weakSelf.lock();
-                    if(!strongSelf){
+                    if (!strongSelf) {
                         return;
                     }
-                    strongSelf->_sessionMap.erase(sessionId);
+                    strongSelf->_sessionMap.erase(ptr);
                 });
-		    });
-			//获取会话强应用
-			auto strongSession=weakSession.lock();
+            });
+
+            //获取会话强应用
+            auto strongSession = weakSession.lock();
             if(strongSession) {
                 //触发onError事件回调
-				strongSession->onError(err);
-			}
-		});
-	}
+                strongSession->onError(err);
+            }
+        });
+    }
 
 private:
-	Socket::Ptr onBeforeAcceptConnection_l(const EventPoller::Ptr &poller){
-		return onBeforeAcceptConnection(poller);
-	}
+    Socket::Ptr onBeforeAcceptConnection_l(const EventPoller::Ptr &poller){
+        return onBeforeAcceptConnection(poller);
+    }
     // 接收到客户端连接请求
     void onAcceptConnection_l(const Socket::Ptr & sock) {
         onAcceptConnection(sock);
     }
 
 
-	template <typename SessionType>
-	void start_l(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
-		//TcpSession创建器，通过它创建不同类型的服务器
-		_sessionMaker = [](const weak_ptr<TcpServer> &server,const Socket::Ptr &sock){
-			return std::make_shared<TcpSessionHelper>(server,std::make_shared<SessionType>(sock));
-		};
+    template <typename SessionType>
+    void start_l(uint16_t port, const std::string& host = "0.0.0.0", uint32_t backlog = 1024) {
+        //TcpSession创建器，通过它创建不同类型的服务器
+        _sessionMaker = [](const weak_ptr<TcpServer> &server,const Socket::Ptr &sock){
+            return std::make_shared<TcpSessionHelper>(server,std::make_shared<SessionType>(sock));
+        };
 
-		if (!_socket->listen(port, host.c_str(), backlog)) {
-			//创建tcp监听失败，可能是由于端口占用或权限问题
-			string err = (StrPrinter << "listen on " << host << ":" << port << " failed:" << get_uv_errmsg(true));
-			throw std::runtime_error(err);
-		}
+        if (!_socket->listen(port, host.c_str(), backlog)) {
+            //创建tcp监听失败，可能是由于端口占用或权限问题
+            string err = (StrPrinter << "listen on " << host << ":" << port << " failed:" << get_uv_errmsg(true));
+            throw std::runtime_error(err);
+        }
 
-		//新建一个定时器定时管理这些tcp会话
-		_timer = std::make_shared<Timer>(2, [this]()->bool {
-			this->onManagerSession();
-			return true;
-		},_poller);
-		InfoL << "TCP Server listening on " << host << ":" << port;
-	}
+        //新建一个定时器定时管理这些tcp会话
+        _timer = std::make_shared<Timer>(2, [this]()->bool {
+            this->onManagerSession();
+            return true;
+        },_poller);
+        InfoL << "TCP Server listening on " << host << ":" << port;
+    }
 
-	//定时管理Session
-	void onManagerSession() {
-		for (auto &pr : _sessionMap) {
-			weak_ptr<TcpSession> weakSession = pr.second->session();
-			pr.second->session()->async([weakSession]() {
-				auto strongSession=weakSession.lock();
-				if(!strongSession) {
-					return;
-				}
-				strongSession->onManager();
-			}, false);
-		}
-	}
+    //定时管理Session
+    void onManagerSession() {
+        for (auto &pr : _sessionMap) {
+            weak_ptr<TcpSession> weakSession = pr.second->session();
+            pr.second->session()->async([weakSession]() {
+                auto strongSession=weakSession.lock();
+                if(!strongSession) {
+                    return;
+                }
+                strongSession->onManager();
+            }, false);
+        }
+    }
 private:
     EventPoller::Ptr _poller;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
-	unordered_map<string, TcpSessionHelper::Ptr > _sessionMap;
+    unordered_map<TcpSessionHelper *, TcpSessionHelper::Ptr > _sessionMap;
     function<TcpSessionHelper::Ptr(const weak_ptr<TcpServer> &server,const Socket::Ptr &)> _sessionMaker;
-	unordered_map<EventPoller *,Ptr> _clonedServer;
+    unordered_map<EventPoller *,Ptr> _clonedServer;
     bool _cloned = false;
 };
 

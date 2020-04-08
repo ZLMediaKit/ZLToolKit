@@ -42,52 +42,52 @@ namespace toolkit {
 
 class semaphore {
 public:
-	explicit semaphore(unsigned int initial = 0) {
+    explicit semaphore(unsigned int initial = 0) {
 #if defined(HAVE_SEM)
-		sem_init(&_sem, 0, initial);
+        sem_init(&_sem, 0, initial);
 #else
-		_count = 0;
+        _count = 0;
 #endif
-	}
-	~semaphore() {
+    }
+    ~semaphore() {
 #if defined(HAVE_SEM)
-		sem_destroy(&_sem);
+        sem_destroy(&_sem);
 #endif
-	}
-	void post(unsigned int n = 1) {
+    }
+    void post(unsigned int n = 1) {
 #if defined(HAVE_SEM)
-		while (n--) {
-			sem_post(&_sem);
-		}
+        while (n--) {
+            sem_post(&_sem);
+        }
 #else
-		unique_lock<mutex> lock(_mutex);
+        unique_lock<mutex> lock(_mutex);
         _count += n;
         if(n == 1){
-			_condition.notify_one();
-		}else{
-			_condition.notify_all();
-		}
+            _condition.notify_one();
+        }else{
+            _condition.notify_all();
+        }
 #endif
 
-	}
-	void wait() {
+    }
+    void wait() {
 #if defined(HAVE_SEM)
-		sem_wait(&_sem);
+        sem_wait(&_sem);
 #else
-		unique_lock<mutex> lock(_mutex);
-		while (_count == 0) {
-			_condition.wait(lock);
-		}
-		--_count;
+        unique_lock<mutex> lock(_mutex);
+        while (_count == 0) {
+            _condition.wait(lock);
+        }
+        --_count;
 #endif
-	}
+    }
 private:
 #if defined(HAVE_SEM)
-	sem_t _sem;
+    sem_t _sem;
 #else
-	int _count;
-	mutex _mutex;
-	condition_variable_any _condition;
+    int _count;
+    mutex _mutex;
+    condition_variable_any _condition;
 #endif
 };
 

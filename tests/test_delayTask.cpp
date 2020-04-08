@@ -33,24 +33,24 @@ using namespace std;
 using namespace toolkit;
 
 int main() {
-	//设置日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>());
+    //设置日志
+    Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
     Ticker ticker0;
-	int nextDelay0 = 50;
-	std::shared_ptr<onceToken> token0 = std::make_shared<onceToken>(nullptr,[](){
+    int nextDelay0 = 50;
+    std::shared_ptr<onceToken> token0 = std::make_shared<onceToken>(nullptr,[](){
         TraceL << "task 0 被取消，可以立即触发释放lambad表达式捕获的变量!";
-	});
-	auto tag0 = EventPollerPool::Instance().getPoller()->doDelayTask(nextDelay0, [&,token0]() {
+    });
+    auto tag0 = EventPollerPool::Instance().getPoller()->doDelayTask(nextDelay0, [&,token0]() {
         TraceL << "task 0(固定延时重复任务),预期休眠时间 :" << nextDelay0 << " 实际休眠时间" << ticker0.elapsedTime();
         ticker0.resetTime();
         return nextDelay0;
     });
     token0 = nullptr;
 
-	Ticker ticker1;
-	int nextDelay1 = 50;
+    Ticker ticker1;
+    int nextDelay1 = 50;
     auto tag1 = EventPollerPool::Instance().getPoller()->doDelayTask(nextDelay1, [&]() {
         DebugL << "task 1(可变延时重复任务),预期休眠时间 :" << nextDelay1 << " 实际休眠时间" << ticker1.elapsedTime();
         ticker1.resetTime();
@@ -72,7 +72,7 @@ int main() {
     });
 
 
-	sleep(2);
+    sleep(2);
     tag0->cancel();
     tag1->cancel();
     WarnL << "取消task 0、1";

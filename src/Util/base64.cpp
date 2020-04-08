@@ -81,9 +81,9 @@ char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in_size)
     int bytes_remaining = in_size;
 
     if (in_size >= UINT_MAX / 4 || out_size < AV_BASE64_SIZE(in_size))
- 	{
+     {
          return NULL;
- 	}
+     }
     ret = dst = out;
     while (bytes_remaining) {
         i_bits = (i_bits << 8) + *in++;

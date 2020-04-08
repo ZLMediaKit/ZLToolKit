@@ -24,13 +24,11 @@
 
 
 #include "NoticeCenter.h"
+#include "util.h"
 
 namespace toolkit {
 
-NoticeCenter &NoticeCenter::Instance(){
-	static NoticeCenter instance;
-	return instance;
-}
+INSTANCE_IMP(NoticeCenter);
 
 } /* namespace toolkit */
 

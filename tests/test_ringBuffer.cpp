@@ -40,66 +40,66 @@ RingBuffer<string>::Ptr g_ringBuf(new RingBuffer<string>(30));
 
 //写事件回调函数
 void onReadEvent(const string &str){
-	//读事件模式性
-	DebugL << str;
+    //读事件模式性
+    DebugL << str;
 }
 
 //环形缓存销毁事件
 void onDetachEvent(){
-	WarnL;
+    WarnL;
 }
 
 //写环形缓存任务
 void doWrite(){
-	int i = 0;
-	while(!g_bExitWrite){
-		//每隔100ms写一个数据到环形缓存
-		g_ringBuf->write(to_string(++i),true);
-		usleep(100 * 1000);
-	}
+    int i = 0;
+    while(!g_bExitWrite){
+        //每隔100ms写一个数据到环形缓存
+        g_ringBuf->write(to_string(++i),true);
+        usleep(100 * 1000);
+    }
 
 }
 int main() {
-	//初始化日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>());
-	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+    //初始化日志
+    Logger::Instance().add(std::make_shared<ConsoleChannel>());
+    Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	auto poller = EventPollerPool::Instance().getPoller();
-	RingBuffer<string>::RingReader::Ptr ringReader;
-	poller->sync([&](){
-		//从环形缓存获取一个读取器
-		ringReader = g_ringBuf->attach(poller);
+    auto poller = EventPollerPool::Instance().getPoller();
+    RingBuffer<string>::RingReader::Ptr ringReader;
+    poller->sync([&](){
+        //从环形缓存获取一个读取器
+        ringReader = g_ringBuf->attach(poller);
 
-		//设置读取事件
-		ringReader->setReadCB([](const string &pkt){
-			onReadEvent(pkt);
-		});
+        //设置读取事件
+        ringReader->setReadCB([](const string &pkt){
+            onReadEvent(pkt);
+        });
 
-		//设置环形缓存销毁事件
-		ringReader->setDetachCB([](){
-			onDetachEvent();
-		});
-	});
+        //设置环形缓存销毁事件
+        ringReader->setDetachCB([](){
+            onDetachEvent();
+        });
+    });
 
 
-	thread_group group;
-	//写线程
-	group.create_thread([](){
-		doWrite();
-	});
+    thread_group group;
+    //写线程
+    group.create_thread([](){
+        doWrite();
+    });
 
-	//测试3秒钟
-	sleep(3);
+    //测试3秒钟
+    sleep(3);
 
-	//通知写线程退出
-	g_bExitWrite = true;
-	//等待写线程退出
-	group.join_all();
+    //通知写线程退出
+    g_bExitWrite = true;
+    //等待写线程退出
+    group.join_all();
 
-	//释放环形缓冲，此时触发Detach事件
-	g_ringBuf.reset();
-	sleep(1);
-	return 0;
+    //释放环形缓冲，此时触发Detach事件
+    g_ringBuf.reset();
+    sleep(1);
+    return 0;
 }
 
 

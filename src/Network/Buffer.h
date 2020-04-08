@@ -43,21 +43,38 @@ public:
 class BufferString : public  Buffer {
 public:
     typedef std::shared_ptr<BufferString> Ptr;
-    BufferString(const string &data):_data(data) {}
-    BufferString(string &&data):_data(std::move(data)){}
+    BufferString(const string &data,int offset = 0,int len = 0):_data(data) {
+        setup(offset,len);
+    }
+    BufferString(string &&data,int offset = 0,int len = 0):_data(std::move(data)){
+        setup(offset,len);
+    }
     ~BufferString() {}
     char *data() const override {
-        return const_cast<char *>(_data.data());
+        return const_cast<char *>(_data.data()) + _offset;
     }
     uint32_t size() const override{
-        return _data.size();
+        return _size;
     }
 
     string toString() const override {
-        return _data;
+        if(_offset == 0 && _size == _data.size()){
+            return _data;
+        }
+        return string(data(),size());
+    }
+private:
+    void setup(int offset = 0,int len = 0){
+        _offset = offset;
+        _size = len;
+        if(_size <= 0 || _size > _data.size()){
+            _size = _data.size();
+        }
     }
 private:
     string _data;
+    int _offset;
+    int _size;
 };
 
 //指针式缓存对象，
@@ -142,17 +159,17 @@ private:
 
 #if defined(_WIN32)
 struct iovec {
-	void *   iov_base;	/* [XSI] Base address of I/O memory region */
-	int	 iov_len;	/* [XSI] Size of region iov_base points to */
+    void *   iov_base;	/* [XSI] Base address of I/O memory region */
+    int	 iov_len;	/* [XSI] Size of region iov_base points to */
 };
 struct msghdr {
-	void		*msg_name;	/* [XSI] optional address */
-	int			msg_namelen;	/* [XSI] size of address */
-	struct		iovec *msg_iov;	/* [XSI] scatter/gather array */
-	int			msg_iovlen;	/* [XSI] # elements in msg_iov */
-	void		*msg_control;	/* [XSI] ancillary data, see below */
-	int			msg_controllen;	/* [XSI] ancillary data buffer len */
-	int			msg_flags;	/* [XSI] flags on received message */
+    void		*msg_name;	/* [XSI] optional address */
+    int			msg_namelen;	/* [XSI] size of address */
+    struct		iovec *msg_iov;	/* [XSI] scatter/gather array */
+    int			msg_iovlen;	/* [XSI] # elements in msg_iov */
+    void		*msg_control;	/* [XSI] ancillary data, see below */
+    int			msg_controllen;	/* [XSI] ancillary data buffer len */
+    int			msg_flags;	/* [XSI] flags on received message */
 };
 #else
 #include <sys/uio.h>
