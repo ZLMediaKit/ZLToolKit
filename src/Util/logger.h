@@ -304,12 +304,15 @@ public:
 };
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
-#define TraceL LogContextCapturer(Logger::Instance(), LTrace, __FILE__,__FUNCTION__, __LINE__)
-#define DebugL LogContextCapturer(Logger::Instance(),LDebug, __FILE__,__FUNCTION__, __LINE__)
-#define InfoL LogContextCapturer(Logger::Instance(),LInfo, __FILE__,__FUNCTION__, __LINE__)
-#define WarnL LogContextCapturer(Logger::Instance(),LWarn,__FILE__, __FUNCTION__, __LINE__)
-#define ErrorL LogContextCapturer(Logger::Instance(),LError,__FILE__, __FUNCTION__, __LINE__)
-#define WriteL(level) LogContextCapturer(Logger::Instance(),level,__FILE__, __FUNCTION__, __LINE__)
+//可重置默认值
+extern Logger* g_defaultLogger;
+
+#define TraceL LogContextCapturer(*g_defaultLogger, LTrace, __FILE__,__FUNCTION__, __LINE__)
+#define DebugL LogContextCapturer(*g_defaultLogger,LDebug, __FILE__,__FUNCTION__, __LINE__)
+#define InfoL LogContextCapturer(*g_defaultLogger,LInfo, __FILE__,__FUNCTION__, __LINE__)
+#define WarnL LogContextCapturer(*g_defaultLogger,LWarn,__FILE__, __FUNCTION__, __LINE__)
+#define ErrorL LogContextCapturer(*g_defaultLogger,LError,__FILE__, __FUNCTION__, __LINE__)
+#define WriteL(level) LogContextCapturer(*g_defaultLogger,level,__FILE__, __FUNCTION__, __LINE__)
 
 } /* namespace toolkit */
 
