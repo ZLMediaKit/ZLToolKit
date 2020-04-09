@@ -37,6 +37,7 @@ using namespace std;
 #endif
 
 #if defined(_WIN32)
+#define FD_SETSIZE 1024 //修改默认64为1024路
 #include <WinSock2.h>   
 #pragma comment (lib,"WS2_32")
 #endif // WIN32
