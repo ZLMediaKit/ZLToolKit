@@ -339,16 +339,16 @@ void FileChannelBase::write(const Logger &logger, const std::shared_ptr<LogConte
     format(logger, _fstream, ctx, false);
 }
 
-void FileChannelBase::setPath(const string &path) {
+bool FileChannelBase::setPath(const string &path) {
     _path = path;
-    open();
+    return open();
 }
 
 const string &FileChannelBase::path() const {
     return _path;
 }
 
-void FileChannelBase::open() {
+bool FileChannelBase::open() {
     // Ensure a path was set
     if (_path.empty()) {
         throw runtime_error("Log file path must be set.");
@@ -364,8 +364,11 @@ void FileChannelBase::open() {
     _fstream.open(_path.c_str(), ios::out | ios::app);
     // Throw on failure
     if (!_fstream.is_open()) {
-        throw runtime_error("Failed to open log file: " + _path);
+        return false;
+        //throw runtime_error("Failed to open log file: " + _path);
     }
+    else
+        return true;
 }
 
 void FileChannelBase::close() {
@@ -407,11 +410,14 @@ void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
         //记录所有的日志文件，以便后续删除老的日志
         _log_file_map.emplace(day, log_file);
         //打开新的日志文件
-        setPath(log_file);
+        _canWrite = setPath(log_file);
+        if (!_canWrite)
+            ErrorL << "Failed to open log file: " << _path;
         clean();
     }
     //写日志
-    FileChannelBase::write(logger, ctx);
+    if (_canWrite)
+        FileChannelBase::write(logger, ctx);
 }
 
 void FileChannel::clean() {
