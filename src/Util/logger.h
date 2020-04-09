@@ -243,10 +243,10 @@ public:
     ~FileChannelBase();
 
     void write(const Logger &logger , const LogContextPtr &ctx) override;
-    void setPath(const string &path);
+    bool setPath(const string &path);
     const string &path() const;
 protected:
-    virtual void open();
+    virtual bool open();
     virtual void close();
 protected:
     ofstream _fstream;
@@ -286,6 +286,7 @@ private:
      */
     void clean();
 private:
+    bool _canWrite = false;
     string _dir;
     int64_t _last_day = -1;
     map<uint64_t,string> _log_file_map;
