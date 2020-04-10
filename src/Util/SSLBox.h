@@ -60,18 +60,6 @@ public:
     bool loadCertificate(const string &pem_or_p12, bool serverMode = true, const string &passwd = "", bool isFile = true, bool isDefault = true);
 
     /**
-     * 加载公钥和私钥
-     * 公钥可以使用SSLUtil加载
-     * 客户端默认可以不加载证书(除非服务器要求客户端提供证书)
-     * @see SSLUtil
-     * @param public_key 公钥
-     * @param private_key 私钥
-     * @param serverMode 是否为服务器模式
-     * @param isDefault 是否为默认证书
-     */
-    bool loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode = true, bool isDefault = true);
-
-    /**
      * 是否忽略无效的证书
      * 默认忽略，强烈建议不要忽略！
      * @param ignore 标记

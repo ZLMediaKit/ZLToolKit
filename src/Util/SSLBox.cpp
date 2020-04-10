@@ -110,8 +110,8 @@ SSL_Initor::SSL_Initor() {
 #endif
     });
 
-    setContext("",SSLUtil::makeSSLContext(nullptr, nullptr, false),false);
-    setContext("",SSLUtil::makeSSLContext(nullptr, nullptr, true),true);
+    setContext("",SSLUtil::makeSSLContext(vector<shared_ptr<X509> >(), nullptr, false),false);
+    setContext("",SSLUtil::makeSSLContext(vector<shared_ptr<X509> >(), nullptr, true),true);
 #endif //defined(ENABLE_OPENSSL)
 }
 
@@ -129,16 +129,19 @@ SSL_Initor::~SSL_Initor() {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-bool SSL_Initor::loadCertificate(const string &pem_or_p12,  bool serverMode, const string &passwd , bool isFile,bool isDefault){
-    return loadCertificate(SSLUtil::loadPublicKey(pem_or_p12, passwd, isFile).get(),
-                               SSLUtil::loadPrivateKey(pem_or_p12, passwd, isFile).get(),
-                               serverMode,isDefault);
-}
-
-bool SSL_Initor::loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode,bool isDefault) {
-    return setContext(SSLUtil::getServerName(public_key),
-                      SSLUtil::makeSSLContext(public_key, private_key, serverMode),
-                      serverMode,isDefault);
+bool SSL_Initor::loadCertificate(const string &pem_or_p12, bool serverMode, const string &passwd, bool isFile, bool isDefault) {
+    auto cers = SSLUtil::loadPublicKey(pem_or_p12, passwd, isFile);
+    auto key = SSLUtil::loadPrivateKey(pem_or_p12, passwd, isFile);
+    auto ssl_ctx = SSLUtil::makeSSLContext(cers, key, serverMode);
+    if(!ssl_ctx){
+        return false;
+    }
+    for (auto &cer : cers) {
+        auto server_name = SSLUtil::getServerName(cer.get());
+        setContext(server_name, ssl_ctx, serverMode, isDefault);
+        break;
+    }
+    return true;
 }
 
 int SSL_Initor::findCertificate(SSL *ssl, int *ad, void *arg) {
@@ -252,7 +255,11 @@ bool SSL_Initor::trustCertificate(X509 *cer, bool serverMode) {
 }
 
 bool SSL_Initor::trustCertificate(const string &pem_p12_cer, bool serverMode, const string &passwd, bool isFile) {
-    return trustCertificate(SSLUtil::loadPublicKey(pem_p12_cer,passwd,isFile).get(),serverMode);
+    auto cers = SSLUtil::loadPublicKey(pem_p12_cer,passwd,isFile);
+    for(auto &cer : cers){
+        trustCertificate(cer.get(),serverMode);
+    }
+    return true;
 }
 
 std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost,bool serverMode){
