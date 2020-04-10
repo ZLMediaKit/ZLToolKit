@@ -29,7 +29,7 @@
 #include <sys/stat.h>
 
 namespace toolkit {
-
+    Logger* g_defaultLogger = &Logger::Instance();
 #ifdef _WIN32
 #define CLEAR_COLOR 7
 static const WORD LOG_CONST_TABLE[][3] = {
