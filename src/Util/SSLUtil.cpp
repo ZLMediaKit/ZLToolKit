@@ -55,6 +55,7 @@ std::string SSLUtil::getLastError(){
     }
 }
 
+#if defined(ENABLE_OPENSSL)
 static int getCerType(BIO *bio, const char *passwd, X509 **x509, int type){
     //尝试pem格式
     if(type == 1 || type == 0){
@@ -100,6 +101,7 @@ static int getCerType(BIO *bio, const char *passwd, X509 **x509, int type){
 
     return 0;
 }
+#endif //defined(ENABLE_OPENSSL)
 
 vector<shared_ptr<X509> > SSLUtil::loadPublicKey(const string &file_path_or_data, const string &passwd,bool isFile) {
     vector<shared_ptr<X509> > ret;
