@@ -201,6 +201,7 @@ public:
     BufferList(List<Buffer::Ptr> &list);
     ~BufferList(){}
     bool empty();
+    int count();
     int send(int fd,int flags,bool udp);
 private:
     void reOffset(int n);

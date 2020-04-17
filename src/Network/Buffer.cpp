@@ -11,6 +11,10 @@ bool BufferList::empty() {
     return _iovec_off == _iovec.size();
 }
 
+int BufferList::count(){
+    return _iovec.size() - _iovec_off;
+}
+
 #if defined(_WIN32)
 int sendmsg(int fd, const struct msghdr *msg, int flags) {
     int n = 0;

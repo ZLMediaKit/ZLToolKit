@@ -322,6 +322,10 @@ public:
     void setReadBuffer(const BufferRaw::Ptr &readBuffer);
     //关闭套接字
     void closeSock();
+    //获取发送缓存包个数
+    int getSendBufferCount();
+    //获取上次socket发送缓存清空至今的毫秒数,单位毫秒
+    uint64_t elapsedTimeAfterFlushed();
 private:
     SockFD::Ptr setPeerSock(int fd);
     bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);

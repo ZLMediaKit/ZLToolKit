@@ -429,6 +429,26 @@ void Socket::closeSock() {
     _sockFd.reset();
 }
 
+int Socket::getSendBufferCount(){
+    int ret = 0;
+    {
+        LOCK_GUARD(_mtx_bufferWaiting);
+        ret += _bufferWaiting.size();
+    }
+
+    {
+        LOCK_GUARD(_mtx_bufferSending);
+        _bufferSending.for_each([&](BufferList::Ptr &buf){
+            ret += buf->count();
+        });
+    }
+    return ret;
+}
+
+uint64_t Socket::elapsedTimeAfterFlushed(){
+    return _lastFlushTicker.elapsedTime();
+}
+
 bool Socket::listen(const SockFD::Ptr &pSock){
     closeSock();
     weak_ptr<SockFD> weakSock = pSock;
