@@ -1,6 +1,26 @@
-﻿//
-// Created by xzl on 2018/9/13.
-//
+﻿/*
+ * MIT License
+ *
+ * Copyright (c) 2016-2020 xiongziliang <771730766@qq.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 #ifndef ZLTOOLKIT_TASKEXECUTOR_H
 #define ZLTOOLKIT_TASKEXECUTOR_H
@@ -134,7 +154,6 @@ private:
     mutex _mtx;
 };
 
-
 class TaskCancelable : public noncopyable{
 public:
     TaskCancelable() = default;
@@ -199,24 +218,13 @@ protected:
     std::weak_ptr<func_type > _weakTask;
 };
 
-
 typedef function<void()> TaskIn;
 typedef TaskCancelableImp<void()> Task;
 
-/**
- * 任务执行器
- */
-class TaskExecutor : public ThreadLoadCounter{
+class TaskExecutorInterface{
 public:
-    typedef shared_ptr<TaskExecutor> Ptr;
-
-    /**
-     * 构造函数
-     * @param max_size cpu负载统计样本数
-     * @param max_usec cpu负载统计时间窗口大小
-     */
-    TaskExecutor(uint64_t max_size = 32,uint64_t max_usec = 2 * 1000 * 1000):ThreadLoadCounter(max_size,max_usec){}
-    virtual ~TaskExecutor(){}
+    TaskExecutorInterface() = default;
+    virtual ~TaskExecutorInterface() = default;
     /**
      * 异步执行任务
      * @param task 任务
@@ -275,6 +283,22 @@ public:
     };
 };
 
+/**
+ * 任务执行器
+ */
+class TaskExecutor : public ThreadLoadCounter , public TaskExecutorInterface{
+public:
+    typedef shared_ptr<TaskExecutor> Ptr;
+
+    /**
+     * 构造函数
+     * @param max_size cpu负载统计样本数
+     * @param max_usec cpu负载统计时间窗口大小
+     */
+    TaskExecutor(uint64_t max_size = 32,uint64_t max_usec = 2 * 1000 * 1000):ThreadLoadCounter(max_size,max_usec){}
+    ~TaskExecutor(){}
+};
+
 class TaskExecutorGetter {
 public:
     typedef shared_ptr<TaskExecutorGetter> Ptr;
@@ -284,14 +308,11 @@ public:
      * @return 任务执行器
      */
     virtual TaskExecutor::Ptr getExecutor() = 0;
-
 };
-
 
 class TaskExecutorGetterImp : public TaskExecutorGetter{
 public:
     TaskExecutorGetterImp(){}
-
     ~TaskExecutorGetterImp(){}
 
     /**
@@ -326,7 +347,6 @@ public:
         _thread_pos = thread_pos;
         return executor_min_load;
     }
-
 
     /**
      * 获取所有线程的负载率
@@ -388,6 +408,4 @@ protected:
 };
 
 }//toolkit
-
-
 #endif //ZLTOOLKIT_TASKEXECUTOR_H

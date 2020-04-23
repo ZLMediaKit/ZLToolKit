@@ -745,7 +745,7 @@ void Socket::setSendTimeOutSecond(uint32_t second){
 }
 
 BufferRaw::Ptr Socket::obtainBuffer() {
-    return std::make_shared<BufferRaw>() ;//_bufferPool.obtain();
+    return std::make_shared<BufferRaw>();//_bufferPool.obtain();
 }
 
 bool Socket::isSocketBusy() const{
@@ -784,14 +784,52 @@ void Socket::setSendFlags(int flags) {
     _sock_flags = flags;
 }
 
+///////////////SockSender///////////////////
+
+SockSender &SockSender::operator<<(const char *buf) {
+    send(buf);
+    return *this;
+}
+
+SockSender &SockSender::operator<<(const string &buf) {
+    send(buf);
+    return *this;
+}
+
+SockSender &SockSender::operator<<(string &&buf) {
+    send(std::move(buf));
+    return *this;
+}
+
+SockSender &SockSender::operator<<(const Buffer::Ptr &buf) {
+    send(buf);
+    return *this;
+}
+
+int SockSender::send(const string &buf) {
+    auto buffer = std::make_shared<BufferString>(buf);
+    return send(buffer);
+}
+
+int SockSender::send(string &&buf) {
+    auto buffer = std::make_shared<BufferString>(std::move(buf));
+    return send(buffer);
+}
+
+int SockSender::send(const char *buf, int size) {
+    auto buffer = std::make_shared<BufferRaw>();
+    buffer->assign(buf,size);
+    return send(buffer);
+}
+
 ///////////////SocketHelper///////////////////
+
 SocketHelper::SocketHelper(const Socket::Ptr &sock) {
     setSock(sock);
 }
 
 SocketHelper::~SocketHelper() {}
 
-//重新设置socket
 void SocketHelper::setSock(const Socket::Ptr &sock) {
     _sock = sock;
     if(_sock){
@@ -799,90 +837,8 @@ void SocketHelper::setSock(const Socket::Ptr &sock) {
     }
 }
 
-
-void SocketHelper::setPoller(const EventPoller::Ptr &poller){
-    if(poller){
-        _poller = poller;
-    }
-}
-
 EventPoller::Ptr SocketHelper::getPoller(){
     return _poller;
-}
-
-
-//设置socket flags
-SocketHelper &SocketHelper::operator<<(const SocketFlags &flags) {
-    if(!_sock){
-        return *this;
-    }
-    _sock->setSendFlags(flags._flags);
-    return *this;
-}
-
-//////////////////operator << 系列函数//////////////////
-//发送char *
-SocketHelper &SocketHelper::operator<<(const char *buf) {
-    if (!_sock) {
-        return *this;
-    }
-
-    send(buf);
-    return *this;
-}
-
-//发送字符串
-SocketHelper &SocketHelper::operator<<(const string &buf) {
-    if (!_sock) {
-        return *this;
-    }
-    send(buf);
-    return *this;
-}
-
-//发送字符串
-SocketHelper &SocketHelper::operator<<(string &&buf) {
-    if (!_sock) {
-        return *this;
-    }
-    send(std::move(buf));
-    return *this;
-}
-
-//发送Buffer对象
-SocketHelper &SocketHelper::operator<<(const Buffer::Ptr &buf) {
-    if (!_sock) {
-        return *this;
-    }
-    send(buf);
-    return *this;
-}
-
-
-//////////////////send系列函数//////////////////
-int SocketHelper::send(const string &buf) {
-    if (!_sock) {
-        return -1;
-    }
-    auto buffer = std::make_shared<BufferString>(buf);
-    return send(buffer);
-}
-
-int SocketHelper::send(string &&buf) {
-    if (!_sock) {
-        return -1;
-    }
-    auto buffer = std::make_shared<BufferString>(std::move(buf));
-    return send(buffer);
-}
-
-int SocketHelper::send(const char *buf, int size) {
-    if (!_sock) {
-        return -1;
-    }
-    auto buffer = _sock->obtainBuffer();
-    buffer->assign(buf,size);
-    return send(buffer);
 }
 
 int SocketHelper::send(const Buffer::Ptr &buf) {
@@ -892,31 +848,25 @@ int SocketHelper::send(const Buffer::Ptr &buf) {
     return _sock->send(buf, nullptr, 0, _try_flush);
 }
 
-////////其他方法////////
-//从缓存池中获取一片缓存
-BufferRaw::Ptr SocketHelper::obtainBuffer() {
-    if (!_sock) {
-        return nullptr;
-    }
-    return _sock->obtainBuffer();
-}
-
 BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, int len) {
-    BufferRaw::Ptr buffer = obtainBuffer();
-    if(buffer){
+    BufferRaw::Ptr buffer;
+    if (!_sock) {
+        buffer = std::make_shared<BufferRaw>();
+    }else{
+        buffer = _sock->obtainBuffer();
+    }
+    if(data && len){
         buffer->assign((const char *)data,len);
     }
     return buffer;
 };
 
-//触发onError事件
 void SocketHelper::shutdown(const SockException &ex) {
     if (_sock) {
         _sock->emitErr(ex);
     }
 }
 
-/////////获取ip或端口///////////
 const string& SocketHelper::get_local_ip(){
     if(_sock && _local_ip.empty()){
         _local_ip = _sock->get_local_ip();
@@ -960,16 +910,15 @@ Task::Ptr SocketHelper::async_first(TaskIn &&task, bool may_sync) {
     return _poller->async_first(std::move(task),may_sync);
 }
 
-void SocketHelper::sync(TaskIn &&task) {
-    _poller->sync(std::move(task));
-}
-
-void SocketHelper::sync_first(TaskIn &&task) {
-    _poller->sync_first(std::move(task));
-}
-
 void SocketHelper::setSendFlushFlag(bool try_flush){
     _try_flush = try_flush;
+}
+
+void SocketHelper::setSendFlags(int flags){
+    if(!_sock){
+        return;
+    }
+    _sock->setSendFlags(flags);
 }
 
 }  // namespace toolkit

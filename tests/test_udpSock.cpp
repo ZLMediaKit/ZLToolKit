@@ -44,7 +44,7 @@ void makeAddr(struct sockaddr *out,const char *ip,uint16_t port){
 
 //获取struct sockaddr的IP字符串
 string getIP(struct sockaddr *addr){
-    return inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
+    return SockUtil::inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
 }
 int main() {
     //设置程序退出信号处理函数

@@ -56,7 +56,7 @@ public:
                 << "Accept-Encoding: gzip, deflate, sdch\r\n"
                 << "Accept-Language: zh-CN,zh;q=0.8,en;q=0.6\r\n\r\n";
         DebugL << "\r\n" << strGet;
-        return send(strGet);
+        return SockSender::send(strGet);
     }
 
 protected:

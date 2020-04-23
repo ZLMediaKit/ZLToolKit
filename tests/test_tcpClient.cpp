@@ -59,8 +59,7 @@ protected:
         BufferRaw::Ptr buf = obtainBuffer();
         if(buf){
             buf->assign("[BufferRaw]\0");
-            (*this) << SocketFlags(SOCKET_DEFAULE_FLAGS | FLAG_MORE)
-                    << _nTick++ << " "
+            (*this) << _nTick++ << " "
                     << 3.14 << " "
                     << string("string") << " "
                     <<(Buffer::Ptr &)buf;

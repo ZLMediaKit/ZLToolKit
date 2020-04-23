@@ -242,8 +242,7 @@ private:
 };
 
 //异步IO套接字对象，线程安全的
-class Socket: public std::enable_shared_from_this<Socket> ,
-              public noncopyable{
+class Socket: public std::enable_shared_from_this<Socket> , public noncopyable{
 public:
     typedef std::shared_ptr<Socket> Ptr;
     //接收数据回调
@@ -369,80 +368,80 @@ private:
     std::shared_ptr<function<void(int)> > _asyncConnectCB;
 };
 
-class SocketFlags{
+class SockInfo {
 public:
-    SocketFlags(int flags):_flags(flags){};
-    ~SocketFlags(){}
-    int _flags;
+    SockInfo() = default;
+    virtual ~SockInfo() = default;
+
+    virtual const string &get_local_ip() = 0;
+    virtual uint16_t get_local_port() = 0;
+    virtual const string &get_peer_ip() = 0;
+    virtual uint16_t get_peer_port() = 0;
 };
 
-//套接字以cout的方式写数据等工具
-class SocketHelper {
+class SockSender {
 public:
-    SocketHelper(const Socket::Ptr &sock);
-    virtual ~SocketHelper();
-    //重新设置socket
-    void setSock(const Socket::Ptr &sock);
-    void setPoller(const EventPoller::Ptr &excutor);
-    EventPoller::Ptr getPoller();
-    //设置socket flags
-    SocketHelper &operator << (const SocketFlags &flags);
-    //////////////////operator << 系列函数//////////////////
+    SockSender() = default;
+    virtual ~SockSender() = default;
+    virtual int send(const Buffer::Ptr &buf) = 0;
+    virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) = 0;
+
     //发送char *
-    SocketHelper &operator << (const char *buf);
+    SockSender &operator << (const char *buf);
     //发送字符串
-    SocketHelper &operator << (const string &buf);
+    SockSender &operator << (const string &buf);
     //发送字符串
-    SocketHelper &operator << (string &&buf) ;
+    SockSender &operator << (string &&buf);
     //发送Buffer对象
-    SocketHelper &operator << (const Buffer::Ptr &buf) ;
+    SockSender &operator << (const Buffer::Ptr &buf);
 
     //发送其他类型是数据
     template<typename T>
-    SocketHelper &operator << (const T &buf) {
-        if(!_sock){
-            return *this;
-        }
+    SockSender &operator << (const T &buf) {
         ostringstream ss;
         ss << buf;
         send(ss.str());
         return *this;
     }
 
-    //////////////////send系列函数//////////////////
     int send(const string &buf);
     int send(string &&buf);
     int send(const char *buf, int size = 0);
+};
 
-    /**
-     * 其他send方法、operator << 方法最终都会调用此方法
-     * @param buf 数据包
-     * @return  -1代表该socket已经不可用；0代表缓存列队已满，并未产生实质操作(在关闭主动丢包时有效)；否则返回数据长度
-     */
-    virtual int send(const Buffer::Ptr &buf);
+//套接字以cout的方式写数据等工具
+class SocketHelper : public SockSender, public SockInfo, public TaskExecutorInterface {
+public:
+    SocketHelper(const Socket::Ptr &sock);
+    ~SocketHelper() override;
 
-    ////////其他方法////////
-    //从缓存池中获取一片缓存
-    BufferRaw::Ptr obtainBuffer();
-    BufferRaw::Ptr obtainBuffer(const void *data,int len);
-    //触发onError事件
-    virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
-    /////////获取ip或端口///////////
-    const string &get_local_ip();
-    uint16_t get_local_port();
-    const string &get_peer_ip();
-    uint16_t get_peer_port();
-    //套接字是否忙，如果套接字写缓存已满则返回true
-    bool isSocketBusy() const;
+    //重新设置socket
+    void setSock(const Socket::Ptr &sock);
+    EventPoller::Ptr getPoller();
 
-    /////////线程切换接口///////////
-    Task::Ptr async(TaskIn &&task, bool may_sync = true);
-    Task::Ptr async_first(TaskIn &&task, bool may_sync = true);
-    void sync(TaskIn &&task) ;
-    void sync_first(TaskIn &&task);
+    //发送数据
+    int send(const Buffer::Ptr &buf) override;
+
+    //获取ip或端口
+    const string &get_local_ip() override ;
+    uint16_t get_local_port() override;
+    const string &get_peer_ip() override;
+    uint16_t get_peer_port() override;
+
+    //线程切换接口
+    Task::Ptr async(TaskIn &&task, bool may_sync = true) override;
+    Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override;
 
     //设置批量发送标记,用于提升性能
     void setSendFlushFlag(bool try_flush);
+    //设置发送flags
+    void setSendFlags(int flags);
+    //套接字是否忙，如果套接字写缓存已满则返回true
+    bool isSocketBusy() const;
+    //触发onErr事件
+    void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override;
+    //从缓存池中获取一片缓存
+    BufferRaw::Ptr obtainBuffer(const void *data = nullptr, int len = 0);
 protected:
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
@@ -454,7 +453,5 @@ private:
     bool _try_flush = true;
 };
 
-
 }  // namespace toolkit
-
 #endif /* NETWORK_SOCKET_H */

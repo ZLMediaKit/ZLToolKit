@@ -96,7 +96,6 @@ public:
      */
     int modifyEvent(int fd, int event);
 
-
     /**
      * 异步执行任务
      * @param task 任务
@@ -112,7 +111,6 @@ public:
      * @return 是否成功，一定会返回true
      */
     Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override ;
-
 
     /**
      * 判断执行该接口的线程是否为本对象的轮询线程
@@ -276,7 +274,6 @@ private:
 };
 
 }  // namespace toolkit
-
 #endif /* EventPoller_h */
 
 
