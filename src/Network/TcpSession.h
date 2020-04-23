@@ -50,11 +50,11 @@ public:
     //收到eof或其他导致脱离TcpServer事件的回调
     virtual void onError(const SockException &err) = 0;
     //每隔一段时间触发，用来做超时管理
-    virtual void onManager() =0;
+    virtual void onManager() = 0;
     //在创建TcpSession后，TcpServer会把自身的配置参数通过该函数传递给TcpSession
     virtual void attachServer(const TcpServer &server){};
     //作为该TcpSession的唯一标识符
-    virtual string getIdentifier() const;
+    string getIdentifier() const override;
     //安全的脱离TcpServer并触发onError事件
     void safeShutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
 };

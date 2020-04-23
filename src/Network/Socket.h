@@ -377,6 +377,7 @@ public:
     virtual uint16_t get_local_port() = 0;
     virtual const string &get_peer_ip() = 0;
     virtual uint16_t get_peer_port() = 0;
+    virtual string getIdentifier() const { return ""; }
 };
 
 class SockSender {
