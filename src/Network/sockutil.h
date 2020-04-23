@@ -100,6 +100,9 @@ public:
     static string get_peer_ip(int fd);
     static uint16_t get_peer_port(int fd);
 
+    //线程安全的in_addr转ip字符串
+    static string inet_ntoa(struct in_addr &addr);
+
     //获取网卡ip
     static string get_ifr_ip(const char *ifrName);
     //获取网卡名
