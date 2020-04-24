@@ -20,8 +20,7 @@ TcpSession::~TcpSession() {
 }
 
 string TcpSession::getIdentifier() const{
-    static string class_name = "TcpSession:";
-    return class_name + to_string(reinterpret_cast<uint64_t>(this));
+    return  to_string(reinterpret_cast<uint64_t>(this));
 }
 
 void TcpSession::safeShutdown(const SockException &ex){

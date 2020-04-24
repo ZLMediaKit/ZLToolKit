@@ -104,8 +104,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
 }
 
 string TcpClient::getIdentifier() const{
-    static string class_name = "TcpClient:";
-    return class_name + to_string(reinterpret_cast<uint64_t>(this));
+    return  to_string(reinterpret_cast<uint64_t>(this));
 }
 
 } /* namespace toolkit */
