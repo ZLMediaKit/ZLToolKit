@@ -105,10 +105,10 @@ const string &Logger::getName() const {
 
 ///////////////////LogContext///////////////////
 static inline const char *getFileName(const char *file) {
-    auto pos = std::strrchr(file, '/');
+    auto pos = strrchr(file, '/');
 #ifdef _WIN32
     if(!pos){
-        pos = std::strrchr(file, '\\');
+        pos = strrchr(file, '\\');
     }
 #endif
     return pos ? pos + 1 : file;
