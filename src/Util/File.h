@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef SRC_UTIL_FILE_H_
@@ -30,8 +16,8 @@
 #include <string>
 #include "util.h"
 #include <functional>
-
 using namespace std;
+
 #if defined(__linux__)
 #include <limits.h>
 #endif
@@ -77,9 +63,10 @@ namespace toolkit {
 
 class File {
 public:
+    //创建路径
+    static bool create_path(const char *file, unsigned int mod);
     //新建文件，目录文件夹自动生成
-    static bool createfile_path(const char *file, unsigned int mod);
-    static FILE *createfile_file(const char *file,const char *mode);
+    static FILE *create_file(const char *file, const char *mode);
     //判断是否为目录
     static bool is_dir(const char *path) ;
     //判断是否为常规文件
@@ -133,5 +120,4 @@ private:
 };
 
 } /* namespace toolkit */
-
 #endif /* SRC_UTIL_FILE_H_ */

@@ -21,7 +21,6 @@
 
 #include "mini.h"
 
-
 namespace toolkit {
 
 template<>

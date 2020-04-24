@@ -30,7 +30,6 @@
 #include <iostream>
 #include <exception>
 #include "Util/util.h"
-
 using namespace std;
 
 namespace toolkit {
@@ -154,6 +153,5 @@ struct variant: public string {
 using mINI = mINI_basic<string, variant>;
 
 }  // namespace toolkit
-
 #endif //UTIL_MINI_H
 

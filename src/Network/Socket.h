@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef NETWORK_SOCKET_H
@@ -42,7 +28,6 @@
 #include "Poller/EventPoller.h"
 #include "Network/sockutil.h"
 #include "Buffer.h"
-
 using namespace std;
 
 namespace toolkit {
@@ -241,8 +226,20 @@ private:
     Mtx _mtx;
 };
 
+class SockInfo {
+public:
+    SockInfo() = default;
+    virtual ~SockInfo() = default;
+
+    virtual string get_local_ip() = 0;
+    virtual uint16_t get_local_port() = 0;
+    virtual string  get_peer_ip() = 0;
+    virtual uint16_t get_peer_port() = 0;
+    virtual string getIdentifier() const { return ""; }
+};
+
 //异步IO套接字对象，线程安全的
-class Socket: public std::enable_shared_from_this<Socket> , public noncopyable{
+class Socket: public std::enable_shared_from_this<Socket> , public noncopyable , public SockInfo{
 public:
     typedef std::shared_ptr<Socket> Ptr;
     //接收数据回调
@@ -294,14 +291,18 @@ public:
     void enableRecv(bool enabled);
     //获取裸文件描述符，请勿进行close操作(因为Socket对象会管理其生命周期)
     int rawFD() const;
+
     //获取本机ip，多网卡时比较有用
-    string get_local_ip();
+    string get_local_ip() override;
     //获取本机端口号
-    uint16_t get_local_port();
+    uint16_t get_local_port() override;
     //获取对方ip
-    string get_peer_ip();
+    string get_peer_ip() override;
     //获取对方端口号
-    uint16_t get_peer_port();
+    uint16_t get_peer_port() override;
+    //获取标识符
+    string getIdentifier() const override;
+
     //设置发送超时主动断开时间;默认10秒
     void setSendTimeOutSecond(uint32_t second);
     //获取一片缓存
@@ -368,18 +369,6 @@ private:
     std::shared_ptr<function<void(int)> > _asyncConnectCB;
 };
 
-class SockInfo {
-public:
-    SockInfo() = default;
-    virtual ~SockInfo() = default;
-
-    virtual const string &get_local_ip() = 0;
-    virtual uint16_t get_local_port() = 0;
-    virtual const string &get_peer_ip() = 0;
-    virtual uint16_t get_peer_port() = 0;
-    virtual string getIdentifier() const { return ""; }
-};
-
 #define TraceP(ptr) TraceL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
 #define DebugP(ptr) DebugL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
 #define InfoP(ptr) InfoL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
@@ -430,9 +419,9 @@ public:
     int send(const Buffer::Ptr &buf) override;
 
     //获取ip或端口
-    const string &get_local_ip() override ;
+    string get_local_ip() override ;
     uint16_t get_local_port() override;
-    const string &get_peer_ip() override;
+    string get_peer_ip() override;
     uint16_t get_peer_port() override;
 
     //线程切换接口

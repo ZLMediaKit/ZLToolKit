@@ -1,27 +1,12 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
-
 
 #include "logger.h"
 #include "onceToken.h"
@@ -118,11 +103,30 @@ const string &Logger::getName() const {
 }
 
 ///////////////////LogContext///////////////////
+static inline const char *getFileName(const char *file) {
+    auto pos = std::strrchr(file, '/');
+#ifdef _WIN32
+    if(!pos){
+        pos = std::strrchr(file, '\\');
+    }
+#endif
+    return pos ? pos + 1 : file;
+}
+
+static inline const char *getFunctionName(const char *func) {
+#ifndef _WIN32
+    return func;
+#else
+    auto pos = strrchr(func, ':');
+    return pos ? pos + 1 : func;
+#endif
+}
+
 LogContext::LogContext(LogLevel level, const char *file, const char *function, int line) :
         _level(level),
         _line(line),
-        _file(file),
-        _function(function) {
+        _file(getFileName(file)),
+        _function(getFunctionName(function)) {
     gettimeofday(&_tv, NULL);
 }
 
@@ -282,14 +286,6 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
         return;
     }
 
-    if (enableDetail) {
-#if defined(_WIN32)
-        ost << logger.getName() <<"(" << GetCurrentProcessId() << ") " << ctx->_file << " " << ctx->_line << endl;
-#else
-        ost << logger.getName() << "(" << getpid() << ") " << ctx->_file << " " << ctx->_line << endl;
-#endif
-    }
-
     if (enableColor) {
 #ifdef _WIN32
         SetConsoleColor(LOG_CONST_TABLE[ctx->_level][1]);
@@ -299,13 +295,18 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
     }
 
 #ifdef _WIN32
-    ost << printTime(ctx->_tv) << " " << (char)LOG_CONST_TABLE[ctx->_level][2] << " | ";
+    ost << printTime(ctx->_tv) << " " << (char)LOG_CONST_TABLE[ctx->_level][2] << " ";
 #else
-    ost << printTime(ctx->_tv) << " " << LOG_CONST_TABLE[ctx->_level][2] << " | ";
+    ost << printTime(ctx->_tv) << " " << LOG_CONST_TABLE[ctx->_level][2] << " ";
 #endif
 
-    if (enableDetail) {
-        ost << ctx->_function << " ";
+    if (enableDetail && false) {
+#if defined(_WIN32)
+        ost << logger.getName() <<"[" << GetCurrentProcessId();
+#else
+        ost << logger.getName() << "[" << getpid();
+#endif
+        ost << "] " << ctx->_file << ":" << ctx->_line << " "<< ctx->_function << " | ";
     }
 
     ost << ctx->str();
@@ -357,7 +358,7 @@ bool FileChannelBase::open() {
     _fstream.close();
 #if !defined(_WIN32)
     //创建文件夹
-    File::createfile_path(_path.c_str(), S_IRWXO | S_IRWXG | S_IRWXU);
+    File::create_path(_path.c_str(), S_IRWXO | S_IRWXG | S_IRWXU);
 #else
     File::createfile_path(_path.c_str(),0);
 #endif
@@ -367,8 +368,8 @@ bool FileChannelBase::open() {
         return false;
         //throw runtime_error("Failed to open log file: " + _path);
     }
-    else
-        return true;
+    //打开文件成功
+    return true;
 }
 
 void FileChannelBase::close() {
@@ -411,13 +412,15 @@ void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
         _log_file_map.emplace(day, log_file);
         //打开新的日志文件
         _canWrite = setPath(log_file);
-        if (!_canWrite)
+        if (!_canWrite){
             ErrorL << "Failed to open log file: " << _path;
+        }
         clean();
     }
     //写日志
-    if (_canWrite)
+    if (_canWrite){
         FileChannelBase::write(logger, ctx);
+    }
 }
 
 void FileChannel::clean() {
