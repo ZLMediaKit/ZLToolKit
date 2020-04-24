@@ -361,7 +361,7 @@ bool FileChannelBase::open() {
     //创建文件夹
     File::create_path(_path.c_str(), S_IRWXO | S_IRWXG | S_IRWXU);
 #else
-    File::createfile_path(_path.c_str(),0);
+    File::create_path(_path.c_str(),0);
 #endif
     _fstream.open(_path.c_str(), ios::out | ios::app);
     // Throw on failure
