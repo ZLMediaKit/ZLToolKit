@@ -300,7 +300,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
     ost << printTime(ctx->_tv) << " " << LOG_CONST_TABLE[ctx->_level][2] << " ";
 #endif
 
-    if (enableDetail && false) {
+    if (enableDetail) {
 #if defined(_WIN32)
         ost << logger.getName() <<"[" << GetCurrentProcessId();
 #else
