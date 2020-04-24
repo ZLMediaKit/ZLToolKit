@@ -11,6 +11,7 @@
 #include "logger.h"
 #include "onceToken.h"
 #include "File.h"
+#include <string.h>
 #include <sys/stat.h>
 
 namespace toolkit {
