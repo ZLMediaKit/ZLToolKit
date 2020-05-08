@@ -24,7 +24,7 @@ EventPoller::Ptr WorkThreadPool::getFirstPoller(){
 }
 
 EventPoller::Ptr WorkThreadPool::getPoller(){
-    return dynamic_s_pool_sizepointer_cast<EventPoller>(getExecutor());
+    return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
 WorkThreadPool::WorkThreadPool(){
