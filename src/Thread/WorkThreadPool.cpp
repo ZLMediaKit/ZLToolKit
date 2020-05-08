@@ -24,12 +24,12 @@ EventPoller::Ptr WorkThreadPool::getFirstPoller(){
 }
 
 EventPoller::Ptr WorkThreadPool::getPoller(){
-    return dynamic_pointer_cast<EventPoller>(getExecutor());
+    return dynamic_s_pool_sizepointer_cast<EventPoller>(getExecutor());
 }
 
 WorkThreadPool::WorkThreadPool(){
     //创建当前cpu核心个数优先级最低的线程，目的是做些无关紧要的阻塞式任务，例如dns解析，文件io等
-    auto size = s_pool_size ? s_pool_size : thread::hardware_concurrency();
+    auto size = s_pool_size > 0 ? s_pool_size : thread::hardware_concurrency();
     createThreads([](){
         EventPoller::Ptr ret(new EventPoller(ThreadPool::PRIORITY_LOWEST));
         ret->runLoop(false, false);

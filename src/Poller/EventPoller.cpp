@@ -440,7 +440,7 @@ void EventPollerPool::preferCurrentThread(bool flag){
 }
 
 EventPollerPool::EventPollerPool(){
-    auto size = s_pool_size ? s_pool_size : thread::hardware_concurrency();
+    auto size = s_pool_size > 0 ? s_pool_size : thread::hardware_concurrency();
     createThreads([](){
         EventPoller::Ptr ret(new EventPoller);
         ret->runLoop(false, true);
