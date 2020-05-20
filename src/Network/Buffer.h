@@ -1,6 +1,12 @@
-﻿//
-// Created by xzl on 2019/3/18.
-//
+﻿/*
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
+ *
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ *
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
+ */
 
 #ifndef ZLTOOLKIT_BUFFER_H
 #define ZLTOOLKIT_BUFFER_H
@@ -17,8 +23,8 @@
 #include "Util/uv_errno.h"
 #include "Util/List.h"
 #include "Network/sockutil.h"
-
 using namespace std;
+
 namespace toolkit {
 //缓存基类
 class Buffer : public noncopyable {
@@ -159,17 +165,17 @@ private:
 
 #if defined(_WIN32)
 struct iovec {
-	void *   iov_base;	/* [XSI] Base address of I/O memory region */
-	int	 iov_len;	/* [XSI] Size of region iov_base points to */
+    void *   iov_base;	/* [XSI] Base address of I/O memory region */
+    int	 iov_len;	/* [XSI] Size of region iov_base points to */
 };
 struct msghdr {
-	void		*msg_name;	/* [XSI] optional address */
-	int			msg_namelen;	/* [XSI] size of address */
-	struct		iovec *msg_iov;	/* [XSI] scatter/gather array */
-	int			msg_iovlen;	/* [XSI] # elements in msg_iov */
-	void		*msg_control;	/* [XSI] ancillary data, see below */
-	int			msg_controllen;	/* [XSI] ancillary data buffer len */
-	int			msg_flags;	/* [XSI] flags on received message */
+    void		*msg_name;	/* [XSI] optional address */
+    int			msg_namelen;	/* [XSI] size of address */
+    struct		iovec *msg_iov;	/* [XSI] scatter/gather array */
+    int			msg_iovlen;	/* [XSI] # elements in msg_iov */
+    void		*msg_control;	/* [XSI] ancillary data, see below */
+    int			msg_controllen;	/* [XSI] ancillary data buffer len */
+    int			msg_flags;	/* [XSI] flags on received message */
 };
 #else
 #include <sys/uio.h>
@@ -201,6 +207,7 @@ public:
     BufferList(List<Buffer::Ptr> &list);
     ~BufferList(){}
     bool empty();
+    int count();
     int send(int fd,int flags,bool udp);
 private:
     void reOffset(int n);
@@ -213,5 +220,4 @@ private:
 };
 
 }//namespace toolkit
-
 #endif //ZLTOOLKIT_BUFFER_H

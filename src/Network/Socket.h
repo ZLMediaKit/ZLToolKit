@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef NETWORK_SOCKET_H
@@ -42,7 +28,6 @@
 #include "Poller/EventPoller.h"
 #include "Network/sockutil.h"
 #include "Buffer.h"
-
 using namespace std;
 
 namespace toolkit {
@@ -73,19 +58,19 @@ namespace toolkit {
     
 //错误类型枚举
 typedef enum {
-	Err_success = 0, //成功
-	Err_eof, //eof
-	Err_timeout, //超时
-	Err_refused,//连接别拒绝
-	Err_dns,//dns解析失败
-	Err_shutdown,//主动关闭
-	Err_other = 0xFF,//其他错误
+    Err_success = 0, //成功
+    Err_eof, //eof
+    Err_timeout, //超时
+    Err_refused,//连接被拒绝
+    Err_dns,//dns解析失败
+    Err_shutdown,//主动关闭
+    Err_other = 0xFF,//其他错误
 } ErrCode;
 
 //错误信息类
 class SockException: public std::exception {
 public:
-	SockException(ErrCode errCode = Err_success,
+    SockException(ErrCode errCode = Err_success,
                    const string &errMsg = "",
                    int customCode = 0) {
         _errMsg = errMsg;
@@ -95,22 +80,22 @@ public:
     }
 
     //重置错误
-	void reset(ErrCode errCode, const string &errMsg) {
-		_errMsg = errMsg;
+    void reset(ErrCode errCode, const string &errMsg) {
+        _errMsg = errMsg;
         _errCode = errCode;
-	}
+    }
     //错误提示
-	virtual const char* what() const noexcept {
-		return _errMsg.c_str();
-	}
+    virtual const char* what() const noexcept {
+        return _errMsg.c_str();
+    }
     //错误代码
-	ErrCode getErrCode() const {
-		return _errCode;
-	}
+    ErrCode getErrCode() const {
+        return _errCode;
+    }
     //判断是否真的有错
-	operator bool() const{
-		return _errCode != Err_success;
-	}
+    operator bool() const{
+        return _errCode != Err_success;
+    }
     //用户自定义错误代码
     int getCustomCode () const{
         return _customCode;
@@ -120,8 +105,8 @@ public:
         _customCode = code;
     };
 private:
-	string _errMsg;
-	ErrCode _errCode;
+    string _errMsg;
+    ErrCode _errCode;
     int _customCode = 0;
 };
 
@@ -173,25 +158,24 @@ private:
 //socket 文件描述符的包装
 //在析构时自动溢出监听并close套接字
 //防止描述符溢出
-class SockFD : public noncopyable
-{
+class SockFD : public noncopyable {
 public:
-	typedef std::shared_ptr<SockFD> Ptr;
-	/**
-	 * 创建一个fd对象
-	 * @param num 文件描述符，int数字
-	 * @param poller 事件监听器
-	 */
-	SockFD(int num,SockNum::SockType type,const EventPoller::Ptr &poller){
+    typedef std::shared_ptr<SockFD> Ptr;
+    /**
+     * 创建一个fd对象
+     * @param num 文件描述符，int数字
+     * @param poller 事件监听器
+     */
+    SockFD(int num,SockNum::SockType type,const EventPoller::Ptr &poller){
         _num = std::make_shared<SockNum>(num,type);
         _poller = poller;
-	}
+    }
 
-	/**
-	 * 复制一个fd对象
-	 * @param that 源对象
-	 * @param poller 事件监听器
-	 */
+    /**
+     * 复制一个fd对象
+     * @param that 源对象
+     * @param poller 事件监听器
+     */
     SockFD(const SockFD &that,const EventPoller::Ptr &poller){
         _num = that._num;
         _poller = poller;
@@ -200,16 +184,16 @@ public:
         }
     }
 
-	~SockFD(){
-	    auto num = _num;
+    ~SockFD(){
+        auto num = _num;
         _poller->delEvent(_num->rawFd(),[num](bool){});
-	}
-	void setConnected(){
+    }
+    void setConnected(){
         _num->setConnected();
-	}
-	int rawFd() const{
-		return _num->rawFd();
-	}
+    }
+    int rawFd() const{
+        return _num->rawFd();
+    }
     SockNum::SockType type(){
         return _num->type();
     }
@@ -242,9 +226,20 @@ private:
     Mtx _mtx;
 };
 
+class SockInfo {
+public:
+    SockInfo() = default;
+    virtual ~SockInfo() = default;
+
+    virtual string get_local_ip() = 0;
+    virtual uint16_t get_local_port() = 0;
+    virtual string  get_peer_ip() = 0;
+    virtual uint16_t get_peer_port() = 0;
+    virtual string getIdentifier() const { return ""; }
+};
+
 //异步IO套接字对象，线程安全的
-class Socket: public std::enable_shared_from_this<Socket> ,
-              public noncopyable{
+class Socket: public std::enable_shared_from_this<Socket> , public noncopyable , public SockInfo{
 public:
     typedef std::shared_ptr<Socket> Ptr;
     //接收数据回调
@@ -253,17 +248,17 @@ public:
     typedef function<void(const SockException &err)> onErrCB;
     //tcp监听接收到连接请求
     typedef function<void(Socket::Ptr &sock)> onAcceptCB;
-	//socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
+    //socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
     typedef function<bool()> onFlush;
     //在接收到连接请求前，拦截Socket默认生成方式
     typedef function<Ptr(const EventPoller::Ptr &poller)> onBeforeAcceptCB;
 
     Socket(const EventPoller::Ptr &poller = nullptr,bool enableMutex = true);
-	~Socket();
+    ~Socket();
 
     //创建tcp客户端，url可以是ip或域名
-	void connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec = 5,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
+    void connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec = 5,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
     //创建tcp监听
     bool listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
     //创建udp套接字,udp是无连接的，所以可以作为服务器和客户端；port为0则随机分配端口
@@ -271,79 +266,75 @@ public:
 
     ////////////设置事件回调////////////
     //收到数据后回调,tcp或udp客户端有效
-	void setOnRead(const onReadCB &cb);
+    void setOnRead(const onReadCB &cb);
     //收到err事件回调，包括eof等
-	void setOnErr(const onErrCB &cb);
+    void setOnErr(const onErrCB &cb);
     //tcp监听接收到连接请求回调
-	void setOnAccept(const onAcceptCB &cb);
+    void setOnAccept(const onAcceptCB &cb);
     //socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
-	void setOnFlush(const onFlush &cb);
+    void setOnFlush(const onFlush &cb);
     //设置Socket生成拦截器
     void setOnBeforeAccept(const onBeforeAcceptCB &cb);
 
     ////////////线程安全的数据发送，udp套接字请传入peerAddr，否则置空////////////
     //发送裸指针数据，内部会把数据拷贝至内部缓存列队，如果要避免数据拷贝，可以调用send(const Buffer::Ptr &buf...）接口
     //返回值:-1代表该socket已经不可用；0代表缓存列队已满，并未产生实质操作(在关闭主动丢包时有效)；否则返回数据长度
-    int send(const char *buf, int size = 0,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
-	int send(const string &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
-	int send(string &&buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
-	int send(const Buffer::Ptr &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0);
+    int send(const char *buf, int size = 0,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    int send(const string &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    int send(string &&buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    int send(const Buffer::Ptr &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     //关闭socket且触发onErr回调，onErr回调将在主线程中进行
-	bool emitErr(const SockException &err);
+    bool emitErr(const SockException &err);
     //关闭或开启数据接收
-	void enableRecv(bool enabled);
+    void enableRecv(bool enabled);
     //获取裸文件描述符，请勿进行close操作(因为Socket对象会管理其生命周期)
     int rawFD() const;
+
     //获取本机ip，多网卡时比较有用
-	string get_local_ip();
+    string get_local_ip() override;
     //获取本机端口号
-	uint16_t get_local_port();
+    uint16_t get_local_port() override;
     //获取对方ip
-	string get_peer_ip();
+    string get_peer_ip() override;
     //获取对方端口号
-	uint16_t get_peer_port();
+    uint16_t get_peer_port() override;
+    //获取标识符
+    string getIdentifier() const override;
 
     //设置发送超时主动断开时间;默认10秒
     void setSendTimeOutSecond(uint32_t second);
     //获取一片缓存
     BufferRaw::Ptr obtainBuffer();
-    
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
-
     //获取poller对象
     const EventPoller::Ptr &getPoller() const;
-
     //从另外一个Socket克隆
     //目的是一个socket可以被多个poller对象监听，提高性能
     bool cloneFromListenSocket(const Socket &other);
-
     //设置UDP发送数据时的对端地址
     bool setSendPeerAddr(const struct sockaddr *peerAddr);
     //设置发送flags
     void setSendFlags(int flags);
-
-    /**
-     * 设置接收缓存
-     * @param readBuffer 接收缓存
-     */
+    //设置接收缓存
     void setReadBuffer(const BufferRaw::Ptr &readBuffer);
-
-    /**
-     * 关闭套接字
-     */
+    //关闭套接字
     void closeSock();
+    //获取发送缓存包个数
+    int getSendBufferCount();
+    //获取上次socket发送缓存清空至今的毫秒数,单位毫秒
+    uint64_t elapsedTimeAfterFlushed();
 private:
     SockFD::Ptr setPeerSock(int fd);
-	bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
+    bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
     int onAccept(const SockFD::Ptr &pSock,int event);
     int onRead(const SockFD::Ptr &pSock,bool isUdp = false);
     void onError(const SockFD::Ptr &pSock);
     void onWriteAble(const SockFD::Ptr &pSock);
     void onConnected(const SockFD::Ptr &pSock, const onErrCB &connectCB);
-	void onFlushed(const SockFD::Ptr &pSock);
+    void onFlushed(const SockFD::Ptr &pSock);
     void startWriteAbleEvent(const SockFD::Ptr &pSock);
     void stopWriteAbleEvent(const SockFD::Ptr &pSock);
     SockFD::Ptr makeSock(int sock,SockNum::SockType type);
@@ -378,76 +369,75 @@ private:
     std::shared_ptr<function<void(int)> > _asyncConnectCB;
 };
 
-class SocketFlags{
-public:
-    SocketFlags(int flags):_flags(flags){};
-    ~SocketFlags(){}
-    int _flags;
-};
+#define TraceP(ptr) TraceL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
+#define DebugP(ptr) DebugL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
+#define InfoP(ptr) InfoL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
+#define WarnP(ptr) WarnL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
+#define ErrorP(ptr) ErrorL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
 
-//套接字以cout的方式写数据等工具
-class SocketHelper {
+class SockSender {
 public:
-    SocketHelper(const Socket::Ptr &sock);
-    virtual ~SocketHelper();
-    //重新设置socket
-    void setSock(const Socket::Ptr &sock);
-    void setPoller(const EventPoller::Ptr &excutor);
-    EventPoller::Ptr getPoller();
-    //设置socket flags
-    SocketHelper &operator << (const SocketFlags &flags);
-    //////////////////operator << 系列函数//////////////////
+    SockSender() = default;
+    virtual ~SockSender() = default;
+    virtual int send(const Buffer::Ptr &buf) = 0;
+    virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) = 0;
+
     //发送char *
-    SocketHelper &operator << (const char *buf);
+    SockSender &operator << (const char *buf);
     //发送字符串
-    SocketHelper &operator << (const string &buf);
+    SockSender &operator << (const string &buf);
     //发送字符串
-    SocketHelper &operator << (string &&buf) ;
+    SockSender &operator << (string &&buf);
     //发送Buffer对象
-    SocketHelper &operator << (const Buffer::Ptr &buf) ;
+    SockSender &operator << (const Buffer::Ptr &buf);
 
     //发送其他类型是数据
     template<typename T>
-    SocketHelper &operator << (const T &buf) {
-        if(!_sock){
-            return *this;
-        }
+    SockSender &operator << (const T &buf) {
         ostringstream ss;
         ss << buf;
         send(ss.str());
         return *this;
     }
 
-    //////////////////send系列函数//////////////////
     int send(const string &buf);
     int send(string &&buf);
     int send(const char *buf, int size = 0);
+};
 
-    /**
-     * 其他send方法、operator << 方法最终都会调用此方法
-     * @param buf 数据包
-     * @return  -1代表该socket已经不可用；0代表缓存列队已满，并未产生实质操作(在关闭主动丢包时有效)；否则返回数据长度
-     */
-    virtual int send(const Buffer::Ptr &buf);
+//套接字以cout的方式写数据等工具
+class SocketHelper : public SockSender, public SockInfo, public TaskExecutorInterface {
+public:
+    SocketHelper(const Socket::Ptr &sock);
+    ~SocketHelper() override;
 
-    ////////其他方法////////
-    //从缓存池中获取一片缓存
-    BufferRaw::Ptr obtainBuffer();
-    BufferRaw::Ptr obtainBuffer(const void *data,int len);
-    //触发onError事件
-    virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
-    /////////获取ip或端口///////////
-    const string &get_local_ip();
-    uint16_t get_local_port();
-    const string &get_peer_ip();
-    uint16_t get_peer_port();
+    //重新设置socket
+    void setSock(const Socket::Ptr &sock);
+    EventPoller::Ptr getPoller();
+
+    //发送数据
+    int send(const Buffer::Ptr &buf) override;
+
+    //获取ip或端口
+    string get_local_ip() override ;
+    uint16_t get_local_port() override;
+    string get_peer_ip() override;
+    uint16_t get_peer_port() override;
+
+    //线程切换接口
+    Task::Ptr async(TaskIn &&task, bool may_sync = true) override;
+    Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override;
+
+    //设置批量发送标记,用于提升性能
+    void setSendFlushFlag(bool try_flush);
+    //设置发送flags
+    void setSendFlags(int flags);
     //套接字是否忙，如果套接字写缓存已满则返回true
     bool isSocketBusy() const;
-
-    Task::Ptr async(TaskIn &&task, bool may_sync = true);
-    Task::Ptr async_first(TaskIn &&task, bool may_sync = true);
-    void sync(TaskIn &&task) ;
-    void sync_first(TaskIn &&task);
+    //触发onErr事件
+    void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override;
+    //从缓存池中获取一片缓存
+    BufferRaw::Ptr obtainBuffer(const void *data = nullptr, int len = 0);
 protected:
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
@@ -456,9 +446,8 @@ private:
     uint16_t _local_port = 0;
     string _peer_ip;
     uint16_t _peer_port = 0;
+    bool _try_flush = true;
 };
 
-
 }  // namespace toolkit
-
 #endif /* NETWORK_SOCKET_H */

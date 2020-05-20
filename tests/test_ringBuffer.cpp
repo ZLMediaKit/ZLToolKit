@@ -1,26 +1,13 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
+
 #include <signal.h>
 #include <iostream>
 #include "Util/logger.h"
@@ -40,66 +27,66 @@ RingBuffer<string>::Ptr g_ringBuf(new RingBuffer<string>(30));
 
 //写事件回调函数
 void onReadEvent(const string &str){
-	//读事件模式性
-	DebugL << str;
+    //读事件模式性
+    DebugL << str;
 }
 
 //环形缓存销毁事件
 void onDetachEvent(){
-	WarnL;
+    WarnL;
 }
 
 //写环形缓存任务
 void doWrite(){
-	int i = 0;
-	while(!g_bExitWrite){
-		//每隔100ms写一个数据到环形缓存
-		g_ringBuf->write(to_string(++i),true);
-		usleep(100 * 1000);
-	}
+    int i = 0;
+    while(!g_bExitWrite){
+        //每隔100ms写一个数据到环形缓存
+        g_ringBuf->write(to_string(++i),true);
+        usleep(100 * 1000);
+    }
 
 }
 int main() {
-	//初始化日志
-	Logger::Instance().add(std::make_shared<ConsoleChannel>());
-	Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
+    //初始化日志
+    Logger::Instance().add(std::make_shared<ConsoleChannel>());
+    Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-	auto poller = EventPollerPool::Instance().getPoller();
-	RingBuffer<string>::RingReader::Ptr ringReader;
-	poller->sync([&](){
-		//从环形缓存获取一个读取器
-		ringReader = g_ringBuf->attach(poller);
+    auto poller = EventPollerPool::Instance().getPoller();
+    RingBuffer<string>::RingReader::Ptr ringReader;
+    poller->sync([&](){
+        //从环形缓存获取一个读取器
+        ringReader = g_ringBuf->attach(poller);
 
-		//设置读取事件
-		ringReader->setReadCB([](const string &pkt){
-			onReadEvent(pkt);
-		});
+        //设置读取事件
+        ringReader->setReadCB([](const string &pkt){
+            onReadEvent(pkt);
+        });
 
-		//设置环形缓存销毁事件
-		ringReader->setDetachCB([](){
-			onDetachEvent();
-		});
-	});
+        //设置环形缓存销毁事件
+        ringReader->setDetachCB([](){
+            onDetachEvent();
+        });
+    });
 
 
-	thread_group group;
-	//写线程
-	group.create_thread([](){
-		doWrite();
-	});
+    thread_group group;
+    //写线程
+    group.create_thread([](){
+        doWrite();
+    });
 
-	//测试3秒钟
-	sleep(3);
+    //测试3秒钟
+    sleep(3);
 
-	//通知写线程退出
-	g_bExitWrite = true;
-	//等待写线程退出
-	group.join_all();
+    //通知写线程退出
+    g_bExitWrite = true;
+    //等待写线程退出
+    group.join_all();
 
-	//释放环形缓冲，此时触发Detach事件
-	g_ringBuf.reset();
-	sleep(1);
-	return 0;
+    //释放环形缓冲，此时触发Detach事件
+    g_ringBuf.reset();
+    sleep(1);
+    return 0;
 }
 
 

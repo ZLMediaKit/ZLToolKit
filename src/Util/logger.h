@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef UTIL_LOGGER_H_
@@ -39,17 +25,15 @@
 #include "Util/util.h"
 #include "Util/List.h"
 #include "Thread/semaphore.h"
-
 using namespace std;
 
 namespace toolkit {
-
-typedef enum { LTrace = 0, LDebug, LInfo, LWarn, LError} LogLevel;
 
 class LogContext;
 class LogChannel;
 class LogWriter;
 typedef std::shared_ptr<LogContext> LogContextPtr;
+typedef enum { LTrace = 0, LDebug, LInfo, LWarn, LError} LogLevel;
 
 /**
  * 日志类
@@ -57,7 +41,6 @@ typedef std::shared_ptr<LogContext> LogContextPtr;
 class Logger : public std::enable_shared_from_this<Logger> , public noncopyable {
 public:
     friend class AsyncLogWriter;
-    friend class LogContextCapturer;
     typedef std::shared_ptr<Logger> Ptr;
 
     /**
@@ -66,8 +49,7 @@ public:
      */
     static Logger &Instance();
 
-
-	Logger(const string &loggerName);
+    Logger(const string &loggerName);
     ~Logger();
 
     /**
@@ -76,7 +58,7 @@ public:
      */
     void add(const std::shared_ptr<LogChannel> &channel);
 
-	/**
+    /**
      * 删除日志通道，非线程安全的
      * @param name log通道名
      */
@@ -103,12 +85,21 @@ public:
 
     /**
      * 获取logger名
-     * @return
+     * @return logger名
      */
     const string &getName() const;
+
+    /**
+     * 写日志
+     * @param ctx 日志信息
+     */
+    void write(const LogContextPtr &ctx);
 private:
-    void writeChannels(const LogContextPtr &stream);
-    void write(const LogContextPtr &stream);
+    /**
+     * 写日志到各channel，仅供AsyncLogWriter调用
+     * @param ctx 日志信息
+     */
+    void writeChannels(const LogContextPtr &ctx);
 private:
     map<string, std::shared_ptr<LogChannel> > _channels;
     std::shared_ptr<LogWriter> _writer;
@@ -120,16 +111,16 @@ private:
  * 日志上下文
  */
 class LogContext : public ostringstream{
+    //_file,_function改成string保存，目的是有些情况下，指针可能会失效
+    //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
 public:
-    friend class LogContextCapturer;
-public:
+    LogContext(LogLevel level,const char *file,const char *function,int line);
+    ~LogContext() = default;
     LogLevel _level;
     int _line;
-    const char *_file;
-	const char *_function;
+    string _file;
+    string _function;
     struct timeval _tv;
-private:
-    LogContext(LogLevel level,const char *file,const char *function,int line);
 };
 
 /**
@@ -137,7 +128,7 @@ private:
  */
 class LogContextCapturer {
 public:
-	typedef std::shared_ptr<LogContextCapturer> Ptr;
+    typedef std::shared_ptr<LogContextCapturer> Ptr;
     LogContextCapturer(Logger &logger,LogLevel level, const char *file, const char *function, int line);
     LogContextCapturer(const LogContextCapturer &that);
 
@@ -148,21 +139,21 @@ public:
      * @param f std::endl(回车符)
      * @return 自身引用
      */
-	LogContextCapturer &operator << (ostream &(*f)(ostream &));
+    LogContextCapturer &operator << (ostream &(*f)(ostream &));
 
     template<typename T>
     LogContextCapturer &operator<<(T &&data) {
-        if (!_logContext) {
+        if (!_ctx) {
             return *this;
         }
-		(*_logContext) << std::forward<T>(data);
+        (*_ctx) << std::forward<T>(data);
         return *this;
     }
 
     void clear();
 private:
-    LogContextPtr _logContext;
-	Logger &_logger;
+    LogContextPtr _ctx;
+    Logger &_logger;
 };
 
 
@@ -172,9 +163,9 @@ private:
  */
 class LogWriter : public noncopyable {
 public:
-	LogWriter() {}
-	virtual ~LogWriter() {}
-	virtual void write(const LogContextPtr &stream) = 0;
+    LogWriter() {}
+    virtual ~LogWriter() {}
+    virtual void write(const LogContextPtr &ctx) = 0;
 };
 
 class AsyncLogWriter : public LogWriter {
@@ -184,7 +175,7 @@ public:
 private:
     void run();
     void flushAll();
-	void write(const LogContextPtr &stream) override ;
+    void write(const LogContextPtr &ctx) override ;
 private:
     bool _exit_flag;
     std::shared_ptr<thread> _thread;
@@ -200,28 +191,23 @@ private:
  */
 class LogChannel : public noncopyable{
 public:
-	LogChannel(const string& name, LogLevel level = LTrace);
-	virtual ~LogChannel();
-	virtual void write(const Logger &logger,const LogContextPtr & stream) = 0;
-	const string &name() const ;
-	void setLevel(LogLevel level);
-
-	static std::string printTime(const timeval &tv);
+    LogChannel(const string& name, LogLevel level = LTrace);
+    virtual ~LogChannel();
+    virtual void write(const Logger &logger,const LogContextPtr & ctx) = 0;
+    const string &name() const ;
+    void setLevel(LogLevel level);
+    static std::string printTime(const timeval &tv);
 protected:
-	/**
+    /**
     * 打印日志至输出流
     * @param ost 输出流
-    * @param enableColor 是否请用颜色
+    * @param enableColor 是否启用颜色
     * @param enableDetail 是否打印细节(函数名、源码文件名、源码行)
     */
-	virtual void format(const Logger &logger,
-						ostream &ost,
-						const LogContextPtr & stream,
-						bool enableColor = true,
-						bool enableDetail = true);
+    virtual void format(const Logger &logger, ostream &ost, const LogContextPtr & ctx, bool enableColor = true, bool enableDetail = true);
 protected:
-	string _name;
-	LogLevel _level;
+    string _name;
+    LogLevel _level;
 };
 
 /**
@@ -239,14 +225,14 @@ public:
  */
 class FileChannelBase : public LogChannel {
 public:
-	FileChannelBase(const string &name = "FileChannelBase",const string &path = exePath() + ".log", LogLevel level = LTrace);
+    FileChannelBase(const string &name = "FileChannelBase",const string &path = exePath() + ".log", LogLevel level = LTrace);
     ~FileChannelBase();
 
-    void write(const Logger &logger , const std::shared_ptr<LogContext> &stream) override;
-    void setPath(const string &path);
+    void write(const Logger &logger , const LogContextPtr &ctx) override;
+    bool setPath(const string &path);
     const string &path() const;
 protected:
-    virtual void open();
+    virtual bool open();
     virtual void close();
 protected:
     ofstream _fstream;
@@ -259,37 +245,38 @@ protected:
  */
 class FileChannel : public FileChannelBase {
 public:
-	FileChannel(const string &name = "FileChannel",const string &dir = exeDir() + "log/", LogLevel level = LTrace);
-	~FileChannel() override;
+    FileChannel(const string &name = "FileChannel",const string &dir = exeDir() + "log/", LogLevel level = LTrace);
+    ~FileChannel() override;
 
-	/**
-	 * 写日志时才会触发新建日志文件或者删除老的日志文件
-	 * @param logger
-	 * @param stream
-	 */
-	void write(const Logger &logger , const std::shared_ptr<LogContext> &stream) override;
+    /**
+     * 写日志时才会触发新建日志文件或者删除老的日志文件
+     * @param logger
+     * @param stream
+     */
+    void write(const Logger &logger , const LogContextPtr &ctx) override;
 
-	/**
-	 * 设置日志最大保存天数
-	 * @param max_day
-	 */
-	void setMaxDay(int max_day);
+    /**
+     * 设置日志最大保存天数
+     * @param max_day
+     */
+    void setMaxDay(int max_day);
 private:
-	/**
-	 * 获取1970年以来的第几天
-	 * @param second
-	 * @return
-	 */
-	int64_t getDay(time_t second);
-	/**
-	 * 删除老文件
-	 */
-	void clean();
+    /**
+     * 获取1970年以来的第几天
+     * @param second
+     * @return
+     */
+    int64_t getDay(time_t second);
+    /**
+     * 删除老文件
+     */
+    void clean();
 private:
-	string _dir;
-	int64_t _last_day = -1;
-	map<uint64_t,string> _log_file_map;
-	int _log_max_day = 30;
+    bool _canWrite = false;
+    string _dir;
+    int64_t _last_day = -1;
+    map<uint64_t,string> _log_file_map;
+    int _log_max_day = 30;
 };
 
 
@@ -303,15 +290,15 @@ public:
 };
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
+//可重置默认值
+extern Logger* g_defaultLogger;
 
-#define TraceL LogContextCapturer(Logger::Instance(), LTrace, __FILE__,__FUNCTION__, __LINE__)
-#define DebugL LogContextCapturer(Logger::Instance(),LDebug, __FILE__,__FUNCTION__, __LINE__)
-#define InfoL LogContextCapturer(Logger::Instance(),LInfo, __FILE__,__FUNCTION__, __LINE__)
-#define WarnL LogContextCapturer(Logger::Instance(),LWarn,__FILE__, __FUNCTION__, __LINE__)
-#define ErrorL LogContextCapturer(Logger::Instance(),LError,__FILE__, __FUNCTION__, __LINE__)
-#define WriteL(level) LogContextCapturer(Logger::Instance(),level,__FILE__, __FUNCTION__, __LINE__)
-
+#define TraceL LogContextCapturer(*g_defaultLogger, LTrace, __FILE__,__FUNCTION__, __LINE__)
+#define DebugL LogContextCapturer(*g_defaultLogger,LDebug, __FILE__,__FUNCTION__, __LINE__)
+#define InfoL LogContextCapturer(*g_defaultLogger,LInfo, __FILE__,__FUNCTION__, __LINE__)
+#define WarnL LogContextCapturer(*g_defaultLogger,LWarn,__FILE__, __FUNCTION__, __LINE__)
+#define ErrorL LogContextCapturer(*g_defaultLogger,LError,__FILE__, __FUNCTION__, __LINE__)
+#define WriteL(level) LogContextCapturer(*g_defaultLogger,level,__FILE__, __FUNCTION__, __LINE__)
 
 } /* namespace toolkit */
-
 #endif /* UTIL_LOGGER_H_ */

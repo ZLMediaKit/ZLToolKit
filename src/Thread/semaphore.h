@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef SEMAPHORE_H_
@@ -42,55 +28,54 @@ namespace toolkit {
 
 class semaphore {
 public:
-	explicit semaphore(unsigned int initial = 0) {
+    explicit semaphore(unsigned int initial = 0) {
 #if defined(HAVE_SEM)
-		sem_init(&_sem, 0, initial);
+        sem_init(&_sem, 0, initial);
 #else
-		_count = 0;
+        _count = 0;
 #endif
-	}
-	~semaphore() {
+    }
+    ~semaphore() {
 #if defined(HAVE_SEM)
-		sem_destroy(&_sem);
+        sem_destroy(&_sem);
 #endif
-	}
-	void post(unsigned int n = 1) {
+    }
+    void post(unsigned int n = 1) {
 #if defined(HAVE_SEM)
-		while (n--) {
-			sem_post(&_sem);
-		}
+        while (n--) {
+            sem_post(&_sem);
+        }
 #else
-		unique_lock<mutex> lock(_mutex);
+        unique_lock<mutex> lock(_mutex);
         _count += n;
         if(n == 1){
-			_condition.notify_one();
-		}else{
-			_condition.notify_all();
-		}
+            _condition.notify_one();
+        }else{
+            _condition.notify_all();
+        }
 #endif
 
-	}
-	void wait() {
+    }
+    void wait() {
 #if defined(HAVE_SEM)
-		sem_wait(&_sem);
+        sem_wait(&_sem);
 #else
-		unique_lock<mutex> lock(_mutex);
-		while (_count == 0) {
-			_condition.wait(lock);
-		}
-		--_count;
+        unique_lock<mutex> lock(_mutex);
+        while (_count == 0) {
+            _condition.wait(lock);
+        }
+        --_count;
 #endif
-	}
+    }
 private:
 #if defined(HAVE_SEM)
-	sem_t _sem;
+    sem_t _sem;
 #else
-	int _count;
-	mutex _mutex;
-	condition_variable_any _condition;
+    int _count;
+    mutex _mutex;
+    condition_variable_any _condition;
 #endif
 };
 
 } /* namespace toolkit */
-
 #endif /* SEMAPHORE_H_ */

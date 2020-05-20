@@ -1,32 +1,26 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
 
 #include <ctime>
+#include <stdio.h>
+#include <string.h>
+#include <memory>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <unordered_map>
 #if defined(_WIN32)
+#define FD_SETSIZE 1024 //修改默认64为1024路
 #include <WinSock2.h>
 #pragma comment (lib,"WS2_32")
 #else
@@ -43,21 +37,12 @@
 #endif
 #endif //__APPLE__
 
-
 #define INSTANCE_IMP(class_name, ...) \
 class_name &class_name::Instance() { \
     static std::shared_ptr<class_name> s_instance(new class_name(__VA_ARGS__)); \
     static class_name &s_insteanc_ref = *s_instance; \
     return s_insteanc_ref; \
 }
-
-#include <stdio.h>
-#include <string.h>
-#include <memory>
-#include <string>
-#include <sstream>
-#include <vector>
-#include <unordered_map>
 
 using namespace std;
 
@@ -200,13 +185,11 @@ int asprintf(char **strp, const char *fmt, ...);
 
 #endif //WIN32
 
-
 /**
  * 获取1970年至今的毫秒数
  * @return
  */
 uint64_t getCurrentMillisecond();
-
 
 /**
  * 获取1970年至今的微秒数
@@ -222,5 +205,4 @@ uint64_t getCurrentMicrosecond();
 string getTimeStr(const char *fmt,time_t time = 0);
 
 }  // namespace toolkit
-
 #endif /* UTIL_UTIL_H_ */
