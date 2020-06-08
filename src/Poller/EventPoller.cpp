@@ -112,7 +112,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
         }
         return ret;
 #else
-        if(_event_map.size() >= FD_SETSIZE){
+        if(fd >= FD_SETSIZE || _event_map.size() >= FD_SETSIZE){
             WarnL << "select最多监听" << FD_SETSIZE << "个文件描述符";
             return -1;
         }
