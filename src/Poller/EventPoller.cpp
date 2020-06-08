@@ -112,10 +112,13 @@ int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
         }
         return ret;
 #else
+#ifndef _WIN32
+        //win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
         if(fd >= FD_SETSIZE || _event_map.size() >= FD_SETSIZE){
             WarnL << "select最多监听" << FD_SETSIZE << "个文件描述符";
             return -1;
         }
+#endif
         Poll_Record::Ptr record(new Poll_Record);
         record->event = event;
         record->callBack = std::move(cb);
