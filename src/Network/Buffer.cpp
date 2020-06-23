@@ -1,7 +1,12 @@
-﻿//
-// Created by xzl on 2019/3/18.
-//
-
+﻿/*
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
+ *
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ *
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
+ */
 
 #include "Buffer.h"
 
@@ -9,6 +14,10 @@ namespace toolkit {
 ///////////////BufferList/////////////////////
 bool BufferList::empty() {
     return _iovec_off == _iovec.size();
+}
+
+int BufferList::count(){
+    return _iovec.size() - _iovec_off;
 }
 
 #if defined(_WIN32)

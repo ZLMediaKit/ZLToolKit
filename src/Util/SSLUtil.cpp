@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #include "SSLUtil.h"
@@ -54,54 +40,80 @@ std::string SSLUtil::getLastError(){
         return "No error";
     }
 }
-shared_ptr<X509> SSLUtil::loadPublicKey(const string &file_path_or_data, const string &passwd,bool isFile) {
+
 #if defined(ENABLE_OPENSSL)
-    BIO *bio = isFile ?
-              BIO_new_file((char*)file_path_or_data.data(), "r") :
-              BIO_new_mem_buf((char *)file_path_or_data.data(),file_path_or_data.size());
+static int getCerType(BIO *bio, const char *passwd, X509 **x509, int type){
+    //尝试pem格式
+    if(type == 1 || type == 0){
+        if(type == 0){
+            BIO_reset(bio);
+        }
+        // 尝试PEM格式
+        *x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+        if (*x509) {
+            return 1;
+        }
+    }
+
+    if(type == 2 || type == 0){
+        if(type == 0){
+            BIO_reset(bio);
+        }
+        //尝试DER格式
+        *x509 = d2i_X509_bio(bio, NULL);
+        if (*x509) {
+            return 2;
+        }
+    }
+
+    if(type == 3 || type == 0){
+        if(type == 0){
+            BIO_reset(bio);
+        }
+        //尝试p12格式
+        PKCS12 *p12 = d2i_PKCS12_bio(bio, NULL);
+        if (p12) {
+            EVP_PKEY *pkey = NULL;
+            PKCS12_parse(p12, passwd, &pkey, x509, NULL);
+            PKCS12_free(p12);
+            if (pkey) {
+                EVP_PKEY_free(pkey);
+            }
+            if(*x509){
+                return 3;
+            }
+        }
+    }
+
+    return 0;
+}
+#endif //defined(ENABLE_OPENSSL)
+
+vector<shared_ptr<X509> > SSLUtil::loadPublicKey(const string &file_path_or_data, const string &passwd,bool isFile) {
+    vector<shared_ptr<X509> > ret;
+#if defined(ENABLE_OPENSSL)
+    BIO *bio = isFile ? BIO_new_file((char*)file_path_or_data.data(), "r") :
+                        BIO_new_mem_buf((char *)file_path_or_data.data(),file_path_or_data.size());
     if(!bio){
         WarnL << getLastError();
-        return nullptr;
+        return ret;
     }
 
     onceToken token0(nullptr,[&](){
         BIO_free(bio);
     });
 
-    //尝试pem格式
-    X509 *x509 = PEM_read_bio_X509(bio, NULL, NULL ,NULL);
-    if(!x509){
-//        WarnL << "loadPublicKey " << file_path_or_data << " failed:" << getLastError();
-        //尝试DER格式
-        BIO_reset(bio);
-        x509 = d2i_X509_bio(bio, NULL);
-        if(!x509){
-//            WarnL << "loadPublicKey " << file_path_or_data << " failed:" << getLastError();
-            //尝试p12格式
-            BIO_reset(bio);
-            PKCS12 *p12 = d2i_PKCS12_bio(bio, NULL);
-            if(!p12) {
-//                WarnL << "loadPublicKey " << file_path_or_data << " failed:" << getLastError();
-                return nullptr;
-            }
-            EVP_PKEY *pkey = NULL;
-            PKCS12_parse(p12, passwd.data(), &pkey, &x509, NULL);
-            PKCS12_free (p12);
-            if(pkey){
-                EVP_PKEY_free(pkey);
-            }
-            if(!x509){
-//                WarnL << "loadPublicKey " << file_path_or_data << " failed:" << getLastError();
-                return nullptr;
-            }
+    int cer_type = 0;
+    X509 *x509 = nullptr;
+    do {
+        cer_type = getCerType(bio, passwd.data(), &x509, cer_type);
+        if (cer_type) {
+            ret.push_back(shared_ptr<X509>(x509, [](X509 *ptr) { X509_free(ptr); }));
         }
-    }
-
-    return shared_ptr<X509>(x509,[](X509 *ptr){
-        X509_free(ptr);
-    });
+    } while (cer_type != 0);
+    return ret;
 #else
-    return nullptr;
+    return ret;
 #endif //defined(ENABLE_OPENSSL)
 }
 
@@ -129,12 +141,10 @@ shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, co
     //尝试pem格式
     EVP_PKEY *evp_key = PEM_read_bio_PrivateKey(bio, NULL, cb ,(void *)&passwd);
     if(!evp_key){
-//        WarnL << "loadPrivateKey " << file_path_or_data << " failed:" << getLastError();
         //尝试p12格式
         BIO_reset(bio);
         PKCS12 *p12 = d2i_PKCS12_bio(bio, NULL);
         if(!p12) {
-//            WarnL << "loadPrivateKey " << file_path_or_data << " failed:" << getLastError();
             return nullptr;
         }
         X509 *x509 = NULL;
@@ -144,7 +154,6 @@ shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, co
             X509_free(x509);
         }
         if(!evp_key){
-//            WarnL << "loadPrivateKey " << file_path_or_data << " failed:" << getLastError();
             return nullptr;
         }
     }
@@ -157,35 +166,42 @@ shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, co
 #endif //defined(ENABLE_OPENSSL)
 }
 
-shared_ptr<SSL_CTX> SSLUtil::makeSSLContext(X509 *cer, EVP_PKEY *key,bool serverMode) {
+shared_ptr<SSL_CTX> SSLUtil::makeSSLContext(const vector<shared_ptr<X509> > &cers, const shared_ptr<EVP_PKEY> &key,bool serverMode) {
 #if defined(ENABLE_OPENSSL)
     SSL_CTX *ctx = SSL_CTX_new(serverMode ? SSLv23_server_method() : SSLv23_client_method() );
     if(!ctx){
         WarnL << getLastError();
         return nullptr;
     }
-
-    do{
-        if (cer && SSL_CTX_use_certificate(ctx,cer) != 1 ) {
-            break;
+    int i = 0;
+    for(auto &cer : cers){
+        //加载公钥
+        if(i++ == 0){
+            //SSL_CTX_use_certificate内部会调用X509_up_ref,所以这里不用X509_dup
+            SSL_CTX_use_certificate(ctx, cer.get());
+        }else{
+            //需要先拷贝X509对象，否则指针会失效
+            SSL_CTX_add_extra_chain_cert(ctx,X509_dup(cer.get()));
         }
+    }
 
-        if (key && SSL_CTX_use_PrivateKey(ctx, key) != 1) {
-            break;
+    if(key){
+        //提供了私钥
+        if(SSL_CTX_use_PrivateKey(ctx, key.get()) != 1){
+            WarnL << "加载私钥失败:" << getLastError();
+            SSL_CTX_free(ctx);
+            return nullptr;
         }
-
-        if(cer && key && SSL_CTX_check_private_key(ctx) != 1 ){
-            break;
+        //加载私钥成功
+        if(SSL_CTX_check_private_key(ctx) != 1){
+            WarnL << "校验私钥失败:" << getLastError();
+            SSL_CTX_free(ctx);
+            return nullptr;
         }
+    }
 
-        return shared_ptr<SSL_CTX>(ctx,[](SSL_CTX *ptr){
-            SSL_CTX_free(ptr);
-        });
-    }while(false);
-
-    WarnL << getLastError();
-    SSL_CTX_free(ctx);
-    return nullptr;
+    //公钥私钥匹配或者没有公私钥
+    return shared_ptr<SSL_CTX>(ctx,[](SSL_CTX *ptr){ SSL_CTX_free(ptr); });
 #else
     return nullptr;
 #endif //defined(ENABLE_OPENSSL)

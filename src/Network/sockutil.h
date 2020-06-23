@@ -1,26 +1,13 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
+
 #ifndef NETWORK_SOCKUTIL_H
 #define NETWORK_SOCKUTIL_H
 
@@ -45,7 +32,6 @@
 #include <string>
 #include <string.h>
 #include <stdint.h>
-
 using namespace std;
 
 namespace toolkit {
@@ -100,6 +86,9 @@ public:
     static string get_peer_ip(int fd);
     static uint16_t get_peer_port(int fd);
 
+    //线程安全的in_addr转ip字符串
+    static string inet_ntoa(struct in_addr &addr);
+
     //获取网卡ip
     static string get_ifr_ip(const char *ifrName);
     //获取网卡名
@@ -114,5 +103,4 @@ public:
 };
 
 }  // namespace toolkit
-
 #endif // !NETWORK_SOCKUTIL_H

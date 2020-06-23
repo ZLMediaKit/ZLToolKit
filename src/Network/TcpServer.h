@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef TCPSERVER_TCPSERVER_H
@@ -37,7 +23,6 @@
 #include "Util/uv_errno.h"
 #include "Poller/Timer.h"
 #include "Thread/semaphore.h"
-
 using namespace std;
 
 namespace toolkit {
@@ -132,12 +117,12 @@ public:
     typedef std::shared_ptr<TcpServer> Ptr;
 
     /**
-     * 创建Tcp服务器，父文件描述符的accept事件在某固定的poller循环中触发
-     * 但是子文件描述符的所有事件、数据读取、数据处理都是在从EventPollerPool中获取的poller线程中执行
-     * 所以这种方式网络事件的触发会派发到多个poller线程中执行
-     * 这种方式网络吞吐量最大
+     * 创建tcp服务器，listen fd的accept事件会加入到所有的poller线程中监听
+     * 在调用TcpServer::start函数时，内部会创建多个子TcpServer对象，
+     * 这些子TcpServer对象通过Socket对象克隆的方式在多个poller线程中监听同一个listen fd
+     * 这样这个TCP服务器将会通过抢占式accept的方式把客户端均匀的分布到不同的poller线程
+     * 通过该方式能实现客户端负载均衡以及提高连接接收速度
      */
-
     TcpServer(const EventPoller::Ptr &poller = nullptr) {
         _poller = poller;
         if(!_poller){
@@ -182,11 +167,22 @@ public:
         });
     }
 
+    /**
+     * 获取服务器监听端口号，服务器可以选择监听随机端口
+     */
     uint16_t getPort(){
         if(!_socket){
             return 0;
         }
         return _socket->get_local_port();
+    }
+
+    /**
+     * 服务器器模型socket是线程安全的，所以为了提高性能，一般关闭互斥锁
+     * @param flag 是否使能socket互斥锁，默认关闭
+     */
+    void enableSocketMutex(bool flag){
+        _enableSocketMutex = flag;
     }
 protected:
     virtual TcpServer::Ptr onCreatServer(const EventPoller::Ptr &poller){
@@ -194,10 +190,7 @@ protected:
     }
 
     virtual Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &poller){
-        /**
-         * 服务器器模型socket是线程安全的，所以为了提高性能，关闭互斥锁
-         */
-        return std::make_shared<Socket>(poller,false);
+        return std::make_shared<Socket>(poller,_enableSocketMutex);
     }
 
     virtual void cloneFrom(const TcpServer &that){
@@ -212,6 +205,7 @@ protected:
         },_poller);
         this->mINI::operator=(that);
         _cloned = true;
+        _enableSocketMutex = that._enableSocketMutex;
     }
 
     // 接收到客户端连接请求
@@ -322,8 +316,8 @@ private:
     function<TcpSessionHelper::Ptr(const weak_ptr<TcpServer> &server,const Socket::Ptr &)> _sessionMaker;
     unordered_map<EventPoller *,Ptr> _clonedServer;
     bool _cloned = false;
+    bool _enableSocketMutex = false;
 };
 
 } /* namespace toolkit */
-
 #endif /* TCPSERVER_TCPSERVER_H */

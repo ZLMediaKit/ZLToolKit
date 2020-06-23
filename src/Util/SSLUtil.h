@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef ZLTOOLKIT_SSLUTIL_H
@@ -27,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 using namespace std;
 
 typedef struct x509_st X509;
@@ -51,9 +38,9 @@ public:
      * 由于openssl加载p12证书时会校验公钥和私钥是否匹对，所以加载p12的公钥时可能需要传入证书密码
      * @param file_path_or_data 文件路径或文件内容
      * @param isFile 是否为文件
-     * @return 公钥证书
+     * @return 公钥证书列表
      */
-    static shared_ptr<X509> loadPublicKey(const string &file_path_or_data,const string &passwd = "",bool isFile = true);
+    static vector<shared_ptr<X509> > loadPublicKey(const string &file_path_or_data,const string &passwd = "",bool isFile = true);
 
     /**
      * 加载私钥证书，支持pem,p12后缀
@@ -66,12 +53,12 @@ public:
 
     /**
      * 创建SSL_CTX对象
-     * @param cer 公钥
+     * @param cer 公钥数组
      * @param key 私钥
      * @param serverMode 是否为服务器模式或客户端模式
      * @return SSL_CTX对象
      */
-    static shared_ptr<SSL_CTX> makeSSLContext(X509 *cer, EVP_PKEY *key, bool serverMode = true);
+    static shared_ptr<SSL_CTX> makeSSLContext(const vector<shared_ptr<X509> > &cers, const shared_ptr<EVP_PKEY> &key, bool serverMode = true);
 
     /**
      * 创建ssl对象
@@ -136,5 +123,4 @@ public:
 };
 
 }//namespace toolkit
-
 #endif //ZLTOOLKIT_SSLUTIL_H

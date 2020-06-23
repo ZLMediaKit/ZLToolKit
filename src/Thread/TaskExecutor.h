@@ -1,6 +1,12 @@
-﻿//
-// Created by xzl on 2018/9/13.
-//
+﻿/*
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
+ *
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ *
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
+ */
 
 #ifndef ZLTOOLKIT_TASKEXECUTOR_H
 #define ZLTOOLKIT_TASKEXECUTOR_H
@@ -11,7 +17,6 @@
 #include "Util/util.h"
 #include "Util/onceToken.h"
 #include "Util/TimeTicker.h"
-
 using namespace std;
 
 namespace toolkit {
@@ -134,7 +139,6 @@ private:
     mutex _mtx;
 };
 
-
 class TaskCancelable : public noncopyable{
 public:
     TaskCancelable() = default;
@@ -199,24 +203,13 @@ protected:
     std::weak_ptr<func_type > _weakTask;
 };
 
-
 typedef function<void()> TaskIn;
 typedef TaskCancelableImp<void()> Task;
 
-/**
- * 任务执行器
- */
-class TaskExecutor : public ThreadLoadCounter{
+class TaskExecutorInterface{
 public:
-    typedef shared_ptr<TaskExecutor> Ptr;
-
-    /**
-     * 构造函数
-     * @param max_size cpu负载统计样本数
-     * @param max_usec cpu负载统计时间窗口大小
-     */
-    TaskExecutor(uint64_t max_size = 32,uint64_t max_usec = 2 * 1000 * 1000):ThreadLoadCounter(max_size,max_usec){}
-    virtual ~TaskExecutor(){}
+    TaskExecutorInterface() = default;
+    virtual ~TaskExecutorInterface() = default;
     /**
      * 异步执行任务
      * @param task 任务
@@ -275,6 +268,22 @@ public:
     };
 };
 
+/**
+ * 任务执行器
+ */
+class TaskExecutor : public ThreadLoadCounter , public TaskExecutorInterface{
+public:
+    typedef shared_ptr<TaskExecutor> Ptr;
+
+    /**
+     * 构造函数
+     * @param max_size cpu负载统计样本数
+     * @param max_usec cpu负载统计时间窗口大小
+     */
+    TaskExecutor(uint64_t max_size = 32,uint64_t max_usec = 2 * 1000 * 1000):ThreadLoadCounter(max_size,max_usec){}
+    ~TaskExecutor(){}
+};
+
 class TaskExecutorGetter {
 public:
     typedef shared_ptr<TaskExecutorGetter> Ptr;
@@ -284,14 +293,11 @@ public:
      * @return 任务执行器
      */
     virtual TaskExecutor::Ptr getExecutor() = 0;
-
 };
-
 
 class TaskExecutorGetterImp : public TaskExecutorGetter{
 public:
     TaskExecutorGetterImp(){}
-
     ~TaskExecutorGetterImp(){}
 
     /**
@@ -326,7 +332,6 @@ public:
         _thread_pos = thread_pos;
         return executor_min_load;
     }
-
 
     /**
      * 获取所有线程的负载率
@@ -388,6 +393,4 @@ protected:
 };
 
 }//toolkit
-
-
 #endif //ZLTOOLKIT_TASKEXECUTOR_H

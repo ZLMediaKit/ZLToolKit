@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 #include <stdio.h>
 #include <fcntl.h>
@@ -58,7 +44,7 @@ namespace toolkit {
     }
 #endif // defined(_WIN32)
 
-static string socket_toa(struct in_addr &addr) {
+string SockUtil::inet_ntoa(struct in_addr &addr) {
     char buf[20];
     unsigned char *p = (unsigned char *) &(addr);
     sprintf(buf, "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
@@ -325,7 +311,7 @@ string SockUtil::get_local_ip(int fd) {
     if (0 == getsockname(fd, &addr, &addr_len)) {
         if (addr.sa_family == AF_INET) {
             addr_v4 = (sockaddr_in*) &addr;
-            return socket_toa(addr_v4->sin_addr);
+            return SockUtil::inet_ntoa(addr_v4->sin_addr);
         }
     }
     return "";
@@ -435,7 +421,7 @@ string SockUtil::get_local_ip() {
 #if defined(__APPLE__)
     string address = "127.0.0.1";
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        string ip = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+        string ip = SockUtil::inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
         return check_ip(address,ip);
     });
     return address;
@@ -456,7 +442,7 @@ string SockUtil::get_local_ip() {
 #else
     string address = "127.0.0.1";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        string ip = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
         return check_ip(address,ip);
     });
     return address;
@@ -468,7 +454,7 @@ vector<map<string,string> > SockUtil::getInterfaceList(){
 #if defined(__APPLE__)
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
         map<string,string> obj;
-        obj["ip"] = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+        obj["ip"] = SockUtil::inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
         obj["name"] = adapter->ifa_name;
         ret.emplace_back(std::move(obj));
         return false;
@@ -488,7 +474,7 @@ vector<map<string,string> > SockUtil::getInterfaceList(){
 #else
     for_each_netAdapter_posix([&](struct ifreq *adapter){
         map<string,string> obj;
-        obj["ip"] = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        obj["ip"] = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
         obj["name"] = adapter->ifr_name;
         ret.emplace_back(std::move(obj));
         return false;
@@ -519,7 +505,7 @@ string SockUtil::get_peer_ip(int fd) {
     if (0 == getpeername(fd, &addr, &addr_len)) {
         if (addr.sa_family == AF_INET) {
             addr_v4 = (sockaddr_in*) &addr;
-            return socket_toa(addr_v4->sin_addr);
+            return SockUtil::inet_ntoa(addr_v4->sin_addr);
         }
     }
     return "";
@@ -578,7 +564,7 @@ string SockUtil::get_ifr_ip(const char *ifrName){
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
         if(strcmp(adapter->ifa_name,ifrName) == 0) {
-            ret = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+            ret = SockUtil::inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
             return true;
         }
         return false;
@@ -603,7 +589,7 @@ string SockUtil::get_ifr_ip(const char *ifrName){
     string ret;
     for_each_netAdapter_posix([&](struct ifreq *adapter){
         if(strcmp(adapter->ifr_name,ifrName) == 0) {
-            ret = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+            ret = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
             return true;
         }
         return false;
@@ -616,7 +602,7 @@ string SockUtil::get_ifr_name(const char *localIp){
 #if defined(__APPLE__)
     string ret = "en0";
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
-        string ip = socket_toa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
+        string ip = SockUtil::inet_ntoa(((struct sockaddr_in*)adapter->ifa_addr)->sin_addr);
         if(ip == localIp) {
             ret = adapter->ifa_name;
             return true;
@@ -642,7 +628,7 @@ string SockUtil::get_ifr_name(const char *localIp){
 #else
     string ret = "en0";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = socket_toa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        string ip = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
         if(ip == localIp) {
             ret = adapter->ifr_name;
             return true;
@@ -659,7 +645,7 @@ string SockUtil::get_ifr_mask(const char* ifrName) {
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
         if(strcmp(ifrName,adapter->ifa_name) == 0) {
-            ret = socket_toa(((struct sockaddr_in *)adapter->ifa_netmask)->sin_addr);
+            ret = SockUtil::inet_ntoa(((struct sockaddr_in *)adapter->ifa_netmask)->sin_addr);
             return true;
         }
         return false;
@@ -694,7 +680,7 @@ string SockUtil::get_ifr_mask(const char* ifrName) {
         return "";
     }
     close(sockFd);
-    return socket_toa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
+    return SockUtil::inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
 #endif // defined(_WIN32)
 }
 
@@ -703,7 +689,7 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter){
         if(strcmp(ifrName,adapter->ifa_name) == 0){
-            ret = socket_toa(((struct sockaddr_in*) adapter->ifa_broadaddr)->sin_addr);
+            ret = SockUtil::inet_ntoa(((struct sockaddr_in*) adapter->ifa_broadaddr)->sin_addr);
             return true;
         }
         return false;
@@ -717,7 +703,7 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
             IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
             in_addr broadcast;
             broadcast.S_un.S_addr = (inet_addr(ipAddr->IpAddress.String) & inet_addr(ipAddr->IpMask.String)) | (~inet_addr(ipAddr->IpMask.String));
-            ret = socket_toa(broadcast);
+            ret = SockUtil::inet_ntoa(broadcast);
             return true;
         }
         return false;
@@ -739,7 +725,7 @@ string SockUtil::get_ifr_brdaddr(const char *ifrName){
         return "";
     }
     close(sockFd);
-    return socket_toa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
+    return SockUtil::inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
 #endif
 }
 

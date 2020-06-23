@@ -1,25 +1,11 @@
 ﻿/*
- * MIT License
+ * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * Copyright (c) 2016-2019 xiongziliang <771730766@qq.com>
+ * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Use of this source code is governed by MIT license that can be found in the
+ * LICENSE file in the root of the source tree. All contributing project authors
+ * may be found in the AUTHORS file in the root of the source tree.
  */
 
 #ifndef CRYPTO_SSLBOX_H_
@@ -58,18 +44,6 @@ public:
      * @param isDefault 是否为默认证书
      */
     bool loadCertificate(const string &pem_or_p12, bool serverMode = true, const string &passwd = "", bool isFile = true, bool isDefault = true);
-
-    /**
-     * 加载公钥和私钥
-     * 公钥可以使用SSLUtil加载
-     * 客户端默认可以不加载证书(除非服务器要求客户端提供证书)
-     * @see SSLUtil
-     * @param public_key 公钥
-     * @param private_key 私钥
-     * @param serverMode 是否为服务器模式
-     * @param isDefault 是否为默认证书
-     */
-    bool loadCertificate(X509 *public_key, EVP_PKEY *private_key, bool serverMode = true, bool isDefault = true);
 
     /**
      * 是否忽略无效的证书
@@ -221,7 +195,5 @@ private:
     int _buffSize;
 };
 
-
 } /* namespace toolkit */
-
 #endif /* CRYPTO_SSLBOX_H_ */
