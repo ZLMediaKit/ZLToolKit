@@ -19,11 +19,9 @@
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
 #include "Util/onceToken.h"
-
 #if defined (__APPLE__)
 #include <ifaddrs.h>
 #endif
-
 using namespace std;
 
 namespace toolkit {
@@ -57,8 +55,7 @@ int SockUtil::setCloseWait(int sockFd, int second) {
     // 若m_sLinger.l_onoff=0;则调用closesocket()后强制关闭
     m_sLinger.l_onoff = (second > 0);
     m_sLinger.l_linger = second; //设置等待时间为x秒
-    int ret = setsockopt(sockFd, SOL_SOCKET, SO_LINGER,
-            (char*) &m_sLinger, sizeof(linger));
+    int ret = setsockopt(sockFd, SOL_SOCKET, SO_LINGER, (char*) &m_sLinger, sizeof(linger));
     if (ret == -1) {
         TraceL << "设置 SO_LINGER 失败!";
     }
@@ -75,8 +72,7 @@ int SockUtil::setNoDelay(int sockFd, bool on) {
 
 int SockUtil::setReuseable(int sockFd, bool on) {
     int opt = on ? 1 : 0;
-    int ret = setsockopt(sockFd, SOL_SOCKET,
-    SO_REUSEADDR, (char *)&opt, static_cast<socklen_t>(sizeof(opt)));
+    int ret = setsockopt(sockFd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, static_cast<socklen_t>(sizeof(opt)));
     if (ret == -1) {
         TraceL << "设置 SO_REUSEADDR 失败!";
     }
@@ -98,6 +94,30 @@ int SockUtil::setKeepAlive(int sockFd, bool on) {
         TraceL << "设置 SO_KEEPALIVE 失败!";
     }
     return ret;
+}
+
+int SockUtil::setCloExec(int fd, bool on) {
+#if !defined(_WIN32)
+    int flags = fcntl(fd, F_GETFD);
+    if (flags == -1) {
+        TraceL << "设置 FD_CLOEXEC 失败!";
+        return -1;
+    }
+    if (on) {
+        flags |= FD_CLOEXEC;
+    } else {
+        int cloexec = FD_CLOEXEC;
+        flags &= ~cloexec;
+    }
+    int ret = fcntl(fd, F_SETFD, flags);
+    if (ret == -1) {
+        TraceL << "设置 FD_CLOEXEC 失败!";
+        return -1;
+    }
+    return ret;
+#else
+    return -1;
+#endif
 }
 
 int SockUtil::setNoSigpipe(int sd) {
@@ -140,11 +160,8 @@ int SockUtil::setSendBuf(int sock, int size) {
     return ret;
 }
 
-
-
 class DnsCache {
 public:
-
     static DnsCache &Instance(){
         static DnsCache instance;
         return instance;
@@ -188,6 +205,7 @@ private:
         item = it->second;
         return true;
     }
+
     void setCacheDomainIP(const char *host,DnsItem &item){
         lock_guard<mutex> lck(_mtx);
         item._create_time = time(NULL);
@@ -214,7 +232,6 @@ private:
     mutex _mtx;
     unordered_map<string,DnsItem> _mapDns;
 };
-
 
 bool SockUtil::getDomainIP(const char *host,uint16_t port,struct sockaddr &addr){
     bool flag = DnsCache::Instance().getDomainIP(host,addr);
@@ -246,6 +263,7 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *lo
     setSendBuf(sockfd);
     setRecvBuf(sockfd);
     setCloseWait(sockfd);
+    setCloExec(sockfd);
 
     if(bindSock(sockfd,localIp,localPort) == -1){
         close(sockfd);
@@ -274,6 +292,7 @@ int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
 
     setReuseable(sockfd);
     setNoBlocked(sockfd);
+    setCloExec(sockfd);
 
     if(bindSock(sockfd,localIp,port) == -1){
         close(sockfd);
@@ -295,8 +314,7 @@ int SockUtil::getSockError(int sockFd) {
     socklen_t optLen = static_cast<socklen_t>(sizeof(opt));
 
     if (getsockopt(sockFd, SOL_SOCKET, SO_ERROR, (char *)&opt, &optLen) < 0) {
-        int err = get_uv_error(true);
-        return err;
+        return get_uv_error(true);
     } else {
         return uv_translate_posix_error(opt);
     }
@@ -316,8 +334,6 @@ string SockUtil::get_local_ip(int fd) {
     }
     return "";
 }
-
-
 
 #if defined(__APPLE__)
 template<typename FUN>
@@ -531,12 +547,14 @@ int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
+
     setReuseable(sockfd);
     setNoSigpipe(sockfd);
     setNoBlocked(sockfd);
     setSendBuf(sockfd);
     setRecvBuf(sockfd);
     setCloseWait(sockfd);
+    setCloExec(sockfd);
 
     if(bindSock(sockfd,localIp,port) == -1){
         close(sockfd);
@@ -639,7 +657,6 @@ string SockUtil::get_ifr_name(const char *localIp){
 #endif
 }
 
-
 string SockUtil::get_ifr_mask(const char* ifrName) {
 #if defined(__APPLE__)
     string ret;
@@ -735,7 +752,6 @@ bool SockUtil::in_same_lan(const char *myIp,const char *dstIp){
     return ip_addr_netcmp(inet_addr(myIp),inet_addr(dstIp),inet_addr(mask.data()));
 }
 
-
 static void clearMulticastAllSocketOption(int socket) {
 #if defined(IP_MULTICAST_ALL)
   // This option is defined in modern versions of Linux to overcome a bug in the Linux kernel's default behavior.
@@ -821,8 +837,7 @@ static inline void write4Byte(A &&a,B &&b){
     memcpy(&a,&b, sizeof(a));
 }
 
-int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
-        const char* strSrcIp, const char* strLocalIp) {
+int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr, const char* strSrcIp, const char* strLocalIp) {
     int ret = -1;
 #if defined(IP_ADD_SOURCE_MEMBERSHIP)
     struct ip_mreq_source imr;
@@ -831,8 +846,7 @@ int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
     write4Byte(imr.imr_sourceaddr,inet_addr(strSrcIp));
     write4Byte(imr.imr_interface,inet_addr(strLocalIp));
 
-    ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP,
-            (char*) &imr, sizeof(struct ip_mreq_source));
+    ret = setsockopt(sockFd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, (char*) &imr, sizeof(struct ip_mreq_source));
     if (ret == -1) {
         TraceL << "设置 IP_ADD_SOURCE_MEMBERSHIP 失败:" << get_uv_errmsg(true);
     }
@@ -841,8 +855,7 @@ int SockUtil::joinMultiAddrFilter(int sockFd, const char* strAddr,
     return ret;
 }
 
-int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
-        const char* strSrcIp, const char* strLocalIp) {
+int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr, const char* strSrcIp, const char* strLocalIp) {
     int ret = -1;
 #if defined(IP_DROP_SOURCE_MEMBERSHIP)
     struct ip_mreq_source imr;
@@ -851,8 +864,7 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
     write4Byte(imr.imr_sourceaddr,inet_addr(strSrcIp));
     write4Byte(imr.imr_interface,inet_addr(strLocalIp));
 
-    ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP,
-            (char*) &imr, sizeof(struct ip_mreq_source));
+    ret = setsockopt(sockFd, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP, (char*) &imr, sizeof(struct ip_mreq_source));
     if (ret == -1) {
         TraceL << "设置 IP_DROP_SOURCE_MEMBERSHIP 失败:" << get_uv_errmsg(true);
     }
@@ -861,8 +873,4 @@ int SockUtil::leaveMultiAddrFilter(int sockFd, const char* strAddr,
     return ret;
 }
 
-
-
 }  // namespace toolkit
-
-
