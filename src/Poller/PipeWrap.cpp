@@ -50,6 +50,8 @@ PipeWrap::PipeWrap(){
 #endif // defined(_WIN32)	
     SockUtil::setNoBlocked(_pipe_fd[0],true);
     SockUtil::setNoBlocked(_pipe_fd[1],false);
+    SockUtil::setCloExec(_pipe_fd[0]);
+    SockUtil::setCloExec(_pipe_fd[1]);
 }
 
 void PipeWrap::clearFD() {
