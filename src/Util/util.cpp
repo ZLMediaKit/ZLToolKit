@@ -295,17 +295,34 @@ static inline uint64_t getCurrentMicrosecondOrigin() {
     return  std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 #endif
 }
-static atomic<uint64_t> s_currentMicrosecond(getCurrentMicrosecondOrigin());
-static atomic<uint64_t> s_currentMillisecond(getCurrentMicrosecondOrigin() / 1000);
+static atomic<uint64_t> s_currentMicrosecond(0);
+static atomic<uint64_t> s_currentMillisecond(0);
+static atomic<uint64_t> s_currentMicrosecond_system(getCurrentMicrosecondOrigin());
+static atomic<uint64_t> s_currentMillisecond_system(getCurrentMicrosecondOrigin() / 1000);
 
 static inline bool initMillisecondThread() {
     static std::thread s_thread([]() {
         DebugL << "Stamp thread started!";
+        uint64_t last = getCurrentMicrosecondOrigin();
         uint64_t now;
+        uint64_t microsecond = 0;
         while (true) {
             now = getCurrentMicrosecondOrigin();
-            s_currentMicrosecond.store(now, memory_order_release);
-            s_currentMillisecond.store(now / 1000, memory_order_release);
+            //记录系统时间戳，可回退
+            s_currentMicrosecond_system.store(now, memory_order_release);
+            s_currentMillisecond_system.store(now / 1000, memory_order_release);
+
+            //记录流逝时间戳，不可回退
+            int64_t expired = now - last;
+            last = now;
+            if (expired > 0 && expired < 10 * 1000) {
+                //流逝时间处于0~10ms之间，那么是合理的，说明没有调整系统时间
+                microsecond += expired;
+                s_currentMicrosecond.store(microsecond, memory_order_release);
+                s_currentMillisecond.store(microsecond / 1000, memory_order_release);
+            } else {
+                WarnL << "Stamp expired is not abnormal:" << expired;
+            }
 #if !defined(_WIN32)
             //休眠0.5 ms
             usleep(500);
@@ -320,13 +337,19 @@ static inline bool initMillisecondThread() {
     return true;
 }
 
-uint64_t getCurrentMillisecond() {
+uint64_t getCurrentMillisecond(bool system_time) {
     static bool flag = initMillisecondThread();
+    if(system_time){
+        return s_currentMillisecond_system.load(memory_order_acquire);
+    }
     return s_currentMillisecond.load(memory_order_acquire);
 }
 
-uint64_t getCurrentMicrosecond() {
+uint64_t getCurrentMicrosecond(bool system_time) {
     static bool flag = initMillisecondThread();
+    if(system_time){
+        return s_currentMicrosecond_system.load(memory_order_acquire);
+    }
     return s_currentMicrosecond.load(memory_order_acquire);
 }
 

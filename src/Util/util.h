@@ -187,15 +187,15 @@ int asprintf(char **strp, const char *fmt, ...);
 
 /**
  * 获取1970年至今的毫秒数
- * @return
+ * @param system_time 是否为系统时间(系统时间可以回退),否则为程序启动时间(不可回退)
  */
-uint64_t getCurrentMillisecond();
+uint64_t getCurrentMillisecond(bool system_time = false);
 
 /**
  * 获取1970年至今的微秒数
- * @return
+ * @param system_time 是否为系统时间(系统时间可以回退),否则为程序启动时间(不可回退)
  */
-uint64_t getCurrentMicrosecond();
+uint64_t getCurrentMicrosecond(bool system_time = false);
 
 /**
  * 获取时间字符串

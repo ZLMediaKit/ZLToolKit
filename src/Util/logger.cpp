@@ -128,7 +128,9 @@ LogContext::LogContext(LogLevel level, const char *file, const char *function, i
         _line(line),
         _file(getFileName(file)),
         _function(getFunctionName(function)) {
-    gettimeofday(&_tv, NULL);
+    auto stamp = getCurrentMicrosecond(true);
+    _tv.tv_sec = stamp / 1000000LL;
+    _tv.tv_usec = stamp % 1000000LL;
 }
 
 ///////////////////AsyncLogWriter///////////////////
