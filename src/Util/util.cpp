@@ -320,7 +320,7 @@ static inline bool initMillisecondThread() {
                 microsecond += expired;
                 s_currentMicrosecond.store(microsecond, memory_order_release);
                 s_currentMillisecond.store(microsecond / 1000, memory_order_release);
-            } else {
+            } else if(expired != 0){
                 WarnL << "Stamp expired is not abnormal:" << expired;
             }
 #if !defined(_WIN32)
