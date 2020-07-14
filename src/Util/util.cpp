@@ -315,8 +315,8 @@ static inline bool initMillisecondThread() {
             //记录流逝时间戳，不可回退
             int64_t expired = now - last;
             last = now;
-            if (expired > 0 && expired < 10 * 1000) {
-                //流逝时间处于0~10ms之间，那么是合理的，说明没有调整系统时间
+            if (expired > 0 && expired < 1000 * 1000) {
+                //流逝时间处于0~1000ms之间，那么是合理的，说明没有调整系统时间
                 microsecond += expired;
                 s_currentMicrosecond.store(microsecond, memory_order_release);
                 s_currentMillisecond.store(microsecond / 1000, memory_order_release);
