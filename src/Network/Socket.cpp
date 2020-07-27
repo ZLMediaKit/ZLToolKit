@@ -502,6 +502,7 @@ int Socket::onAccept(const SockFD::Ptr &pSock,int event) {
             SockUtil::setSendBuf(peerfd);
             SockUtil::setRecvBuf(peerfd);
             SockUtil::setCloseWait(peerfd);
+            SockUtil::setCloExec(peerfd);
 
             //拦截默认的Socket构造行为，
             //在TcpServer中，默认的行为是子Socket的网络事件会派发到其他poll线程

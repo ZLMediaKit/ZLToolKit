@@ -134,18 +134,14 @@ public:
     }
 
     virtual ~TcpServer() {
+        if(!_cloned){
+            InfoL << "close tcp server " << _socket->get_local_ip() << ":" << _socket->get_local_port();
+        }
         _timer.reset();
         //先关闭socket监听，防止收到新的连接
         _socket.reset();
-
-        if(!_cloned) {
-            TraceL << "start clean tcp server...";
-        }
         _sessionMap.clear();
         _clonedServer.clear();
-        if(!_cloned){
-            TraceL << "clean tcp server completed!";
-        }
     }
 
     //开始监听服务器
@@ -199,8 +195,13 @@ protected:
         }
         _sessionMaker = that._sessionMaker;
         _socket->cloneFromListenSocket(*(that._socket));
-        _timer = std::make_shared<Timer>(2, [this]()->bool {
-            this->onManagerSession();
+        weak_ptr<TcpServer> weak_self = shared_from_this();
+        _timer = std::make_shared<Timer>(2, [weak_self]()->bool {
+            auto strong_self = weak_self.lock();
+            if(!strong_self){
+                return false;
+            }
+            strong_self->onManagerSession();
             return true;
         },_poller);
         this->mINI::operator=(that);
@@ -288,8 +289,13 @@ private:
         }
 
         //新建一个定时器定时管理这些tcp会话
-        _timer = std::make_shared<Timer>(2, [this]()->bool {
-            this->onManagerSession();
+        weak_ptr<TcpServer> weak_self = shared_from_this();
+        _timer = std::make_shared<Timer>(2, [weak_self]()->bool {
+            auto strong_self = weak_self.lock();
+            if(!strong_self){
+                return false;
+            }
+            strong_self->onManagerSession();
             return true;
         },_poller);
         InfoL << "TCP Server listening on " << host << ":" << port;

@@ -56,6 +56,7 @@ EventPoller::EventPoller(ThreadPool::Priority priority ) {
     if (_epoll_fd == -1) {
         throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg());
     }
+    SockUtil::setCloExec(_epoll_fd);
 #endif //HAS_EPOLL
     _logger = Logger::Instance().shared_from_this();
     _loopThreadId = this_thread::get_id();
