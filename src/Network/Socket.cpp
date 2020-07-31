@@ -44,6 +44,16 @@ Socket::~Socket() {
     //TraceL << endl;
 }
 
+//TODO: clone enableMutex too?
+Socket* Socket::clone() {
+    return new Socket(getPoller());
+}
+
+Socket* Socket::clone(const EventPoller::Ptr &poller) {
+    return new Socket(poller);
+}
+
+
 void Socket::setOnRead(const onReadCB &cb) {
     LOCK_GUARD(_mtx_event);
     if (cb) {
