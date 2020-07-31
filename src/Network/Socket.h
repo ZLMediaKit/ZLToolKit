@@ -296,15 +296,15 @@ public:
     virtual int rawFD() const;
 
     //获取本机ip，多网卡时比较有用
-    string get_local_ip() override;
+    virtual string get_local_ip() override;
     //获取本机端口号
-    uint16_t get_local_port() override;
+    virtual uint16_t get_local_port() override;
     //获取对方ip
-    string get_peer_ip() override;
+    virtual string get_peer_ip() override;
     //获取对方端口号
-    uint16_t get_peer_port() override;
+    virtual uint16_t get_peer_port() override;
     //获取标识符
-    string getIdentifier() const override;
+    virtual string getIdentifier() const override;
 
     //设置发送超时主动断开时间;默认10秒
     virtual void setSendTimeOutSecond(uint32_t second);
@@ -328,7 +328,7 @@ public:
     //获取发送缓存包个数
     virtual int getSendBufferCount();
     //获取上次socket发送缓存清空至今的毫秒数,单位毫秒
-    uint64_t elapsedTimeAfterFlushed();
+    virtual uint64_t elapsedTimeAfterFlushed();
 private:
     SockFD::Ptr setPeerSock(int fd);
     bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
