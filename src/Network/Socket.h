@@ -255,77 +255,80 @@ public:
     typedef function<Ptr(const EventPoller::Ptr &poller)> onBeforeAcceptCB;
 
     Socket(const EventPoller::Ptr &poller = nullptr,bool enableMutex = true);
-    ~Socket();
+    virtual ~Socket();
+    virtual Socket* clone();
+    virtual Socket* clone(const EventPoller::Ptr &poller);
+
 
     //创建tcp客户端，url可以是ip或域名
-    void connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec = 5,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
+    virtual void connect(const string &url, uint16_t port,const onErrCB &connectCB, float timeoutSec = 5,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
     //创建tcp监听
-    bool listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
+    virtual bool listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
     //创建udp套接字,udp是无连接的，所以可以作为服务器和客户端；port为0则随机分配端口
-    bool bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0");
+    virtual bool bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0");
 
     ////////////设置事件回调////////////
     //收到数据后回调,tcp或udp客户端有效
-    void setOnRead(const onReadCB &cb);
+    virtual void setOnRead(const onReadCB &cb);
     //收到err事件回调，包括eof等
-    void setOnErr(const onErrCB &cb);
+    virtual void setOnErr(const onErrCB &cb);
     //tcp监听接收到连接请求回调
-    void setOnAccept(const onAcceptCB &cb);
+    virtual void setOnAccept(const onAcceptCB &cb);
     //socket缓存发送完毕回调，通过这个回调可以以最大网速的方式发送数据
     //譬如http文件下载服务器，返回false则移除回调监听
-    void setOnFlush(const onFlush &cb);
+    virtual void setOnFlush(const onFlush &cb);
     //设置Socket生成拦截器
-    void setOnBeforeAccept(const onBeforeAcceptCB &cb);
+    virtual void setOnBeforeAccept(const onBeforeAcceptCB &cb);
 
     ////////////线程安全的数据发送，udp套接字请传入peerAddr，否则置空////////////
     //发送裸指针数据，内部会把数据拷贝至内部缓存列队，如果要避免数据拷贝，可以调用send(const Buffer::Ptr &buf...）接口
     //返回值:-1代表该socket已经不可用；0代表缓存列队已满，并未产生实质操作(在关闭主动丢包时有效)；否则返回数据长度
-    int send(const char *buf, int size = 0,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
-    int send(const string &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
-    int send(string &&buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
-    int send(const Buffer::Ptr &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    virtual int send(const char *buf, int size = 0,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    virtual int send(const string &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    virtual int send(string &&buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    virtual int send(const Buffer::Ptr &buf,struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     //关闭socket且触发onErr回调，onErr回调将在主线程中进行
-    bool emitErr(const SockException &err);
+    virtual bool emitErr(const SockException &err);
     //关闭或开启数据接收
-    void enableRecv(bool enabled);
+    virtual void enableRecv(bool enabled);
     //获取裸文件描述符，请勿进行close操作(因为Socket对象会管理其生命周期)
-    int rawFD() const;
+    virtual int rawFD() const;
 
     //获取本机ip，多网卡时比较有用
-    string get_local_ip() override;
+    virtual string get_local_ip() override;
     //获取本机端口号
-    uint16_t get_local_port() override;
+    virtual uint16_t get_local_port() override;
     //获取对方ip
-    string get_peer_ip() override;
+    virtual string get_peer_ip() override;
     //获取对方端口号
-    uint16_t get_peer_port() override;
+    virtual uint16_t get_peer_port() override;
     //获取标识符
-    string getIdentifier() const override;
+    virtual string getIdentifier() const override;
 
     //设置发送超时主动断开时间;默认10秒
-    void setSendTimeOutSecond(uint32_t second);
+    virtual void setSendTimeOutSecond(uint32_t second);
     //获取一片缓存
-    BufferRaw::Ptr obtainBuffer();
+    virtual BufferRaw::Ptr obtainBuffer();
     //套接字是否忙，如果套接字写缓存已满则返回true
-    bool isSocketBusy() const;
+    virtual bool isSocketBusy() const;
     //获取poller对象
-    const EventPoller::Ptr &getPoller() const;
+    virtual const EventPoller::Ptr &getPoller() const;
     //从另外一个Socket克隆
     //目的是一个socket可以被多个poller对象监听，提高性能
-    bool cloneFromListenSocket(const Socket &other);
+    virtual bool cloneFromListenSocket(const Socket &other);
     //设置UDP发送数据时的对端地址
-    bool setSendPeerAddr(const struct sockaddr *peerAddr);
+    virtual bool setSendPeerAddr(const struct sockaddr *peerAddr);
     //设置发送flags
-    void setSendFlags(int flags);
+    virtual void setSendFlags(int flags);
     //设置接收缓存
-    void setReadBuffer(const BufferRaw::Ptr &readBuffer);
+    virtual void setReadBuffer(const BufferRaw::Ptr &readBuffer);
     //关闭套接字
-    void closeSock();
+    virtual void closeSock();
     //获取发送缓存包个数
-    int getSendBufferCount();
+    virtual int getSendBufferCount();
     //获取上次socket发送缓存清空至今的毫秒数,单位毫秒
-    uint64_t elapsedTimeAfterFlushed();
+    virtual uint64_t elapsedTimeAfterFlushed();
 private:
     SockFD::Ptr setPeerSock(int fd);
     bool attachEvent(const SockFD::Ptr &pSock,bool isUdp = false);
@@ -412,32 +415,32 @@ public:
     ~SocketHelper() override;
 
     //重新设置socket
-    void setSock(const Socket::Ptr &sock);
-    EventPoller::Ptr getPoller();
+    virtual void setSock(const Socket::Ptr &sock);
+    virtual EventPoller::Ptr getPoller();
 
     //发送数据
-    int send(const Buffer::Ptr &buf) override;
+    virtual int send(const Buffer::Ptr &buf) override;
 
     //获取ip或端口
-    string get_local_ip() override ;
-    uint16_t get_local_port() override;
-    string get_peer_ip() override;
-    uint16_t get_peer_port() override;
+    virtual string get_local_ip() override ;
+    virtual uint16_t get_local_port() override;
+    virtual string get_peer_ip() override;
+    virtual uint16_t get_peer_port() override;
 
     //线程切换接口
-    Task::Ptr async(TaskIn &&task, bool may_sync = true) override;
-    Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override;
+    virtual Task::Ptr async(TaskIn &&task, bool may_sync = true) override;
+    virtual Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override;
 
     //设置批量发送标记,用于提升性能
-    void setSendFlushFlag(bool try_flush);
+    virtual void setSendFlushFlag(bool try_flush);
     //设置发送flags
-    void setSendFlags(int flags);
+    virtual void setSendFlags(int flags);
     //套接字是否忙，如果套接字写缓存已满则返回true
-    bool isSocketBusy() const;
+    virtual bool isSocketBusy() const;
     //触发onErr事件
-    void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override;
+    virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override;
     //从缓存池中获取一片缓存
-    BufferRaw::Ptr obtainBuffer(const void *data = nullptr, int len = 0);
+    virtual BufferRaw::Ptr obtainBuffer(const void *data = nullptr, int len = 0);
 protected:
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
