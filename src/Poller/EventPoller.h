@@ -112,11 +112,11 @@ public:
     DelayTask::Ptr doDelayTask(uint64_t delayMS, function<uint64_t()> &&task);
 
     /**
-     * TODO: write comment
+     * TODO: write comment here 
      * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时，如果任务中抛异常，那么默认不重复任务
      * @return 可取消的任务标签
      */
-    DelayTask::Ptr doTaskOnPollerThread(function<void()> &&task);
+    void doTaskOnPollerThread(function<void()> &&task);
 
     /**
      * 获取当前线程关联的Poller实例
