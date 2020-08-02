@@ -38,7 +38,10 @@ void TcpClient::setNetAdapter(const string &localIp){
 void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
     weak_ptr<TcpClient> weakSelf = shared_from_this();
     _managerTimer.reset();
-    _sock = std::make_shared<Socket>(_poller);
+    if (_sock) 
+        _sock = std::shared_ptr<Socket>(_sock->clone());
+    else 
+        _sock = std::make_shared<Socket>(_poller);
     _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
         auto strongSelf = weakSelf.lock();
         if(strongSelf){
