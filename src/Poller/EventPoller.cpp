@@ -67,12 +67,6 @@ EventPoller::EventPoller(ThreadPool::Priority priority ) {
     }
 }
 
-void EventPoller::doTaskOnPollerThread(function<void()> &&task) {
-    async_first([task = std::move(task)](){
-        task();
-    });
-}
-
 void EventPoller::shutdown() {
     async_l([](){
         throw ExitException();
