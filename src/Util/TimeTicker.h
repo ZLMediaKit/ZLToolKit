@@ -64,11 +64,10 @@ public:
     uint64_t elapsedTime() {
         auto nowTime = _ticker.elapsedTime();
         if (_firstTime == 0) {
-            if (nowTime < _lastTime)
-            {
+            if (nowTime < _lastTime) {
                 uint64_t lastfirstTime = _lastTime - _timeInc;
                 double elapseTime = (nowTime - lastfirstTime);
-                _timeInc += (elapseTime / ++_pktCount)/3;
+                _timeInc += (elapseTime / ++_pktCount) / 3;
                 uint64_t retTime = lastfirstTime + _timeInc;
                 WarnL << "time correct, lastTime:" << _lastTime << " retTime:" << retTime;
                 _lastTime = retTime;

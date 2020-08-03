@@ -239,24 +239,9 @@ void sleep(int second) {
     Sleep(1000 * second);
 }
 void usleep(int micro_seconds) {
-    struct timeval tm;
-    tm.tv_sec = micro_seconds / 1000000;
-    tm.tv_usec = micro_seconds % (1000000);
-#if !defined(_WIN32)
-    select(0, NULL, NULL, NULL, &tm);
-#else
-    fd_set fds;
-    FD_ZERO(&fds);
-    int32_t fd = socket(AF_INET, SOCK_DGRAM, 0);
-    FD_SET(fd, &fds);
-    int ret = select(0, NULL, NULL, &fds, &tm);
-    if (0 > ret)
-    {
-        perror("select");
-    }
-    closesocket(fd);
-#endif
+    this_thread::sleep_for(std::chrono::microseconds(micro_seconds));
 }
+
 int gettimeofday(struct timeval *tp, void *tzp) {
     auto now_stamp = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     tp->tv_sec = now_stamp / 1000000LL;
