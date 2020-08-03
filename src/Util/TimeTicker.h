@@ -64,7 +64,18 @@ public:
     uint64_t elapsedTime() {
         auto nowTime = _ticker.elapsedTime();
         if (_firstTime == 0) {
+            if (nowTime < _lastTime)
+            {
+                uint64_t lastfirstTime = _lastTime - _timeInc;
+                double elapseTime = (nowTime - lastfirstTime);
+                _timeInc += (elapseTime / ++_pktCount)/3;
+                uint64_t retTime = lastfirstTime + _timeInc;
+                WarnL << "time correct, lastTime:" << _lastTime << " retTime:" << retTime;
+                _lastTime = retTime;
+                return retTime;
+            }
             _firstTime = nowTime;
+            _lastTime = nowTime;
             _pktCount = 0;
             _timeInc = 0;
             return nowTime;
@@ -76,6 +87,7 @@ public:
         if (elapseTime > _resetMs) {
             _firstTime = 0;
         }
+        _lastTime = retTime;
         return retTime;
     }
     void resetTime(){
@@ -86,6 +98,7 @@ public:
 private:
     double _timeInc = 0;
     uint64_t _firstTime = 0;
+    uint64_t _lastTime = 0;
     uint64_t _pktCount = 0;
     uint64_t _resetMs;
     Ticker _ticker;
