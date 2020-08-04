@@ -273,7 +273,7 @@ std::string LogChannel::printTime(const timeval &tv) {
     localtime_s(&tm, &sec_tmp);
 #else
     localtime_r(&sec_tmp, &tm);
-#endif _WIN32
+#endif //_WIN32
     char buf[128];
     snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%03d",
              1900 + tm.tm_year,
