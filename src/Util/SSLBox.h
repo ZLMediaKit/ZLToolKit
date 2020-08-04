@@ -121,8 +121,7 @@ private:
         bool operator()(const string &x, const string &y) const {
             auto x_tmp = x;
             auto y_tmp = y;
-            auto min_size = std::min(x_tmp.size(), y_tmp.size());
-            //不用strncasecmp是因为它可能不跨平台，而strcasecmp在util.h中做了多平台适配
+            auto min_size = x_tmp.size() < y_tmp.size() ? x_tmp.size() : y_tmp.size();
             return strcasecmp(x_tmp.data() + x_tmp.size() - min_size, y_tmp.data() + y_tmp.size() - min_size) < 0;
         }
     };
