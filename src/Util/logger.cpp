@@ -269,7 +269,11 @@ void LogChannel::setLevel(LogLevel level) { _level = level; }
 std::string LogChannel::printTime(const timeval &tv) {
     time_t sec_tmp = tv.tv_sec;
     struct tm tm;
+#ifdef _WIN32
+    localtime_s(&tm, &sec_tmp);
+#else
     localtime_r(&sec_tmp, &tm);
+#endif _WIN32
     char buf[128];
     snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%03d",
              1900 + tm.tm_year,
@@ -393,8 +397,24 @@ static long s_gmtoff = 0;
 static onceToken s_token([](){
     time_t t = time(NULL);
     struct tm lt = {0};
+#ifdef _WIN32
+    //localtime_s(&lt, &t);
+    TIME_ZONE_INFORMATION tzinfo;
+    DWORD dwStandardDaylight;
+    long bias;
+
+    dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
+    bias = tzinfo.Bias;
+    if (dwStandardDaylight == TIME_ZONE_ID_STANDARD)
+        bias += tzinfo.StandardBias;
+    if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT)
+        bias += tzinfo.DaylightBias;
+    s_gmtoff = -bias * 60;
+#else
     localtime_r(&t, &lt);
     s_gmtoff = lt.tm_gmtoff;
+#endif // _WIN32
+
 });
 
 int64_t FileChannel::getDay(time_t second) {
