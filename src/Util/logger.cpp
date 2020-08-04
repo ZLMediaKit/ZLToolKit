@@ -418,7 +418,7 @@ static onceToken s_token([](){
 });
 
 int64_t FileChannel::getDay(time_t second) {
-    return second + s_gmtoff / s_second_per_day;
+    return (second + s_gmtoff) / s_second_per_day;
 }
 
 static string getLogFilePath(const string &dir, uint64_t day) {
