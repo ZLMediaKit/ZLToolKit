@@ -268,15 +268,16 @@ void LogChannel::setLevel(LogLevel level) { _level = level; }
 
 std::string LogChannel::printTime(const timeval &tv) {
     time_t sec_tmp = tv.tv_sec;
-    struct tm *tm = localtime(&sec_tmp);
+    struct tm tm;
+    localtime_r(&sec_tmp, &tm);
     char buf[128];
     snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%03d",
-             1900 + tm->tm_year,
-             1 + tm->tm_mon,
-             tm->tm_mday,
-             tm->tm_hour,
-             tm->tm_min,
-             tm->tm_sec,
+             1900 + tm.tm_year,
+             1 + tm.tm_mon,
+             tm.tm_mday,
+             tm.tm_hour,
+             tm.tm_min,
+             tm.tm_sec,
              (int) (tv.tv_usec / 1000));
     return buf;
 }
@@ -378,7 +379,7 @@ void FileChannelBase::close() {
 }
 
 ///////////////////FileChannel///////////////////
-static const auto s_second_per_day = 24 * 60 * 60;
+FileChannel::~FileChannel() {}
 
 FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
     _dir = dir;
@@ -387,10 +388,17 @@ FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) 
     }
 }
 
-FileChannel::~FileChannel() {}
+static const auto s_second_per_day = 24 * 60 * 60;
+static long s_gmtoff = 0;
+static onceToken s_token([](){
+    time_t t = time(NULL);
+    struct tm lt = {0};
+    localtime_r(&t, &lt);
+    s_gmtoff = lt.tm_gmtoff;
+});
 
 int64_t FileChannel::getDay(time_t second) {
-    return second / s_second_per_day;
+    return second + s_gmtoff / s_second_per_day;
 }
 
 static string getLogFilePath(const string &dir, uint64_t day) {
