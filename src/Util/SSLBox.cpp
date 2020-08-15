@@ -428,6 +428,15 @@ void SSL_Box::flushReadBio() {
 
 void SSL_Box::flush() {
 #if defined(ENABLE_OPENSSL)
+    if (_is_flush) {
+        return;
+    }
+    onceToken token([&] {
+        _is_flush = true;
+    }, [&]() {
+        _is_flush = false;
+    });
+
     flushReadBio();
     if (!SSL_is_init_finished(_ssl.get()) || _buffer_send.empty()) {
         //ssl未握手结束或没有需要发送的数据
@@ -465,6 +474,9 @@ void SSL_Box::flush() {
 }
 
 bool SSL_Box::setHost(const char *host) {
+    if(!_ssl) {
+        return false;
+    }
 #ifdef SSL_ENABLE_SNI
     return 0 != SSL_set_tlsext_host_name(_ssl.get(), host);
 #else

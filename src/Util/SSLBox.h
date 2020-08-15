@@ -202,6 +202,7 @@ private:
     List<Buffer::Ptr> _buffer_send;
     ResourcePool<BufferRaw> _buffer_pool;
     int _buff_size;
+    bool _is_flush = false;
 };
 
 } /* namespace toolkit */
