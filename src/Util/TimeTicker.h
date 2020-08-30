@@ -69,7 +69,7 @@ public:
                 double elapseTime = (nowTime - lastfirstTime);
                 _timeInc += (elapseTime / ++_pktCount) / 3;
                 uint64_t retTime = lastfirstTime + _timeInc;
-                WarnL << "time correct, lastTime:" << _lastTime << " retTime:" << retTime;
+//                WarnL << "time correct, lastTime:" << _lastTime << " retTime:" << retTime;
                 _lastTime = retTime;
                 return retTime;
             }
