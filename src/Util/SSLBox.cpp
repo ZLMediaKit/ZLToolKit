@@ -245,24 +245,37 @@ bool SSL_Initor::trustCertificate(const string &pem_p12_cer, bool server_mode, c
 
 std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost, bool server_mode){
     auto ret = getSSLCtx_l(vhost, server_mode);
-    if(ret){
+    if (ret) {
         return ret;
     }
     return getSSLCtxWildcards(vhost, server_mode);
 }
 
 std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtxWildcards(const string &vhost, bool server_mode){
-    return _ctxs_wildcards[server_mode][vhost];
+    for (auto &pr : _ctxs_wildcards[server_mode]) {
+        auto pos = strcasestr(vhost.data(), pr.first.data());
+        if (pos && pos + pr.first.size() == &vhost.back() + 1) {
+            return pr.second;
+        }
+    }
+    return nullptr;
 }
 
-std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx_l(const string &vhost, bool server_mode){
+std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx_l(const string &vhost_in, bool server_mode){
     if (!server_mode) {
         return _ctx_empty[server_mode];
     }
+    auto vhost = vhost_in;
     if (vhost.empty()) {
-        return _ctxs[server_mode][_default_vhost[server_mode]];
+        //没指定主机，选择默认主机
+        vhost = _default_vhost[server_mode];
     }
-    return _ctxs[server_mode][vhost];
+    //根据主机名查找证书
+    auto it = _ctxs[server_mode].find(vhost);
+    if (it == _ctxs[server_mode].end()) {
+        return nullptr;
+    }
+    return it->second;
 }
 
 string SSL_Initor::defaultVhost(bool server_mode) {

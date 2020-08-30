@@ -249,6 +249,18 @@ int gettimeofday(struct timeval *tp, void *tzp) {
     return 0;
 }
 
+const char *strcasestr(const char *big, const char *little){
+    string big_str = big;
+    string little_str = little;
+    strToLower(big_str);
+    strToLower(little_str);
+    auto pos = strstr(big_str.data(), little_str.data());
+    if (!pos){
+        return nullptr;
+    }
+    return big + (pos - big_str.data());
+}
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

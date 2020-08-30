@@ -182,7 +182,7 @@ int asprintf(char **strp, const char *fmt, ...);
 #if !defined(strcasecmp)
 #define strcasecmp _stricmp
 #endif
-
+const char *strcasestr(const char *big, const char *little);
 #endif //WIN32
 
 /**

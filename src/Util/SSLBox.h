@@ -117,14 +117,6 @@ private:
     static int findCertificate(SSL *ssl, int *ad, void *arg);
 
 private:
-    struct less_nocase_wildcards {
-        bool operator()(const string &x, const string &y) const {
-            auto x_tmp = x;
-            auto y_tmp = y;
-            auto min_size = x_tmp.size() < y_tmp.size() ? x_tmp.size() : y_tmp.size();
-            return strcasecmp(x_tmp.data() + x_tmp.size() - min_size, y_tmp.data() + y_tmp.size() - min_size) < 0;
-        }
-    };
 
     struct less_nocase {
         bool operator()(const string &x, const string &y) const {
@@ -135,7 +127,7 @@ private:
 private:
     std::shared_ptr<SSL_CTX> _ctx_empty[2];
     map<string, std::shared_ptr<SSL_CTX>, less_nocase> _ctxs[2];
-    map<string, std::shared_ptr<SSL_CTX>, less_nocase_wildcards > _ctxs_wildcards[2];
+    map<string, std::shared_ptr<SSL_CTX>, less_nocase > _ctxs_wildcards[2];
     string _default_vhost[2];
 };
 
