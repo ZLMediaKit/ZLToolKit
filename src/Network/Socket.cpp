@@ -888,11 +888,11 @@ bool SocketHelper::isSocketBusy() const {
     return _sock->isSocketBusy();
 }
 
-Task::Ptr SocketHelper::async(TaskIn &&task, bool may_sync) {
+Task::Ptr SocketHelper::async(TaskIn task, bool may_sync) {
     return _poller->async(std::move(task), may_sync);
 }
 
-Task::Ptr SocketHelper::async_first(TaskIn &&task, bool may_sync) {
+Task::Ptr SocketHelper::async_first(TaskIn task, bool may_sync) {
     return _poller->async_first(std::move(task), may_sync);
 }
 

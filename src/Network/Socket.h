@@ -569,8 +569,8 @@ public:
     uint16_t get_peer_port() override;
 
     //线程切换接口
-    Task::Ptr async(TaskIn &&task, bool may_sync = true) override;
-    Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override;
+    Task::Ptr async(TaskIn task, bool may_sync = true) override;
+    Task::Ptr async_first(TaskIn task, bool may_sync = true) override;
 
     //设置批量发送标记,用于提升性能
     void setSendFlushFlag(bool try_flush);
