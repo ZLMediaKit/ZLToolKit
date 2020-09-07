@@ -24,6 +24,7 @@ using namespace std;
 namespace toolkit {
 
 Socket::Socket(const EventPoller::Ptr &poller,bool enableMutex) :
+        _enableMutex(enableMutex),
         _mtx_sockFd(enableMutex),
         _mtx_bufferWaiting(enableMutex),
         _mtx_bufferSending(enableMutex),
@@ -46,7 +47,7 @@ Socket::~Socket() {
 
 //TODO: clone enableMutex too?
 Socket* Socket::clone() {
-    return new Socket(getPoller());
+    return new Socket(getPoller(), _enableMutex);
 }
 
 Socket* Socket::clone(const EventPoller::Ptr &poller) {

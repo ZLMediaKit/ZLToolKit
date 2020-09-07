@@ -370,6 +370,7 @@ private:
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
     BufferRaw::Ptr _readBuffer;
     std::shared_ptr<function<void(int)> > _asyncConnectCB;
+    bool _enableMutex;
 };
 
 #define TraceP(ptr) TraceL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
