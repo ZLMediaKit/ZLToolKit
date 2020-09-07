@@ -45,13 +45,13 @@ Socket::~Socket() {
     //TraceL << endl;
 }
 
-//TODO: clone enableMutex too?
+
 Socket* Socket::clone() {
     return new Socket(getPoller(), _enableMutex);
 }
 
 Socket* Socket::clone(const EventPoller::Ptr &poller) {
-    return new Socket(poller);
+    return new Socket(poller, _enableMutex);
 }
 
 
