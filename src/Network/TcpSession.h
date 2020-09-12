@@ -23,60 +23,91 @@ using namespace std;
 namespace toolkit {
 
 class TcpServer;
+
+//TCP服务器连接对象，一个tcp连接对应一个TcpSession对象
 class TcpSession : public std::enable_shared_from_this<TcpSession>, public SocketHelper{
 public:
     typedef std::shared_ptr<TcpSession> Ptr;
 
-    TcpSession(const Socket::Ptr &pSock);
-    virtual ~TcpSession();
-    //接收数据入口
-    virtual void onRecv(const Buffer::Ptr &) = 0;
-    //收到eof或其他导致脱离TcpServer事件的回调
+    TcpSession(const Socket::Ptr &sock);
+    ~TcpSession() override;
+
+    /**
+     * 接收数据入口
+     * @param buf 数据，可以重复使用内存区
+     */
+    virtual void onRecv(const Buffer::Ptr &buf) = 0;
+
+    /**
+     * 收到eof或其他导致脱离TcpServer事件的回调
+     * 收到该事件时，该对象一般将立即被销毁
+     * @param err 原因
+     */
     virtual void onError(const SockException &err) = 0;
-    //每隔一段时间触发，用来做超时管理
+
+    /**
+     * 每隔一段时间触发，用来做超时管理
+     */
     virtual void onManager() = 0;
-    //在创建TcpSession后，TcpServer会把自身的配置参数通过该函数传递给TcpSession
-    virtual void attachServer(const TcpServer &server){};
-    //作为该TcpSession的唯一标识符
+
+    /**
+     * 在创建TcpSession后，TcpServer会把自身的配置参数通过该函数传递给TcpSession
+     * @param server 服务器对象
+     */
+    virtual void attachServer(const TcpServer &server) {};
+
+    /**
+     * 作为该TcpSession的唯一标识符
+     * @return 唯一标识符
+     */
     string getIdentifier() const override;
-    //安全的脱离TcpServer并触发onError事件
+
+    /**
+     * 线程安全的脱离TcpServer并触发onError事件
+     * @param ex 触发onError事件的原因
+     */
     void safeShutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
 };
 
+//通过该模板可以让TCP服务器快速支持TLS
 template<typename TcpSessionType>
-class TcpSessionWithSSL: public TcpSessionType {
+class TcpSessionWithSSL : public TcpSessionType {
 public:
     template<typename ...ArgsType>
-    TcpSessionWithSSL(ArgsType &&...args):TcpSessionType(std::forward<ArgsType>(args)...){
-        _sslBox.setOnEncData([&](const Buffer::Ptr &buffer){
-            public_send(buffer);
+    TcpSessionWithSSL(ArgsType &&...args):TcpSessionType(std::forward<ArgsType>(args)...) {
+        _ssl_box.setOnEncData([&](const Buffer::Ptr &buf) {
+            public_send(buf);
         });
-        _sslBox.setOnDecData([&](const Buffer::Ptr &buffer){
-            public_onRecv(buffer);
+        _ssl_box.setOnDecData([&](const Buffer::Ptr &buf) {
+            public_onRecv(buf);
         });
-    }
-    virtual ~TcpSessionWithSSL(){
-        _sslBox.flush();
     }
 
-    void onRecv(const Buffer::Ptr &pBuf) override{
-        _sslBox.onRecv(pBuf);
+    ~TcpSessionWithSSL() override{
+        _ssl_box.flush();
+    }
+
+    void onRecv(const Buffer::Ptr &buf) override {
+        _ssl_box.onRecv(buf);
     }
 
     //添加public_onRecv和public_send函数是解决较低版本gcc一个lambad中不能访问protected或private方法的bug
-    inline void public_onRecv(const Buffer::Ptr &pBuf){
-        TcpSessionType::onRecv(pBuf);
+    inline void public_onRecv(const Buffer::Ptr &buf) {
+        TcpSessionType::onRecv(buf);
     }
-    inline void public_send(const Buffer::Ptr &pBuf){
-        TcpSessionType::send(pBuf);
+
+    inline void public_send(const Buffer::Ptr &buf) {
+        TcpSessionType::send(buf);
     }
+
 protected:
-    virtual int send(const Buffer::Ptr &buf) override{
-        _sslBox.onSend(buf);
+    int send(const Buffer::Ptr &buf) override {
+        _ssl_box.onSend(buf);
         return buf->size();
     }
+
 private:
-    SSL_Box _sslBox;
+    SSL_Box _ssl_box;
 };
 
 } /* namespace toolkit */
