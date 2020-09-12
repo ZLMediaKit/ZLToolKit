@@ -271,6 +271,8 @@ public:
      * @param enable_mutex 是否启用互斥锁(接口是否线程安全)
     */
     static Ptr createSocket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
+    Socket(const EventPoller::Ptr &poller, bool enable_mutex);
+
     virtual ~Socket();
 
     /**
@@ -456,7 +458,6 @@ public:
     string getIdentifier() const override;
 
 private:
-    Socket(const EventPoller::Ptr &poller, bool enable_mutex);
     SockFD::Ptr setPeerSock(int fd);
     SockFD::Ptr makeSock(int sock,SockNum::SockType type);
     int onAccept(const SockFD::Ptr &sock, int event);
