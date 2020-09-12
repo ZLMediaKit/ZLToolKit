@@ -117,7 +117,7 @@ int main(int argc,char *argv[]){
         server->start<EchoSession>(cmd["listen"]);
         for(auto i = 0; i < cmd["count"].as<int>() ; ++i){
             auto poller = nextPoller();
-            auto socket = std::make_shared<Socket>(poller, false);
+            auto socket = Socket::createSocket(poller, false);
 
             socket->connect(ip,port,[socket,poller,interval,buffer](const SockException &err){
                 if(err){

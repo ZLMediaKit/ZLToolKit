@@ -23,10 +23,13 @@ using namespace std;
 
 namespace toolkit {
 
+Socket::Ptr Socket::createSocket(const EventPoller::Ptr &poller, bool enable_mutex){
+    return Socket::Ptr(new Socket(poller, enable_mutex));
+}
+
 Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex) :
         _mtx_sock_fd(enable_mutex), _mtx_send_buf_waiting(enable_mutex),
-        _mtx_send_buf_sending(enable_mutex), _mtx_event(enable_mutex),
-        _enable_mutex(enable_mutex){
+        _mtx_send_buf_sending(enable_mutex), _mtx_event(enable_mutex){
 
     _poller = poller;
     if (!_poller) {
@@ -41,14 +44,6 @@ Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex) :
 
 Socket::~Socket() {
     closeSock();
-}
-
-Socket *Socket::clone() {
-    return new Socket(getPoller(), _enable_mutex);
-}
-
-Socket *Socket::clone(const EventPoller::Ptr &poller) {
-    return new Socket(poller, _enable_mutex);
 }
 
 void Socket::setOnRead(onReadCB cb) {
@@ -93,7 +88,7 @@ void Socket::setOnFlush(onFlush cb) {
     }
 }
 
-void Socket::setOnBeforeAccept(onBeforeAcceptCB cb){
+void Socket::setOnBeforeAccept(onCreateSocket cb){
     LOCK_GUARD(_mtx_event);
     if (cb) {
         _on_before_accept = std::move(cb);
@@ -518,7 +513,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) {
 
             if (!peer_sock) {
                 //此处是默认构造行为，也就是子Socket共用父Socket的poll线程并且关闭互斥锁
-                peer_sock = std::make_shared<Socket>(_poller, false);
+                peer_sock = Socket::createSocket(_poller, false);
             }
 
             //设置好fd,以备在onAccept事件中可以正常访问该fd
@@ -821,19 +816,33 @@ int SockSender::send(const char *buf, int size) {
 
 SocketHelper::SocketHelper(const Socket::Ptr &sock) {
     setSock(sock);
+    setOnCreateSocket(nullptr);
 }
 
 SocketHelper::~SocketHelper() {}
 
+void SocketHelper::setPoller(const EventPoller::Ptr &poller){
+    _poller = poller;
+}
+
 void SocketHelper::setSock(const Socket::Ptr &sock) {
+    _peer_port = 0;
+    _local_port = 0;
+    _peer_ip.clear();
+    _local_ip.clear();
     _sock = sock;
     if (_sock) {
         _poller = _sock->getPoller();
     }
 }
 
-EventPoller::Ptr SocketHelper::getPoller() {
+const EventPoller::Ptr& SocketHelper::getPoller() const {
+    assert(_poller);
     return _poller;
+}
+
+const Socket::Ptr& SocketHelper::getSock() const{
+    return _sock;
 }
 
 int SocketHelper::send(const Buffer::Ptr &buf) {
@@ -914,6 +923,20 @@ void SocketHelper::setSendFlags(int flags) {
         return;
     }
     _sock->setSendFlags(flags);
+}
+
+void SocketHelper::setOnCreateSocket(Socket::onCreateSocket cb){
+    if (cb) {
+        _on_create_socket = std::move(cb);
+    } else {
+        _on_create_socket = [](const EventPoller::Ptr &poller) {
+            return Socket::createSocket(poller, false);
+        };
+    }
+}
+
+Socket::Ptr SocketHelper::createSocket(){
+    return _on_create_socket(_poller);
 }
 
 }  // namespace toolkit

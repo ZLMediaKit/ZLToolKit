@@ -263,17 +263,15 @@ public:
     //socket发送缓存清空事件，返回true代表下次继续监听该事件，否则停止
     typedef function<bool()> onFlush;
     //在接收到连接请求前，拦截Socket默认生成方式
-    typedef function<Ptr(const EventPoller::Ptr &poller)> onBeforeAcceptCB;
+    typedef function<Ptr(const EventPoller::Ptr &poller)> onCreateSocket;
 
     /**
      * 构造socket对象，尚未有实质操作
      * @param poller 绑定的poller线程
      * @param enable_mutex 是否启用互斥锁(接口是否线程安全)
-     */
-    Socket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
+    */
+    static Ptr createSocket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
     virtual ~Socket();
-    virtual Socket* clone();
-    virtual Socket* clone(const EventPoller::Ptr &poller);
 
     /**
      * 创建tcp客户端并异步连接服务器
@@ -334,7 +332,7 @@ public:
      * 设置accept时，socket构造事件回调
      * @param cb 回调
      */
-    virtual void setOnBeforeAccept(onBeforeAcceptCB cb);
+    virtual void setOnBeforeAccept(onCreateSocket cb);
 
     ////////////发送数据相关接口////////////
 
@@ -347,20 +345,20 @@ public:
      * @param try_flush 是否尝试写socket
      * @return -1代表失败(socket无效)，0代表数据长度为0，否则返回数据长度
      */
-    virtual int send(const char *buf, int size = 0, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    int send(const char *buf, int size = 0, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送只读string
      */
-    virtual int send(const string &buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    int send(const string &buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送右值string
      */
-    virtual int send(string &&buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    int send(string &&buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
-     * 发送Buffer对象
+     * 发送Buffer对象，Socket对象发送数据的统一出口
      */
     virtual int send(const Buffer::Ptr &buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
@@ -430,8 +428,8 @@ public:
     virtual void setSendFlags(int flags = SOCKET_DEFAULE_FLAGS);
 
     /**
-     * 设置接收缓存
-     * @param buffer
+     * 设置接收缓存, 控制接收buffer大小
+     * @param buffer 接收缓存
      */
     virtual void setReadBuffer(const BufferRaw::Ptr &buffer);
 
@@ -458,6 +456,7 @@ public:
     string getIdentifier() const override;
 
 private:
+    Socket(const EventPoller::Ptr &poller, bool enable_mutex);
     SockFD::Ptr setPeerSock(int fd);
     SockFD::Ptr makeSock(int sock,SockNum::SockType type);
     int onAccept(const SockFD::Ptr &sock, int event);
@@ -473,8 +472,6 @@ private:
     bool attachEvent(const SockFD::Ptr &sock, bool is_udp = false);
 
 private:
-    //是否启用互斥锁保活
-    bool _enable_mutex;
     //send socket时的flag
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
     //最大发送缓存，单位毫秒，距上次发送缓存清空时间不能超过该参数
@@ -509,7 +506,7 @@ private:
     //tcp监听收到accept请求事件
     onAcceptCB _on_accept;
     //tcp监听收到accept请求，自定义创建peer Socket事件(可以控制子Socket绑定到其他poller线程)
-    onBeforeAcceptCB _on_before_accept;
+    onCreateSocket _on_before_accept;
     //设置上述回调函数的锁
     MutexWrapper<recursive_mutex> _mtx_event;
 
@@ -553,43 +550,84 @@ public:
     int send(const char *buf, int size = 0);
 };
 
-//套接字以cout的方式写数据等工具
+//Socket对象的包装类
 class SocketHelper : public SockSender, public SockInfo, public TaskExecutorInterface {
 public:
     SocketHelper(const Socket::Ptr &sock);
     ~SocketHelper() override;
 
-    //重新设置socket
-    virtual void setSock(const Socket::Ptr &sock);
-    virtual EventPoller::Ptr getPoller();
+    ///////////////////// Socket util functions /////////////////////
+    /**
+     * 获取poller线程
+     */
+    const EventPoller::Ptr& getPoller() const;
 
-    //发送数据
-    int send(const Buffer::Ptr &buf) override;
+    /**
+     * 设置批量发送标记,用于提升性能
+     * @param try_flush 批量发送标记
+     */
+    void setSendFlushFlag(bool try_flush);
 
-    //获取ip或端口
-    string get_local_ip() override ;
+    /**
+     * 设置socket发送flags
+     * @param flags socket发送flags
+     */
+    void setSendFlags(int flags);
+
+    /**
+     * 套接字是否忙，如果套接字写缓存已满则返回true
+     */
+    bool isSocketBusy() const;
+
+    /**
+     * 从缓存池中获取一片缓存
+     * @param data 需要拷贝的数据
+     * @param len 需要拷贝的数据长度
+     * @return 缓存
+     */
+    BufferRaw::Ptr obtainBuffer(const void *data = nullptr, int len = 0);
+
+    /**
+     * 设置Socket创建器，自定义Socket创建方式
+     * @param cb 创建器
+     */
+    void setOnCreateSocket(Socket::onCreateSocket cb);
+
+    /**
+     * 创建socket对象
+     */
+    Socket::Ptr createSocket();
+
+    ///////////////////// SockInfo override /////////////////////
+    string get_local_ip() override;
     uint16_t get_local_port() override;
     string get_peer_ip() override;
     uint16_t get_peer_port() override;
 
-    //线程切换接口
+    ///////////////////// TaskExecutorInterface override /////////////////////
+    /**
+     * 任务切换到所属poller线程执行
+     * @param task 任务
+     * @param may_sync 是否运行同步执行任务
+     */
     Task::Ptr async(TaskIn task, bool may_sync = true) override;
     Task::Ptr async_first(TaskIn task, bool may_sync = true) override;
 
-    //设置批量发送标记,用于提升性能
-    virtual void setSendFlushFlag(bool try_flush);
-    //设置发送flags
-    virtual void setSendFlags(int flags);
-    //套接字是否忙，如果套接字写缓存已满则返回true
-    virtual bool isSocketBusy() const;
-    //触发onErr事件
+    ///////////////////// SockSender override /////////////////////
+    /**
+     * 统一发送数据的出口
+     */
+    int send(const Buffer::Ptr &buf) override;
+
+    /**
+     * 触发onErr事件
+     */
     void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override;
-    //从缓存池中获取一片缓存
-    virtual BufferRaw::Ptr obtainBuffer(const void *data = nullptr, int len = 0);
 
 protected:
-    Socket::Ptr _sock;
-    EventPoller::Ptr _poller;
+    void setPoller(const EventPoller::Ptr &poller);
+    void setSock(const Socket::Ptr &sock);
+    const Socket::Ptr& getSock() const;
 
 private:
     bool _try_flush = true;
@@ -597,6 +635,9 @@ private:
     uint16_t _local_port = 0;
     string _peer_ip;
     string _local_ip;
+    Socket::Ptr _sock;
+    EventPoller::Ptr _poller;
+    Socket::onCreateSocket _on_create_socket;
 };
 
 }  // namespace toolkit

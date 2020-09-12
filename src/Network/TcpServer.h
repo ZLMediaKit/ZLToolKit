@@ -131,11 +131,9 @@ public:
      * 通过该方式能实现客户端负载均衡以及提高连接接收速度
      */
     TcpServer(const EventPoller::Ptr &poller = nullptr) {
-        _poller = poller;
-        if (!_poller) {
-            _poller = EventPollerPool::Instance().getPoller();
-        }
-        _socket = std::make_shared<Socket>(_poller);
+        setOnCreateSocket(nullptr);
+        _poller = poller ? poller : EventPollerPool::Instance().getPoller();
+        _socket = createSocket();
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
         _socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this, std::placeholders::_1));
     }
@@ -180,12 +178,17 @@ public:
         return _socket->get_local_port();
     }
 
-    /**
-     * 服务器器模型socket是线程安全的，所以为了提高性能，一般关闭互斥锁
-     * @param flag 是否使能socket互斥锁，默认关闭
-     */
-    void enableSocketMutex(bool flag) {
-        _enable_socket_mtx = flag;
+    void setOnCreateSocket(Socket::onCreateSocket cb) {
+        if (cb) {
+            _on_create_socket = std::move(cb);
+        } else {
+            _on_create_socket = [](const EventPoller::Ptr &poller) {
+                return Socket::createSocket(poller, false);
+            };
+        }
+        for (auto &pr : _cloned_server) {
+            pr.second->setOnCreateSocket(cb);
+        }
     }
 
 protected:
@@ -195,13 +198,14 @@ protected:
 
     virtual Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &poller) {
         assert(_poller->isCurrentThread());
-        return std::make_shared<Socket>(poller, _enable_socket_mtx);
+        return createSocket();
     }
 
     virtual void cloneFrom(const TcpServer &that) {
         if (!that._socket) {
             throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
         }
+        _on_create_socket = that._on_create_socket;
         _session_alloc = that._session_alloc;
         _socket->cloneFromListenSocket(*(that._socket));
         weak_ptr<TcpServer> weak_self = shared_from_this();
@@ -215,7 +219,6 @@ protected:
         }, _poller);
         this->mINI::operator=(that);
         _cloned = true;
-        _enable_socket_mtx = that._enable_socket_mtx;
     }
 
     // 接收到客户端连接请求
@@ -223,7 +226,7 @@ protected:
         assert(_poller->isCurrentThread());
         weak_ptr<TcpServer> weak_self = shared_from_this();
         //创建一个TcpSession;这里实现创建不同的服务会话实例
-        auto helper = _session_alloc(weak_self, sock);
+        auto helper = _session_alloc(shared_from_this(), sock);
         auto &session = helper->session();
         //把本服务器的配置传递给TcpSession
         session->attachServer(*this);
@@ -292,8 +295,10 @@ private:
     template<typename SessionType>
     void start_l(uint16_t port, const std::string &host = "0.0.0.0", uint32_t backlog = 1024) {
         //TcpSession创建器，通过它创建不同类型的服务器
-        _session_alloc = [](const weak_ptr<TcpServer> &server, const Socket::Ptr &sock) {
-            return std::make_shared<TcpSessionHelper>(server, std::make_shared<SessionType>(sock));
+        _session_alloc = [](const TcpServer::Ptr &server, const Socket::Ptr &sock) {
+            auto session = std::make_shared<SessionType>(sock);
+            session->setOnCreateSocket(server->_on_create_socket);
+            return std::make_shared<TcpSessionHelper>(server, session);
         };
 
         if (!_socket->listen(port, host.c_str(), backlog)) {
@@ -334,18 +339,21 @@ private:
             }
         }
     }
+
+    Socket::Ptr createSocket(){
+        return _on_create_socket(_poller);
+    }
     
 private:
     bool _cloned = false;
     bool _is_on_manager = false;
-    bool _enable_socket_mtx = false;
     Socket::Ptr _socket;
     EventPoller::Ptr _poller;
     std::shared_ptr<Timer> _timer;
+    Socket::onCreateSocket _on_create_socket;
     unordered_map<TcpSessionHelper *, TcpSessionHelper::Ptr> _session_map;
-    function<TcpSessionHelper::Ptr(const weak_ptr<TcpServer> &server, const Socket::Ptr &)> _session_alloc;
+    function<TcpSessionHelper::Ptr(const TcpServer::Ptr &server, const Socket::Ptr &)> _session_alloc;
     unordered_map<EventPoller *, Ptr> _cloned_server;
-   
 };
 
 } /* namespace toolkit */
