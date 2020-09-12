@@ -239,10 +239,6 @@ private:
         return reader;
     }
 
-    int readerCount() {
-        return _reader_size;
-    }
-
     void onSizeChanged(bool add_flag) {
         _on_size_changed(_reader_size, add_flag);
     }
@@ -265,7 +261,7 @@ public:
     typedef _RingReader<T> RingReader;
     typedef _RingStorage<T> RingStorage;
     typedef _RingReaderDispatcher<T> RingReaderDispatcher;
-    typedef function<void(const EventPoller::Ptr &poller, int size, bool add_flag)> onReaderChanged;
+    typedef function<void(int size)> onReaderChanged;
 
     RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr) {
         _on_reader_changed = cb;
@@ -323,12 +319,7 @@ public:
     }
 
     int readerCount() {
-        LOCK_GUARD(_mtx_map);
-        int total = 0;
-        for (auto &pr : _dispatcher_map) {
-            total += pr.second->readerCount();
-        }
-        return total;
+        return _total_count;
     }
 
     void clearCache(){
@@ -347,8 +338,14 @@ private:
             _dispatcher_map.erase(poller);
         }
 
+        if (add_flag) {
+            ++_total_count;
+        } else {
+            --_total_count;
+        }
+
         if (_on_reader_changed) {
-            _on_reader_changed(poller, size, add_flag);
+            _on_reader_changed(_total_count);
         }
     }
 
@@ -361,6 +358,7 @@ private:
 
 private:
     mutex _mtx_map;
+    atomic_int _total_count {0};
     typename RingStorage::Ptr _storage;
     typename RingDelegate<T>::Ptr _delegate;
     onReaderChanged _on_reader_changed;
