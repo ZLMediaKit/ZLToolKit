@@ -20,29 +20,31 @@ namespace toolkit {
 class onceToken {
 public:
     typedef function<void(void)> task;
-    onceToken(const task &onConstructed, const task &onDestructed = nullptr) {
-        if (onConstructed) {
-            onConstructed();
-        }
-        _onDestructed = onDestructed;
-    }
-    onceToken(const task &onConstructed, task &&onDestructed) {
-        if (onConstructed) {
-            onConstructed();
-        }
+
+    template<typename FUNC>
+    onceToken(const FUNC &onConstructed, function<void(void)> onDestructed = nullptr) {
+        onConstructed();
         _onDestructed = std::move(onDestructed);
     }
+
+    onceToken(nullptr_t, function<void(void)> onDestructed = nullptr) {
+        _onDestructed = std::move(onDestructed);
+    }
+
     ~onceToken() {
         if (_onDestructed) {
             _onDestructed();
         }
     }
+
 private:
-    onceToken();
-    onceToken(const onceToken &);
-    onceToken(onceToken &&);
-    onceToken &operator =(const onceToken &);
-    onceToken &operator =(onceToken &&);
+    onceToken() = delete;
+    onceToken(const onceToken &) = delete;
+    onceToken(onceToken &&) = delete;
+    onceToken &operator=(const onceToken &) = delete;
+    onceToken &operator=(onceToken &&) = delete;
+
+private:
     task _onDestructed;
 };
 
