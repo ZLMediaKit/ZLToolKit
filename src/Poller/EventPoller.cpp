@@ -67,7 +67,6 @@ EventPoller::EventPoller(ThreadPool::Priority priority ) {
     }
 }
 
-
 void EventPoller::shutdown() {
     async_l([](){
         throw ExitException();
