@@ -151,8 +151,15 @@ public:
     const deque<pair<bool, T> > &getCache() const {
         return _data_cache;
     }
+
+    void clearCache(){
+        _data_cache.clear();
+        _size = 0;
+    }
+
 private:
     _RingStorage() = default;
+
 private:
     deque<pair<bool, T> > _data_cache;
     int _max_size;
@@ -240,6 +247,10 @@ private:
         _on_size_changed(_reader_size, add_flag);
     }
 
+    void clearCache(){
+        _storage->clearCache();
+    }
+
 private:
     function<void(int, bool)> _on_size_changed;
     atomic_int _reader_size;
@@ -318,6 +329,15 @@ public:
             total += pr.second->readerCount();
         }
         return total;
+    }
+
+    void clearCache(){
+        LOCK_GUARD(_mtx_map);
+        _storage->clearCache();
+        for (auto &pr : _dispatcher_map) {
+            auto &second = pr.second;
+            second->clearCache();
+        }
     }
 
 private:
