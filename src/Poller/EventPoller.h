@@ -35,7 +35,7 @@ typedef enum {
     Event_Read = 1 << 0, //读事件
     Event_Write = 1 << 1, //写事件
     Event_Error = 1 << 2, //错误事件
-    Event_LT    = 1 << 3,//水平触发
+    Event_LT = 1 << 3,//水平触发
 } Poll_Event;
 
 typedef function<void(int event)> PollEventCB;
@@ -63,7 +63,7 @@ public:
      * @param eventCb 事件回调functional
      * @return -1:失败，0:成功
      */
-    int addEvent(int fd, int event, PollEventCB &&eventCb);
+    int addEvent(int fd, int event, PollEventCB eventCb);
 
     /**
      * 删除事件监听
@@ -71,7 +71,7 @@ public:
      * @param delCb 删除成功回调functional
      * @return -1:失败，0:成功
      */
-    int delEvent(int fd, PollDelCB &&delCb = nullptr);
+    int delEvent(int fd, PollDelCB delCb = nullptr);
 
     /**
      * 修改监听事件类型
@@ -87,7 +87,7 @@ public:
      * @param may_sync 如果调用该函数的线程就是本对象的轮询线程，那么may_sync为true时就是同步执行任务
      * @return 是否成功，一定会返回true
      */
-    Task::Ptr async(TaskIn &&task, bool may_sync = true) override ;
+    Task::Ptr async(TaskIn task, bool may_sync = true) override ;
 
     /**
      * 同async方法，不过是把任务打入任务列队头，这样任务优先级最高
@@ -95,7 +95,7 @@ public:
      * @param may_sync 如果调用该函数的线程就是本对象的轮询线程，那么may_sync为true时就是同步执行任务
      * @return 是否成功，一定会返回true
      */
-    Task::Ptr async_first(TaskIn &&task, bool may_sync = true) override ;
+    Task::Ptr async_first(TaskIn task, bool may_sync = true) override ;
 
     /**
      * 判断执行该接口的线程是否为本对象的轮询线程
@@ -109,13 +109,13 @@ public:
      * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时，如果任务中抛异常，那么默认不重复任务
      * @return 可取消的任务标签
      */
-    DelayTask::Ptr doDelayTask(uint64_t delayMS, function<uint64_t()> &&task);
+    DelayTask::Ptr doDelayTask(uint64_t delayMS, function<uint64_t()> task);
 
     /**
      * 获取当前线程关联的Poller实例
-     * @return
      */
     static EventPoller::Ptr getCurrentPoller();
+
 private:
     /**
      * 本对象只允许在EventPollerPool中构造
@@ -125,9 +125,9 @@ private:
     /**
      * 执行事件轮询
      * @param blocked 是否用执行该接口的线程执行轮询
-     * @param registCurrentPoller 是否注册到全局map
+     * @param regist_self 是否注册到全局map
      */
-    void runLoop(bool blocked , bool registCurrentPoller);
+    void runLoop(bool blocked , bool regist_self);
 
     /**
      * 内部管道事件，用于唤醒轮询线程用
@@ -139,16 +139,15 @@ private:
      * @param task
      * @param may_sync
      * @param first
-     * @return
+     * @return 可取消的任务本体，如果已经同步执行，则返回nullptr
      */
-    Task::Ptr async_l(TaskIn &&task, bool may_sync = true,bool first = false) ;
+    Task::Ptr async_l(TaskIn task, bool may_sync = true,bool first = false) ;
 
     /**
      * 阻塞当前线程，等待轮询线程退出;
      * 在执行shutdown接口时本函数会退出
      */
     void wait() ;
-
 
     /**
      * 结束事件轮询
@@ -165,28 +164,36 @@ private:
      * 获取select或epoll休眠时间
      */
     uint64_t getMinDelay();
+
 private:
     class ExitException : public std::exception{
     public:
         ExitException(){}
         ~ExitException(){}
     };
+
 private:
+    //标记loop线程是否退出
+    bool _exit_flag;
+
     ThreadPool::Priority _priority;
     //正在运行事件循环时该锁处于被锁定状态
     mutex _mtx_runing;
     //执行事件循环的线程
-    thread *_loopThread = nullptr;
+    thread *_loop_thread = nullptr;
+    //事件循环的线程id
+    thread::id _loop_thread_id;
     //通知事件循环的线程已启动
     semaphore _sem_run_started;
-    //事件循环的线程id
-    thread::id _loopThreadId;
+
     //内部事件管道
     PipeWrap _pipe;
     //从其他线程切换过来的任务
-    List<Task::Ptr> _list_task;
     mutex _mtx_task;
-    bool _exit_flag;
+    List<Task::Ptr> _list_task;
+
+    //保持日志可用
+    Logger::Ptr _logger;
 
 #if defined(HAS_EPOLL)
     //epoll相关
@@ -194,25 +201,21 @@ private:
     unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
 #else
     //select相关
-    struct Poll_Record{
+    struct Poll_Record {
         typedef std::shared_ptr<Poll_Record> Ptr;
         int event;
         int attach;
         PollEventCB callBack;
     };
-    unordered_map<int, Poll_Record::Ptr > _event_map;
+    unordered_map<int, Poll_Record::Ptr> _event_map;
 #endif //HAS_EPOLL
 
     //定时器相关
-    multimap<uint64_t,DelayTask::Ptr > _delayTask;
-    //保持日志可用
-    Logger::Ptr _logger;
+    multimap<uint64_t, DelayTask::Ptr> _delay_task_map;
 };
 
 
-class EventPollerPool :
-        public std::enable_shared_from_this<EventPollerPool> ,
-        public TaskExecutorGetterImp {
+class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, public TaskExecutorGetterImp {
 public:
     typedef std::shared_ptr<EventPollerPool> Ptr;
     ~EventPollerPool(){};
@@ -251,11 +254,12 @@ public:
      * @param flag 是否优先返回当前线程
      */
     void preferCurrentThread(bool flag = true);
+
 private:
     EventPollerPool() ;
+
 private:
     bool _preferCurrentThread = true;
-    static int s_pool_size;
 };
 
 }  // namespace toolkit

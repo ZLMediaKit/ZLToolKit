@@ -59,23 +59,24 @@ EventPoller::EventPoller(ThreadPool::Priority priority ) {
     SockUtil::setCloExec(_epoll_fd);
 #endif //HAS_EPOLL
     _logger = Logger::Instance().shared_from_this();
-    _loopThreadId = this_thread::get_id();
+    _loop_thread_id = this_thread::get_id();
 
     //添加内部管道事件
-    if (addEvent(_pipe.readFD(), Event_Read, [this](int event) {onPipeEvent();}) == -1) {
+    if (addEvent(_pipe.readFD(), Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
         throw std::runtime_error("epoll添加管道失败");
     }
 }
 
 void EventPoller::shutdown() {
-    async_l([](){
+    async_l([]() {
         throw ExitException();
-    },false, true);
+    }, false, true);
 
-    if (_loopThread) {
-        _loopThread->join();
-        delete _loopThread;
-        _loopThread = nullptr;
+    if (_loop_thread) {
+        //防止作为子进程时崩溃
+        try { _loop_thread->join(); } catch (...) { }
+        delete _loop_thread;
+        _loop_thread = nullptr;
     }
 }
 
@@ -89,12 +90,12 @@ EventPoller::~EventPoller() {
     }
 #endif //defined(HAS_EPOLL)
     //退出前清理管道中的数据
-    _loopThreadId = this_thread::get_id();
+    _loop_thread_id = this_thread::get_id();
     onPipeEvent();
     InfoL << this;
 }
 
-int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
+int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
     TimeTicker();
     if (!cb) {
         WarnL << "PollEventCB 为空!";
@@ -114,7 +115,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
 #else
 #ifndef _WIN32
         //win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
-        if(fd >= FD_SETSIZE || _event_map.size() >= FD_SETSIZE){
+        if (fd >= FD_SETSIZE || _event_map.size() >= FD_SETSIZE) {
             WarnL << "select最多监听" << FD_SETSIZE << "个文件描述符";
             return -1;
         }
@@ -131,10 +132,9 @@ int EventPoller::addEvent(int fd, int event, PollEventCB &&cb) {
         addEvent(fd, event, std::move(const_cast<PollEventCB &>(cb)));
     });
     return 0;
-
 }
 
-int EventPoller::delEvent(int fd, PollDelCB &&cb) {
+int EventPoller::delEvent(int fd, PollDelCB cb) {
     TimeTicker();
     if (!cb) {
         cb = [](bool success) {};
@@ -161,7 +161,6 @@ int EventPoller::delEvent(int fd, PollDelCB &&cb) {
 
 int EventPoller::modifyEvent(int fd, int event) {
     TimeTicker();
-    //TraceL<<fd<<" "<<event;
 #if defined(HAS_EPOLL)
     struct epoll_event ev = {0};
     ev.events = toEpoll(event);
@@ -182,15 +181,15 @@ int EventPoller::modifyEvent(int fd, int event) {
 #endif //HAS_EPOLL
 }
 
-
-Task::Ptr EventPoller::async(TaskIn &&task, bool may_sync) {
-    return async_l(std::move(task),may_sync, false);
-}
-Task::Ptr EventPoller::async_first(TaskIn &&task, bool may_sync) {
-    return async_l(std::move(task),may_sync, true);
+Task::Ptr EventPoller::async(TaskIn task, bool may_sync) {
+    return async_l(std::move(task), may_sync, false);
 }
 
-Task::Ptr EventPoller::async_l(TaskIn &&task,bool may_sync, bool first) {
+Task::Ptr EventPoller::async_first(TaskIn task, bool may_sync) {
+    return async_l(std::move(task), may_sync, true);
+}
+
+Task::Ptr EventPoller::async_l(TaskIn task,bool may_sync, bool first) {
     TimeTicker();
     if (may_sync && isCurrentThread()) {
         task();
@@ -200,19 +199,19 @@ Task::Ptr EventPoller::async_l(TaskIn &&task,bool may_sync, bool first) {
     auto ret = std::make_shared<Task>(std::move(task));
     {
         lock_guard<mutex> lck(_mtx_task);
-        if(first){
+        if (first) {
             _list_task.emplace_front(ret);
-        }else{
+        } else {
             _list_task.emplace_back(ret);
         }
     }
     //写数据到管道,唤醒主线程
-    _pipe.write("",1);
+    _pipe.write("", 1);
     return ret;
 }
 
 bool EventPoller::isCurrentThread() {
-    return _loopThreadId == this_thread::get_id();
+    return _loop_thread_id == this_thread::get_id();
 }
 
 inline void EventPoller::onPipeEvent() {
@@ -232,12 +231,12 @@ inline void EventPoller::onPipeEvent() {
         _list_swap.swap(_list_task);
     }
 
-    _list_swap.for_each([&](const Task::Ptr &task){
+    _list_swap.for_each([&](const Task::Ptr &task) {
         try {
             (*task)();
-        }catch (ExitException &ex){
+        } catch (ExitException &ex) {
             _exit_flag = true;
-        }catch (std::exception &ex){
+        } catch (std::exception &ex) {
             ErrorL << "EventPoller执行异步任务捕获到异常:" << ex.what();
         }
     });
@@ -247,26 +246,27 @@ void EventPoller::wait() {
     lock_guard<mutex> lck(_mtx_runing);
 }
 
-static map<thread::id,weak_ptr<EventPoller> > s_allThreads;
-static mutex s_allThreadsMtx;
+static mutex s_all_poller_mtx;
+static map<thread::id, weak_ptr<EventPoller> > s_all_poller;
 
 //static
 EventPoller::Ptr EventPoller::getCurrentPoller(){
-    lock_guard<mutex> lck(s_allThreadsMtx);
-    auto it = s_allThreads.find(this_thread::get_id());
-    if(it == s_allThreads.end()){
+    lock_guard<mutex> lck(s_all_poller_mtx);
+    auto it = s_all_poller.find(this_thread::get_id());
+    if (it == s_all_poller.end()) {
         return nullptr;
     }
     return it->second.lock();
 }
-void EventPoller::runLoop(bool blocked,bool registCurrentPoller) {
+
+void EventPoller::runLoop(bool blocked,bool regist_self) {
     if (blocked) {
         ThreadPool::setPriority(_priority);
         lock_guard<mutex> lck(_mtx_runing);
-        _loopThreadId = this_thread::get_id();
-        if(registCurrentPoller){
-            lock_guard<mutex> lck(s_allThreadsMtx);
-            s_allThreads[_loopThreadId] = shared_from_this();
+        _loop_thread_id = this_thread::get_id();
+        if (regist_self) {
+            lock_guard<mutex> lck(s_all_poller_mtx);
+            s_all_poller[_loop_thread_id] = shared_from_this();
         }
         _sem_run_started.post();
         _exit_flag = false;
@@ -278,7 +278,7 @@ void EventPoller::runLoop(bool blocked,bool registCurrentPoller) {
             startSleep();//用于统计当前线程负载情况
             int ret = epoll_wait(_epoll_fd, events, EPOLL_SIZE, minDelay ? minDelay : -1);
             sleepWakeUp();//用于统计当前线程负载情况
-            if(ret <= 0){
+            if (ret <= 0) {
                 //超时或被打断
                 continue;
             }
@@ -291,9 +291,9 @@ void EventPoller::runLoop(bool blocked,bool registCurrentPoller) {
                     continue;
                 }
                 auto cb = it->second;
-                try{
+                try {
                     (*cb)(toPoller(ev.events));
-                }catch (std::exception &ex){
+                } catch (std::exception &ex) {
                     ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
                 }
             }
@@ -329,10 +329,10 @@ void EventPoller::runLoop(bool blocked,bool registCurrentPoller) {
             }
 
             startSleep();//用于统计当前线程负载情况
-            ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay ? &tv: NULL);
+            ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay ? &tv : NULL);
             sleepWakeUp();//用于统计当前线程负载情况
 
-            if(ret <= 0) {
+            if (ret <= 0) {
                 //超时或被打断
                 continue;
             }
@@ -354,44 +354,44 @@ void EventPoller::runLoop(bool blocked,bool registCurrentPoller) {
                 }
             }
 
-            callback_list.for_each([](Poll_Record::Ptr &record){
-                try{
+            callback_list.for_each([](Poll_Record::Ptr &record) {
+                try {
                     record->callBack(record->attach);
-                }catch (std::exception &ex){
+                } catch (std::exception &ex) {
                     ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
                 }
             });
             callback_list.clear();
         }
 #endif //HAS_EPOLL
-    }else{
-        _loopThread = new thread(&EventPoller::runLoop, this, true,registCurrentPoller);
+    } else {
+        _loop_thread = new thread(&EventPoller::runLoop, this, true, regist_self);
         _sem_run_started.wait();
     }
 }
 
 uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
-    decltype(_delayTask) taskCopy;
-    taskCopy.swap(_delayTask);
+    decltype(_delay_task_map) task_copy;
+    task_copy.swap(_delay_task_map);
 
-    for(auto it = taskCopy.begin() ; it != taskCopy.end() && it->first <= now_time ; it = taskCopy.erase(it)){
+    for (auto it = task_copy.begin(); it != task_copy.end() && it->first <= now_time; it = task_copy.erase(it)) {
         //已到期的任务
         try {
             auto next_delay = (*(it->second))();
-            if(next_delay){
+            if (next_delay) {
                 //可重复任务,更新时间截止线
-                _delayTask.emplace(next_delay + now_time,std::move(it->second));
+                _delay_task_map.emplace(next_delay + now_time, std::move(it->second));
             }
-        }catch (std::exception &ex){
+        } catch (std::exception &ex) {
             ErrorL << "EventPoller执行延时任务捕获到异常:" << ex.what();
         }
     }
 
-    taskCopy.insert(_delayTask.begin(),_delayTask.end());
-    taskCopy.swap(_delayTask);
+    task_copy.insert(_delay_task_map.begin(), _delay_task_map.end());
+    task_copy.swap(_delay_task_map);
 
-    auto it = _delayTask.begin();
-    if(it == _delayTask.end()){
+    auto it = _delay_task_map.begin();
+    if (it == _delay_task_map.end()) {
         //没有剩余的定时器了
         return 0;
     }
@@ -400,13 +400,13 @@ uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
 }
 
 uint64_t EventPoller::getMinDelay() {
-    auto it = _delayTask.begin();
-    if(it == _delayTask.end()){
+    auto it = _delay_task_map.begin();
+    if (it == _delay_task_map.end()) {
         //没有剩余的定时器了
         return 0;
     }
-    auto now =  getCurrentMillisecond();
-    if(it->first > now){
+    auto now = getCurrentMillisecond();
+    if (it->first > now) {
         //所有任务尚未到期
         return it->first - now;
     }
@@ -414,19 +414,19 @@ uint64_t EventPoller::getMinDelay() {
     return flushDelayTask(now);
 }
 
-DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> &&task) {
+DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> task) {
     DelayTask::Ptr ret = std::make_shared<DelayTask>(std::move(task));
     auto time_line = getCurrentMillisecond() + delayMS;
-    async_first([time_line,ret,this](){
+    async_first([time_line, ret, this]() {
         //异步执行的目的是刷新select或epoll的休眠时间
-        _delayTask.emplace(time_line,ret);
+        _delay_task_map.emplace(time_line, ret);
     });
     return ret;
 }
 
-
 ///////////////////////////////////////////////
-int EventPollerPool::s_pool_size = 0;
+
+int s_pool_size = 0;
 
 INSTANCE_IMP(EventPollerPool);
 
@@ -448,11 +448,11 @@ void EventPollerPool::preferCurrentThread(bool flag){
 
 EventPollerPool::EventPollerPool(){
     auto size = s_pool_size > 0 ? s_pool_size : thread::hardware_concurrency();
-    createThreads([](){
+    createThreads([]() {
         EventPoller::Ptr ret(new EventPoller);
         ret->runLoop(false, true);
         return ret;
-    },size);
+    }, size);
     InfoL << "创建EventPoller个数:" << size;
 }
 

@@ -46,7 +46,7 @@ public:
     }
 
     //把任务打入线程池并异步执行
-    Task::Ptr async(TaskIn &&task,bool may_sync = true) override {
+    Task::Ptr async(TaskIn task,bool may_sync = true) override {
         if (may_sync && _thread_group.is_this_thread_in()) {
             task();
             return nullptr;
@@ -55,7 +55,7 @@ public:
         _queue.push_task(ret);
         return ret;
     }
-    Task::Ptr async_first(TaskIn &&task,bool may_sync = true) override{
+    Task::Ptr async_first(TaskIn task,bool may_sync = true) override{
         if (may_sync && _thread_group.is_this_thread_in()) {
             task();
             return nullptr;

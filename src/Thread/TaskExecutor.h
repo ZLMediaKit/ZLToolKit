@@ -216,7 +216,7 @@ public:
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
      */
-    virtual Task::Ptr async(TaskIn &&task, bool may_sync = true) = 0;
+    virtual Task::Ptr async(TaskIn task, bool may_sync = true) = 0;
 
     /**
      * 最高优先级方式异步执行任务
@@ -224,7 +224,7 @@ public:
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
      */
-    virtual Task::Ptr async_first(TaskIn &&task, bool may_sync = true) {
+    virtual Task::Ptr async_first(TaskIn task, bool may_sync = true) {
         return async(std::move(task),may_sync);
     };
 
@@ -233,17 +233,16 @@ public:
      * @param task
      * @return
      */
-    void sync(TaskIn &&task){
+    void sync(const TaskIn &task){
         semaphore sem;
-        auto ret = async([&](){
-            onceToken token(nullptr,[&](){
+        auto ret = async([&]() {
+            onceToken token(nullptr, [&]() {
                 //通过RAII原理防止抛异常导致不执行这句代码
                 sem.post();
             });
             task();
-
         });
-        if(ret && *ret){
+        if (ret && *ret) {
             sem.wait();
         }
     }
