@@ -174,12 +174,12 @@ std::string &strToUpper(std::string &str) {
 // string转小写
 std::string strToLower(std::string &&str) {
     transform(str.begin(), str.end(), str.begin(), towlower);
-    return std::move(str);
+    return str;
 }
 // string转大写
 std::string strToUpper(std::string &&str) {
     transform(str.begin(), str.end(), str.begin(), towupper);
-    return std::move(str);
+    return str;
 }
 
 vector<string> split(const string& s, const char *delim) {

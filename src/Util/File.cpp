@@ -257,7 +257,7 @@ string File::parentDir(const string &path) {
     if(pos != string::npos){
         parent_dir = parent_dir.substr(0,pos + 1);
     }
-    return std::move(parent_dir);
+    return parent_dir;
 }
 
 string File::absolutePath(const string &path,const string &currentPath_in,bool canAccessParent) {
