@@ -230,6 +230,15 @@ void replace(string &str, const string &old_str, const string &new_str) {
     replace(str, old_str, new_str);
 }
 
+bool start_with(const string &str, const string &substr) {
+    return str.find(substr) == 0;
+}
+
+bool end_with(const string &str, const string &substr) {
+    auto pos = str.rfind(substr);
+    return pos != string::npos && pos == str.size() - substr.size();
+}
+
 bool isIP(const char *str){
     return INADDR_NONE != inet_addr(str);
 }

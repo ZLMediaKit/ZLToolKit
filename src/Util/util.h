@@ -158,8 +158,14 @@ std::string strToLower(std::string &&str);
 // string转大写
 std::string &strToUpper(std::string &str);
 std::string strToUpper(std::string &&str);
+//替换子字符串
 void replace(string &str, const string &old_str, const string &new_str) ;
+//判断是否为ip
 bool isIP(const char *str);
+//字符串是否以xx开头
+bool start_with(const string &str, const string &substr);
+//字符串是否以xx结尾
+bool end_with(const string &str, const string &substr);
 
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));
