@@ -157,7 +157,10 @@ bool File::is_dir(const char *path) {
 #if !defined(_WIN32)
         if (S_ISLNK(statbuf.st_mode)) {
             char realFile[256] = { 0 };
-            readlink(path, realFile, sizeof(realFile));
+            if (-1 == readlink(path, realFile, sizeof(realFile))) {
+                WarnL << "readlink failed:" << get_uv_errmsg();
+                return false;
+            }
             return File::is_dir(realFile);
         }
 #endif // !defined(_WIN32)
@@ -175,7 +178,10 @@ bool File::is_file(const char *path) {
 #if !defined(_WIN32)
         if (S_ISLNK(statbuf.st_mode)) {
             char realFile[256] = { 0 };
-            readlink(path, realFile, sizeof(realFile));
+            if (-1 == readlink(path, realFile, sizeof(realFile))) {
+                WarnL << "readlink failed:" << get_uv_errmsg();
+                return false;
+            }
             return File::is_file(realFile);
         }
 #endif // !defined(_WIN32)
@@ -207,7 +213,6 @@ void File::delete_file(const char *path) {
     if (is_dir(path)) {
         if ((dir = opendir(path)) == NULL) {
             _rmdir(path);
-            closedir(dir);
             return;
         }
         while ((dir_info = readdir(dir)) != NULL) {
@@ -233,7 +238,9 @@ string File::loadFile(const char *path) {
     auto len = ftell(fp);
     fseek(fp,0,SEEK_SET);
     string str(len,'\0');
-    fread((char *)str.data(),str.size(),1,fp);
+    if (-1 == fread((char *) str.data(), str.size(), 1, fp)) {
+        WarnL << "fread failed:" << get_uv_errmsg();
+    }
     fclose(fp);
     return str;
 }
