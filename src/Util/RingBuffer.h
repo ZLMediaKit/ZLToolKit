@@ -33,7 +33,7 @@ public:
     typedef std::shared_ptr<RingDelegate> Ptr;
     RingDelegate() {}
     virtual ~RingDelegate() {}
-    virtual void onWrite(const T &in, bool is_key = true) = 0;
+    virtual void onWrite(T in, bool is_key = true) = 0;
 };
 
 template<typename T>
@@ -126,7 +126,7 @@ public:
      * @param is_key 是否为关键帧
      * @return 是否触发重置环形缓存大小
      */
-    inline void write(const T &in, bool is_key = true) {
+     void write(T in, bool is_key = true) {
         if (is_key) {
             //遇到I帧，那么移除老数据
             _data_cache.clear();
@@ -200,7 +200,7 @@ private:
         _on_size_changed = onSizeChanged;
     }
 
-    void write(const T &in, bool is_key = true) {
+    void write(T in, bool is_key = true) {
         for (auto it = _reader_map.begin(); it != _reader_map.end();) {
             auto reader = it->second.lock();
             if (!reader) {
@@ -212,7 +212,7 @@ private:
             reader->onRead(in, is_key);
             ++it;
         }
-        _storage->write(in, is_key);
+        _storage->write(std::move(in), is_key);
     }
 
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool use_cache) {
@@ -270,20 +270,20 @@ public:
 
     ~RingBuffer() {}
 
-    void write(const T &in, bool is_key = true) {
+    void write(T in, bool is_key = true) {
         if (_delegate) {
-            _delegate->onWrite(in, is_key);
+            _delegate->onWrite(std::move(in), is_key);
             return;
         }
 
         LOCK_GUARD(_mtx_map);
-        _storage->write(in, is_key);
         for (auto &pr : _dispatcher_map) {
             auto &second = pr.second;
             pr.first->async([second, in, is_key]() {
-                second->write(in, is_key);
+                second->write(std::move(const_cast<T &>(in)), is_key);
             }, false);
         }
+        _storage->write(std::move(in), is_key);
     }
 
     void setDelegate(const typename RingDelegate<T>::Ptr &delegate) {
