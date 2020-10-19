@@ -244,7 +244,9 @@ private:
     }
 
     void clearCache(){
-        _storage->clearCache();
+        if(_reader_size  == 0){
+            _storage->clearCache();
+        }
     }
 
 private:
