@@ -279,6 +279,7 @@ public:
         LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcher_map) {
             auto &second = pr.second;
+            //切换线程后触发onRead事件
             pr.first->async([second, in, is_key]() {
                 second->write(std::move(const_cast<T &>(in)), is_key);
             }, false);
@@ -327,7 +328,10 @@ public:
         _storage->clearCache();
         for (auto &pr : _dispatcher_map) {
             auto &second = pr.second;
-            second->clearCache();
+            //切换线程后清空缓存
+            pr.first->async([second]() {
+                second->clearCache();
+            }, false);
         }
     }
 
