@@ -350,19 +350,14 @@ public:
     int send(const char *buf, int size = 0, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
-     * 发送只读string
+     * 发送string
      */
-    int send(const string &buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
-
-    /**
-     * 发送右值string
-     */
-    int send(string &&buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    int send(string buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送Buffer对象，Socket对象发送数据的统一出口
      */
-    virtual int send(const Buffer::Ptr &buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    virtual int send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 关闭socket且触发onErr回调，onErr回调将在poller线程中进行
@@ -428,12 +423,6 @@ public:
      * @param flags 发送的flag
      */
     virtual void setSendFlags(int flags = SOCKET_DEFAULE_FLAGS);
-
-    /**
-     * 设置接收缓存, 控制接收buffer大小
-     * @param buffer 接收缓存
-     */
-    virtual void setReadBuffer(const BufferRaw::Ptr &buffer);
 
     /**
      * 关闭套接字
@@ -525,29 +514,26 @@ class SockSender {
 public:
     SockSender() = default;
     virtual ~SockSender() = default;
-    virtual int send(const Buffer::Ptr &buf) = 0;
+    virtual int send(Buffer::Ptr buf) = 0;
     virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) = 0;
 
     //发送char *
     SockSender &operator << (const char *buf);
     //发送字符串
-    SockSender &operator << (const string &buf);
-    //发送字符串
-    SockSender &operator << (string &&buf);
+    SockSender &operator << (string buf);
     //发送Buffer对象
-    SockSender &operator << (const Buffer::Ptr &buf);
+    SockSender &operator << (Buffer::Ptr buf);
 
     //发送其他类型是数据
     template<typename T>
-    SockSender &operator << (const T &buf) {
+    SockSender &operator << (T &&buf) {
         ostringstream ss;
-        ss << buf;
+        ss << std::forward<T>(buf);
         send(ss.str());
         return *this;
     }
 
-    int send(const string &buf);
-    int send(string &&buf);
+    int send(string buf);
     int send(const char *buf, int size = 0);
 };
 
@@ -618,7 +604,7 @@ public:
     /**
      * 统一发送数据的出口
      */
-    int send(const Buffer::Ptr &buf) override;
+    int send(Buffer::Ptr buf) override;
 
     /**
      * 触发onErr事件

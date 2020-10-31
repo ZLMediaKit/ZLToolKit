@@ -97,11 +97,11 @@ public:
     }
 
     inline void public_send(const Buffer::Ptr &buf) {
-        TcpSessionType::send(buf);
+        TcpSessionType::send(std::move(const_cast<Buffer::Ptr &>(buf)));
     }
 
 protected:
-    int send(const Buffer::Ptr &buf) override {
+    int send(Buffer::Ptr buf) override {
         _ssl_box.onSend(buf);
         return buf->size();
     }

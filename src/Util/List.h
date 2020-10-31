@@ -27,11 +27,9 @@ public:
     friend class List<T>;
     ~ListNode(){}
 
-    ListNode(T &&data):_data(std::forward<T>(data)){}
-    ListNode(const T &data):_data(data){}
-
     template <class... Args>
     ListNode(Args&&... args):_data(std::forward<Args>(args)...){}
+
 private:
     T _data;
     ListNode *next = nullptr;

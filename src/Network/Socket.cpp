@@ -224,10 +224,7 @@ bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
     weak_ptr<Socket> weak_self = shared_from_this();
     weak_ptr<SockFD> weak_sock = sock;
     _enable_recv = true;
-    if(!_read_buffer){
-        //udp包最大能达到64KB
-        _read_buffer = std::make_shared<BufferRaw>(is_udp ? 0xFFFF : 128 * 1024);
-    }
+    _read_buffer = _poller->getSharedBuffer();
     int result = _poller->addEvent(sock->rawFd(), Event_Read | Event_Error | Event_Write, [weak_self,weak_sock,is_udp](int event) {
         auto strong_self = weak_self.lock();
         auto strong_sock = weak_sock.lock();
@@ -249,27 +246,12 @@ bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
     return -1 != result;
 }
 
-void Socket::setReadBuffer(const BufferRaw::Ptr &buffer){
-    if (!buffer || buffer->getCapacity() < 2) {
-        return;
-    }
-    weak_ptr<Socket> weak_self = shared_from_this();
-    _poller->async([buffer, weak_self]() {
-        auto strong_self = weak_self.lock();
-        if (strong_self) {
-            strong_self->_read_buffer = std::move(buffer);
-        }
-    });
-}
-
 int Socket::onRead(const SockFD::Ptr &sock, bool is_udp) {
     int ret = 0, nread = 0, sock_fd = sock->rawFd();
 
-    //保存_read_buffer的临时变量，防止onRead事件中修改
-    auto buffer = _read_buffer;
-    auto data = buffer->data();
+    auto data = _read_buffer->data();
     //最后一个字节设置为'\0'
-    auto capacity = buffer->getCapacity() - 1;
+    auto capacity = _read_buffer->getCapacity() - 1;
 
     struct sockaddr addr;
     socklen_t len = sizeof(struct sockaddr);
@@ -296,11 +278,11 @@ int Socket::onRead(const SockFD::Ptr &sock, bool is_udp) {
         ret += nread;
         data[nread] = '\0';
         //设置buffer有效数据大小
-        buffer->setSize(nread);
+        _read_buffer->setSize(nread);
 
         //触发回调
         LOCK_GUARD(_mtx_event);
-        _on_read(buffer, &addr, len);
+        _on_read(_read_buffer, &addr, len);
     }
     return 0;
 }
@@ -342,18 +324,14 @@ int Socket::send(const char *buf, int size, struct sockaddr *addr, socklen_t add
     }
     BufferRaw::Ptr ptr = obtainBuffer();
     ptr->assign(buf, size);
-    return send(ptr, addr, addr_len, try_flush);
+    return send(std::move(ptr), addr, addr_len, try_flush);
 }
 
-int Socket::send(const string &buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
-    return send(std::make_shared<BufferString>(buf), addr, addr_len, try_flush);
-}
-
-int Socket::send(string &&buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
+int Socket::send(string buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
     return send(std::make_shared<BufferString>(std::move(buf)), addr, addr_len, try_flush);
 }
 
-int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_len, bool try_flush){
+int Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush){
     auto size = buf ? buf->size() : 0;
     if (!size) {
         return 0;
@@ -372,7 +350,7 @@ int Socket::send(const Buffer::Ptr &buf , struct sockaddr *addr, socklen_t addr_
 
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
-        _send_buf_waiting.emplace_back(sock->type() == SockNum::Sock_UDP ? std::make_shared<BufferSock>(buf, addr, addr_len) : buf);
+        _send_buf_waiting.emplace_back(sock->type() == SockNum::Sock_UDP ? std::make_shared<BufferSock>(std::move(buf), addr, addr_len) : buf);
     }
 
     if(try_flush){
@@ -781,35 +759,24 @@ SockSender &SockSender::operator<<(const char *buf) {
     return *this;
 }
 
-SockSender &SockSender::operator<<(const string &buf) {
-    send(buf);
-    return *this;
-}
-
-SockSender &SockSender::operator<<(string &&buf) {
+SockSender &SockSender::operator<<(string buf) {
     send(std::move(buf));
     return *this;
 }
 
-SockSender &SockSender::operator<<(const Buffer::Ptr &buf) {
-    send(buf);
+SockSender &SockSender::operator<<(Buffer::Ptr buf) {
+    send(std::move(buf));
     return *this;
 }
 
-int SockSender::send(const string &buf) {
-    auto buffer = std::make_shared<BufferString>(buf);
-    return send(buffer);
-}
-
-int SockSender::send(string &&buf) {
-    auto buffer = std::make_shared<BufferString>(std::move(buf));
-    return send(buffer);
+int SockSender::send(string buf) {
+    return send(std::make_shared<BufferString>(std::move(buf)));
 }
 
 int SockSender::send(const char *buf, int size) {
     auto buffer = std::make_shared<BufferRaw>();
     buffer->assign(buf, size);
-    return send(buffer);
+    return send(std::move(buffer));
 }
 
 ///////////////SocketHelper///////////////////
@@ -845,11 +812,11 @@ const Socket::Ptr& SocketHelper::getSock() const{
     return _sock;
 }
 
-int SocketHelper::send(const Buffer::Ptr &buf) {
+int SocketHelper::send(Buffer::Ptr buf) {
     if (!_sock) {
         return -1;
     }
-    return _sock->send(buf, nullptr, 0, _try_flush);
+    return _sock->send(std::move(buf), nullptr, 0, _try_flush);
 }
 
 BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, int len) {

@@ -249,6 +249,16 @@ void EventPoller::wait() {
 static mutex s_all_poller_mtx;
 static map<thread::id, weak_ptr<EventPoller> > s_all_poller;
 
+BufferRaw::Ptr EventPoller::getSharedBuffer() {
+    auto ret = _shared_buffer.lock();
+    if (ret) {
+        return ret;
+    }
+    ret = std::make_shared<BufferRaw>(64 * 1024);
+    _shared_buffer = ret;
+    return ret;
+}
+
 //static
 EventPoller::Ptr EventPoller::getCurrentPoller(){
     lock_guard<mutex> lck(s_all_poller_mtx);

@@ -113,12 +113,12 @@ public:
         }
     }
 
-    int send(const Buffer::Ptr &buf) override {
+    int send(Buffer::Ptr buf) override {
         if (_ssl_box) {
             _ssl_box->onSend(buf);
             return buf->size();
         }
-        return TcpClientType::send(buf);
+        return TcpClientType::send(std::move(buf));
     }
 
     //添加public_onRecv和public_send函数是解决较低版本gcc一个lambad中不能访问protected或private方法的bug
@@ -127,7 +127,7 @@ public:
     }
 
     inline void public_send(const Buffer::Ptr &buf) {
-        TcpClientType::send(buf);
+        TcpClientType::send(std::move(const_cast<Buffer::Ptr &>(buf)));
     }
 
     void startConnect(const string &url, uint16_t port, float timeout_sec = 5) override {
@@ -138,7 +138,7 @@ public:
 protected:
     void onConnect(const SockException &ex) override {
         if (!ex) {
-            _ssl_box.reset(new SSL_Box(false));
+            _ssl_box = std::make_shared<SSL_Box>(false);
             _ssl_box->setOnDecData([this](const Buffer::Ptr &buf) {
                 public_onRecv(buf);
             });

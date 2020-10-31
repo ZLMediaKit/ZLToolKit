@@ -45,30 +45,29 @@ public:
     }
 };
 
-//字符串缓存
-class BufferString : public  Buffer {
+template <typename C>
+class BufferOffset : public  Buffer {
 public:
-    typedef std::shared_ptr<BufferString> Ptr;
-    BufferString(const string &data,int offset = 0,int len = 0):_data(data) {
-        setup(offset,len);
+    typedef std::shared_ptr<BufferOffset> Ptr;
+
+    BufferOffset(C data, int offset = 0, int len = 0) : _data(std::move(data)) {
+        setup(offset, len);
     }
-    BufferString(string &&data,int offset = 0,int len = 0):_data(std::move(data)){
-        setup(offset,len);
-    }
-    ~BufferString() {}
+
+    ~BufferOffset() {}
+
     char *data() const override {
         return const_cast<char *>(_data.data()) + _offset;
     }
+
     uint32_t size() const override{
         return _size;
     }
 
     string toString() const override {
-        if(_offset == 0 && _size == _data.size()){
-            return _data;
-        }
         return string(data(),size());
     }
+
 private:
     void setup(int offset = 0,int len = 0){
         _offset = offset;
@@ -77,11 +76,14 @@ private:
             _size = _data.size();
         }
     }
+
 private:
-    string _data;
+    C _data;
     int _offset;
     int _size;
 };
+
+typedef BufferOffset<string> BufferString;
 
 //指针式缓存对象，
 class BufferRaw : public Buffer{
@@ -162,6 +164,241 @@ private:
     uint32_t _size = 0;
 };
 
+class BufferLikeString : public Buffer {
+public:
+    ~BufferLikeString() override {}
+
+    BufferLikeString() {
+        _erase_head = 0;
+        _erase_tail  = 0;
+    }
+
+    BufferLikeString(string str) {
+        _str = std::move(str);
+        _erase_head = 0;
+        _erase_tail  = 0;
+    }
+
+    BufferLikeString& operator= (string str){
+        _str = std::move(str);
+        _erase_head = 0;
+        _erase_tail  = 0;
+        return *this;
+    }
+
+    BufferLikeString(const char *str) {
+        _str = str;
+        _erase_head = 0;
+        _erase_tail  = 0;
+    }
+
+    BufferLikeString& operator= (const char *str){
+        _str = str;
+        _erase_head = 0;
+        _erase_tail  = 0;
+        return *this;
+    }
+
+    BufferLikeString(BufferLikeString &&that) {
+        _str = std::move(that._str);
+        _erase_head = that._erase_head;
+        _erase_tail = that._erase_tail;
+        that._erase_head = 0;
+        that._erase_tail = 0;
+    }
+
+    BufferLikeString& operator= (BufferLikeString &&that){
+        _str = std::move(that._str);
+        _erase_head = that._erase_head;
+        _erase_tail = that._erase_tail;
+        that._erase_head = 0;
+        that._erase_tail = 0;
+        return *this;
+    }
+
+    BufferLikeString(const BufferLikeString &that) {
+        _str = that._str;
+        _erase_head = that._erase_head;
+        _erase_tail = that._erase_tail;
+    }
+
+    BufferLikeString& operator= (const BufferLikeString &that){
+        _str = that._str;
+        _erase_head = that._erase_head;
+        _erase_tail = that._erase_tail;
+        return *this;
+    }
+
+    char* data() const override{
+        return (char *)_str.data() + _erase_head;
+    }
+
+    uint32_t size() const override{
+        return _str.size() - _erase_tail - _erase_head;
+    }
+
+    BufferLikeString& erase(string::size_type pos = 0, string::size_type n = string::npos) {
+        if (pos == 0) {
+            //移除前面的数据
+            if (n != string::npos) {
+                //移除部分
+                if (n > size()) {
+                    //移除太多数据了
+                    throw std::out_of_range("BufferLikeString::erase out_of_range in head");
+                }
+                //设置起始便宜量
+                _erase_head += n;
+                data()[size()] = '\0';
+                return *this;
+            }
+            //移除全部数据
+            _erase_head = 0;
+            _erase_tail = _str.size();
+            data()[0] = '\0';
+            return *this;
+        }
+
+        if (n == string::npos || pos + n >= size()) {
+            //移除末尾所有数据
+            if (pos >= size()) {
+                //移除太多数据
+                throw std::out_of_range("BufferLikeString::erase out_of_range in tail");
+            }
+            _erase_tail += size() - pos;
+            data()[size()] = '\0';
+            return *this;
+        }
+
+        //移除中间的
+        if (pos + n > size()) {
+            //超过长度限制
+            throw std::out_of_range("BufferLikeString::erase out_of_range in middle");
+        }
+        _str.erase(_erase_head + pos, n);
+        return *this;
+    }
+
+    BufferLikeString& append(const BufferLikeString &str){
+        return append(str.data(), str.size());
+    }
+
+    BufferLikeString& append(const string &str){
+        return append(str.data(), str.size());
+    }
+
+    BufferLikeString& append(const char *data, int len = 0){
+        if(_erase_head > _str.capacity() / 2){
+            moveData();
+        }
+        if (_erase_tail == 0) {
+            if (len <= 0) {
+                _str.append(data);
+            } else {
+                _str.append(data, len);
+            }
+            return *this;
+        }
+        if (len <= 0) {
+            _str.insert(_erase_head + size(), data);
+        } else {
+            _str.insert(_erase_head + size(), data, len);
+        }
+        return *this;
+    }
+
+    void push_back(char c){
+        if(_erase_tail == 0){
+            _str.push_back(c);
+            return;
+        }
+        data()[size()] = c;
+        --_erase_tail;
+        data()[size()] = '\0';
+    }
+
+    BufferLikeString& insert(string::size_type pos, const char* s, string::size_type n){
+        _str.insert(_erase_head + pos, s, n);
+        return *this;
+    }
+
+    BufferLikeString& assign(const char *data, int len = 0) {
+        if (data >= _str.data() && data < _str.data() + _str.size()) {
+            _erase_head = data - _str.data();
+            len = len ? len : strlen(data);
+            if (data + len > _str.data() + _str.size()) {
+                throw std::out_of_range("BufferLikeString::assign out_of_range");
+            }
+            _erase_tail = _str.data() + _str.size() - (data + len);
+            return *this;
+        }
+        if (len <= 0) {
+            _str.assign(data);
+        } else {
+            _str.assign(data, len);
+        }
+        _erase_head = 0;
+        _erase_tail = 0;
+        return *this;
+    }
+
+    void clear() {
+        _erase_head = 0;
+        _erase_tail = 0;
+        _str.clear();
+    }
+
+    char& operator[](string::size_type pos){
+        if (pos >= size()) {
+            throw std::out_of_range("BufferLikeString::operator[] out_of_range");
+        }
+        return data()[pos];
+    }
+
+    const char& operator[](string::size_type pos) const{
+        return (*const_cast<BufferLikeString *>(this))[pos];
+    }
+
+    string::size_type capacity() const{
+        return _str.capacity();
+    }
+
+    void reserve(string::size_type size){
+        _str.reserve(size);
+    }
+
+    bool empty() const{
+        return size() <= 0;
+    }
+
+    string substr(string::size_type pos, string::size_type n = string::npos) const{
+        if (n == string::npos) {
+            //获取末尾所有的
+            if (pos >= size()) {
+                throw std::out_of_range("BufferLikeString::substr out_of_range");
+            }
+            return _str.substr(_erase_head + pos, size() - pos);
+        }
+
+        //获取部分
+        if (pos + n > size()) {
+            throw std::out_of_range("BufferLikeString::substr out_of_range");
+        }
+        return _str.substr(_erase_head + pos, n);
+    }
+
+private:
+    void moveData(){
+        if (_erase_head) {
+            _str.erase(0, _erase_head);
+            _erase_head = 0;
+        }
+    }
+
+private:
+    uint32_t _erase_head;
+    uint32_t _erase_tail;
+    string _str;
+};
 
 #if defined(_WIN32)
 struct iovec {
@@ -191,7 +428,7 @@ class BufferSock : public Buffer{
 public:
     typedef std::shared_ptr<BufferSock> Ptr;
     friend class BufferList;
-    BufferSock(const Buffer::Ptr &ptr,struct sockaddr *addr = nullptr, int addr_len = 0);
+    BufferSock(Buffer::Ptr ptr,struct sockaddr *addr = nullptr, int addr_len = 0);
     ~BufferSock();
     char *data() const override ;
     uint32_t size() const override;

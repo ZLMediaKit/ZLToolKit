@@ -23,6 +23,7 @@
 #include "Util/List.h"
 #include "Thread/TaskExecutor.h"
 #include "Thread/ThreadPool.h"
+#include "Network/Buffer.h"
 using namespace std;
 
 #if defined(__linux__) || defined(__linux)
@@ -116,6 +117,11 @@ public:
      */
     static EventPoller::Ptr getCurrentPoller();
 
+    /**
+     * 获取当前线程下所有socket共享的读缓存
+     */
+    BufferRaw::Ptr getSharedBuffer();
+
 private:
     /**
      * 本对象只允许在EventPollerPool中构造
@@ -175,7 +181,9 @@ private:
 private:
     //标记loop线程是否退出
     bool _exit_flag;
-
+    //当前线程下，所有socket共享的读缓存
+    weak_ptr<BufferRaw> _shared_buffer;
+    //线程优先级
     ThreadPool::Priority _priority;
     //正在运行事件循环时该锁处于被锁定状态
     mutex _mtx_runing;

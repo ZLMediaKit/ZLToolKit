@@ -137,13 +137,13 @@ BufferList::BufferList(List<Buffer::Ptr> &list) : _iovec(list.size()) {
     });
 }
 
-BufferSock::BufferSock(const Buffer::Ptr &buffer,struct sockaddr *addr, int addr_len){
+BufferSock::BufferSock(Buffer::Ptr buffer,struct sockaddr *addr, int addr_len){
     if(addr && addr_len){
         _addr = (struct sockaddr *)malloc(addr_len);
         memcpy(_addr,addr,addr_len);
         _addr_len = addr_len;
     }
-    _buffer = buffer;
+    _buffer = std::move(buffer);
 }
 
 BufferSock::~BufferSock(){
