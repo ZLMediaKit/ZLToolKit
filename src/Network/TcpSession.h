@@ -102,8 +102,9 @@ public:
 
 protected:
     int send(Buffer::Ptr buf) override {
+        auto size = buf->size();
         _ssl_box.onSend(buf);
-        return buf->size();
+        return size;
     }
 
 private:

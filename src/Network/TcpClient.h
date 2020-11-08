@@ -115,8 +115,9 @@ public:
 
     int send(Buffer::Ptr buf) override {
         if (_ssl_box) {
+            auto size = buf->size();
             _ssl_box->onSend(buf);
-            return buf->size();
+            return size;
         }
         return TcpClientType::send(std::move(buf));
     }
