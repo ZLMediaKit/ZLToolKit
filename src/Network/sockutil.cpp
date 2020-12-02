@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
  * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
@@ -233,6 +233,121 @@ private:
     unordered_map<string,DnsItem> _mapDns;
 };
 
+struct zl_sockaddr {
+	unsigned short  family;
+	union
+	{
+		struct sockaddr addr;
+		struct sockaddr_in addr_in;
+		struct sockaddr_in6 addr_in6;
+	};
+	size_t	addrlen;
+};
+
+class DnsCache1 {
+public:
+	static DnsCache1 &Instance() {
+		static DnsCache1 instance;
+		return instance;
+	}
+	bool getDomainIP(const char *host, zl_sockaddr &addr, int expireSec = 60) {
+		DnsItem item;
+		auto flag = getCacheDomainIP(host, item, expireSec);
+		if (!flag) {
+			flag = getSystemDomainIP(host, item._addr);
+			if (flag) {
+				setCacheDomainIP(host, item);
+			}
+		}
+		if (flag) {
+			addr = item._addr;
+		}
+		return flag;
+	}
+private:
+	DnsCache1() {}
+	~DnsCache1() {}
+
+	class DnsItem {
+	public:
+		zl_sockaddr _addr;
+		time_t _create_time;
+	};
+
+	bool getCacheDomainIP(const char *host, DnsItem &item, int expireSec) {
+		lock_guard<mutex> lck(_mtx);
+		auto it = _mapDns.find(host);
+		if (it == _mapDns.end()) {
+			//没有记录
+			return false;
+		}
+		if (it->second._create_time + expireSec < time(NULL)) {
+			//已过期
+			_mapDns.erase(it);
+			return false;
+		}
+		item = it->second;
+		return true;
+	}
+
+	void setCacheDomainIP(const char *host, DnsItem &item) {
+		lock_guard<mutex> lck(_mtx);
+		item._create_time = time(NULL);
+		_mapDns[host] = item;
+	}
+
+	bool getSystemDomainIP(const char *host, zl_sockaddr &addr) {
+		struct addrinfo *answer = nullptr;
+		//阻塞式dns解析，可能被打断
+		int ret = -1;
+		do {
+			struct addrinfo hints;
+			memset(&hints, 0, sizeof(hints));
+			//hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_UNSPEC;
+			hints.ai_socktype = SOCK_STREAM;//SOCK_DGRAM;//SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_IP;
+
+			ret = getaddrinfo(host, NULL, &hints, &answer);
+		} while (ret == -1 && get_uv_error(true) == UV_EINTR);
+
+		if (!answer) {
+			WarnL << "域名解析失败:" << host;
+			return false;
+		}
+		auto &info = *(answer);
+		addr.family = info.ai_family;
+		addr.addrlen = info.ai_addrlen;
+		if (info.ai_family == AF_INET)
+		{
+			addr.addr_in = *(sockaddr_in*)(info.ai_addr);
+		}
+		else if (info.ai_family == AF_INET6)
+		{
+			addr.addr_in6 = *(sockaddr_in6*)info.ai_addr;
+		}
+
+		freeaddrinfo(answer);
+		return true;
+	}
+private:
+	mutex _mtx;
+	unordered_map<string, DnsItem> _mapDns;
+};
+
+
+
+bool getDomainIP(const char *host, uint16_t port, struct zl_sockaddr &addr) {
+	bool flag = DnsCache1::Instance().getDomainIP(host, addr);
+	if (flag) {
+		if (addr.family == AF_INET)
+			addr.addr_in.sin_port = htons(port);
+		else if (addr.family == AF_INET6)
+			addr.addr_in6.sin6_port = htons(port);
+	}
+	return flag;
+}
+
 bool SockUtil::getDomainIP(const char *host,uint16_t port,struct sockaddr &addr){
     bool flag = DnsCache::Instance().getDomainIP(host,addr);
     if(flag){
@@ -242,15 +357,18 @@ bool SockUtil::getDomainIP(const char *host,uint16_t port,struct sockaddr &addr)
 }
 
 int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *localIp ,uint16_t localPort) {
-    sockaddr addr;
-    if(!DnsCache::Instance().getDomainIP(host,addr)){
+    zl_sockaddr addr;
+    if(!DnsCache1::Instance().getDomainIP(host,addr)){
         //dns解析失败
         return -1;
     }
     //设置端口号
-    ((sockaddr_in *)&addr)->sin_port = htons(port);
+	if (addr.family == AF_INET)
+		addr.addr_in.sin_port = htons(port);
+	else if (addr.family == AF_INET6)
+		addr.addr_in6.sin6_port = htons(port);
 
-    int sockfd= socket(addr.sa_family, SOCK_STREAM , IPPROTO_TCP);
+    int sockfd= socket(addr.family, SOCK_STREAM , IPPROTO_TCP);
     if (sockfd < 0) {
         WarnL << "创建套接字失败:" << host;
         return -1;
@@ -265,15 +383,29 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *lo
     setCloseWait(sockfd);
     setCloExec(sockfd);
 
-    if(bindSock(sockfd,localIp,localPort) == -1){
-        close(sockfd);
-        return -1;
-    }
 
-    if (::connect(sockfd, &addr, sizeof(struct sockaddr)) == 0) {
-        //同步连接成功
-        return sockfd;
-    }
+
+	zl_sockaddr addr_local;
+	if (!DnsCache1::Instance().getDomainIP(localIp, addr_local)) {
+		return -1;
+	}
+	if (addr_local.family == AF_INET)
+		addr_local.addr_in.sin_port = htons(localPort);
+	else if (addr_local.family == AF_INET6)
+		addr_local.addr_in6.sin6_port = htons(localPort);
+	
+	//绑定监听
+	if (::bind(sockfd, (struct sockaddr *) &addr_local.addr, addr.addrlen) == -1) {
+		close(sockfd);
+		return -1;
+	}
+
+	
+	if (::connect(sockfd, (struct sockaddr *) &addr.addr, addr.addrlen) == 0) {
+		//同步连接成功
+		return sockfd;
+	}
+
     if (bAsync &&  get_uv_error(true) == UV_EAGAIN) {
         //异步连接成功
         return sockfd;
@@ -284,8 +416,15 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *lo
 }
 
 int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
-    int sockfd = -1;
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	zl_sockaddr addr;
+	if (!DnsCache1::Instance().getDomainIP(localIp, addr)) {
+		//dns解析失败
+		return -1;
+	}
+	
+	
+	int sockfd = -1;
+    if ((sockfd = socket(addr.family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -294,10 +433,26 @@ int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
     setNoBlocked(sockfd);
     setCloExec(sockfd);
 
-    if(bindSock(sockfd,localIp,port) == -1){
-        close(sockfd);
-        return -1;
-    }
+	//ipv6only默认值在不同的操作系统上会有不同，设置0后，监听::0时将同时监听ipv4和ipv6地址
+	if (addr.family == AF_INET6) {
+		int ipv6only = 0;
+		if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&ipv6only, sizeof(ipv6only)) != 0) {
+			TraceL << "set ipv6only failed!";
+		}
+	}
+
+	
+	if (addr.family == AF_INET)
+		addr.addr_in.sin_port =  htons(port);
+	else if(addr.family == AF_INET6)
+		addr.addr_in6.sin6_port = htons(port);
+	
+	//绑定监听
+	if (::bind(sockfd, (struct sockaddr *) &addr.addr, addr.addrlen) == -1) {
+		WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+		return -1;
+	}
+
 
     //开始监听
     if (::listen(sockfd, backLog) == -1) {
@@ -321,17 +476,23 @@ int SockUtil::getSockError(int sockFd) {
 }
 
 string SockUtil::get_local_ip(int fd) {
-    struct sockaddr addr;
-    struct sockaddr_in* addr_v4;
-    socklen_t addr_len = sizeof(addr);
-    //获取local ip and port
-    memset(&addr, 0, sizeof(addr));
-    if (0 == getsockname(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in*) &addr;
-            return SockUtil::inet_ntoa(addr_v4->sin_addr);
-        }
-    }
+	struct sockaddr_in* addr_v4;
+	struct sockaddr_in6* addr_v6;
+	//get local ip and port
+	struct sockaddr_storage addr;
+	socklen_t addr_len = sizeof(addr);
+	if (0 == getsockname(fd, (sockaddr*)&addr, &addr_len)) {
+		if (addr.ss_family == AF_INET) {
+			addr_v4 = (sockaddr_in*)&addr;
+			return SockUtil::inet_ntoa(addr_v4->sin_addr);
+		}
+		else if (addr.ss_family == AF_INET6) {
+			addr_v6 = (sockaddr_in6*)&addr;
+			char buf[INET6_ADDRSTRLEN] = "";
+			inet_ntop(AF_INET6, (void*) &(addr_v6->sin6_addr), buf, INET6_ADDRSTRLEN);
+			return string(buf);
+		}
+	}
     return "";
 }
 
@@ -500,30 +661,76 @@ vector<map<string,string> > SockUtil::getInterfaceList(){
 };
 
 uint16_t SockUtil::get_local_port(int fd) {
-    struct sockaddr addr;
-    struct sockaddr_in* addr_v4;
-    socklen_t addr_len = sizeof(addr);
-    //获取remote ip and port
-    if (0 == getsockname(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in*) &addr;
-            return ntohs(addr_v4->sin_port);
-        }
-    }
+	struct sockaddr_in* addr_v4;
+	struct sockaddr_in6* addr_v6;
+	//获取local port
+	struct sockaddr_storage addr;
+	socklen_t addr_len = sizeof(addr);
+	if (0 == getsockname(fd, (sockaddr*)&addr, &addr_len)) {
+		if (addr.ss_family == AF_INET) {
+			addr_v4 = (sockaddr_in*)&addr;
+			return ntohs(addr_v4->sin_port);
+		}
+		else if (addr.ss_family == AF_INET6) {
+			addr_v6 = (sockaddr_in6*)&addr;
+			return ntohs(addr_v6->sin6_port);
+		}
+	}
     return 0;
 }
 
+//如果同时监听ipv4和ipv6地址，服务端看到的ipv4地址是映射到ipv6的地址
+//以::FFFF开头，例如 ::FFFF:192.168.1.100
+//是否是v4映射的v6地址
+static bool is_v4_mapped_v6(const sockaddr_in6 &addr)
+{
+	struct Prefix {
+		int64_t a = 0x0;
+		int16_t b = 0x0000;
+		int16_t c = 0xFFFF;
+	};
+	static const Prefix prefix;
+	static const int PREFIX_SIZE = 12;
+	// [00:00:00:00:00 :00:00:00:00:00 :ff:ff] 共12个字节 
+	if (memcmp(&prefix, &(addr.sin6_addr), PREFIX_SIZE) == 0)
+		return true;
+	else
+		return false;
+}
+
+//ipv4地址,映射前的地址 (网络字节序)
+static uint32_t get_ipv4_inv6(const sockaddr_in6 &addr)
+{
+	int32_t v4 = *(int32_t*)(addr.sin6_addr.s6_addr + 12);
+	return v4;
+}
+
 string SockUtil::get_peer_ip(int fd) {
-    struct sockaddr addr;
     struct sockaddr_in* addr_v4;
-    socklen_t addr_len = sizeof(addr);
+	struct sockaddr_in6* addr_v6;
     //获取remote ip and port
-    if (0 == getpeername(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in*) &addr;
-            return SockUtil::inet_ntoa(addr_v4->sin_addr);
-        }
-    }
+	struct sockaddr_storage addr;
+	socklen_t addr_len = sizeof(addr);
+	if (0 == getpeername(fd, (sockaddr*)&addr, &addr_len)) {
+		if (addr.ss_family == AF_INET) {
+			addr_v4 = (sockaddr_in*)&addr;
+			return SockUtil::inet_ntoa(addr_v4->sin_addr);
+		}
+		else if (addr.ss_family == AF_INET6) {
+			addr_v6 = (sockaddr_in6*)&addr;
+			if (is_v4_mapped_v6(*addr_v6))
+			{
+				uint32_t ipv4 = get_ipv4_inv6(*addr_v6);
+				char buf[20];
+				unsigned char *p = (unsigned char *) &(ipv4);
+				sprintf(buf, "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
+				return std::string(buf);
+			}
+			char buf[INET6_ADDRSTRLEN] = "";
+			inet_ntop(AF_INET6, (void*) &(addr_v6->sin6_addr), buf, INET6_ADDRSTRLEN);
+			return string(buf);
+		}
+	}
     return "";
 }
 
@@ -564,16 +771,22 @@ int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
 }
 
 uint16_t SockUtil::get_peer_port(int fd) {
-    struct sockaddr addr;
-    struct sockaddr_in* addr_v4;
-    socklen_t addr_len = sizeof(addr);
-    //获取remote ip and port
-    if (0 == getpeername(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in*) &addr;
-            return ntohs(addr_v4->sin_port);
-        }
-    }
+	struct sockaddr_in* addr_v4;
+	struct sockaddr_in6* addr_v6;
+	// socklen_t addr_len = sizeof(addr);
+	//获取remote ip and port
+	struct sockaddr_storage addr;
+	socklen_t addr_len = sizeof(addr);
+	if (0 == getpeername(fd, (sockaddr*)&addr, &addr_len)) {
+		if (addr.ss_family == AF_INET) {
+			addr_v4 = (sockaddr_in*)&addr;
+			return ntohs(addr_v4->sin_port);
+		}
+		else if (addr.ss_family == AF_INET6) {
+			addr_v6 = (sockaddr_in6*)&addr;
+			return ntohs(addr_v6->sin6_port);
+		}
+	}
     return 0;
 }
 
