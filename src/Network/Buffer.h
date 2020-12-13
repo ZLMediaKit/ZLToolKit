@@ -286,23 +286,22 @@ public:
         return append(str.data(), str.size());
     }
 
-    BufferLikeString& append(const char *data, int len = 0){
-        if(_erase_head > _str.capacity() / 2){
+    BufferLikeString& append(const char *data){
+        return append(data, strlen(data));
+    }
+
+    BufferLikeString& append(const char *data, int len){
+        if (len <= 0) {
+            return *this;
+        }
+        if (_erase_head > _str.capacity() / 2) {
             moveData();
         }
         if (_erase_tail == 0) {
-            if (len <= 0) {
-                _str.append(data);
-            } else {
-                _str.append(data, len);
-            }
+            _str.append(data, len);
             return *this;
         }
-        if (len <= 0) {
-            _str.insert(_erase_head + size(), data);
-        } else {
-            _str.insert(_erase_head + size(), data, len);
-        }
+        _str.insert(_erase_head + size(), data, len);
         return *this;
     }
 
@@ -321,21 +320,23 @@ public:
         return *this;
     }
 
-    BufferLikeString& assign(const char *data, int len = 0) {
+    BufferLikeString& assign(const char *data) {
+        return assign(data, strlen(data));
+    }
+
+    BufferLikeString& assign(const char *data, int len) {
+        if (len <= 0) {
+            return *this;
+        }
         if (data >= _str.data() && data < _str.data() + _str.size()) {
             _erase_head = data - _str.data();
-            len = len ? len : strlen(data);
             if (data + len > _str.data() + _str.size()) {
                 throw std::out_of_range("BufferLikeString::assign out_of_range");
             }
             _erase_tail = _str.data() + _str.size() - (data + len);
             return *this;
         }
-        if (len <= 0) {
-            _str.assign(data);
-        } else {
-            _str.assign(data, len);
-        }
+        _str.assign(data, len);
         _erase_head = 0;
         _erase_tail = 0;
         return *this;
