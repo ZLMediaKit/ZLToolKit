@@ -246,7 +246,7 @@ bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
     return -1 != result;
 }
 
-int Socket::onRead(const SockFD::Ptr &sock, bool is_udp) {
+int Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
     int ret = 0, nread = 0, sock_fd = sock->rawFd();
 
     auto data = _read_buffer->data();
@@ -282,7 +282,12 @@ int Socket::onRead(const SockFD::Ptr &sock, bool is_udp) {
 
         //触发回调
         LOCK_GUARD(_mtx_event);
-        _on_read(_read_buffer, &addr, len);
+        try {
+            //此处捕获异常，目的是防止数据未读尽，epoll边沿触发失效的问题
+            _on_read(_read_buffer, &addr, len);
+        } catch (std::exception &ex) {
+            ErrorL << "触发socket on_read事件时,捕获到异常:" << ex.what();
+        }
     }
     return 0;
 }
@@ -291,7 +296,7 @@ void Socket::onError(const SockFD::Ptr &sock) {
     emitErr(getSockErr(sock));
 }
 
-bool Socket::emitErr(const SockException& err) {
+bool Socket::emitErr(const SockException& err) noexcept{
     {
         LOCK_GUARD(_mtx_sock_fd);
         if (!_sock_fd) {
@@ -309,7 +314,11 @@ bool Socket::emitErr(const SockException& err) {
             return;
         }
         LOCK_GUARD(strong_self->_mtx_event);
-        strong_self->_on_err(err);
+        try {
+            strong_self->_on_err(err);
+        } catch (std::exception &ex) {
+            ErrorL << "触发socket on_err事件时,捕获到异常:" << ex.what();
+        }
     });
 
     return true;
@@ -455,7 +464,7 @@ bool Socket::bindUdpSock(uint16_t port, const string &local_ip) {
     return true;
 }
 
-int Socket::onAccept(const SockFD::Ptr &sock, int event) {
+int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
     int fd;
     while (true) {
         if (event & Event_Read) {
@@ -486,7 +495,14 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) {
             {
                 //拦截Socket对象的构造
                 LOCK_GUARD(_mtx_event);
-                peer_sock = _on_before_accept(_poller);
+                try {
+                    //此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题
+                    peer_sock = _on_before_accept(_poller);
+                } catch (std::exception &ex) {
+                    ErrorL << "触发socket before accept事件时,捕获到异常:" << ex.what();
+                    close(fd);
+                    continue;
+                }
             }
 
             if (!peer_sock) {
@@ -500,7 +516,13 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) {
             {
                 //先触发onAccept事件，此时应该监听该Socket的onRead等事件
                 LOCK_GUARD(_mtx_event);
-                _on_accept(peer_sock);
+                try {
+                    //此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题
+                    _on_accept(peer_sock);
+                } catch (std::exception &ex) {
+                    ErrorL << "触发socket accept事件时,捕获到异常:" << ex.what();
+                    continue;
+                }
             }
 
             //然后把该fd加入poll监听(确保先触发onAccept事件然后再触发onRead等事件)

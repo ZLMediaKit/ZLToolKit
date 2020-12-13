@@ -364,7 +364,7 @@ public:
      * @param err 错误原因
      * @return 是否成功触发onErr回调
      */
-    virtual bool emitErr(const SockException &err);
+    virtual bool emitErr(const SockException &err) noexcept;
 
     /**
      * 关闭或开启数据接收
@@ -449,8 +449,8 @@ public:
 private:
     SockFD::Ptr setPeerSock(int fd);
     SockFD::Ptr makeSock(int sock,SockNum::SockType type);
-    int onAccept(const SockFD::Ptr &sock, int event);
-    int onRead(const SockFD::Ptr &sock, bool is_udp = false);
+    int onAccept(const SockFD::Ptr &sock, int event) noexcept;
+    int onRead(const SockFD::Ptr &sock, bool is_udp = false) noexcept;
     void onError(const SockFD::Ptr &sock);
     void onWriteAble(const SockFD::Ptr &sock);
     void onConnected(const SockFD::Ptr &sock, const onErrCB &cb);
