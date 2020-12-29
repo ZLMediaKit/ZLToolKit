@@ -105,7 +105,11 @@ SSL_Initor::~SSL_Initor() {
     EVP_cleanup();
     ERR_free_strings();
     ERR_clear_error();
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
+    ERR_remove_thread_state(NULL);
+#elif OPENSSL_VERSION_NUMBER < 0x10000000L
     ERR_remove_state(0);
+#endif
     CRYPTO_set_locking_callback(NULL);
     //sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
     CRYPTO_cleanup_all_ex_data();
