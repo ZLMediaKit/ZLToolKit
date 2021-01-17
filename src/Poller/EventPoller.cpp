@@ -252,7 +252,8 @@ static map<thread::id, weak_ptr<EventPoller> > s_all_poller;
 BufferRaw::Ptr EventPoller::getSharedBuffer() {
     auto ret = _shared_buffer.lock();
     if (!ret) {
-        ret = std::make_shared<BufferRaw>(256 * 1024);
+        //预留一个字节存放\0结尾符
+        ret = std::make_shared<BufferRaw>(1 + SOCKET_DEFAULT_BUF_SIZE);
         _shared_buffer = ret;
     }
     return ret;
