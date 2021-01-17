@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -16,7 +16,7 @@ bool BufferList::empty() {
     return _iovec_off == _iovec.size();
 }
 
-int BufferList::count(){
+size_t BufferList::count(){
     return _iovec.size() - _iovec_off;
 }
 
@@ -45,8 +45,8 @@ int sendmsg(int fd, const struct msghdr *msg, int flags) {
 }
 #endif // defined(_WIN32)
 
-int BufferList::send_l(int fd, int flags,bool udp) {
-    int n;
+size_t BufferList::send_l(int fd, int flags,bool udp) {
+    size_t n;
     do {
         struct msghdr msg;
         if(!udp){
@@ -59,7 +59,7 @@ int BufferList::send_l(int fd, int flags,bool udp) {
         }
 
         msg.msg_iov = &(_iovec[_iovec_off]);
-        msg.msg_iovlen = _iovec.size() - _iovec_off;
+        msg.msg_iovlen = (decltype(msg.msg_iovlen))(_iovec.size() - _iovec_off);
         int max = udp ? 1 : IOV_MAX;
         if(msg.msg_iovlen > max){
             msg.msg_iovlen = max;
@@ -87,11 +87,11 @@ int BufferList::send_l(int fd, int flags,bool udp) {
     return n;
 }
 
-int BufferList::send(int fd,int flags,bool udp) {
+size_t BufferList::send(int fd, int flags, bool udp) {
     auto remainSize = _remainSize;
     while (_remainSize && send_l(fd,flags,udp) != -1);
 
-    int sent = remainSize - _remainSize;
+    auto sent = remainSize - _remainSize;
     if(sent > 0){
         //部分或全部发送成功
         return sent;
@@ -100,19 +100,19 @@ int BufferList::send(int fd,int flags,bool udp) {
     return -1;
 }
 
-void BufferList::reOffset(int n) {
+void BufferList::reOffset(size_t n) {
     _remainSize -= n;
-    int offset = 0;
-    int last_off = _iovec_off;
-    for(int i = _iovec_off ; i != _iovec.size() ; ++i ){
+    size_t offset = 0;
+    auto last_off = _iovec_off;
+    for(auto i = _iovec_off ; i != _iovec.size() ; ++i ){
         auto &ref = _iovec[i];
         offset += ref.iov_len;
         if(offset < n){
             continue;
         }
-        int remain = offset - n;
+        auto remain = offset - n;
         ref.iov_base = (char *)ref.iov_base + ref.iov_len - remain;
-        ref.iov_len = remain;
+        ref.iov_len = (decltype(ref.iov_len))remain;
         _iovec_off = i;
         if(remain == 0){
             _iovec_off += 1;
@@ -121,7 +121,7 @@ void BufferList::reOffset(int n) {
     }
 
     //删除已经发送的数据，节省内存
-    for (int i = last_off ; i < _iovec_off ; ++i){
+    for (auto i = last_off ; i < _iovec_off ; ++i){
         _pkt_list.pop_front();
     }
 }
@@ -131,7 +131,7 @@ BufferList::BufferList(List<Buffer::Ptr> &list) : _iovec(list.size()) {
     auto it = _iovec.begin();
     _pkt_list.for_each([&](Buffer::Ptr &buffer){
         it->iov_base = buffer->data();
-        it->iov_len = buffer->size();
+        it->iov_len = (decltype(it->iov_len))buffer->size();
         _remainSize += it->iov_len;
         ++it;
     });
@@ -156,7 +156,7 @@ char *BufferSock::data() const {
     return _buffer->data();
 }
 
-uint32_t BufferSock::size() const {
+size_t BufferSock::size() const {
     return _buffer->size();
 }
 

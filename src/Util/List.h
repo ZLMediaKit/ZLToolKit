@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -68,7 +68,7 @@ public:
         }
     }
 
-    uint64_t size() const{
+    size_t size() const{
         return _size;
     }
 
@@ -111,7 +111,7 @@ public:
         return _back->_data;
     }
 
-    T &operator[](uint64_t pos){
+    T &operator[](size_t pos){
         NodeType *front = _front ;
         while(pos--){
             front = front->next;
@@ -143,7 +143,7 @@ public:
         _back = other._back;
         other._back = tmp_node;
 
-        uint64_t tmp_size = _size;
+        size_t tmp_size = _size;
         _size = other._size;
         other._size = tmp_size;
     }
@@ -167,7 +167,7 @@ public:
 private:
     NodeType *_front = nullptr;
     NodeType *_back = nullptr;
-    uint64_t _size = 0;
+    size_t _size = 0;
 };
 
 } /* namespace toolkit */

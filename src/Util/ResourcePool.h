@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -83,7 +83,7 @@ public:
             delete ptr;
         });
     }
-    void setSize(int size) {
+    void setSize(size_t size) {
         _poolsize = size;
     }
 
@@ -108,10 +108,10 @@ private:
         _objs.emplace_back(obj);
     }
 private:
+    size_t _poolsize = 8;
     List<C*> _objs;
     function<C*(void)> _allotter;
     mutex _mutex;
-    int _poolsize = 8;
 };
 
 /**
@@ -131,7 +131,7 @@ public:
         pool = std::make_shared<ResourcePool_l<C> >(std::forward<ArgTypes>(args)...);
     }
 #endif //defined(SUPPORT_DYNAMIC_TEMPLATE)
-    void setSize(int size) {
+    void setSize(size_t size) {
         pool->setSize(size);
     }
     ValuePtr obtain() {

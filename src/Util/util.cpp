@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -98,11 +98,11 @@ string hexdump(const void *buf, size_t len) {
     for (size_t i = 0; i < len; i += 16) {
         for (int j = 0; j < 16; ++j) {
             if (i + j < len) {
-                int sz = sprintf(tmp, "%.2x ", data[i + j]);
+                int sz = snprintf(tmp, sizeof(tmp), "%.2x ", data[i + j]);
                 ret.append(tmp, sz);
             }
             else {
-                int sz = sprintf(tmp, "   ");
+                int sz = snprintf(tmp, sizeof(tmp), "   ");
                 ret.append(tmp, sz);
             }
         }
@@ -184,8 +184,8 @@ std::string strToUpper(std::string &&str) {
 
 vector<string> split(const string& s, const char *delim) {
     vector<string> ret;
-    int last = 0;
-    int index = s.find(delim, last);
+    size_t last = 0;
+    auto index = s.find(delim, last);
     while (index != string::npos) {
         if (index - last > 0) {
             ret.push_back(s.substr(last, index - last));
@@ -253,7 +253,7 @@ void usleep(int micro_seconds) {
 
 int gettimeofday(struct timeval *tp, void *tzp) {
     auto now_stamp = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    tp->tv_sec = now_stamp / 1000000LL;
+    tp->tv_sec = (decltype(tp->tv_sec))(now_stamp / 1000000LL);
     tp->tv_usec = now_stamp % 1000000LL;
     return 0;
 }

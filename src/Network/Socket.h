@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -84,7 +84,7 @@ public:
         _errCode = errCode;
     }
     //错误提示
-    virtual const char* what() const noexcept {
+    const char* what() const noexcept override{
         return _errMsg.c_str();
     }
     //错误代码
@@ -273,7 +273,7 @@ public:
     static Ptr createSocket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
     Socket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
 
-    virtual ~Socket();
+    ~Socket() override;
 
     /**
      * 创建tcp客户端并异步连接服务器
@@ -347,17 +347,17 @@ public:
      * @param try_flush 是否尝试写socket
      * @return -1代表失败(socket无效)，0代表数据长度为0，否则返回数据长度
      */
-    int send(const char *buf, int size = 0, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    size_t send(const char *buf, size_t size = 0, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送string
      */
-    int send(string buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    size_t send(string buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送Buffer对象，Socket对象发送数据的统一出口
      */
-    virtual int send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    virtual size_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 关闭socket且触发onErr回调，onErr回调将在poller线程中进行
@@ -432,7 +432,7 @@ public:
     /**
      * 获取发送缓存包个数(不是字节数)
      */
-    virtual int getSendBufferCount();
+    virtual size_t getSendBufferCount();
 
     /**
      * 获取上次socket发送缓存清空至今的毫秒数,单位毫秒
@@ -450,7 +450,7 @@ private:
     SockFD::Ptr setPeerSock(int fd);
     SockFD::Ptr makeSock(int sock,SockNum::SockType type);
     int onAccept(const SockFD::Ptr &sock, int event) noexcept;
-    int onRead(const SockFD::Ptr &sock, bool is_udp = false) noexcept;
+    size_t onRead(const SockFD::Ptr &sock, bool is_udp = false) noexcept;
     void onError(const SockFD::Ptr &sock);
     void onWriteAble(const SockFD::Ptr &sock);
     void onConnected(const SockFD::Ptr &sock, const onErrCB &cb);
@@ -514,7 +514,7 @@ class SockSender {
 public:
     SockSender() = default;
     virtual ~SockSender() = default;
-    virtual int send(Buffer::Ptr buf) = 0;
+    virtual size_t send(Buffer::Ptr buf) = 0;
     virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) = 0;
 
     //发送char *
@@ -533,8 +533,8 @@ public:
         return *this;
     }
 
-    int send(string buf);
-    int send(const char *buf, int size = 0);
+    size_t send(string buf);
+    size_t send(const char *buf, size_t size = 0);
 };
 
 //Socket对象的包装类
@@ -572,7 +572,7 @@ public:
      * @param len 需要拷贝的数据长度
      * @return 缓存
      */
-    BufferRaw::Ptr obtainBuffer(const void *data = nullptr, int len = 0);
+    BufferRaw::Ptr obtainBuffer(const void *data = nullptr, size_t len = 0);
 
     /**
      * 设置Socket创建器，自定义Socket创建方式
@@ -604,7 +604,7 @@ public:
     /**
      * 统一发送数据的出口
      */
-    int send(Buffer::Ptr buf) override;
+    size_t send(Buffer::Ptr buf) override;
 
     /**
      * 触发onErr事件

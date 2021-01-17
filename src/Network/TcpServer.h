@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -209,7 +209,7 @@ protected:
         _session_alloc = that._session_alloc;
         _socket->cloneFromListenSocket(*(that._socket));
         weak_ptr<TcpServer> weak_self = shared_from_this();
-        _timer = std::make_shared<Timer>(2, [weak_self]() -> bool {
+        _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
                 return false;
@@ -309,7 +309,7 @@ private:
 
         //新建一个定时器定时管理这些tcp会话
         weak_ptr<TcpServer> weak_self = shared_from_this();
-        _timer = std::make_shared<Timer>(2, [weak_self]() -> bool {
+        _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
                 return false;

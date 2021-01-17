@@ -66,7 +66,7 @@ public:
             ss << "invalid ini file:" << fileName;
             throw invalid_argument(ss.str());
         }
-        long size = in.tellg();
+        auto size = in.tellg();
         in.seekg(0, ios::beg);
         string buf;
         buf.resize(size);

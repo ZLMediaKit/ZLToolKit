@@ -6,7 +6,7 @@
 - 使用epoll+线程池+异步网络IO模式开发，并发性能优越。
 - 代码经过大量的稳定性、性能测试，可满足商用服务器项目。
 - 支持linux、macos、ios、android、windows平台
-- 了解更多:[ZLMediaKit](https://github.com/xiongziliang/ZLMediaKit)
+- 了解更多:[ZLMediaKit](https://github.com/xia-chu/ZLMediaKit)
 
 ## 特性
 - 网络库
@@ -109,7 +109,7 @@
 ## QA
  - 该库性能怎么样？
 
-基于ZLToolKit，我实现了一个流媒体服务器[ZLMediaKit](https://github.com/xiongziliang/ZLMediaKit);作者已经对其进行了性能测试，可以查看[benchmark.md](https://github.com/xiongziliang/ZLMediaKit/blob/master/benchmark.md)了解详情。
+基于ZLToolKit，我实现了一个流媒体服务器[ZLMediaKit](https://github.com/xia-chu/ZLMediaKit);作者已经对其进行了性能测试，可以查看[benchmark.md](https://github.com/xia-chu/ZLMediaKit/blob/master/benchmark.md)了解详情。
 
  - 该库稳定性怎么样？
 

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -28,8 +28,8 @@ Socket::Ptr Socket::createSocket(const EventPoller::Ptr &poller, bool enable_mut
 }
 
 Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex) :
-        _mtx_sock_fd(enable_mutex), _mtx_send_buf_waiting(enable_mutex),
-        _mtx_send_buf_sending(enable_mutex), _mtx_event(enable_mutex){
+        _mtx_sock_fd(enable_mutex), _mtx_event(enable_mutex),
+        _mtx_send_buf_waiting(enable_mutex), _mtx_send_buf_sending(enable_mutex){
 
     _poller = poller;
     if (!_poller) {
@@ -246,8 +246,9 @@ bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
     return -1 != result;
 }
 
-int Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
-    int ret = 0, nread = 0, sock_fd = sock->rawFd();
+size_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
+    size_t ret = 0, nread = 0;
+    auto sock_fd = sock->rawFd();
 
     auto data = _read_buffer->data();
     //最后一个字节设置为'\0'
@@ -258,7 +259,7 @@ int Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
 
     while (_enable_recv) {
         do {
-            nread = recvfrom(sock_fd, data, capacity, 0, &addr, &len);
+            nread = (size_t)recvfrom(sock_fd, data, capacity, 0, &addr, &len);
         } while (-1 == nread && UV_EINTR == get_uv_error(true));
 
         if (nread == 0) {
@@ -324,7 +325,7 @@ bool Socket::emitErr(const SockException& err) noexcept{
     return true;
 }
 
-int Socket::send(const char *buf, int size, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
+size_t Socket::send(const char *buf, size_t size, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
     if (size <= 0) {
         size = strlen(buf);
         if (!size) {
@@ -336,11 +337,11 @@ int Socket::send(const char *buf, int size, struct sockaddr *addr, socklen_t add
     return send(std::move(ptr), addr, addr_len, try_flush);
 }
 
-int Socket::send(string buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
+size_t Socket::send(string buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
     return send(std::make_shared<BufferString>(std::move(buf)), addr, addr_len, try_flush);
 }
 
-int Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush){
+size_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush){
     auto size = buf ? buf->size() : 0;
     if (!size) {
         return 0;
@@ -398,8 +399,8 @@ void Socket::closeSock() {
     _sock_fd  = nullptr;
 }
 
-int Socket::getSendBufferCount(){
-    int ret = 0;
+size_t Socket::getSendBufferCount(){
+    size_t ret = 0;
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
         ret += _send_buf_waiting.size();
@@ -469,7 +470,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
     while (true) {
         if (event & Event_Read) {
             do {
-                fd = accept(sock->rawFd(), NULL, NULL);
+                fd = (int)accept(sock->rawFd(), NULL, NULL);
             } while (-1 == fd && UV_EINTR == get_uv_error(true));
 
             if (fd == -1) {
@@ -622,7 +623,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
     bool is_udp = sock->type() == SockNum::Sock_UDP;
     while (!send_buf_sending_tmp.empty()) {
         auto &packet = send_buf_sending_tmp.front();
-        int n = packet->send(fd, _sock_flags, is_udp);
+        auto n = packet->send(fd, _sock_flags, is_udp);
         if (n > 0) {
             //全部或部分发送成功
             if (packet->empty()) {
@@ -791,11 +792,11 @@ SockSender &SockSender::operator<<(Buffer::Ptr buf) {
     return *this;
 }
 
-int SockSender::send(string buf) {
+size_t SockSender::send(string buf) {
     return send(std::make_shared<BufferString>(std::move(buf)));
 }
 
-int SockSender::send(const char *buf, int size) {
+size_t SockSender::send(const char *buf, size_t size) {
     auto buffer = std::make_shared<BufferRaw>();
     buffer->assign(buf, size);
     return send(std::move(buffer));
@@ -834,14 +835,14 @@ const Socket::Ptr& SocketHelper::getSock() const{
     return _sock;
 }
 
-int SocketHelper::send(Buffer::Ptr buf) {
+size_t SocketHelper::send(Buffer::Ptr buf) {
     if (!_sock) {
         return -1;
     }
     return _sock->send(std::move(buf), nullptr, 0, _try_flush);
 }
 
-BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, int len) {
+BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, size_t len) {
     BufferRaw::Ptr buffer;
     if (!_sock) {
         buffer = std::make_shared<BufferRaw>();

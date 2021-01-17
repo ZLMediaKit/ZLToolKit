@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -10,6 +10,12 @@
 
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
+
+#ifdef FD_SETSIZE
+#undef FD_SETSIZE
+//修改默认64为1024路
+#define FD_SETSIZE 1024
+#endif
 
 #include <ctime>
 #include <stdio.h>
@@ -20,7 +26,6 @@
 #include <vector>
 #include <unordered_map>
 #if defined(_WIN32)
-#define FD_SETSIZE 1024 //修改默认64为1024路
 #include <WinSock2.h>
 #pragma comment (lib,"WS2_32")
 #else

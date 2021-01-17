@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -84,8 +84,8 @@ public:
             static string defaultNull = "null";
 
             stringstream printer;
-            int maxLen_longOpt = 0;
-            int maxLen_default = defaultNull.size();
+            size_t maxLen_longOpt = 0;
+            auto maxLen_default = defaultNull.size();
 
             for (auto &pr : _map_options) {
                 auto &opt = pr.second;
@@ -133,7 +133,7 @@ public:
     }
 
     OptionParser &operator <<(Option &&option) {
-        int index = 0xFF + _map_options.size();
+        int index = 0xFF + (int)_map_options.size();
         if(option._shortOpt){
             _map_charIndex.emplace(option._shortOpt,index);
         }
@@ -141,7 +141,7 @@ public:
         return *this;
     }
     OptionParser &operator <<(const Option &option) {
-        int index = 0xFF + _map_options.size();
+        int index = 0xFF + (int)_map_options.size();
         if(option._shortOpt){
             _map_charIndex.emplace(option._shortOpt,index);
         }
@@ -201,8 +201,8 @@ protected:
     std::shared_ptr<OptionParser> _parser;
 private:
     void split(const string& s, const char *delim,vector<variant> &ret){
-        int last = 0;
-        int index = s.find(delim, last);
+        size_t last = 0;
+        auto index = s.find(delim, last);
         while (index != string::npos) {
             if(index - last > 0){
                 ret.push_back(s.substr(last, index - last));
@@ -258,7 +258,7 @@ public:
         }
 
         lock_guard<recursive_mutex> lck(_mtxCMD);
-        int maxLen = 0;
+        size_t maxLen = 0;
         for (auto &pr : _mapCMD) {
             if(pr.first.size() > maxLen){
                 maxLen = pr.first.size();
@@ -295,7 +295,7 @@ private:
     int getArgs(char *buf, vector<char *> &argv) {
         int argc = 0;
         bool start = false;
-        int len = strlen(buf);
+        auto len = strlen(buf);
         for (int i = 0; i < len; i++) {
             if (buf[i] != ' ' && buf[i] != '\t' && buf[i] != '\r' && buf[i] != '\n') {
                 if (!start) {

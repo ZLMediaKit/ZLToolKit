@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -15,7 +15,6 @@
 #include <sys/stat.h>
 
 namespace toolkit {
-    Logger* g_defaultLogger = &Logger::Instance();
 #ifdef _WIN32
 #define CLEAR_COLOR 7
 static const WORD LOG_CONST_TABLE[][3] = {
@@ -43,6 +42,19 @@ static const char *LOG_CONST_TABLE[][3] = {
         {"\033[43;37m", "\033[33m", "W"},
         {"\033[41;37m", "\033[31m", "E"}};
 #endif
+
+Logger* g_defaultLogger = nullptr;
+
+Logger &getLogger() {
+    if (!g_defaultLogger) {
+        g_defaultLogger = &Logger::Instance();
+    }
+    return *g_defaultLogger;
+}
+
+void setLogger(Logger *logger) {
+    g_defaultLogger = logger;
+}
 
 ///////////////////Logger///////////////////
 INSTANCE_IMP(Logger, exeName());
@@ -417,7 +429,7 @@ static onceToken s_token([](){
 
 });
 
-int64_t FileChannel::getDay(time_t second) {
+uint64_t FileChannel::getDay(time_t second) {
     return (second + s_gmtoff) / s_second_per_day;
 }
 

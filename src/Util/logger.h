@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -32,8 +32,12 @@ namespace toolkit {
 class LogContext;
 class LogChannel;
 class LogWriter;
+class Logger;
 typedef std::shared_ptr<LogContext> LogContextPtr;
 typedef enum { LTrace = 0, LDebug, LInfo, LWarn, LError} LogLevel;
+
+Logger& getLogger();
+void setLogger(Logger *logger);
 
 /**
  * 日志类
@@ -263,10 +267,9 @@ public:
 private:
     /**
      * 获取1970年以来的第几天
-     * @param second
-     * @return
      */
-    int64_t getDay(time_t second);
+    uint64_t getDay(time_t second);
+
     /**
      * 删除老文件
      */
@@ -279,8 +282,6 @@ private:
     int _log_max_day = 30;
 };
 
-
-
 #if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 class SysLogChannel : public LogChannel {
 public:
@@ -290,15 +291,12 @@ public:
 };
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
-//可重置默认值
-extern Logger* g_defaultLogger;
-
-#define TraceL LogContextCapturer(*g_defaultLogger, LTrace, __FILE__,__FUNCTION__, __LINE__)
-#define DebugL LogContextCapturer(*g_defaultLogger,LDebug, __FILE__,__FUNCTION__, __LINE__)
-#define InfoL LogContextCapturer(*g_defaultLogger,LInfo, __FILE__,__FUNCTION__, __LINE__)
-#define WarnL LogContextCapturer(*g_defaultLogger,LWarn,__FILE__, __FUNCTION__, __LINE__)
-#define ErrorL LogContextCapturer(*g_defaultLogger,LError,__FILE__, __FUNCTION__, __LINE__)
-#define WriteL(level) LogContextCapturer(*g_defaultLogger,level,__FILE__, __FUNCTION__, __LINE__)
+#define TraceL LogContextCapturer(getLogger(), LTrace, __FILE__,__FUNCTION__, __LINE__)
+#define DebugL LogContextCapturer(getLogger(),LDebug, __FILE__,__FUNCTION__, __LINE__)
+#define InfoL LogContextCapturer(getLogger(),LInfo, __FILE__,__FUNCTION__, __LINE__)
+#define WarnL LogContextCapturer(getLogger(),LWarn,__FILE__, __FUNCTION__, __LINE__)
+#define ErrorL LogContextCapturer(getLogger(),LError,__FILE__, __FUNCTION__, __LINE__)
+#define WriteL(level) LogContextCapturer(getLogger(),level,__FILE__, __FUNCTION__, __LINE__)
 
 } /* namespace toolkit */
 #endif /* UTIL_LOGGER_H_ */

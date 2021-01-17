@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -45,7 +45,7 @@ namespace toolkit {
 string SockUtil::inet_ntoa(struct in_addr &addr) {
     char buf[20];
     unsigned char *p = (unsigned char *) &(addr);
-    sprintf(buf, "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
+    snprintf(buf, sizeof(buf), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
     return buf;
 }
 
@@ -252,7 +252,7 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *lo
     //设置端口号
     ((sockaddr_in *)&addr)->sin_port = htons(port);
 
-    int sockfd= socket(addr.sa_family, SOCK_STREAM , IPPROTO_TCP);
+    int sockfd = (int)socket(addr.sa_family, SOCK_STREAM , IPPROTO_TCP);
     if (sockfd < 0) {
         WarnL << "创建套接字失败:" << host;
         return -1;
@@ -287,7 +287,7 @@ int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *lo
 
 int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
     int sockfd = -1;
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+    if ((sockfd = (int)socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -545,7 +545,7 @@ int SockUtil::bindSock(int sockFd,const char *ifr_ip,uint16_t port){
 
 int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
     int sockfd = -1;
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+    if ((sockfd = (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }

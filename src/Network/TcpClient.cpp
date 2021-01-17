@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -98,7 +98,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
         strongSelf->onRecv(pBuf);
     });
 
-    _timer = std::make_shared<Timer>(2, [weakSelf]() {
+    _timer = std::make_shared<Timer>(2.0f, [weakSelf]() {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
             return false;

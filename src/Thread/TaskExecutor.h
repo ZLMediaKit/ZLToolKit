@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -115,7 +115,7 @@ public:
         if(totalTime == 0){
             return 0;
         }
-        return totalRunTime * 100 / totalTime;
+        return (int)(totalRunTime * 100 / totalTime);
     }
 
 private:
@@ -312,7 +312,7 @@ public:
         TaskExecutor::Ptr executor_min_load = _threads[thread_pos];
         auto min_load = executor_min_load->load();
 
-        for(int i = 0; i < _threads.size() ; ++i , ++thread_pos ){
+        for(auto i = 0; i < _threads.size() ; ++i , ++thread_pos ){
             if(thread_pos >= _threads.size()){
                 thread_pos = 0;
             }
@@ -351,14 +351,14 @@ public:
      * @return
      */
     void getExecutorDelay(const function<void(const vector<int> &)> &callback){
-        int totalCount = _threads.size();
+        auto totalCount = _threads.size();
         std::shared_ptr<atomic_int> completed = std::make_shared<atomic_int>(0);
         std::shared_ptr<vector<int> > delayVec = std::make_shared<vector<int>>(totalCount);
         int index = 0;
         for (auto &th : _threads){
             std::shared_ptr<Ticker> ticker = std::make_shared<Ticker >();
             th->async([completed,totalCount,delayVec,index,ticker,callback](){
-                (*delayVec)[index] = ticker->elapsedTime();
+                (*delayVec)[index] = (int)ticker->elapsedTime();
                 if(++(*completed) == totalCount){
                     callback((*delayVec));
                 }

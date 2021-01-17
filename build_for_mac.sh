@@ -4,7 +4,7 @@ brew install cmake
 brew install mysql
 brew install openssl
 cd ..
-git clone --depth=50 https://github.com/xiongziliang/ZLToolKit.git
+git clone --depth=50 https://github.com/xia-chu/ZLToolKit.git
 cd ZLToolKit
 mkdir -p mac_build
 rm -rf ./build

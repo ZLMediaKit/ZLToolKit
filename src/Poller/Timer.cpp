@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -20,7 +20,7 @@ Timer::Timer(float second,
     if(!_poller){
         _poller = EventPollerPool::Instance().getPoller();
     }
-    _tag = _poller->doDelayTask(second * 1000, [cb, second , continueWhenException]() {
+    _tag = _poller->doDelayTask((uint64_t)(second * 1000), [cb, second , continueWhenException]() {
         try {
             if (cb()) {
                 //重复的任务

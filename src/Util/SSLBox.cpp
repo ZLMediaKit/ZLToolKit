@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -383,7 +383,7 @@ void SSL_Box::flushWriteBio() {
     int nread = 0;
     auto buffer_bio = _buffer_pool.obtain();
     buffer_bio->setCapacity(_buff_size);
-    int buf_size = buffer_bio->getCapacity() - 1;
+    auto buf_size = buffer_bio->getCapacity() - 1;
     do {
         nread = BIO_read(_write_bio, buffer_bio->data() + total, buf_size - total);
         if (nread > 0) {
@@ -416,7 +416,7 @@ void SSL_Box::flushReadBio() {
     int nread = 0;
     auto buffer_bio = _buffer_pool.obtain();
     buffer_bio->setCapacity(_buff_size);
-    int buf_size = buffer_bio->getCapacity() - 1;
+    auto buf_size = buffer_bio->getCapacity() - 1;
     do {
         nread = SSL_read(_ssl.get(), buffer_bio->data() + total, buf_size - total);
         if (nread > 0) {
