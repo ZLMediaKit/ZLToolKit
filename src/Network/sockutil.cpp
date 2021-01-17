@@ -57,7 +57,9 @@ int SockUtil::setCloseWait(int sockFd, int second) {
     m_sLinger.l_linger = second; //设置等待时间为x秒
     int ret = setsockopt(sockFd, SOL_SOCKET, SO_LINGER, (char*) &m_sLinger, sizeof(linger));
     if (ret == -1) {
+#ifndef _WIN32
         TraceL << "设置 SO_LINGER 失败!";
+#endif
     }
     return ret;
 }
