@@ -26,7 +26,6 @@
 #pragma comment(lib, "shlwapi.lib")
 #endif // defined(_WIN32)
 
-
 #if defined(__MACH__) || defined(__APPLE__)
 #include <mach/mach.h>
 #include <mach/mach_time.h>
@@ -152,19 +151,23 @@ string exePath() {
 
     return filePath;
 }
+
 string exeDir() {
     auto path = exePath();
     return path.substr(0, path.rfind('/') + 1);
 }
+
 string exeName() {
     auto path = exePath();
     return path.substr(path.rfind('/') + 1);
 }
+
 // string转小写
 std::string &strToLower(std::string &str) {
     transform(str.begin(), str.end(), str.begin(), towlower);
     return str;
 }
+
 // string转大写
 std::string &strToUpper(std::string &str) {
     transform(str.begin(), str.end(), str.begin(), towupper);
@@ -174,12 +177,13 @@ std::string &strToUpper(std::string &str) {
 // string转小写
 std::string strToLower(std::string &&str) {
     transform(str.begin(), str.end(), str.begin(), towlower);
-    return str;
+    return std::move(str);
 }
+
 // string转大写
 std::string strToUpper(std::string &&str) {
     transform(str.begin(), str.end(), str.begin(), towupper);
-    return str;
+    return std::move(str);
 }
 
 vector<string> split(const string& s, const char *delim) {
@@ -207,15 +211,16 @@ do{ \
     } \
     while( s.size() && map.at((unsigned char &)s.back())) s.pop_back(); \
     while( s.size() && map.at((unsigned char &)s.front())) s.erase(0,1); \
-    return s; \
 }while(0);
 
 //去除前后的空格、回车符、制表符
 std::string& trim(std::string &s, const string &chars) {
     TRIM(s, chars);
+    return s;
 }
 std::string trim(std::string &&s, const string &chars) {
     TRIM(s, chars);
+    return std::move(s);
 }
 
 void replace(string &str, const string &old_str, const string &new_str) {
