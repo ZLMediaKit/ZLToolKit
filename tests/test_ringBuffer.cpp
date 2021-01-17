@@ -83,8 +83,12 @@ int main() {
     //等待写线程退出
     group.join_all();
 
-    //释放环形缓冲，此时触发Detach事件
+    //释放环形缓冲，此时异步触发Detach事件
     g_ringBuf.reset();
+    //等待异步触发Detach事件
+    sleep(1);
+    //消除对EventPoller对象的引用
+    ringReader.reset();
     sleep(1);
     return 0;
 }
