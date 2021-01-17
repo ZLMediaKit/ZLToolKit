@@ -99,10 +99,10 @@ private:
     }
 
 private:
-    function<void(const T &)> _read_cb = [](const T &) {};
-    function<void(void)> _detach_cb = []() {};
-    shared_ptr<_RingStorage<T> > _storage;
     bool _use_cache;
+    shared_ptr<_RingStorage<T> > _storage;
+    function<void(void)> _detach_cb = []() {};
+    function<void(const T &)> _read_cb = [](const T &) {};
 };
 
 template<typename T>
@@ -129,22 +129,30 @@ public:
      void write(T in, bool is_key = true) {
         if (is_key) {
             //遇到I帧，那么移除老数据
-            _data_cache.clear();
             _size = 0;
+            _have_idr = true;
+            _data_cache.clear();
+        }
+
+        if (!_have_idr) {
+            //缓存中没有关键帧，那么gop缓存无效
+            return;
         }
         _data_cache.emplace_back(std::make_pair(is_key, std::move(in)));
         if (++_size > _max_size) {
-            //GOP缓存溢出，需要移除老数据
-            _data_cache.pop_front();
-            --_size;
+            //GOP缓存溢出，清空关老数据
+            _size = 0;
+            _have_idr = false;
+            _data_cache.clear();
         }
     }
 
     Ptr clone() const {
         Ptr ret(new _RingStorage());
-        ret->_data_cache = _data_cache;
-        ret->_max_size = _max_size;
         ret->_size = _size;
+        ret->_have_idr = _have_idr;
+        ret->_max_size = _max_size;
+        ret->_data_cache = _data_cache;
         return ret;
     }
 
@@ -153,17 +161,18 @@ public:
     }
 
     void clearCache(){
-        _data_cache.clear();
         _size = 0;
+        _data_cache.clear();
     }
 
 private:
     _RingStorage() = default;
 
 private:
-    deque<pair<bool, T> > _data_cache;
-    int _max_size;
+    bool _have_idr = false;
     int _size = 0;
+    int _max_size;
+    deque<pair<bool, T> > _data_cache;
 };
 
 template<typename T>
@@ -250,8 +259,8 @@ private:
     }
 
 private:
-    function<void(int, bool)> _on_size_changed;
     atomic_int _reader_size;
+    function<void(int, bool)> _on_size_changed;
     typename RingStorage::Ptr _storage;
     unordered_map<void *, std::weak_ptr<RingReader> > _reader_map;
 };
