@@ -176,6 +176,10 @@ bool end_with(const string &str, const string &substr);
 #define bzero(ptr,size)  memset((ptr),0,(size));
 #endif //bzero
 
+#ifndef ssize_t
+#define ssize_t int64_t
+#endif
+
 #if defined(ANDROID)
 template <typename T>
 std::string to_string(T value){

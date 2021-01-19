@@ -405,13 +405,13 @@ private:
 #if defined(_WIN32)
 struct iovec {
     void *   iov_base;	/* [XSI] Base address of I/O memory region */
-    int	 iov_len;	/* [XSI] Size of region iov_base points to */
+    size_t	 iov_len;	/* [XSI] Size of region iov_base points to */
 };
 struct msghdr {
     void		*msg_name;	/* [XSI] optional address */
-    int			msg_namelen;	/* [XSI] size of address */
+    size_t  	msg_namelen;	/* [XSI] size of address */
     struct		iovec *msg_iov;	/* [XSI] scatter/gather array */
-    int			msg_iovlen;	/* [XSI] # elements in msg_iov */
+    size_t 		msg_iovlen;	/* [XSI] # elements in msg_iov */
     void		*msg_control;	/* [XSI] ancillary data, see below */
     int			msg_controllen;	/* [XSI] ancillary data buffer len */
     int			msg_flags;	/* [XSI] flags on received message */
@@ -449,11 +449,11 @@ public:
 
     bool empty();
     size_t count();
-    size_t send(int fd, int flags, bool udp);
+    ssize_t send(int fd, int flags, bool udp);
 
 private:
     void reOffset(size_t n);
-    size_t send_l(int fd, int flags, bool udp);
+    ssize_t send_l(int fd, int flags, bool udp);
 
 private:
     size_t _iovec_off = 0;

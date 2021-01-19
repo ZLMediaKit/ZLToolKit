@@ -103,8 +103,8 @@ public:
     void start() {
         if (_thread_num <= 0)
             return;
-        auto total =  _thread_num - _thread_group.size();
-        for (auto i = 0; i < total; ++i) {
+        ssize_t total = _thread_num - _thread_group.size();
+        for (ssize_t i = 0; i < total; ++i) {
             _thread_group.create_thread(bind(&ThreadPool::run, this));
         }
     }
@@ -137,9 +137,9 @@ private:
         _queue.push_exit(_thread_num);
     }
 private:
+    size_t _thread_num;
     TaskQueue<Task::Ptr> _queue;
     thread_group _thread_group;
-    int _thread_num;
     Priority _priority;
     Logger::Ptr _logger;
 };

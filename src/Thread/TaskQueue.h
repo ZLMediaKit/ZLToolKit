@@ -44,7 +44,7 @@ public:
         _sem.post();
     }
     //清空任务列队
-    void push_exit(unsigned int n) {
+    void push_exit(size_t n) {
         _sem.post(n);
     }
     //从列队获取一个任务，由执行线程执行

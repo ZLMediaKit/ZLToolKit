@@ -312,7 +312,7 @@ public:
         TaskExecutor::Ptr executor_min_load = _threads[thread_pos];
         auto min_load = executor_min_load->load();
 
-        for(auto i = 0; i < _threads.size() ; ++i , ++thread_pos ){
+        for(size_t i = 0; i < _threads.size() ; ++i , ++thread_pos ){
             if(thread_pos >= _threads.size()){
                 thread_pos = 0;
             }
@@ -352,7 +352,7 @@ public:
      */
     void getExecutorDelay(const function<void(const vector<int> &)> &callback){
         auto totalCount = _threads.size();
-        std::shared_ptr<atomic_int> completed = std::make_shared<atomic_int>(0);
+        std::shared_ptr<size_t> completed = std::make_shared<size_t>(0);
         std::shared_ptr<vector<int> > delayVec = std::make_shared<vector<int>>(totalCount);
         int index = 0;
         for (auto &th : _threads){
@@ -387,8 +387,8 @@ protected:
         }
     }
 protected:
+    size_t _thread_pos = 0;
     vector <TaskExecutor::Ptr > _threads;
-    int _thread_pos = 0;
 };
 
 }//toolkit

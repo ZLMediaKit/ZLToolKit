@@ -52,7 +52,7 @@ int main() {
 
     Ticker ticker;
     thread_group thread_producer;
-    for (auto i = 0; i < thread::hardware_concurrency(); ++i) {
+    for (size_t i = 0; i < thread::hardware_concurrency(); ++i) {
         thread_producer.create_thread([]() {
             //1个生产者线程
             onProduce();

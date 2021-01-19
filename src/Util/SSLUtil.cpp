@@ -129,7 +129,7 @@ shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, co
 
     pem_password_cb *cb = [](char *buf, int size, int rwflag, void *userdata) -> int{
         const string *passwd = (const string *)userdata;
-        size = (int)(size < passwd->size() ? size :  passwd->size());
+        size = size < (int)passwd->size() ? size : (int)passwd->size();
         memcpy(buf,passwd->data(),size);
         return size;
     };

@@ -106,7 +106,7 @@ public:
                 }else{
                     printer <<"   " << " " <<"  --" << opt._longOpt;
                 }
-                for(int i=0;i< maxLen_longOpt - opt._longOpt.size();++i){
+                for (size_t i = 0; i < maxLen_longOpt - opt._longOpt.size(); ++i) {
                     printer << " ";
                 }
                 //打印是否有参
@@ -117,7 +117,7 @@ public:
                     defaultValue = *opt._defaultValue;
                 }
                 printer << "  " << defaultPrefix << defaultValue;
-                for(int i=0;i< maxLen_default - defaultValue.size();++i){
+                for (size_t i = 0; i < maxLen_default - defaultValue.size(); ++i) {
                     printer << " ";
                 }
                 //打印是否必填参数
@@ -266,7 +266,7 @@ public:
         }
         for (auto &pr : _mapCMD) {
             (*stream) << "  " << pr.first;
-            for(int i=0;i< maxLen - pr.first.size();++i){
+            for (size_t i = 0; i < maxLen - pr.first.size(); ++i) {
                 (*stream) << " ";
             }
             (*stream) << "  " << pr.second->description() << endl;
@@ -277,7 +277,7 @@ public:
             return;
         }
         vector<char *> argv;
-        int argc = getArgs((char *)line.data(), argv);
+        size_t argc = getArgs((char *)line.data(), argv);
         if (argc == 0) {
             return;
         }
@@ -289,14 +289,15 @@ public:
             ss << "  未识别的命令\"" << cmd << "\",输入 \"help\" 获取帮助.";
             throw std::invalid_argument(ss.str());
         }
-        (*it->second)(argc,&argv[0],stream);
+        (*it->second)((int)argc,&argv[0],stream);
     };
+
 private:
-    int getArgs(char *buf, vector<char *> &argv) {
-        int argc = 0;
+    size_t getArgs(char *buf, vector<char *> &argv) {
+        size_t argc = 0;
         bool start = false;
         auto len = strlen(buf);
-        for (int i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; ++i) {
             if (buf[i] != ' ' && buf[i] != '\t' && buf[i] != '\r' && buf[i] != '\n') {
                 if (!start) {
                     start = true;

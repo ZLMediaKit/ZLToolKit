@@ -347,17 +347,17 @@ public:
      * @param try_flush 是否尝试写socket
      * @return -1代表失败(socket无效)，0代表数据长度为0，否则返回数据长度
      */
-    size_t send(const char *buf, size_t size = 0, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    ssize_t send(const char *buf, size_t size = 0, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送string
      */
-    size_t send(string buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    ssize_t send(string buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送Buffer对象，Socket对象发送数据的统一出口
      */
-    virtual size_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    virtual ssize_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 关闭socket且触发onErr回调，onErr回调将在poller线程中进行
@@ -450,7 +450,7 @@ private:
     SockFD::Ptr setPeerSock(int fd);
     SockFD::Ptr makeSock(int sock,SockNum::SockType type);
     int onAccept(const SockFD::Ptr &sock, int event) noexcept;
-    size_t onRead(const SockFD::Ptr &sock, bool is_udp = false) noexcept;
+    ssize_t onRead(const SockFD::Ptr &sock, bool is_udp = false) noexcept;
     void onError(const SockFD::Ptr &sock);
     void onWriteAble(const SockFD::Ptr &sock);
     void onConnected(const SockFD::Ptr &sock, const onErrCB &cb);
@@ -514,7 +514,7 @@ class SockSender {
 public:
     SockSender() = default;
     virtual ~SockSender() = default;
-    virtual size_t send(Buffer::Ptr buf) = 0;
+    virtual ssize_t send(Buffer::Ptr buf) = 0;
     virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) = 0;
 
     //发送char *
@@ -533,8 +533,8 @@ public:
         return *this;
     }
 
-    size_t send(string buf);
-    size_t send(const char *buf, size_t size = 0);
+    ssize_t send(string buf);
+    ssize_t send(const char *buf, size_t size = 0);
 };
 
 //Socket对象的包装类
@@ -604,7 +604,7 @@ public:
     /**
      * 统一发送数据的出口
      */
-    size_t send(Buffer::Ptr buf) override;
+    ssize_t send(Buffer::Ptr buf) override;
 
     /**
      * 触发onErr事件

@@ -444,7 +444,7 @@ static string getLogFilePath(const string &dir, uint64_t day) {
 void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     //这条日志所在第几天
     auto day = getDay(ctx->_tv.tv_sec);
-    if (day != _last_day) {
+    if ((int64_t)day != _last_day) {
         //这条日志是新的一天，记录这一天
         _last_day = day;
         //获取日志当天对应的文件，每天只有一个文件

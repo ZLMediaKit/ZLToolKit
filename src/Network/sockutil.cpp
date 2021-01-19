@@ -123,14 +123,16 @@ int SockUtil::setCloExec(int fd, bool on) {
 }
 
 int SockUtil::setNoSigpipe(int sd) {
-    int set = 1, ret = 1;
 #if defined(SO_NOSIGPIPE)
-    ret= setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, (char*)&set, sizeof(int));
+    int set = 1;
+    auto ret = setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, (char*)&set, sizeof(int));
     if (ret == -1) {
         TraceL << "设置 SO_NOSIGPIPE 失败!";
     }
-#endif
     return ret;
+#else
+    return -1;
+#endif
 }
 
 int SockUtil::setNoBlocked(int sock, bool noblock) {

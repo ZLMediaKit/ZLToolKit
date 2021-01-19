@@ -238,7 +238,7 @@ string File::loadFile(const char *path) {
     auto len = ftell(fp);
     fseek(fp,0,SEEK_SET);
     string str(len,'\0');
-    if (-1 == fread((char *) str.data(), str.size(), 1, fp)) {
+    if (0 <= fread((char *) str.data(), str.size(), 1, fp)) {
         WarnL << "fread failed:" << get_uv_errmsg();
     }
     fclose(fp);
