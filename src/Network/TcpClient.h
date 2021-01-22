@@ -88,6 +88,8 @@ private:
 private:
     string _net_adapter = "0.0.0.0";
     std::shared_ptr<Timer> _timer;
+    //对象个数统计
+    ObjectStatistic<TcpClient> _statistic;
 };
 
 //用于实现TLS客户端的模板对象

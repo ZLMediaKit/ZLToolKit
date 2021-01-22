@@ -11,6 +11,12 @@
 #include "Buffer.h"
 
 namespace toolkit {
+
+StatisticImp(Buffer);
+StatisticImp(BufferRaw);
+StatisticImp(BufferLikeString);
+StatisticImp(BufferList);
+
 ///////////////BufferList/////////////////////
 bool BufferList::empty() {
     return _iovec_off == _iovec.size();

@@ -508,6 +508,8 @@ private:
     List<BufferList::Ptr> _send_buf_sending;
     //二级发送缓存锁
     MutexWrapper<recursive_mutex> _mtx_send_buf_sending;
+    //对象个数统计
+    ObjectStatistic<Socket> _statistic;
 };
 
 class SockSender {

@@ -24,6 +24,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <atomic>
 #include <unordered_map>
 #if defined(_WIN32)
 #include <WinSock2.h>
@@ -146,6 +147,33 @@ private:
     Creator() = default;
     ~Creator() = default;
 };
+
+
+template <class C>
+class ObjectStatistic{
+public:
+    ObjectStatistic(){
+        ++getCounter();
+    }
+
+    ~ObjectStatistic(){
+        --getCounter();
+    }
+
+    static size_t count(){
+        return getCounter().load();
+    }
+
+private:
+    static atomic<size_t> & getCounter();
+};
+
+#define StatisticImp(Type)  \
+    template<> \
+    atomic<size_t>& ObjectStatistic<Type>::getCounter(){ \
+        static atomic<size_t> instance(0); \
+        return instance; \
+    }
 
 string makeRandStr(int sz, bool printable = true);
 string hexdump(const void *buf, size_t len);

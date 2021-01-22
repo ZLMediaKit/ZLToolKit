@@ -13,6 +13,8 @@
 
 namespace toolkit {
 
+StatisticImp(TcpSession);
+
 TcpSession::TcpSession( const Socket::Ptr &sock) : SocketHelper(sock) {
 }
 
