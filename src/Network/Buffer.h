@@ -43,6 +43,10 @@ public:
     virtual size_t getCapacity() const{
         return size();
     }
+
+private:
+    //对象个数统计
+    ObjectStatistic<Buffer> _statistic;
 };
 
 template <typename C>
@@ -163,6 +167,8 @@ private:
     size_t _size = 0;
     size_t _capacity = 0;
     char *_data = nullptr;
+    //对象个数统计
+    ObjectStatistic<BufferRaw> _statistic;
 };
 
 class BufferLikeString : public Buffer {
@@ -400,6 +406,8 @@ private:
     size_t _erase_head;
     size_t _erase_tail;
     string _str;
+    //对象个数统计
+    ObjectStatistic<BufferLikeString> _statistic;
 };
 
 #if defined(_WIN32)
@@ -460,6 +468,8 @@ private:
     size_t _remainSize = 0;
     vector<struct iovec> _iovec;
     List<Buffer::Ptr> _pkt_list;
+    //对象个数统计
+    ObjectStatistic<BufferList> _statistic;
 };
 
 }//namespace toolkit

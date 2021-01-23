@@ -67,6 +67,10 @@ public:
      * @param ex 触发onError事件的原因
      */
     void safeShutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
+
+private:
+    //对象个数统计
+    ObjectStatistic<TcpSession> _statistic;
 };
 
 //通过该模板可以让TCP服务器快速支持TLS

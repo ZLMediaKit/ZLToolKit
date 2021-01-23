@@ -12,6 +12,8 @@
 
 namespace toolkit {
 
+StatisticImp(TcpClient);
+
 TcpClient::TcpClient(const EventPoller::Ptr &poller) : SocketHelper(nullptr) {
     setPoller(poller ? poller : EventPollerPool::Instance().getPoller());
     setOnCreateSocket([](const EventPoller::Ptr &poller) {

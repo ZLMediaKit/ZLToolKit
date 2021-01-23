@@ -23,6 +23,8 @@ using namespace std;
 
 namespace toolkit {
 
+StatisticImp(Socket);
+
 Socket::Ptr Socket::createSocket(const EventPoller::Ptr &poller, bool enable_mutex){
     return Socket::Ptr(new Socket(poller, enable_mutex));
 }
