@@ -354,6 +354,8 @@ private:
     unordered_map<TcpSessionHelper *, TcpSessionHelper::Ptr> _session_map;
     function<TcpSessionHelper::Ptr(const TcpServer::Ptr &server, const Socket::Ptr &)> _session_alloc;
     unordered_map<EventPoller *, Ptr> _cloned_server;
+    //对象个数统计
+    ObjectStatistic<TcpServer> _statistic;
 };
 
 } /* namespace toolkit */

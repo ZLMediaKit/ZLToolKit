@@ -13,6 +13,7 @@
 namespace toolkit {
 
 INSTANCE_IMP(SessionMap);
+StatisticImp(TcpServer);
 
 } /* namespace toolkit */
 
