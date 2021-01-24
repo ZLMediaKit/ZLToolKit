@@ -101,10 +101,11 @@ public:
     }
 
     void start() {
-        if (_thread_num <= 0)
+        if (_thread_num <= 0) {
             return;
-        ssize_t total = _thread_num - _thread_group.size();
-        for (ssize_t i = 0; i < total; ++i) {
+        }
+        size_t total = _thread_num - _thread_group.size();
+        for (size_t i = 0; i < total; ++i) {
             _thread_group.create_thread(bind(&ThreadPool::run, this));
         }
     }

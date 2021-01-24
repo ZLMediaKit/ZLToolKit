@@ -249,8 +249,7 @@ bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
 }
 
 ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
-    ssize_t ret = 0;
-    ssize_t nread = 0;
+    ssize_t ret = 0, nread = 0;
     auto sock_fd = sock->rawFd();
 
     auto data = _read_buffer->data();
