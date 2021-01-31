@@ -101,7 +101,7 @@ public:
 private:
     void recycle(C *obj) {
         std::lock_guard<decltype(_mutex)> lck(_mutex);
-        if ((int)_objs.size() >= _poolsize) {
+        if (_objs.size() >= _poolsize) {
             delete obj;
             return;
         }
