@@ -29,6 +29,8 @@ namespace toolkit {
 
 template<typename C>
 class ResourcePool_l;
+template<typename C>
+class ResourcePool;
 
 template<typename C>
 class shared_ptr_imp : public std::shared_ptr<C> {
@@ -41,7 +43,7 @@ public:
      * @param weakPool 管理本指针的循环池
      * @param quit 对接是否放弃循环使用
      */
-    shared_ptr_imp(C *ptr,const std::weak_ptr<ResourcePool_l<C> > &weakPool , const std::shared_ptr<atomic_bool> &quit) ;
+    shared_ptr_imp(C *ptr,const std::weak_ptr<ResourcePool_l<C> > &weakPool, std::shared_ptr<atomic_bool> quit) ;
 
     /**
      * 放弃或恢复回到循环池继续使用
@@ -56,12 +58,13 @@ private:
     std::shared_ptr<atomic_bool> _quit;
 };
 
-
 template<typename C>
 class ResourcePool_l: public enable_shared_from_this<ResourcePool_l<C> > {
 public:
     typedef shared_ptr_imp<C> ValuePtr;
     friend class shared_ptr_imp<C>;
+    friend class ResourcePool<C>;
+
     ResourcePool_l() {
         _allotter = []()->C* {
             return new C();
@@ -78,40 +81,61 @@ public:
 #endif //defined(SUPPORT_DYNAMIC_TEMPLATE)
 
     ~ResourcePool_l(){
-        std::lock_guard<decltype(_mutex)> lck(_mutex);
         _objs.for_each([](C *ptr){
             delete ptr;
         });
     }
+
     void setSize(size_t size) {
         _poolsize = size;
     }
 
     ValuePtr obtain() {
-        std::lock_guard<decltype(_mutex)> lck(_mutex);
         C *ptr;
-        if (_objs.size() == 0) {
-            ptr = _allotter();
+        auto is_busy = _busy.test_and_set();
+        if (!is_busy) {
+            //获取到锁
+            if (_objs.size() == 0) {
+                ptr = _allotter();
+            } else {
+                ptr = _objs.front();
+                _objs.pop_front();
+            }
+            _busy.clear();
         } else {
-            ptr = _objs.front();
-            _objs.pop_front();
+            //未获取到锁
+            ptr = _allotter();
         }
-        return ValuePtr(ptr,this->shared_from_this(),std::make_shared<atomic_bool>(false));
+        return ValuePtr(ptr, _weak_self, std::make_shared<atomic_bool>(false));
     }
+
 private:
     void recycle(C *obj) {
-        std::lock_guard<decltype(_mutex)> lck(_mutex);
-        if (_objs.size() >= _poolsize) {
+        auto is_busy = _busy.test_and_set();
+        if (!is_busy) {
+            //获取到锁
+            if (_objs.size() >= _poolsize) {
+                delete obj;
+            } else {
+                _objs.emplace_back(obj);
+            }
+            _busy.clear();
+        } else {
+            //未获取到锁
             delete obj;
-            return;
         }
-        _objs.emplace_back(obj);
     }
+
+    void setup(){
+        _weak_self = this->shared_from_this();
+    }
+
 private:
     size_t _poolsize = 8;
     List<C*> _objs;
     function<C*(void)> _allotter;
-    mutex _mutex;
+    atomic_flag _busy{false};
+    weak_ptr<ResourcePool_l > _weak_self;
 };
 
 /**
@@ -123,12 +147,14 @@ class ResourcePool {
 public:
     typedef shared_ptr_imp<C> ValuePtr;
     ResourcePool() {
-            pool.reset(new ResourcePool_l<C>());
+        pool.reset(new ResourcePool_l<C>());
+        pool->setup();
     }
 #if defined(SUPPORT_DYNAMIC_TEMPLATE)
     template<typename ...ArgTypes>
     ResourcePool(ArgTypes &&...args) {
         pool = std::make_shared<ResourcePool_l<C> >(std::forward<ArgTypes>(args)...);
+        pool->setup();
     }
 #endif //defined(SUPPORT_DYNAMIC_TEMPLATE)
     void setSize(size_t size) {
@@ -144,7 +170,7 @@ private:
 template<typename C>
 shared_ptr_imp<C>::shared_ptr_imp(C *ptr,
                                   const std::weak_ptr<ResourcePool_l<C> > &weakPool ,
-                                  const std::shared_ptr<atomic_bool> &quit ) :
+                                  std::shared_ptr<atomic_bool> quit ) :
         shared_ptr<C>(ptr,[weakPool,quit](C *ptr){
             auto strongPool = weakPool.lock();
             if (strongPool && !(*quit)) {
@@ -153,7 +179,7 @@ shared_ptr_imp<C>::shared_ptr_imp(C *ptr,
             } else {
                 delete ptr;
             }
-        }),_quit(quit) {}
+        }),_quit(std::move(quit)) {}
 
 } /* namespace toolkit */
 #endif /* UTIL_RECYCLEPOOL_H_ */
