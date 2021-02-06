@@ -253,7 +253,8 @@ BufferRaw::Ptr EventPoller::getSharedBuffer() {
     auto ret = _shared_buffer.lock();
     if (!ret) {
         //预留一个字节存放\0结尾符
-        ret = std::make_shared<BufferRaw>(1 + SOCKET_DEFAULT_BUF_SIZE);
+        ret = BufferRaw::create();
+        ret->setCapacity(1 + SOCKET_DEFAULT_BUF_SIZE);
         _shared_buffer = ret;
     }
     return ret;

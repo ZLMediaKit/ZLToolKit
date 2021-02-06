@@ -9,6 +9,7 @@
  */
 
 #include "Buffer.h"
+#include "Util/onceToken.h"
 
 namespace toolkit {
 
@@ -17,7 +18,22 @@ StatisticImp(BufferRaw);
 StatisticImp(BufferLikeString);
 StatisticImp(BufferList);
 
+BufferRaw::Ptr BufferRaw::create(){
+#if 0
+    static ResourcePool<BufferRaw> packet_pool;
+    static onceToken token([]() {
+        packet_pool.setSize(1024);
+    });
+    auto ret = packet_pool.obtain();
+    ret->setSize(0);
+    return ret;
+#else
+    return Ptr(new BufferRaw);
+#endif
+}
+
 ///////////////BufferList/////////////////////
+
 bool BufferList::empty() {
     return _iovec_off == _iovec.size();
 }

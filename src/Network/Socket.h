@@ -385,12 +385,6 @@ public:
     virtual void setSendTimeOutSecond(uint32_t second);
 
     /**
-     * 从缓存池获取一片缓存
-     * @return 一片缓存
-     */
-    virtual BufferRaw::Ptr obtainBuffer();
-
-    /**
      * 套接字是否忙，如果套接字写缓存已满则返回true
      * @return 套接字是否忙
      */
@@ -567,14 +561,6 @@ public:
      * 套接字是否忙，如果套接字写缓存已满则返回true
      */
     bool isSocketBusy() const;
-
-    /**
-     * 从缓存池中获取一片缓存
-     * @param data 需要拷贝的数据
-     * @param len 需要拷贝的数据长度
-     * @return 缓存
-     */
-    BufferRaw::Ptr obtainBuffer(const void *data = nullptr, size_t len = 0);
 
     /**
      * 设置Socket创建器，自定义Socket创建方式

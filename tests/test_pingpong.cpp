@@ -110,7 +110,8 @@ int main(int argc,char *argv[]){
         auto ip      = cmd.splitedVal("server")[0];
         int port     = cmd.splitedVal("server")[1];
         int delay    = cmd["delay"];
-        BufferRaw::Ptr buffer = std::make_shared<BufferRaw>(block);
+        auto buffer = BufferRaw::create();
+        buffer->setCapacity(block);
         buffer->setSize(block);
 
         TcpServer::Ptr server(new TcpServer);

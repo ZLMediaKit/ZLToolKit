@@ -334,7 +334,7 @@ ssize_t Socket::send(const char *buf, size_t size, struct sockaddr *addr, sockle
             return 0;
         }
     }
-    BufferRaw::Ptr ptr = obtainBuffer();
+    auto ptr = BufferRaw::create();
     ptr->assign(buf, size);
     return send(std::move(ptr), addr, addr_len, try_flush);
 }
@@ -734,10 +734,6 @@ void Socket::setSendTimeOutSecond(uint32_t second){
     _max_send_buffer_ms = second * 1000;
 }
 
-BufferRaw::Ptr Socket::obtainBuffer() {
-    return std::make_shared<BufferRaw>();//_bufferPool.obtain();
-}
-
 bool Socket::isSocketBusy() const{
     return !_sendable.load();
 }
@@ -799,7 +795,7 @@ ssize_t SockSender::send(string buf) {
 }
 
 ssize_t SockSender::send(const char *buf, size_t size) {
-    auto buffer = std::make_shared<BufferRaw>();
+    auto buffer = BufferRaw::create();
     buffer->assign(buf, size);
     return send(std::move(buffer));
 }
@@ -843,19 +839,6 @@ ssize_t SocketHelper::send(Buffer::Ptr buf) {
     }
     return _sock->send(std::move(buf), nullptr, 0, _try_flush);
 }
-
-BufferRaw::Ptr SocketHelper::obtainBuffer(const void *data, size_t len) {
-    BufferRaw::Ptr buffer;
-    if (!_sock) {
-        buffer = std::make_shared<BufferRaw>();
-    } else {
-        buffer = _sock->obtainBuffer();
-    }
-    if (data && len) {
-        buffer->assign((const char *) data, len);
-    }
-    return buffer;
-};
 
 void SocketHelper::shutdown(const SockException &ex) {
     if (_sock) {

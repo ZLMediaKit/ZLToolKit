@@ -20,8 +20,9 @@
 #include <sstream>
 #include <functional>
 #include "Util/util.h"
-#include "Util/uv_errno.h"
 #include "Util/List.h"
+#include "Util/uv_errno.h"
+#include "Util/ResourcePool.h"
 #include "Network/sockutil.h"
 using namespace std;
 
@@ -92,18 +93,11 @@ typedef BufferOffset<string> BufferString;
 //指针式缓存对象，
 class BufferRaw : public Buffer{
 public:
-    typedef std::shared_ptr<BufferRaw> Ptr;
-    BufferRaw(size_t capacity = 0) {
-        if(capacity){
-            setCapacity(capacity);
-        }
-    }
+    using Ptr = std::shared_ptr<BufferRaw>;
 
-    BufferRaw(const char *data,size_t size = 0){
-        assign(data,size);
-    }
+    static Ptr create();
 
-    ~BufferRaw() {
+    ~BufferRaw() override{
         if(_data){
             delete [] _data;
         }
@@ -162,6 +156,20 @@ public:
     size_t getCapacity() const override{
         return _capacity;
     }
+
+protected:
+    friend class ResourcePool_l<BufferRaw>;
+
+    BufferRaw(size_t capacity = 0) {
+        if(capacity){
+            setCapacity(capacity);
+        }
+    }
+
+    BufferRaw(const char *data,size_t size = 0){
+        assign(data,size);
+    }
+
 
 private:
     size_t _size = 0;
