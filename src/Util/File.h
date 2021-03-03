@@ -68,7 +68,7 @@ public:
     //判断是否是特殊目录（. or ..）
     static bool is_special_dir(const char *path);
     //删除目录或文件
-    static void delete_file(const char *path) ;
+    static int delete_file(const char *path) ;
 
     /**
      * 加载文件内容至string

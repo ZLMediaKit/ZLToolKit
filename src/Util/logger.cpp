@@ -135,17 +135,18 @@ static inline const char *getFunctionName(const char *func) {
 #endif
 }
 
-LogContext::LogContext(LogLevel level, const char *file, const char *function, int line) :
+LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, unsigned long threadId /*= 0*/) :
         _level(level),
         _line(line),
         _file(getFileName(file)),
+        _threadId(threadId),
         _function(getFunctionName(function)) {
     gettimeofday(&_tv, NULL);
 }
 
 ///////////////////AsyncLogWriter///////////////////
-LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
-        _ctx(new LogContext(level, file, function, line)), _logger(logger) {
+LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line, unsigned long threadId/* = 0*/) :
+        _ctx(new LogContext(level, file, function, line, threadId)), _logger(logger) {
 }
 
 LogContextCapturer::LogContextCapturer(const LogContextCapturer &that) : _ctx(that._ctx), _logger(that._logger) {
@@ -320,7 +321,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 
     if (enableDetail) {
 #if defined(_WIN32)
-        ost << logger.getName() <<"[" << GetCurrentProcessId();
+        ost << logger.getName() <<"[" << ctx->_threadId;
 #else
         ost << logger.getName() << "[" << getpid();
 #endif
@@ -394,6 +395,12 @@ void FileChannelBase::close() {
     _fstream.close();
 }
 
+
+uint64_t FileChannelBase::size()
+{
+    return (_fstream << std::flush).tellp();
+}
+
 ///////////////////FileChannel///////////////////
 FileChannel::~FileChannel() {}
 
@@ -402,6 +409,37 @@ FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) 
     if (_dir.back() != '/') {
         _dir.append("/");
     }
+    File::scanDir(_dir, [this](const string& path, bool isDir)->bool {
+        if (!isDir)
+		{
+			struct stat statbuf;
+			if (stat(path.c_str(), &statbuf) == 0) {
+				_log_file_map[statbuf.st_mtime] = path;
+			}
+        }
+		return true;
+        });
+    auto temFileName = getTimeStr("%Y-%m-%d_");
+	for (auto it = _log_file_map.begin(); it != _log_file_map.end(); it++) {
+        auto path = it->second;
+        std::string name = toolkit::getFileName(path.c_str());
+        if (name.find(temFileName) != std::string::npos)
+        {
+            auto endPath = _log_file_map.rbegin()->second;
+            std::string endName = toolkit::getFileName(endPath.c_str());
+			int tm_mday;  // day of the month - [1, 31]
+			int tm_mon;   // months since January - [0, 11]
+			int tm_year;  // years since 1900
+            int32_t index;
+            int count = sscanf(endName.c_str(), "%d-%02d-%02d_%d.log", &tm_year, &tm_mon, &tm_mday, &index);
+            if (count == 4)
+            {
+                _index = index;
+                _log_file_map.erase(_log_file_map.rbegin()->first);
+            }
+			break;
+        }
+	}
 }
 
 static const auto s_second_per_day = 24 * 60 * 60;
@@ -433,31 +471,28 @@ uint64_t FileChannel::getDay(time_t second) {
     return (second + s_gmtoff) / s_second_per_day;
 }
 
-static string getLogFilePath(const string &dir, uint64_t day) {
-    time_t second = s_second_per_day * day;
+static string getLogFilePath(const string &dir, time_t second, int32_t index) {
     struct tm *tm = localtime(&second);
     char buf[32];
-    snprintf(buf, sizeof(buf), "%d-%02d-%02d.log", 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday);
+    snprintf(buf, sizeof(buf), "%d-%02d-%02d_%d.log", 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, index);
     return dir + buf;
 }
 
 void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     //这条日志所在第几天
-    auto day = getDay(ctx->_tv.tv_sec);
-    if ((int64_t)day != _last_day) {
+    time_t second = ctx->_tv.tv_sec;
+    auto day = getDay(second);
+    if (day != _last_day) {
+		if (_last_day != -1)
+			_index = 0;
         //这条日志是新的一天，记录这一天
         _last_day = day;
         //获取日志当天对应的文件，每天只有一个文件
-        auto log_file = getLogFilePath(_dir, day);
-        //记录所有的日志文件，以便后续删除老的日志
-        _log_file_map.emplace(day, log_file);
-        //打开新的日志文件
-        _canWrite = setPath(log_file);
-        if (!_canWrite){
-            ErrorL << "Failed to open log file: " << _path;
-        }
-        clean();
+        changeFile(second);
     }
+    else
+        checkSize(second);
+
     //写日志
     if (_canWrite){
         FileChannelBase::write(logger, ctx);
@@ -469,7 +504,8 @@ void FileChannel::clean() {
     auto today = getDay(time(NULL));
     //遍历所有日志文件，删除老日志
     for (auto it = _log_file_map.begin(); it != _log_file_map.end();) {
-        if (today < it->first + _log_max_day) {
+        auto day = getDay(it->first);
+        if (today < day + _log_max_day) {
             //这个日志文件距今不超过_log_max_day天
             break;
         }
@@ -478,10 +514,60 @@ void FileChannel::clean() {
         //删除这条记录
         it = _log_file_map.erase(it);
     }
+
+	//按文件个数清理
+	while (_log_file_map.size() > _log_max_count)
+	{
+		auto it = _log_file_map.begin();
+		File::delete_file(it->second.data());
+		//删除这条记录
+		it = _log_file_map.erase(it);
+	}
+}
+
+
+void FileChannel::checkSize(time_t second)
+{
+    if (getCurrentMillisecond() - _last_check_time > 60000)
+    {
+        auto size = (float)FileChannelBase::size() / 1024 / 1024;
+        if (size > _log_max_size)
+        {
+            changeFile(second);
+        }
+        _last_check_time = getCurrentMillisecond();
+    }
+}
+
+
+void FileChannel::changeFile(time_t second)
+{
+	auto log_file = getLogFilePath(_dir, second, _index);
+	//记录所有的日志文件，以便后续删除老的日志
+	_log_file_map.emplace(second, log_file);
+	//打开新的日志文件
+	_canWrite = setPath(log_file);
+	if (!_canWrite) {
+		ErrorL << "Failed to open log file: " << _path;
+	}
+	clean();
+	_index++;
 }
 
 void FileChannel::setMaxDay(int max_day) {
     _log_max_day = max_day > 1 ? max_day : 1;
+}
+
+
+void FileChannel::setFileMaxSize(int max_size)
+{
+    _log_max_size = max_size > 1 ? max_size : 1;
+}
+
+
+void FileChannel::setFileMaxCount(int max_count)
+{
+	_log_max_count = max_count > 1 ? max_count : 1;
 }
 
 } /* namespace toolkit */

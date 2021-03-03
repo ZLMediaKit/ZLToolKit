@@ -202,18 +202,16 @@ void get_file_path(const char *path, const char *file_name, char *file_path) {
     }
     strcat(file_path, file_name);
 }
-void File::delete_file(const char *path) {
+int File::delete_file(const char *path) {
     DIR *dir;
     dirent *dir_info;
     char file_path[PATH_MAX];
     if (is_file(path)) {
-        remove(path);
-        return;
+        return remove(path);
     }
     if (is_dir(path)) {
         if ((dir = opendir(path)) == NULL) {
-            _rmdir(path);
-            return;
+            return _rmdir(path);
         }
         while ((dir_info = readdir(dir)) != NULL) {
             if (is_special_dir(dir_info->d_name)) {
@@ -222,11 +220,12 @@ void File::delete_file(const char *path) {
             get_file_path(path, dir_info->d_name, file_path);
             delete_file(file_path);
         }
-        _rmdir(path);
+        auto ret = _rmdir(path);
         closedir(dir);
-        return;
+        return ret;
     }
     _unlink(path);
+    return -1;
 }
 
 string File::loadFile(const char *path) {

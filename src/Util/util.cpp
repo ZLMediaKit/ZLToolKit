@@ -118,6 +118,17 @@ string hexdump(const void *buf, size_t len) {
     return ret;
 }
 
+string hexmem(const void* buf, size_t len) {
+	string ret;
+	char tmp[8];
+	const uint8_t* data = (const uint8_t*)buf;
+	for (int i = 0; i < len; ++i) {
+		int sz = sprintf(tmp, "%.2x ", data[i]);
+		ret.append(tmp, sz);
+	}
+	return ret;
+}
+
 string exePath() {
     char buffer[PATH_MAX * 2 + 1] = { 0 };
     int n = -1;

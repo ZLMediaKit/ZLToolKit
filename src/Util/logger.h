@@ -118,12 +118,13 @@ class LogContext : public ostringstream{
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
 public:
-    LogContext(LogLevel level,const char *file,const char *function,int line);
+    LogContext(LogLevel level,const char *file,const char *function,int line, unsigned long threadId = 0);
     ~LogContext() = default;
     LogLevel _level;
     int _line;
     string _file;
     string _function;
+    unsigned long _threadId;
     struct timeval _tv;
 };
 
@@ -133,7 +134,7 @@ public:
 class LogContextCapturer {
 public:
     typedef std::shared_ptr<LogContextCapturer> Ptr;
-    LogContextCapturer(Logger &logger,LogLevel level, const char *file, const char *function, int line);
+    LogContextCapturer(Logger &logger,LogLevel level, const char *file, const char *function, int line, unsigned long threadId = 0);
     LogContextCapturer(const LogContextCapturer &that);
 
     ~LogContextCapturer();
@@ -238,6 +239,8 @@ public:
 protected:
     virtual bool open();
     virtual void close();
+    virtual uint64_t size();
+
 protected:
     ofstream _fstream;
     string _path;
@@ -264,22 +267,46 @@ public:
      * @param max_day
      */
     void setMaxDay(int max_day);
+
+    /**
+     * 设置日志文件最大大小
+     * @param max_size 單位MB
+     */
+    void setFileMaxSize(int max_size);
+
+    /**
+     * 设置日志文件最大大小
+     * @param max_size 單位MB
+     */
+    void setFileMaxCount(int max_count);
+
 private:
     /**
      * 获取1970年以来的第几天
+     * @param second
+     * @return
      */
     uint64_t getDay(time_t second);
-
     /**
-     * 删除老文件
+     * 删除老文件,超个数文件
      */
     void clean();
+    /**
+     * 删除老文件,超个数文件
+     */
+    void checkSize(time_t second);
+
+    void changeFile(time_t second);
 private:
     bool _canWrite = false;
     string _dir;
     int64_t _last_day = -1;
     map<uint64_t,string> _log_file_map;
-    int _log_max_day = 30;
+	int _log_max_day = 30;
+	int _log_max_size = 128;
+	int _log_max_count = 30;
+    uint64_t _last_check_time = 0;
+    int32_t _index = 0;
 };
 
 #if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
@@ -291,12 +318,22 @@ public:
 };
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
+//可重置默认值
+extern Logger* g_defaultLogger;
+#if defined(_WIN32)
+#define TraceL LogContextCapturer(getLogger(), LTrace, __FILE__,__FUNCTION__, __LINE__, GetCurrentThreadId())
+#define DebugL LogContextCapturer(getLogger(),LDebug, __FILE__,__FUNCTION__, __LINE__, GetCurrentThreadId())
+#define InfoL LogContextCapturer(getLogger(),LInfo, __FILE__,__FUNCTION__, __LINE__, GetCurrentThreadId())
+#define WarnL LogContextCapturer(getLogger(),LWarn,__FILE__, __FUNCTION__, __LINE__, GetCurrentThreadId())
+#define ErrorL LogContextCapturer(getLogger(),LError,__FILE__, __FUNCTION__, __LINE__, GetCurrentThreadId())
+#define WriteL(level) LogContextCapturer(getLogger(),level,__FILE__, __FUNCTION__, __LINE__, GetCurrentThreadId())
+#else
 #define TraceL LogContextCapturer(getLogger(), LTrace, __FILE__,__FUNCTION__, __LINE__)
 #define DebugL LogContextCapturer(getLogger(),LDebug, __FILE__,__FUNCTION__, __LINE__)
 #define InfoL LogContextCapturer(getLogger(),LInfo, __FILE__,__FUNCTION__, __LINE__)
 #define WarnL LogContextCapturer(getLogger(),LWarn,__FILE__, __FUNCTION__, __LINE__)
 #define ErrorL LogContextCapturer(getLogger(),LError,__FILE__, __FUNCTION__, __LINE__)
 #define WriteL(level) LogContextCapturer(getLogger(),level,__FILE__, __FUNCTION__, __LINE__)
-
+#endif
 } /* namespace toolkit */
 #endif /* UTIL_LOGGER_H_ */
