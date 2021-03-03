@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -11,6 +11,12 @@
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
 
+#ifdef FD_SETSIZE
+#undef FD_SETSIZE
+//修改默认64为1024路
+#define FD_SETSIZE 1024
+#endif
+
 #include <ctime>
 #include <stdio.h>
 #include <string.h>
@@ -18,14 +24,16 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <atomic>
 #include <unordered_map>
 #if defined(_WIN32)
-#define FD_SETSIZE 1024 //修改默认64为1024路
 #include <WinSock2.h>
 #pragma comment (lib,"WS2_32")
 #else
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <stddef.h>
 #endif // defined(_WIN32)
 
 #if defined(__APPLE__)
@@ -142,6 +150,33 @@ private:
     ~Creator() = default;
 };
 
+
+template <class C>
+class ObjectStatistic{
+public:
+    ObjectStatistic(){
+        ++getCounter();
+    }
+
+    ~ObjectStatistic(){
+        --getCounter();
+    }
+
+    static size_t count(){
+        return getCounter().load();
+    }
+
+private:
+    static atomic<size_t> & getCounter();
+};
+
+#define StatisticImp(Type)  \
+    template<> \
+    atomic<size_t>& ObjectStatistic<Type>::getCounter(){ \
+        static atomic<size_t> instance(0); \
+        return instance; \
+    }
+
 string makeRandStr(int sz, bool printable = true);
 string hexdump(const void *buf, size_t len);
 string exePath();
@@ -158,8 +193,14 @@ std::string strToLower(std::string &&str);
 // string转大写
 std::string &strToUpper(std::string &str);
 std::string strToUpper(std::string &&str);
+//替换子字符串
 void replace(string &str, const string &old_str, const string &new_str) ;
+//判断是否为ip
 bool isIP(const char *str);
+//字符串是否以xx开头
+bool start_with(const string &str, const string &substr);
+//字符串是否以xx结尾
+bool end_with(const string &str, const string &substr);
 
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));
@@ -182,7 +223,10 @@ int asprintf(char **strp, const char *fmt, ...);
 #if !defined(strcasecmp)
 #define strcasecmp _stricmp
 #endif
-
+const char *strcasestr(const char *big, const char *little);
+#ifndef ssize_t
+#define ssize_t int64_t
+#endif
 #endif //WIN32
 
 /**

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -19,88 +19,118 @@ namespace toolkit {
 
 class Ticker {
 public:
-    Ticker(int64_t minMs = 0,
-           LogContextCapturer && ctx = LogContextCapturer(Logger::Instance(),LWarn, __FILE__, "", __LINE__),
-           bool printLog = false):_ctx(ctx) {
-        if(!printLog){
+    /**
+     * 此对象可以用于代码执行时间统计，以可以用于一般计时
+     * @param min_ms 开启码执行时间统计时，如果代码执行耗时超过该参数，则打印警告日志
+     * @param ctx 日志上下文捕获，用于捕获当前日志代码所在位置
+     * @param print_log 是否打印代码执行时间
+     */
+    Ticker(uint64_t min_ms = 0,
+           LogContextCapturer ctx = LogContextCapturer(Logger::Instance(), LWarn, __FILE__, "", __LINE__),
+           bool print_log = false) : _ctx(std::move(ctx)) {
+        if (!print_log) {
             _ctx.clear();
         }
         _created = _begin = getCurrentMillisecond();
-        _minMs = minMs;
+        _min_ms = min_ms;
     }
+
     ~Ticker() {
-        int64_t tm = createdTime();
-        if (tm > _minMs) {
-            _ctx << "take time:" << tm << "ms" << endl;
+        uint64_t tm = createdTime();
+        if (tm > _min_ms) {
+            _ctx << "take time:" << tm << "ms" << ", thread may be overloaded";
         } else {
             _ctx.clear();
         }
     }
-    uint64_t elapsedTime() {
+
+    /**
+     * 获取创建时间，单位毫秒
+     */
+    uint64_t elapsedTime() const {
         return getCurrentMillisecond() - _begin;
     }
-    uint64_t createdTime() {
+
+    /**
+     * 获取上次resetTime后至今的时间，单位毫秒
+     */
+    uint64_t createdTime() const {
         return getCurrentMillisecond() - _created;
     }
+
+    /**
+     * 重置计时器
+     */
     void resetTime() {
         _begin = getCurrentMillisecond();
     }
+
 private:
+    uint64_t _min_ms;
     uint64_t _begin;
     uint64_t _created;
     LogContextCapturer _ctx;
-    const char *_where;
-    int64_t _minMs;
-
 };
+
 class SmoothTicker {
 public:
-    SmoothTicker(uint64_t resetMs = 10000) {
-        _resetMs = resetMs;
+    /**
+     * 此对象用于生成平滑的时间戳
+     * @param reset_ms 时间戳重置间隔，没间隔reset_ms毫秒, 生成的时间戳会同步一次系统时间戳
+     */
+    SmoothTicker(uint64_t reset_ms = 10000) {
+        _reset_ms = reset_ms;
         _ticker.resetTime();
     }
-    ~SmoothTicker() {
-    }
+
+    ~SmoothTicker() {}
+
+    /**
+     * 返回平滑的时间戳，防止由于网络抖动导致时间戳不平滑
+     */
     uint64_t elapsedTime() {
-        auto nowTime = _ticker.elapsedTime();
-        if (_firstTime == 0) {
-            if (nowTime < _lastTime)
-            {
-                uint64_t lastfirstTime = _lastTime - _timeInc;
-                double elapseTime = (nowTime - lastfirstTime);
-                _timeInc += (elapseTime / ++_pktCount)/3;
-                uint64_t retTime = lastfirstTime + _timeInc;
-                WarnL << "time correct, lastTime:" << _lastTime << " retTime:" << retTime;
-                _lastTime = retTime;
-                return retTime;
+        auto now_time = _ticker.elapsedTime();
+        if (_first_time == 0) {
+            if (now_time < _last_time) {
+                auto last_time = _last_time - _time_inc;
+                double elapse_time = (now_time - last_time);
+                _time_inc += (elapse_time / ++_pkt_count) / 3;
+                auto ret_time = last_time + _time_inc;
+                _last_time = (uint64_t)ret_time;
+                return (uint64_t)ret_time;
             }
-            _firstTime = nowTime;
-            _lastTime = nowTime;
-            _pktCount = 0;
-            _timeInc = 0;
-            return nowTime;
+            _first_time = now_time;
+            _last_time = now_time;
+            _pkt_count = 0;
+            _time_inc = 0;
+            return now_time;
         }
 
-        double elapseTime = (nowTime - _firstTime);
-        _timeInc += elapseTime / ++_pktCount;
-        uint64_t retTime = _firstTime + _timeInc;
-        if (elapseTime > _resetMs) {
-            _firstTime = 0;
+        auto elapse_time = (now_time - _first_time);
+        _time_inc += elapse_time / ++_pkt_count;
+        auto ret_time = _first_time + _time_inc;
+        if (elapse_time > _reset_ms) {
+            _first_time = 0;
         }
-        _lastTime = retTime;
-        return retTime;
+        _last_time = (uint64_t)ret_time;
+        return (uint64_t)ret_time;
     }
-    void resetTime(){
-        _firstTime = 0;
-        _pktCount = 0;
+
+    /**
+     * 时间戳重置为0开始
+     */
+    void resetTime() {
+        _first_time = 0;
+        _pkt_count = 0;
         _ticker.resetTime();
     }
+
 private:
-    double _timeInc = 0;
-    uint64_t _firstTime = 0;
-    uint64_t _lastTime = 0;
-    uint64_t _pktCount = 0;
-    uint64_t _resetMs;
+    double _time_inc = 0;
+    uint64_t _first_time = 0;
+    uint64_t _last_time = 0;
+    uint64_t _pkt_count = 0;
+    uint64_t _reset_ms;
     Ticker _ticker;
 };
 

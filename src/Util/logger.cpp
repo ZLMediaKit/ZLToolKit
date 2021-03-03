@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -15,7 +15,6 @@
 #include <sys/stat.h>
 
 namespace toolkit {
-    Logger* g_defaultLogger = &Logger::Instance();
 #ifdef _WIN32
 #define CLEAR_COLOR 7
 static const WORD LOG_CONST_TABLE[][3] = {
@@ -43,6 +42,19 @@ static const char *LOG_CONST_TABLE[][3] = {
         {"\033[43;37m", "\033[33m", "W"},
         {"\033[41;37m", "\033[31m", "E"}};
 #endif
+
+Logger* g_defaultLogger = nullptr;
+
+Logger &getLogger() {
+    if (!g_defaultLogger) {
+        g_defaultLogger = &Logger::Instance();
+    }
+    return *g_defaultLogger;
+}
+
+void setLogger(Logger *logger) {
+    g_defaultLogger = logger;
+}
 
 ///////////////////Logger///////////////////
 INSTANCE_IMP(Logger, exeName());
@@ -268,15 +280,20 @@ void LogChannel::setLevel(LogLevel level) { _level = level; }
 
 std::string LogChannel::printTime(const timeval &tv) {
     time_t sec_tmp = tv.tv_sec;
-    struct tm *tm = localtime(&sec_tmp);
+    struct tm tm;
+#ifdef _WIN32
+    localtime_s(&tm, &sec_tmp);
+#else
+    localtime_r(&sec_tmp, &tm);
+#endif //_WIN32
     char buf[128];
     snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%03d",
-             1900 + tm->tm_year,
-             1 + tm->tm_mon,
-             tm->tm_mday,
-             tm->tm_hour,
-             tm->tm_min,
-             tm->tm_sec,
+             1900 + tm.tm_year,
+             1 + tm.tm_mon,
+             tm.tm_mday,
+             tm.tm_hour,
+             tm.tm_min,
+             tm.tm_sec,
              (int) (tv.tv_usec / 1000));
     return buf;
 }
@@ -378,7 +395,7 @@ void FileChannelBase::close() {
 }
 
 ///////////////////FileChannel///////////////////
-static const auto s_second_per_day = 24 * 60 * 60;
+FileChannel::~FileChannel() {}
 
 FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
     _dir = dir;
@@ -387,10 +404,33 @@ FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) 
     }
 }
 
-FileChannel::~FileChannel() {}
+static const auto s_second_per_day = 24 * 60 * 60;
+static long s_gmtoff = 0;
+static onceToken s_token([](){
+    time_t t = time(NULL);
+    struct tm lt = {0};
+#ifdef _WIN32
+    //localtime_s(&lt, &t);
+    TIME_ZONE_INFORMATION tzinfo;
+    DWORD dwStandardDaylight;
+    long bias;
 
-int64_t FileChannel::getDay(time_t second) {
-    return second / s_second_per_day;
+    dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
+    bias = tzinfo.Bias;
+    if (dwStandardDaylight == TIME_ZONE_ID_STANDARD)
+        bias += tzinfo.StandardBias;
+    if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT)
+        bias += tzinfo.DaylightBias;
+    s_gmtoff = -bias * 60;
+#else
+    localtime_r(&t, &lt);
+    s_gmtoff = lt.tm_gmtoff;
+#endif // _WIN32
+
+});
+
+uint64_t FileChannel::getDay(time_t second) {
+    return (second + s_gmtoff) / s_second_per_day;
 }
 
 static string getLogFilePath(const string &dir, uint64_t day) {
@@ -404,7 +444,7 @@ static string getLogFilePath(const string &dir, uint64_t day) {
 void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     //这条日志所在第几天
     auto day = getDay(ctx->_tv.tv_sec);
-    if (day != _last_day) {
+    if ((int64_t)day != _last_day) {
         //这条日志是新的一天，记录这一天
         _last_day = day;
         //获取日志当天对应的文件，每天只有一个文件

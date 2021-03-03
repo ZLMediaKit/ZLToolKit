@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -42,7 +42,7 @@ int mkdir(const char *path, int mode) {
 
 DIR *opendir(const char *name) {
     char namebuf[512];
-    sprintf(namebuf, "%s\\*.*", name);
+    snprintf(namebuf, sizeof(namebuf), "%s\\*.*", name);
 
     WIN32_FIND_DATAA FindData;
     auto hFind = FindFirstFileA(namebuf, &FindData);
@@ -65,7 +65,7 @@ struct dirent *readdir(DIR *d) {
     }
     struct dirent *dir = (struct dirent *)malloc(sizeof(struct dirent) + sizeof(FileData.cFileName));
     strcpy(dir->d_name, (char *)FileData.cFileName);
-    dir->d_reclen = strlen(dir->d_name);
+    dir->d_reclen = (uint16_t)strlen(dir->d_name);
     //check there is file or directory  
     if (FileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         dir->d_type = 2;
@@ -106,7 +106,7 @@ namespace toolkit {
 FILE *File::create_file(const char *file, const char *mode) {
     std::string path = file;
     std::string dir;
-    int index = 1;
+    size_t index = 1;
     FILE *ret = NULL;
     while (true) {
         index = path.find('/', index) + 1;
@@ -129,7 +129,7 @@ FILE *File::create_file(const char *file, const char *mode) {
 bool File::create_path(const char *file, unsigned int mod) {
     std::string path = file;
     std::string dir;
-    int index = 1;
+    size_t index = 1;
     while (1) {
         index = path.find('/', index) + 1;
         dir = path.substr(0, index);
@@ -157,7 +157,10 @@ bool File::is_dir(const char *path) {
 #if !defined(_WIN32)
         if (S_ISLNK(statbuf.st_mode)) {
             char realFile[256] = { 0 };
-            readlink(path, realFile, sizeof(realFile));
+            if (-1 == readlink(path, realFile, sizeof(realFile))) {
+                WarnL << "readlink failed:" << get_uv_errmsg();
+                return false;
+            }
             return File::is_dir(realFile);
         }
 #endif // !defined(_WIN32)
@@ -175,7 +178,10 @@ bool File::is_file(const char *path) {
 #if !defined(_WIN32)
         if (S_ISLNK(statbuf.st_mode)) {
             char realFile[256] = { 0 };
-            readlink(path, realFile, sizeof(realFile));
+            if (-1 == readlink(path, realFile, sizeof(realFile))) {
+                WarnL << "readlink failed:" << get_uv_errmsg();
+                return false;
+            }
             return File::is_file(realFile);
         }
 #endif // !defined(_WIN32)
@@ -207,7 +213,6 @@ void File::delete_file(const char *path) {
     if (is_dir(path)) {
         if ((dir = opendir(path)) == NULL) {
             _rmdir(path);
-            closedir(dir);
             return;
         }
         while ((dir_info = readdir(dir)) != NULL) {
@@ -233,7 +238,9 @@ string File::loadFile(const char *path) {
     auto len = ftell(fp);
     fseek(fp,0,SEEK_SET);
     string str(len,'\0');
-    fread((char *)str.data(),str.size(),1,fp);
+    if (0 <= fread((char *) str.data(), str.size(), 1, fp)) {
+        WarnL << "fread " << path << " failed:" << get_uv_errmsg();
+    }
     fclose(fp);
     return str;
 }
@@ -257,7 +264,7 @@ string File::parentDir(const string &path) {
     if(pos != string::npos){
         parent_dir = parent_dir.substr(0,pos + 1);
     }
-    return std::move(parent_dir);
+    return parent_dir;
 }
 
 string File::absolutePath(const string &path,const string &currentPath_in,bool canAccessParent) {
@@ -281,7 +288,7 @@ string File::absolutePath(const string &path,const string &currentPath_in,bool c
         //确保当前目录最后字节为'/'
         currentPath.push_back('/');
     }
-
+    auto rootPath = currentPath;
     auto dir_vec = split(path,"/");
     for(auto &dir : dir_vec){
         if(dir.empty() || dir == "."){
@@ -290,7 +297,7 @@ string File::absolutePath(const string &path,const string &currentPath_in,bool c
         }
         if(dir == ".."){
             //访问上级目录
-            if(!canAccessParent && currentPath.size() <= currentPath_in.size()){
+            if(!canAccessParent && currentPath.size() <= rootPath.size()){
                 //不能访问根目录之外的目录
                 return "";
             }

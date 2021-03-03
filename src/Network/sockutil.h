@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -46,6 +46,8 @@ namespace toolkit {
 int ioctl(int fd, long cmd, u_long *ptr);
 int close(int fd);
 #endif // defined(_WIN32)
+
+#define SOCKET_DEFAULT_BUF_SIZE (256 * 1024)
 
 //套接字工具类，封装了socket、网络的一些基本操作
 class SockUtil {
@@ -117,7 +119,7 @@ public:
      * @param size 接收缓存大小
      * @return 0代表成功，-1为失败
      */
-    static int setRecvBuf(int sock, int size = 256 * 1024);
+    static int setRecvBuf(int sock, int size = SOCKET_DEFAULT_BUF_SIZE);
 
     /**
      * 设置socket接收缓存，默认貌似8K左右，一般有设置上限
@@ -126,7 +128,7 @@ public:
      * @param size 接收缓存大小
      * @return 0代表成功，-1为失败
      */
-    static int setSendBuf(int sock, int size = 256 * 1024);
+    static int setSendBuf(int sock, int size = SOCKET_DEFAULT_BUF_SIZE);
 
     /**
      * 设置后续可绑定复用端口(处于TIME_WAITE状态)

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -83,8 +83,12 @@ int main() {
     //等待写线程退出
     group.join_all();
 
-    //释放环形缓冲，此时触发Detach事件
+    //释放环形缓冲，此时异步触发Detach事件
     g_ringBuf.reset();
+    //等待异步触发Detach事件
+    sleep(1);
+    //消除对EventPoller对象的引用
+    ringReader.reset();
     sleep(1);
     return 0;
 }

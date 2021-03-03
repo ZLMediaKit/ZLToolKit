@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -12,99 +12,104 @@
 
 namespace toolkit {
 
+StatisticImp(TcpClient);
+
 TcpClient::TcpClient(const EventPoller::Ptr &poller) : SocketHelper(nullptr) {
-    _poller = poller;
-    if(!_poller){
-        _poller = EventPollerPool::Instance().getPoller();
-    }
+    setPoller(poller ? poller : EventPollerPool::Instance().getPoller());
+    setOnCreateSocket([](const EventPoller::Ptr &poller) {
+        //TCP客户端默认开启互斥锁
+        return Socket::createSocket(poller, true);
+    });
 }
 
 TcpClient::~TcpClient() {}
 
 void TcpClient::shutdown(const SockException &ex) {
-    _managerTimer.reset();
+    _timer.reset();
     SocketHelper::shutdown(ex);
 }
 
 bool TcpClient::alive() {
-    bool ret = _sock.operator bool() && _sock->rawFD() >= 0;
+    auto sock = getSock();
+    bool ret = sock && sock->rawFD() >= 0;
     return ret;
 }
 
-void TcpClient::setNetAdapter(const string &localIp){
-    _netAdapter = localIp;
+void TcpClient::setNetAdapter(const string &local_ip){
+    _net_adapter = local_ip;
 }
 
-void TcpClient::startConnect(const string &strUrl, uint16_t iPort,float fTimeOutSec) {
+void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec) {
+    _timer.reset();
     weak_ptr<TcpClient> weakSelf = shared_from_this();
-    _managerTimer.reset();
-    _sock = std::make_shared<Socket>(_poller);
-    _sock->connect(strUrl, iPort, [weakSelf](const SockException &err){
+    setSock(createSocket());
+    getSock()->connect(url, port, [weakSelf](const SockException &err) {
         auto strongSelf = weakSelf.lock();
-        if(strongSelf){
+        if (strongSelf) {
             strongSelf->onSockConnect(err);
         }
-    }, fTimeOutSec,_netAdapter.data());
+    }, timeout_sec, _net_adapter.data());
 }
+
 void TcpClient::onSockConnect(const SockException &ex) {
-    if(ex){
+    if (ex) {
         //连接失败
-        _managerTimer.reset();
+        _timer.reset();
         onConnect(ex);
         return;
     }
 
+    auto sock_ptr = getSock().get();
     weak_ptr<TcpClient> weakSelf = shared_from_this();
-    auto sock_ptr = _sock.get();
-    _sock->setOnErr([weakSelf,sock_ptr](const SockException &ex) {
+
+    getSock()->setOnErr([weakSelf, sock_ptr](const SockException &ex) {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
             return;
         }
-        if(sock_ptr != strongSelf->_sock.get()){
-            //已经重连socket，上传socket的事件忽略掉
+        if (sock_ptr != strongSelf->getSock().get()) {
+            //已经重连socket，上次的socket的事件忽略掉
             return;
         }
-        strongSelf->_managerTimer.reset();
+        strongSelf->_timer.reset();
         strongSelf->onErr(ex);
     });
-    _sock->setOnFlush([weakSelf,sock_ptr]() {
+
+    getSock()->setOnFlush([weakSelf, sock_ptr]() {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
             return false;
         }
-        if(sock_ptr != strongSelf->_sock.get()){
+        if (sock_ptr != strongSelf->getSock().get()) {
             //已经重连socket，上传socket的事件忽略掉
             return false;
         }
         strongSelf->onFlush();
         return true;
     });
-    _sock->setOnRead([weakSelf,sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr * , int) {
+
+    getSock()->setOnRead([weakSelf, sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr *, int) {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
             return;
         }
-        if(sock_ptr != strongSelf->_sock.get()){
+        if (sock_ptr != strongSelf->getSock().get()) {
             //已经重连socket，上传socket的事件忽略掉
             return;
         }
         strongSelf->onRecv(pBuf);
     });
-    _managerTimer = std::make_shared<Timer>(2,[weakSelf](){
+
+    _timer = std::make_shared<Timer>(2.0f, [weakSelf]() {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
             return false;
         }
         strongSelf->onManager();
         return true;
-    },_poller);
+    }, getPoller());
 
     onConnect(ex);
-}
-
-string TcpClient::getIdentifier() const{
-    return  to_string(reinterpret_cast<uint64_t>(this));
 }
 
 } /* namespace toolkit */

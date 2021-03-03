@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -46,7 +46,7 @@ public:
     }
 
     //把任务打入线程池并异步执行
-    Task::Ptr async(TaskIn &&task,bool may_sync = true) override {
+    Task::Ptr async(TaskIn task,bool may_sync = true) override {
         if (may_sync && _thread_group.is_this_thread_in()) {
             task();
             return nullptr;
@@ -55,7 +55,7 @@ public:
         _queue.push_task(ret);
         return ret;
     }
-    Task::Ptr async_first(TaskIn &&task,bool may_sync = true) override{
+    Task::Ptr async_first(TaskIn task,bool may_sync = true) override{
         if (may_sync && _thread_group.is_this_thread_in()) {
             task();
             return nullptr;
@@ -66,7 +66,7 @@ public:
         return ret;
     }
 
-    uint64_t size(){
+    size_t size(){
         return _queue.size();
     }
 
@@ -101,10 +101,11 @@ public:
     }
 
     void start() {
-        if (_thread_num <= 0)
+        if (_thread_num <= 0) {
             return;
-        auto total =  _thread_num - _thread_group.size();
-        for (int i = 0; i < total; ++i) {
+        }
+        size_t total = _thread_num - _thread_group.size();
+        for (size_t i = 0; i < total; ++i) {
             _thread_group.create_thread(bind(&ThreadPool::run, this));
         }
     }
@@ -137,9 +138,9 @@ private:
         _queue.push_exit(_thread_num);
     }
 private:
+    size_t _thread_num;
     TaskQueue<Task::Ptr> _queue;
     thread_group _thread_group;
-    int _thread_num;
     Priority _priority;
     Logger::Ptr _logger;
 };

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -110,14 +110,15 @@ int main(int argc,char *argv[]){
         auto ip      = cmd.splitedVal("server")[0];
         int port     = cmd.splitedVal("server")[1];
         int delay    = cmd["delay"];
-        BufferRaw::Ptr buffer = std::make_shared<BufferRaw>(block);
+        auto buffer = BufferRaw::create();
+        buffer->setCapacity(block);
         buffer->setSize(block);
 
         TcpServer::Ptr server(new TcpServer);
         server->start<EchoSession>(cmd["listen"]);
         for(auto i = 0; i < cmd["count"].as<int>() ; ++i){
             auto poller = nextPoller();
-            auto socket = std::make_shared<Socket>(poller, false);
+            auto socket = Socket::createSocket(poller, false);
 
             socket->connect(ip,port,[socket,poller,interval,buffer](const SockException &err){
                 if(err){

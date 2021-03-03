@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -25,7 +25,6 @@
 #include <shlwapi.h>  
 #pragma comment(lib, "shlwapi.lib")
 #endif // defined(_WIN32)
-
 
 #if defined(__MACH__) || defined(__APPLE__)
 #include <mach/mach.h>
@@ -98,11 +97,11 @@ string hexdump(const void *buf, size_t len) {
     for (size_t i = 0; i < len; i += 16) {
         for (int j = 0; j < 16; ++j) {
             if (i + j < len) {
-                int sz = sprintf(tmp, "%.2x ", data[i + j]);
+                int sz = snprintf(tmp, sizeof(tmp), "%.2x ", data[i + j]);
                 ret.append(tmp, sz);
             }
             else {
-                int sz = sprintf(tmp, "   ");
+                int sz = snprintf(tmp, sizeof(tmp), "   ");
                 ret.append(tmp, sz);
             }
         }
@@ -152,19 +151,23 @@ string exePath() {
 
     return filePath;
 }
+
 string exeDir() {
     auto path = exePath();
     return path.substr(0, path.rfind('/') + 1);
 }
+
 string exeName() {
     auto path = exePath();
     return path.substr(path.rfind('/') + 1);
 }
+
 // string转小写
 std::string &strToLower(std::string &str) {
     transform(str.begin(), str.end(), str.begin(), towlower);
     return str;
 }
+
 // string转大写
 std::string &strToUpper(std::string &str) {
     transform(str.begin(), str.end(), str.begin(), towupper);
@@ -176,6 +179,7 @@ std::string strToLower(std::string &&str) {
     transform(str.begin(), str.end(), str.begin(), towlower);
     return std::move(str);
 }
+
 // string转大写
 std::string strToUpper(std::string &&str) {
     transform(str.begin(), str.end(), str.begin(), towupper);
@@ -184,8 +188,8 @@ std::string strToUpper(std::string &&str) {
 
 vector<string> split(const string& s, const char *delim) {
     vector<string> ret;
-    int last = 0;
-    int index = s.find(delim, last);
+    size_t last = 0;
+    auto index = s.find(delim, last);
     while (index != string::npos) {
         if (index - last > 0) {
             ret.push_back(s.substr(last, index - last));
@@ -207,15 +211,16 @@ do{ \
     } \
     while( s.size() && map.at((unsigned char &)s.back())) s.pop_back(); \
     while( s.size() && map.at((unsigned char &)s.front())) s.erase(0,1); \
-    return s; \
 }while(0);
 
 //去除前后的空格、回车符、制表符
 std::string& trim(std::string &s, const string &chars) {
     TRIM(s, chars);
+    return s;
 }
 std::string trim(std::string &&s, const string &chars) {
     TRIM(s, chars);
+    return std::move(s);
 }
 
 void replace(string &str, const string &old_str, const string &new_str) {
@@ -230,6 +235,15 @@ void replace(string &str, const string &old_str, const string &new_str) {
     replace(str, old_str, new_str);
 }
 
+bool start_with(const string &str, const string &substr) {
+    return str.find(substr) == 0;
+}
+
+bool end_with(const string &str, const string &substr) {
+    auto pos = str.rfind(substr);
+    return pos != string::npos && pos == str.size() - substr.size();
+}
+
 bool isIP(const char *str){
     return INADDR_NONE != inet_addr(str);
 }
@@ -239,29 +253,26 @@ void sleep(int second) {
     Sleep(1000 * second);
 }
 void usleep(int micro_seconds) {
-    struct timeval tm;
-    tm.tv_sec = micro_seconds / 1000000;
-    tm.tv_usec = micro_seconds % (1000000);
-#if !defined(_WIN32)
-    select(0, NULL, NULL, NULL, &tm);
-#else
-    fd_set fds;
-    FD_ZERO(&fds);
-    int32_t fd = socket(AF_INET, SOCK_DGRAM, 0);
-    FD_SET(fd, &fds);
-    int ret = select(0, NULL, NULL, &fds, &tm);
-    if (0 > ret)
-    {
-        perror("select");
-    }
-    closesocket(fd);
-#endif
+    this_thread::sleep_for(std::chrono::microseconds(micro_seconds));
 }
+
 int gettimeofday(struct timeval *tp, void *tzp) {
     auto now_stamp = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    tp->tv_sec = now_stamp / 1000000LL;
+    tp->tv_sec = (decltype(tp->tv_sec))(now_stamp / 1000000LL);
     tp->tv_usec = now_stamp % 1000000LL;
     return 0;
+}
+
+const char *strcasestr(const char *big, const char *little){
+    string big_str = big;
+    string little_str = little;
+    strToLower(big_str);
+    strToLower(little_str);
+    auto pos = strstr(big_str.data(), little_str.data());
+    if (!pos){
+        return nullptr;
+    }
+    return big + (pos - big_str.data());
 }
 
 #include <stdio.h>

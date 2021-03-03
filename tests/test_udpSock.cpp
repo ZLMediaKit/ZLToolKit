@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -40,8 +40,8 @@ int main() {
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-    Socket::Ptr sockRecv(new Socket());//创建一个UDP数据接收端口
-    Socket::Ptr sockSend(new Socket());//创建一个UDP数据发送端口
+    Socket::Ptr sockRecv = Socket::createSocket();//创建一个UDP数据接收端口
+    Socket::Ptr sockSend = Socket::createSocket();//创建一个UDP数据发送端口
     sockRecv->bindUdpSock(9001);//接收UDP绑定9001端口
     sockSend->bindUdpSock(0);//发送UDP随机端口
 

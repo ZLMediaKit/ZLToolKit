@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -28,7 +28,7 @@ namespace toolkit {
 
 class semaphore {
 public:
-    explicit semaphore(unsigned int initial = 0) {
+    explicit semaphore(size_t initial = 0) {
 #if defined(HAVE_SEM)
         sem_init(&_sem, 0, initial);
 #else
@@ -40,7 +40,7 @@ public:
         sem_destroy(&_sem);
 #endif
     }
-    void post(unsigned int n = 1) {
+    void post(size_t n = 1) {
 #if defined(HAVE_SEM)
         while (n--) {
             sem_post(&_sem);
@@ -71,7 +71,7 @@ private:
 #if defined(HAVE_SEM)
     sem_t _sem;
 #else
-    int _count;
+    size_t _count;
     mutex _mutex;
     condition_variable_any _condition;
 #endif
