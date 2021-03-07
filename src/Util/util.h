@@ -221,12 +221,18 @@ int gettimeofday(struct timeval *tp, void *tzp);
 void usleep(int micro_seconds);
 void sleep(int second);
 int asprintf(char **strp, const char *fmt, ...);
-#if !defined(strcasecmp)
-#define strcasecmp _stricmp
-#endif
 const char *strcasestr(const char *big, const char *little);
+
+#if !defined(strcasecmp)
+    #define strcasecmp _stricmp
+#endif
+
 #ifndef ssize_t
-#define ssize_t int64_t
+    #ifdef _WIN64
+        #define ssize_t int64_t
+    #else
+        #define ssize_t int32_t
+    #endif
 #endif
 #endif //WIN32
 
@@ -248,6 +254,13 @@ uint64_t getCurrentMicrosecond(bool system_time = false);
  * @return 时间字符串
  */
 string getTimeStr(const char *fmt,time_t time = 0);
+
+/**
+ * 根据unix时间戳获取本地时间
+ * @param sec unix时间戳
+ * @return tm结构体
+ */
+struct tm getLocalTime(time_t sec);
 
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */

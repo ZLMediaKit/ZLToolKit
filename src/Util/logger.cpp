@@ -13,6 +13,7 @@
 #include "File.h"
 #include <string.h>
 #include <sys/stat.h>
+#include "Util/TimeTicker.h"
 
 namespace toolkit {
 #ifdef _WIN32
@@ -135,18 +136,18 @@ static inline const char *getFunctionName(const char *func) {
 #endif
 }
 
-LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, unsigned long threadId /*= 0*/) :
+LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, thread::id thread_id /*= 0*/) :
         _level(level),
         _line(line),
         _file(getFileName(file)),
-        _threadId(threadId),
-        _function(getFunctionName(function)) {
+        _function(getFunctionName(function)),
+        _thread_id(std::move(thread_id)) {
     gettimeofday(&_tv, NULL);
 }
 
 ///////////////////AsyncLogWriter///////////////////
-LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line, unsigned long threadId/* = 0*/) :
-        _ctx(new LogContext(level, file, function, line, threadId)), _logger(logger) {
+LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line, thread::id thread_id) :
+        _ctx(new LogContext(level, file, function, line, std::move(thread_id))), _logger(logger) {
 }
 
 LogContextCapturer::LogContextCapturer(const LogContextCapturer &that) : _ctx(that._ctx), _logger(that._logger) {
@@ -236,7 +237,7 @@ void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
         LogPriorityArr[LWarn] = ANDROID_LOG_WARN;
         LogPriorityArr[LError] = ANDROID_LOG_ERROR;
     });
-    __android_log_print(LogPriorityArr[ctx->_level],"JNI","%s %s",ctx->_function.c_str(),ctx->str().c_str());
+    __android_log_print(LogPriorityArr[ctx->_level],"JNI","%s %s",ctx->_function.data(),ctx->str().data());
 #else
     //linux/windows日志启用颜色并显示日志详情
     format(logger, std::cout, ctx);
@@ -263,9 +264,9 @@ void SysLogChannel::write(const Logger &logger, const LogContextPtr &ctx) {
         s_syslog_lev[LError] = LOG_ERR;
     }, nullptr);
 
-    syslog(s_syslog_lev[ctx->_level], "-> %s %d\r\n", ctx->_file.c_str(), ctx->_line);
+    syslog(s_syslog_lev[ctx->_level], "-> %s %d\r\n", ctx->_file.data(), ctx->_line);
     syslog(s_syslog_lev[ctx->_level], "## %s %s | %s %s\r\n", printTime(ctx->_tv).data(),
-           LOG_CONST_TABLE[ctx->_level][2], ctx->_function.c_str(), ctx->str().c_str());
+           LOG_CONST_TABLE[ctx->_level][2], ctx->_function.data(), ctx->str().data());
 }
 
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
@@ -280,13 +281,7 @@ const string &LogChannel::name() const { return _name; }
 void LogChannel::setLevel(LogLevel level) { _level = level; }
 
 std::string LogChannel::printTime(const timeval &tv) {
-    time_t sec_tmp = tv.tv_sec;
-    struct tm tm;
-#ifdef _WIN32
-    localtime_s(&tm, &sec_tmp);
-#else
-    localtime_r(&sec_tmp, &tm);
-#endif //_WIN32
+    auto tm = getLocalTime(tv.tv_sec);
     char buf[128];
     snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%03d",
              1900 + tm.tm_year,
@@ -321,9 +316,9 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 
     if (enableDetail) {
 #if defined(_WIN32)
-        ost << logger.getName() <<"[" << ctx->_threadId;
+        ost << logger.getName() <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_id;
 #else
-        ost << logger.getName() << "[" << getpid();
+        ost << logger.getName() << "[" << getpid() << "-" << ctx->_thread_id;
 #endif
         ost << "] " << ctx->_file << ":" << ctx->_line << " "<< ctx->_function << " | ";
     }
@@ -377,15 +372,13 @@ bool FileChannelBase::open() {
     _fstream.close();
 #if !defined(_WIN32)
     //创建文件夹
-    File::create_path(_path.c_str(), S_IRWXO | S_IRWXG | S_IRWXU);
+    File::create_path(_path.data(), S_IRWXO | S_IRWXG | S_IRWXU);
 #else
-    File::create_path(_path.c_str(),0);
+    File::create_path(_path.data(),0);
 #endif
-    _fstream.open(_path.c_str(), ios::out | ios::app);
-    // Throw on failure
+    _fstream.open(_path.data(), ios::out | ios::app);
     if (!_fstream.is_open()) {
         return false;
-        //throw runtime_error("Failed to open log file: " + _path);
     }
     //打开文件成功
     return true;
@@ -395,106 +388,122 @@ void FileChannelBase::close() {
     _fstream.close();
 }
 
-
-uint64_t FileChannelBase::size()
-{
+ssize_t FileChannelBase::size() {
     return (_fstream << std::flush).tellp();
 }
 
 ///////////////////FileChannel///////////////////
-FileChannel::~FileChannel() {}
-
-FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
-    _dir = dir;
-    if (_dir.back() != '/') {
-        _dir.append("/");
-    }
-    File::scanDir(_dir, [this](const string& path, bool isDir)->bool {
-        if (!isDir)
-		{
-			struct stat statbuf;
-			if (stat(path.c_str(), &statbuf) == 0) {
-				_log_file_map[statbuf.st_mtime] = path;
-			}
-        }
-		return true;
-        });
-    auto temFileName = getTimeStr("%Y-%m-%d_");
-	for (auto it = _log_file_map.begin(); it != _log_file_map.end(); it++) {
-        auto path = it->second;
-        std::string name = toolkit::getFileName(path.c_str());
-        if (name.find(temFileName) != std::string::npos)
-        {
-            auto endPath = _log_file_map.rbegin()->second;
-            std::string endName = toolkit::getFileName(endPath.c_str());
-			int tm_mday;  // day of the month - [1, 31]
-			int tm_mon;   // months since January - [0, 11]
-			int tm_year;  // years since 1900
-            int32_t index;
-            int count = sscanf(endName.c_str(), "%d-%02d-%02d_%d.log", &tm_year, &tm_mon, &tm_mday, &index);
-            if (count == 4)
-            {
-                _index = index;
-                _log_file_map.erase(_log_file_map.rbegin()->first);
-            }
-			break;
-        }
-	}
-}
 
 static const auto s_second_per_day = 24 * 60 * 60;
 static long s_gmtoff = 0;
 static onceToken s_token([](){
-    time_t t = time(NULL);
-    struct tm lt = {0};
 #ifdef _WIN32
-    //localtime_s(&lt, &t);
     TIME_ZONE_INFORMATION tzinfo;
     DWORD dwStandardDaylight;
     long bias;
-
     dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
     bias = tzinfo.Bias;
-    if (dwStandardDaylight == TIME_ZONE_ID_STANDARD)
+    if (dwStandardDaylight == TIME_ZONE_ID_STANDARD) {
         bias += tzinfo.StandardBias;
-    if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT)
+    }
+    if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT) {
         bias += tzinfo.DaylightBias;
+    }
     s_gmtoff = -bias * 60;
 #else
-    localtime_r(&t, &lt);
-    s_gmtoff = lt.tm_gmtoff;
+    s_gmtoff = getLocalTime(time(NULL)).tm_gmtoff;
 #endif // _WIN32
-
 });
 
-uint64_t FileChannel::getDay(time_t second) {
-    return (second + s_gmtoff) / s_second_per_day;
-}
-
+//根据GMT UNIX时间戳生产日志文件名
 static string getLogFilePath(const string &dir, time_t second, int32_t index) {
-    struct tm *tm = localtime(&second);
+    auto tm = getLocalTime(second);
     char buf[32];
-    snprintf(buf, sizeof(buf), "%d-%02d-%02d_%d.log", 1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, index);
+    snprintf(buf, sizeof(buf), "%d-%02d-%02d_%02d.log", 1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, index);
     return dir + buf;
 }
 
+//根据日志文件名返回GMT UNIX时间戳
+static time_t getLogFileTime(const string &full_path){
+    auto name = getFileName(full_path.data());
+    int tm_mday;  // day of the month - [1, 31]
+    int tm_mon;   // months since January - [0, 11]
+    int tm_year;  // years since 1900
+    int32_t index;
+    int count = sscanf(name, "%d-%02d-%02d_%d.log", &tm_year, &tm_mon, &tm_mday, &index);
+    if (count != 4) {
+        return 0;
+    }
+    struct tm tm{0};
+    tm.tm_year = tm_year - 1900;
+    tm.tm_mon = tm_mon - 1;
+    tm.tm_mday = tm_mday;
+    //本地时间转换成GMT时间
+    return mktime(&tm) - s_gmtoff;
+}
+
+//获取1970年以来的第几天
+static uint64_t getDay(time_t second) {
+    return (second + s_gmtoff) / s_second_per_day;
+}
+
+FileChannel::~FileChannel() {}
+
+FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
+    _last_check_ticker = std::make_shared<Ticker>();
+    _dir = dir;
+    if (_dir.back() != '/') {
+        _dir.append("/");
+    }
+
+    //收集所有日志文件
+    File::scanDir(_dir, [this](const string &path, bool isDir) -> bool {
+        if (!isDir && end_with(path, ".log")) {
+            _log_file_map.emplace(path);
+        }
+        return true;
+    }, false);
+
+    //获取今天日志文件的最大index号
+    auto log_name_prefix = getTimeStr("%Y-%m-%d_");
+    for (auto it = _log_file_map.begin(); it != _log_file_map.end(); ++it) {
+        auto name = getFileName(it->data());
+        //筛选出今天所有的日志文件
+        if (start_with(name, log_name_prefix)) {
+            int tm_mday;  // day of the month - [1, 31]
+            int tm_mon;   // months since January - [0, 11]
+            int tm_year;  // years since 1900
+            uint32_t index;
+            //今天第几个文件
+            int count = sscanf(name, "%d-%02d-%02d_%d.log", &tm_year, &tm_mon, &tm_mday, &index);
+            if (count == 4) {
+                _index = index >= _index ? index : _index;
+            }
+        }
+    }
+}
+
 void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
-    //这条日志所在第几天
+    //GMT UNIX时间戳
     time_t second = ctx->_tv.tv_sec;
+    //这条日志所在第几天
     auto day = getDay(second);
-    if (day != _last_day) {
-		if (_last_day != -1)
-			_index = 0;
+    if ((int64_t) day != _last_day) {
+        if (_last_day != -1) {
+            //重置日志index
+            _index = 0;
+        }
         //这条日志是新的一天，记录这一天
         _last_day = day;
-        //获取日志当天对应的文件，每天只有一个文件
+        //获取日志当天对应的文件，每天可能有多个日志切片文件
         changeFile(second);
-    }
-    else
+    } else {
+        //检查该天日志是否需要重新分片
         checkSize(second);
+    }
 
     //写日志
-    if (_canWrite){
+    if (_can_write) {
         FileChannelBase::write(logger, ctx);
     }
 }
@@ -502,72 +511,66 @@ void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 void FileChannel::clean() {
     //获取今天是第几天
     auto today = getDay(time(NULL));
-    //遍历所有日志文件，删除老日志
+    //遍历所有日志文件，删除超过若干天前的过期日志文件
     for (auto it = _log_file_map.begin(); it != _log_file_map.end();) {
-        auto day = getDay(it->first);
+        auto day = getDay(getLogFileTime(it->data()));
         if (today < day + _log_max_day) {
-            //这个日志文件距今不超过_log_max_day天
+            //这个日志文件距今尚未超过一定天数,后面的文件更新，所以停止遍历
             break;
         }
-        //这个文件距今超过了_log_max_day天，则删除文件
-        File::delete_file(it->second.data());
+        //这个文件距今超过了一定天数，则删除文件
+        File::delete_file(it->data());
         //删除这条记录
         it = _log_file_map.erase(it);
     }
 
-	//按文件个数清理
-	while (_log_file_map.size() > _log_max_count)
-	{
-		auto it = _log_file_map.begin();
-		File::delete_file(it->second.data());
-		//删除这条记录
-		it = _log_file_map.erase(it);
-	}
-}
-
-
-void FileChannel::checkSize(time_t second)
-{
-    if (getCurrentMillisecond() - _last_check_time > 60000)
-    {
-        auto size = (float)FileChannelBase::size() / 1024 / 1024;
-        if (size > _log_max_size)
-        {
-            changeFile(second);
+    //按文件个数清理，限制最大文件切片个数
+    while (_log_file_map.size() > _log_max_count) {
+        auto it = _log_file_map.begin();
+        if (*it == path()) {
+            //当前文件，停止删除
+            break;
         }
-        _last_check_time = getCurrentMillisecond();
+        //删除文件
+        File::delete_file(it->data());
+        //删除这条记录
+        _log_file_map.erase(it);
     }
 }
 
-
-void FileChannel::changeFile(time_t second)
-{
-	auto log_file = getLogFilePath(_dir, second, _index);
-	//记录所有的日志文件，以便后续删除老的日志
-	_log_file_map.emplace(second, log_file);
-	//打开新的日志文件
-	_canWrite = setPath(log_file);
-	if (!_canWrite) {
-		ErrorL << "Failed to open log file: " << _path;
-	}
-	clean();
-	_index++;
+void FileChannel::checkSize(time_t second) {
+    //每60秒检查一下文件大小，防止频繁flush日志文件
+    if (_last_check_ticker->elapsedTime() > 60 * 1000) {
+        if (FileChannelBase::size() > _log_max_size * 1024 * 1024) {
+            changeFile(second);
+        }
+        _last_check_ticker->resetTime();
+    }
 }
 
-void FileChannel::setMaxDay(int max_day) {
+void FileChannel::changeFile(time_t second) {
+    auto log_file = getLogFilePath(_dir, second, _index++);
+    //记录所有的日志文件，以便后续删除老的日志
+    _log_file_map.emplace(log_file);
+    //打开新的日志文件
+    _can_write = setPath(log_file);
+    if (!_can_write) {
+        ErrorL << "Failed to open log file: " << _path;
+    }
+    //尝试删除过期的日志文件
+    clean();
+}
+
+void FileChannel::setMaxDay(size_t max_day) {
     _log_max_day = max_day > 1 ? max_day : 1;
 }
 
-
-void FileChannel::setFileMaxSize(int max_size)
-{
+void FileChannel::setFileMaxSize(size_t max_size) {
     _log_max_size = max_size > 1 ? max_size : 1;
 }
 
-
-void FileChannel::setFileMaxCount(int max_count)
-{
-	_log_max_count = max_count > 1 ? max_count : 1;
+void FileChannel::setFileMaxCount(size_t max_count) {
+    _log_max_count = max_count > 1 ? max_count : 1;
 }
 
 } /* namespace toolkit */
