@@ -387,7 +387,7 @@ void FileChannelBase::close() {
     _fstream.close();
 }
 
-ssize_t FileChannelBase::size() {
+size_t FileChannelBase::size() {
     return (_fstream << std::flush).tellp();
 }
 

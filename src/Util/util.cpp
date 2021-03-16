@@ -122,7 +122,7 @@ string hexmem(const void* buf, size_t len) {
 	string ret;
 	char tmp[8];
 	const uint8_t* data = (const uint8_t*)buf;
-	for (int i = 0; i < len; ++i) {
+	for (size_t i = 0; i < len; ++i) {
 		int sz = sprintf(tmp, "%.2x ", data[i]);
 		ret.append(tmp, sz);
 	}

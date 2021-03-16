@@ -254,7 +254,7 @@ public:
 protected:
     virtual bool open();
     virtual void close();
-    virtual ssize_t size();
+    virtual size_t size();
 
 protected:
     string _path;
