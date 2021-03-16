@@ -538,12 +538,11 @@ void FileChannel::clean() {
 
 void FileChannel::checkSize(time_t second) {
     //每60秒检查一下文件大小，防止频繁flush日志文件
-    auto now = time(NULL);
-    if (now - _last_check_time > 60) {
+    if (second - _last_check_time > 60) {
         if (FileChannelBase::size() > _log_max_size * 1024 * 1024) {
             changeFile(second);
         }
-        _last_check_time = now;
+        _last_check_time = second;
     }
 }
 
