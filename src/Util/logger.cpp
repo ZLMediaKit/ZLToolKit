@@ -13,7 +13,6 @@
 #include "File.h"
 #include <string.h>
 #include <sys/stat.h>
-#include "Util/TimeTicker.h"
 
 namespace toolkit {
 #ifdef _WIN32
@@ -450,7 +449,6 @@ static uint64_t getDay(time_t second) {
 FileChannel::~FileChannel() {}
 
 FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
-    _last_check_ticker = std::make_shared<Ticker>();
     _dir = dir;
     if (_dir.back() != '/') {
         _dir.append("/");
@@ -540,11 +538,12 @@ void FileChannel::clean() {
 
 void FileChannel::checkSize(time_t second) {
     //每60秒检查一下文件大小，防止频繁flush日志文件
-    if (_last_check_ticker->elapsedTime() > 60 * 1000) {
+    auto now = time(NULL);
+    if (now - _last_check_time > 60) {
         if (FileChannelBase::size() > _log_max_size * 1024 * 1024) {
             changeFile(second);
         }
-        _last_check_ticker->resetTime();
+        _last_check_time = now;
     }
 }
 

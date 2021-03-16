@@ -324,7 +324,7 @@ private:
     //当前日志切片文件索引
     size_t _index = 0;
     int64_t _last_day = -1;
-    std::shared_ptr<Ticker> _last_check_ticker;
+    time_t _last_check_time = 0;
     string _dir;
     set<string> _log_file_map;
 };
