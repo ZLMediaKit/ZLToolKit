@@ -220,6 +220,22 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
         }
         return s_ignore_invalid_cer ? 1 : ok;
     });
+
+#ifndef SSL_OP_NO_COMPRESSION
+#define SSL_OP_NO_COMPRESSION 0
+#endif
+#ifndef SSL_MODE_RELEASE_BUFFERS    /* OpenSSL >= 1.0.0 */
+#define SSL_MODE_RELEASE_BUFFERS 0
+#endif
+    unsigned long ssloptions = SSL_OP_ALL
+                               | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
+                               | SSL_OP_NO_COMPRESSION;
+
+#ifdef SSL_OP_NO_RENEGOTIATION /* openssl 1.1.0 */
+    ssloptions |= SSL_OP_NO_RENEGOTIATION;
+#endif
+    SSL_CTX_set_options(ctx, ssloptions);
+
 #endif //defined(ENABLE_OPENSSL)
 }
 
