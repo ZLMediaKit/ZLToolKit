@@ -146,21 +146,23 @@ int SSL_Initor::findCertificate(SSL *ssl, int *, void *arg) {
     const char *vhost = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
 
     if (vhost && vhost[0] != '\0') {
-        //从map中找到vhost对应的SSL_CTX
+        //根据域名找到证书
         ctx = ref.getSSLCtx(vhost, (bool) (arg)).get();
-    } else {
-        //选一个默认的SSL_CTX
-        ctx = ref.getSSLCtx("", (bool) (arg)).get();
-        if (ctx) {
-            DebugL << "client does not specify host, select default certificate of host: " << ref.defaultVhost((bool) (arg));
-        } else {
-            vhost = "default host";
+        if (!ctx) {
+            //未找到对应的证书
+            WarnL << "can not find any certificate of host:" << vhost
+                  << ", select default certificate of:" << ref._default_vhost[ (bool) (arg)];
         }
     }
 
     if (!ctx) {
-        //未找到对应的证书
-        DebugL << "can not find any certificate of host:" << vhost;
+        //客户端未指定域名或者指定的证书不存在，那么选择一个默认的证书
+        ctx = ref.getSSLCtx("", (bool) (arg)).get();
+    }
+
+    if (!ctx) {
+        //未有任何有效的证书
+        WarnL << "can not find any available certificate of host:" << (vhost ? vhost : "default host") << ", tls handshake failed";
         return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
 
