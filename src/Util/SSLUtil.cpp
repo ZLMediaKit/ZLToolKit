@@ -168,8 +168,7 @@ shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, co
 
 shared_ptr<SSL_CTX> SSLUtil::makeSSLContext(const vector<shared_ptr<X509> > &cers, const shared_ptr<EVP_PKEY> &key,bool serverMode) {
 #if defined(ENABLE_OPENSSL)
-    //选择最高版本的tls
-    SSL_CTX *ctx = SSL_CTX_new(serverMode ? TLS_server_method() : TLS_client_method() );
+    SSL_CTX *ctx = SSL_CTX_new(serverMode ? SSLv23_server_method() : SSLv23_client_method() );
     if(!ctx){
         WarnL << getLastError();
         return nullptr;
