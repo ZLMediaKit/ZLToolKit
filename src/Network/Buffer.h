@@ -91,15 +91,15 @@ private:
         _offset = offset;
     }
 
-    template<typename C>
-    static typename std::enable_if<std::is_pointer<C>::value, const C &>::type
-    getPointer(const C &data) {
+    template<typename T>
+    static typename std::enable_if<std::is_pointer<T>::value, const T &>::type
+    getPointer(const T &data) {
         return data;
     }
 
-    template<typename C>
-    static typename std::enable_if<!std::is_pointer<C>::value, const C *>::type
-    getPointer(const C &data) {
+    template<typename T>
+    static typename std::enable_if<!std::is_pointer<T>::value, const T *>::type
+    getPointer(const T &data) {
         return &data;
     }
 
