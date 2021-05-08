@@ -45,8 +45,8 @@ else()
 endif()
 
 
-set(ENABLE_OPENSSL true)
-set(ENABLE_MYSQL true)
+set(ENABLE_OPENSSL ON CACHE BOOL "enable openssl")
+set(ENABLE_MYSQL ON CACHE BOOL "enable mysql")
 
 
 #查找openssl是否安装
