@@ -99,12 +99,12 @@ private:
     vector<string> tokenize(const string &self, const string &chars) const {
         vector<string> tokens(1);
         string map(256, '\0');
-        for (const unsigned char &ch : chars) {
-            map[ch] = '\1';
+        for (char ch : chars) {
+            map[(uint8_t) ch] = '\1';
         }
-        for (const unsigned char &ch : self) {
-            if (!map.at(ch)) {
-                tokens.back().push_back(char(ch));
+        for (char ch : self) {
+            if (!map.at((uint8_t) ch)) {
+                tokens.back().push_back(ch);
             } else if (tokens.back().size()) {
                 tokens.push_back(string());
             }
