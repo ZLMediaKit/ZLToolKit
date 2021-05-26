@@ -445,7 +445,6 @@ private:
     SockFD::Ptr makeSock(int sock,SockNum::SockType type);
     int onAccept(const SockFD::Ptr &sock, int event) noexcept;
     ssize_t onRead(const SockFD::Ptr &sock, bool is_udp = false) noexcept;
-    void onError(const SockFD::Ptr &sock);
     void onWriteAble(const SockFD::Ptr &sock);
     void onConnected(const SockFD::Ptr &sock, const onErrCB &cb);
     void onFlushed(const SockFD::Ptr &pSock);
