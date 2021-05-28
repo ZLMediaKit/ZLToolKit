@@ -11,11 +11,12 @@
 #ifndef UTIL_UTIL_H_
 #define UTIL_UTIL_H_
 
+/*
 #ifdef FD_SETSIZE
 #undef FD_SETSIZE
 //修改默认64为1024路
 #define FD_SETSIZE 1024
-#endif
+#endif*/
 
 #include <ctime>
 #include <stdio.h>
@@ -27,6 +28,9 @@
 #include <atomic>
 #include <unordered_map>
 #if defined(_WIN32)
+#undef FD_SETSIZE
+//修改默认64为1024路
+#define FD_SETSIZE 1024
 #include <WinSock2.h>
 #pragma comment (lib,"WS2_32")
 #else
