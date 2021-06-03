@@ -93,7 +93,7 @@ void Logger::setWriter(const std::shared_ptr<LogWriter> &writer) {
 
 void Logger::write(const LogContextPtr &ctx) {
     if (_writer) {
-        _writer->write(ctx);
+        _writer->write(ctx, *this);
     } else {
         writeChannels(ctx);
     }
@@ -171,7 +171,7 @@ void LogContextCapturer::clear() {
 }
 
 ///////////////////AsyncLogWriter///////////////////
-AsyncLogWriter::AsyncLogWriter(Logger &logger) : _exit_flag(false), _logger(logger) {
+AsyncLogWriter::AsyncLogWriter() : _exit_flag(false) {
     _thread = std::make_shared<thread>([this]() { this->run(); });
 }
 
@@ -182,10 +182,10 @@ AsyncLogWriter::~AsyncLogWriter() {
     flushAll();
 }
 
-void AsyncLogWriter::write(const LogContextPtr &ctx) {
+void AsyncLogWriter::write(const LogContextPtr &ctx, Logger &logger) {
     {
         lock_guard<mutex> lock(_mutex);
-        _pending.emplace_back(ctx);
+        _pending.emplace_back(std::make_pair(ctx, &logger));
     }
     _sem.post();
 }
@@ -198,16 +198,15 @@ void AsyncLogWriter::run() {
 }
 
 void AsyncLogWriter::flushAll() {
-    List<LogContextPtr> tmp;
+    decltype(_pending) tmp;
     {
         lock_guard<mutex> lock(_mutex);
         tmp.swap(_pending);
     }
 
-    tmp.for_each([&](const LogContextPtr &ctx) {
-        _logger.writeChannels(ctx);
+    tmp.for_each([&](std::pair<LogContextPtr, Logger *> &pr) {
+        pr.second->writeChannels(pr.first);
     });
-
 }
 
 ///////////////////ConsoleChannel///////////////////

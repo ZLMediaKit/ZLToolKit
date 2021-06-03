@@ -179,26 +179,25 @@ class LogWriter : public noncopyable {
 public:
     LogWriter() {}
     virtual ~LogWriter() {}
-    virtual void write(const LogContextPtr &ctx) = 0;
+    virtual void write(const LogContextPtr &ctx, Logger &logger) = 0;
 };
 
 class AsyncLogWriter : public LogWriter {
 public:
-    AsyncLogWriter(Logger &logger = Logger::Instance());
+    AsyncLogWriter();
     ~AsyncLogWriter();
 
 private:
     void run();
     void flushAll();
-    void write(const LogContextPtr &ctx) override;
+    void write(const LogContextPtr &ctx, Logger &logger) override;
 
 private:
     bool _exit_flag;
-    std::shared_ptr<thread> _thread;
-    List<LogContextPtr> _pending;
-    semaphore _sem;
     mutex _mutex;
-    Logger &_logger;
+    semaphore _sem;
+    std::shared_ptr<thread> _thread;
+    List<std::pair<LogContextPtr,Logger *> > _pending;
 };
 
 ///////////////////LogChannel///////////////////
