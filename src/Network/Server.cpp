@@ -12,4 +12,10 @@
 
 namespace toolkit {
 
+Server::Server(EventPoller::Ptr poller) {
+    _poller = poller ? poller : EventPollerPool::Instance().getPoller();
+}
+
+Server::~Server() {}
+
 } // namespace toolkit

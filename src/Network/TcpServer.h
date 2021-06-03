@@ -43,9 +43,9 @@ public:
      * 这样这个TCP服务器将会通过抢占式accept的方式把客户端均匀的分布到不同的poller线程
      * 通过该方式能实现客户端负载均衡以及提高连接接收速度
      */
-    TcpServer(const EventPoller::Ptr &poller = nullptr) {
+    TcpServer(const EventPoller::Ptr &poller = nullptr)
+        : Server(poller) {
         setOnCreateSocket(nullptr);
-        _poller = poller ? poller : EventPollerPool::Instance().getPoller();
         _socket = createSocket();
         _socket->setOnAccept(bind(&TcpServer::onAcceptConnection_l, this, placeholders::_1));
         _socket->setOnBeforeAccept(bind(&TcpServer::onBeforeAcceptConnection_l, this, std::placeholders::_1));
@@ -256,7 +256,7 @@ private:
     Socket::Ptr createSocket(){
         return _on_create_socket(_poller);
     }
-    
+
 private:
     bool _cloned = false;
     bool _is_on_manager = false;

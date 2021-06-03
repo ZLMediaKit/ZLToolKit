@@ -113,7 +113,11 @@ class Server : public std::enable_shared_from_this<Server>, public mINI {
 public:
     typedef std::shared_ptr<Server> Ptr;
 
-    virtual ~Server() = default;
+    explicit Server(EventPoller::Ptr poller = nullptr);
+    virtual ~Server();
+
+protected:
+    EventPoller::Ptr _poller;
 };
 
 } // namespace toolkit
