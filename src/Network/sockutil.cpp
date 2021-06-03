@@ -77,8 +77,15 @@ int SockUtil::setReuseable(int sockFd, bool on) {
     int ret = setsockopt(sockFd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, static_cast<socklen_t>(sizeof(opt)));
     if (ret == -1) {
         TraceL << "设置 SO_REUSEADDR 失败!";
+        return ret;
     }
-    return ret;
+    ret = setsockopt(sockFd, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, static_cast<socklen_t>(sizeof(opt)));
+    if (ret == -1) {
+        TraceL << "设置 SO_REUSEPORT 失败!";
+        return ret;
+    }
+
+    return 0;
 }
 int SockUtil::setBroadcast(int sockFd, bool on) {
     int opt = on ? 1 : 0;
