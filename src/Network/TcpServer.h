@@ -17,109 +17,22 @@
 #include <exception>
 #include <functional>
 #include <unordered_map>
-#include "TcpSession.h"
-#include "Util/mini.h"
-#include "Util/util.h"
-#include "Util/logger.h"
-#include "Util/uv_errno.h"
+
+#include "Network/Server.h"
+#include "Network/TcpSession.h"
 #include "Poller/Timer.h"
 #include "Thread/semaphore.h"
+#include "Util/logger.h"
+#include "Util/util.h"
+#include "Util/uv_errno.h"
+
 using namespace std;
 
 namespace toolkit {
 
-//全局的TcpSession记录对象，方便后面管理
-//线程安全的
-class SessionMap : public std::enable_shared_from_this<SessionMap> {
-public:
-    friend class TcpSessionHelper;
-    typedef std::shared_ptr<SessionMap> Ptr;
-
-    //单例
-    static SessionMap &Instance();
-    ~SessionMap() {};
-
-    //获取Session
-    TcpSession::Ptr get(const string &tag) {
-        lock_guard<mutex> lck(_mtx_session);
-        auto it = _map_session.find(tag);
-        if (it == _map_session.end()) {
-            return nullptr;
-        }
-        return it->second.lock();
-    }
-
-    void for_each_session(const function<void(const string &id, const TcpSession::Ptr &session)> &cb) {
-        lock_guard<mutex> lck(_mtx_session);
-        for (auto it = _map_session.begin(); it != _map_session.end();) {
-            auto session = it->second.lock();
-            if (!session) {
-                it = _map_session.erase(it);
-                continue;
-            }
-            cb(it->first, session);
-            ++it;
-        }
-    }
-
-private:
-    SessionMap() {};
-
-    //添加Session
-    bool add(const string &tag, const TcpSession::Ptr &session) {
-        lock_guard<mutex> lck(_mtx_session);
-        return _map_session.emplace(tag, session).second;
-    }
-
-    //移除Session
-    bool del(const string &tag) {
-        lock_guard<mutex> lck(_mtx_session);
-        return _map_session.erase(tag);
-    }
-
-private:
-    mutex _mtx_session;
-    unordered_map<string, weak_ptr<TcpSession> > _map_session;
-};
-
-class TcpServer;
-class TcpSessionHelper {
-public:
-    typedef std::shared_ptr<TcpSessionHelper> Ptr;
-
-    TcpSessionHelper(const std::weak_ptr<TcpServer> &server,TcpSession::Ptr session){
-        _server = server;
-        _session = std::move(session);
-        //记录session至全局的map，方便后面管理
-        _session_map = SessionMap::Instance().shared_from_this();
-        _identifier = _session->getIdentifier();
-        _session_map->add(_identifier, _session);
-    }
-
-    ~TcpSessionHelper(){
-        if (!_server.lock()) {
-            //务必通知TcpSession已从TcpServer脱离
-            _session->onError(SockException(Err_other, "Tcp server shutdown!"));
-        }
-        //从全局map移除相关记录
-        _session_map->del(_identifier);
-    }
-
-    const TcpSession::Ptr &session() const{
-        return _session;
-    }
-
-private:
-    string _identifier;
-    TcpSession::Ptr _session;
-    SessionMap::Ptr _session_map;
-    std::weak_ptr<TcpServer> _server;
-};
-
-
 //TCP服务器，可配置的；配置通过TcpSession::attachServer方法传递给会话对象
 //该对象是非线程安全的，务必在主线程中操作
-class TcpServer : public mINI , public std::enable_shared_from_this<TcpServer>{
+class TcpServer : public Server {
 public:
     typedef std::shared_ptr<TcpServer> Ptr;
 
@@ -208,7 +121,7 @@ protected:
         _on_create_socket = that._on_create_socket;
         _session_alloc = that._session_alloc;
         _socket->cloneFromListenSocket(*(that._socket));
-        weak_ptr<TcpServer> weak_self = shared_from_this();
+        weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
         _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
@@ -224,10 +137,10 @@ protected:
     // 接收到客户端连接请求
     virtual void onAcceptConnection(const Socket::Ptr &sock) {
         assert(_poller->isCurrentThread());
-        weak_ptr<TcpServer> weak_self = shared_from_this();
+        weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
         //创建一个TcpSession;这里实现创建不同的服务会话实例
-        auto helper = _session_alloc(shared_from_this(), sock);
-        auto &session = helper->session();
+        auto helper = _session_alloc(std::dynamic_pointer_cast<TcpServer>(shared_from_this()), sock);
+        auto session = dynamic_pointer_cast<TcpSession>(helper->session());
         //把本服务器的配置传递给TcpSession
         session->attachServer(*this);
 
@@ -245,7 +158,7 @@ protected:
             }
         });
 
-        TcpSessionHelper *ptr = helper.get();
+        SessionHelper *ptr = helper.get();
         //会话接收到错误事件
         sock->setOnErr([weak_self, weak_session, ptr](const SockException &err) {
             //在本函数作用域结束时移除会话对象
@@ -298,7 +211,7 @@ private:
         _session_alloc = [](const TcpServer::Ptr &server, const Socket::Ptr &sock) {
             auto session = std::make_shared<SessionType>(sock);
             session->setOnCreateSocket(server->_on_create_socket);
-            return std::make_shared<TcpSessionHelper>(server, session);
+            return std::make_shared<SessionHelper>(server, session);
         };
 
         if (!_socket->listen(port, host.c_str(), backlog)) {
@@ -308,7 +221,7 @@ private:
         }
 
         //新建一个定时器定时管理这些tcp会话
-        weak_ptr<TcpServer> weak_self = shared_from_this();
+        weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
         _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
@@ -351,8 +264,8 @@ private:
     EventPoller::Ptr _poller;
     std::shared_ptr<Timer> _timer;
     Socket::onCreateSocket _on_create_socket;
-    unordered_map<TcpSessionHelper *, TcpSessionHelper::Ptr> _session_map;
-    function<TcpSessionHelper::Ptr(const TcpServer::Ptr &server, const Socket::Ptr &)> _session_alloc;
+    unordered_map<SessionHelper *, SessionHelper::Ptr> _session_map;
+    function<SessionHelper::Ptr(const TcpServer::Ptr &server, const Socket::Ptr &)> _session_alloc;
     unordered_map<EventPoller *, Ptr> _cloned_server;
     //对象个数统计
     ObjectStatistic<TcpServer> _statistic;
