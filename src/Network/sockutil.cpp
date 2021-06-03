@@ -574,6 +574,27 @@ int SockUtil::bindUdpSock(const uint16_t port, const char* localIp) {
     return sockfd;
 }
 
+int SockUtil::connectUdpSock(int sock, sockaddr* addr, int addr_len)
+{
+    if (-1 == ::connect(sock, addr, addr_len)) {
+        WarnL << "初始化 UDP 套接字连接关系失败: " << get_uv_errmsg(true);
+        return -1;
+    }
+
+    return 0;
+}
+
+int SockUtil::dissolveUdpSock(int sock) {
+    struct sockaddr_in unspec;
+    unspec.sin_family = AF_UNSPEC;
+    if (-1 == ::connect(sock, (struct sockaddr *)&unspec, sizeof(unspec))) {
+        WarnL << "解除 UDP 套接字连接关系失败: " << get_uv_errmsg(true);
+        return -1;
+    }
+
+    return 0;
+}
+
 uint16_t SockUtil::get_peer_port(int fd) {
     struct sockaddr addr;
     struct sockaddr_in* addr_v4;
