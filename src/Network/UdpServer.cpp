@@ -151,7 +151,6 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int 
             if (!strong_self) {
                 return;
             }
-
             assert(strong_self->_poller->isCurrentThread());
             if (!strong_self->_is_on_manager) {
                 // 该事件不是 onManager 时触发的, 直接操作 map
@@ -174,13 +173,11 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int 
         }
     });
 
-    // 取消绑定关系, 避免在 server 的 socket 中收到后续数据包.
-    SockUtil::dissolveUdpSock(_socket->rawFD());
     socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
     SockUtil::connectUdpSock(socket->rawFD(), addr, addr_len);
-
-    _session_map.emplace(id, helper);
-
+    //在connect peer后再取消绑定关系, 避免在 server 的 socket 或其他cloned server中收到后续数据包.
+    SockUtil::dissolveUdpSock(_socket->rawFD());
+    _session_map.emplace(id, std::move(helper));
     return session;
 }
 
