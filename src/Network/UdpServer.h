@@ -20,6 +20,8 @@ class UdpServer : public Server {
 public:
     using Ptr = std::shared_ptr<UdpServer>;
 
+    using PeerIdType = std::string;
+
     explicit UdpServer(const EventPoller::Ptr &poller = nullptr);
     virtual ~UdpServer();
 
@@ -115,15 +117,17 @@ private:
      */
     void onManagerSession();
 
+    void onRead_l(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
+
     /**
      * @brief 根据对端信息获取或创建一个会话
      */
-    Session::Ptr getOrCreateSession(struct sockaddr *addr, int addr_len);
+    Session::Ptr getOrCreateSession(const PeerIdType &id, struct sockaddr *addr, int addr_len);
 
     /**
      * @brief 创建一个会话, 同时进行必要的设置
      */
-    Session::Ptr createSession(const std::string &id, struct sockaddr *addr, int addr_len);
+    Session::Ptr createSession(const PeerIdType &id, struct sockaddr *addr, int addr_len);
 
     Socket::Ptr createSocket() { return _on_create_socket(_poller); }
 
@@ -136,9 +140,10 @@ private:
 
     Socket::onCreateSocket _on_create_socket;
 
+    // 暂时未发现已绑定的 socket 的数据从其他 socket 接收的情况, 不需要静态
     std::mutex _session_mutex;
     // peer -> session, 与 session 的 identifier 不同, 此处 peer 仅用于区分不同的对端.
-    std::unordered_map<std::string, SessionHelper::Ptr> _session_map;
+    std::unordered_map<PeerIdType, SessionHelper::Ptr> _session_map;
 
     std::function<SessionHelper::Ptr(const UdpServer::Ptr&, const Socket::Ptr&)> _session_alloc;
     std::unordered_map<EventPoller *, Ptr> _cloned_server;
