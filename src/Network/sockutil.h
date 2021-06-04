@@ -81,6 +81,22 @@ public:
     static int bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0");
 
     /**
+     * @brief 初始化套接字 sock 连接关系
+     * @param sock, socket fd 号
+     * @param addr, 对端地址
+     * @param addr_len
+     * @return 0 成功, -1 失败
+     */
+    static int connectUdpSock(int sock, struct sockaddr *addr, int addr_len);
+
+    /**
+     * @brief 解除与 sock 相关的绑定关系
+     * @param sock, socket fd 号
+     * @return 0 成功, -1 失败
+     */
+    static int dissolveUdpSock(int sock);
+
+    /**
      * 绑定socket fd至某个网卡和端口
      * @param sock socket fd号
      * @param localIp 绑定的本地网卡ip
