@@ -68,6 +68,40 @@ private:
     ObjectStatistic<Session> _statistic;
 };
 
+//TCP服务器连接对象，一个tcp连接对应一个TcpSession对象
+class TcpSession : public Session {
+public:
+    using Ptr = std::shared_ptr<TcpSession>;
+
+    TcpSession(const Socket::Ptr &sock) : Session(sock) {}
+    ~TcpSession() override = default;
+
+    Ptr shared_from_this() {
+        return static_pointer_cast<TcpSession>(Session::shared_from_this());
+    }
+
+private:
+    // 对象个数统计
+    ObjectStatistic<TcpSession> _statistic;
+};
+
+//UDP服务器连接对象，一个udp peer对应一个UdpSession对象
+class UdpSession : public Session {
+public:
+    using Ptr = std::shared_ptr<UdpSession>;
+
+    UdpSession(const Socket::Ptr &sock) : Session(sock){}
+    ~UdpSession() override = default;
+
+    Ptr shared_from_this() {
+        return static_pointer_cast<UdpSession>(Session::shared_from_this());
+    }
+
+private:
+    // 对象个数统计
+    ObjectStatistic<UdpSession> _statistic;
+};
+
 } // namespace toolkit
 
 #endif // ZLTOOLKIT_SESSION_H

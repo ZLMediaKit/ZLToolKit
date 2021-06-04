@@ -20,7 +20,7 @@ class UdpServer : public Server {
 public:
     using Ptr = std::shared_ptr<UdpServer>;
 
-    using PeerIdType = std::string;
+    using PeerIdType = uint64_t;
 
     explicit UdpServer(const EventPoller::Ptr &poller = nullptr);
     virtual ~UdpServer();

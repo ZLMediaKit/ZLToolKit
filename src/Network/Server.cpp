@@ -13,7 +13,7 @@
 namespace toolkit {
 
 Server::Server(EventPoller::Ptr poller) {
-    _poller = poller ? poller : EventPollerPool::Instance().getPoller();
+    _poller = poller ? std::move(poller) : EventPollerPool::Instance().getPoller();
 }
 
 Server::~Server() {}

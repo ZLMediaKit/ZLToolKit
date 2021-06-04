@@ -18,7 +18,7 @@ Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {
 Session::~Session() = default;
 
 string Session::getIdentifier() const{
-    return  std::to_string(reinterpret_cast<uint64_t>(this));
+    return std::to_string(reinterpret_cast<uint64_t>(this));
 }
 
 void Session::safeShutdown(const SockException &ex) {
@@ -32,5 +32,7 @@ void Session::safeShutdown(const SockException &ex) {
 }
 
 StatisticImp(Session)
+StatisticImp(UdpSession)
+StatisticImp(TcpSession)
 
 } // namespace toolkit

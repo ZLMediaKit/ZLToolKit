@@ -13,16 +13,15 @@
 namespace toolkit {
 
 static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
-    std::stringstream ss;
-    ss << SockUtil::inet_ntoa(((struct sockaddr_in *) addr)->sin_addr) << ":" << ::ntohs(((struct sockaddr_in *) addr)->sin_port);
-    return ss.str();
+    return ((struct sockaddr_in *) addr)->sin_addr.s_addr << 16 | ((struct sockaddr_in *) addr)->sin_port;
 }
 
-UdpServer::UdpServer(const EventPoller::Ptr &poller)
-    : Server(poller) {
+UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
     setOnCreateSocket(nullptr);
     _socket = createSocket();
-    _socket->setOnRead(std::bind(&UdpServer::onRead, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    _socket->setOnRead([this](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+        onRead(buf, addr, addr_len);
+    });
 }
 
 UdpServer::~UdpServer() {

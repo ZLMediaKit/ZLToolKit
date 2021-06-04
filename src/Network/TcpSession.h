@@ -18,25 +18,6 @@ using namespace std;
 
 namespace toolkit {
 
-class TcpServer;
-
-//TCP服务器连接对象，一个tcp连接对应一个TcpSession对象
-class TcpSession : public Session {
-public:
-    typedef std::shared_ptr<TcpSession> Ptr;
-
-    TcpSession(const Socket::Ptr &sock);
-    virtual ~TcpSession() override;
-
-    /**
-     * 在创建TcpSession后，TcpServer会把自身的配置参数通过该函数传递给TcpSession
-     * @param server 服务器对象
-     */
-    using Session::attachServer;
-    virtual void attachServer(const TcpServer &server) {}
-
-};
-
 //通过该模板可以让TCP服务器快速支持TLS
 template<typename TcpSessionType>
 class TcpSessionWithSSL : public TcpSessionType {
