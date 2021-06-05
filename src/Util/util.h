@@ -167,6 +167,12 @@ private:
     static atomic<size_t> & getCounter();
 };
 
+template <typename C>
+atomic<size_t> & ObjectStatistic<C>::getCounter() {
+    static atomic<size_t> instance(0);
+    return instance;
+}
+
 #define StatisticImp(Type)  \
     template<> \
     atomic<size_t>& ObjectStatistic<Type>::getCounter(){ \
