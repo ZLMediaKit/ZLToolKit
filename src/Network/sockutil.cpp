@@ -584,7 +584,8 @@ int SockUtil::connectUdpSock(int sock, sockaddr *addr, int addr_len) {
 int SockUtil::dissolveUdpSock(int sock) {
     struct sockaddr_in unspec;
     unspec.sin_family = AF_UNSPEC;
-    if (-1 == ::connect(sock, (struct sockaddr *) &unspec, sizeof(unspec))) {
+    if (-1 == ::connect(sock, (struct sockaddr *) &unspec, sizeof(unspec)) && get_uv_error() != UV_EAFNOSUPPORT) {
+        //mac/ios时返回EAFNOSUPPORT错误
         WarnL << "解除 UDP 套接字连接关系失败: " << get_uv_errmsg(true);
         return -1;
     }
