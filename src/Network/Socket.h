@@ -405,12 +405,12 @@ public:
     virtual bool cloneFromListenSocket(const Socket &other);
 
     /**
-     * 设置UDP发送数据时的目标地址，后续发送时就不用再单独指定了
+     * 绑定udp 目标地址，后续发送时就不用再单独指定了
      * @param dst_addr 目标地址
      * @param addr_len 目标地址长度
      * @return 是否成功
      */
-    virtual bool setSendPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len = 0);
+    virtual bool bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len = 0);
 
     /**
      * 设置发送flags

@@ -757,7 +757,7 @@ bool Socket::cloneFromListenSocket(const Socket &other){
     return listen(sock);
 }
 
-bool Socket::setSendPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
+bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
     LOCK_GUARD(_mtx_sock_fd);
     if (!_sock_fd) {
         return false;

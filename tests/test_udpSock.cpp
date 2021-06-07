@@ -52,7 +52,7 @@ int main() {
 
     struct sockaddr addrDst;
     makeAddr(&addrDst,"127.0.0.1",9001);//UDP数据发送地址
-//	sockSend->setSendPeerAddr(&addrDst);
+//	sockSend->bindPeerAddr(&addrDst);
     int i = 0;
     while(!exitProgram){
         //每隔一秒往对方发送数据
