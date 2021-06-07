@@ -110,7 +110,15 @@ protected:
         auto port = that._socket->get_local_port();
         _socket->bindUdpSock(port, addr);
 
-        // 不在 cloned server 中执行会话管理操作.
+        // 各 server 管理各自的会话.
+        std::weak_ptr<UdpServer> weak_self = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
+        _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
+            if (auto strong_self = weak_self.lock()) {
+                strong_self->onManagerSession();
+                return true;
+            }
+            return false;
+        }, _poller);
 
         // clone properties
         this->mINI::operator=(that);
@@ -180,8 +188,12 @@ private:
         for (auto &pr : session_map) {
             // 遍历时, 可能触发 onErr 事件(也会操作 _session_map)
             try {
-                // UDP 会话需要处理超时
-                pr.second->session()->onManager();
+                // 各 server 管理各自的会话.
+                auto session = pr.second->session();
+                if (session->getPoller()->isCurrentThread()) {
+                    // UDP 会话需要处理超时
+                    session->onManager();
+                }
             } catch (exception &ex) {
                 WarnL << ex.what();
             }
