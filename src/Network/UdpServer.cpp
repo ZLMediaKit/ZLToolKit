@@ -13,7 +13,7 @@
 namespace toolkit {
 
 static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
-    return ((struct sockaddr_in *) addr)->sin_addr.s_addr << 16 | ((struct sockaddr_in *) addr)->sin_port;
+    return ((uint64_t)((struct sockaddr_in *) addr)->sin_addr.s_addr) << 16 | ((struct sockaddr_in *) addr)->sin_port;
 }
 
 UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
@@ -28,28 +28,27 @@ UdpServer::~UdpServer() {
     if (!_cloned && _socket->rawFD() != -1) {
         InfoL << "close udp server " << _socket->get_local_ip() << ":" << _socket->get_local_port();
     }
-
     _timer.reset();
-
-    // 先关闭 socket 监听, 防止收到新的连接
     _socket.reset();
-    _session_map.clear();
     _cloned_server.clear();
+    if (!_cloned) {
+        lock_guard<std::recursive_mutex> lck(*_session_mutex);
+        _session_map->clear();
+    }
 }
 
-void UdpServer::cloneFrom(const UdpServer &that) {
-    if (!that._socket) {
-        throw std::invalid_argument("UdpServer::cloneFrom other with NULL socket!");
+void UdpServer::start_l(uint16_t port, const std::string &host) {
+    //主server才创建session map，其他cloned server共享之
+    _session_mutex = std::make_shared<std::recursive_mutex>();
+    _session_map = std::make_shared<std::unordered_map<PeerIdType, SessionHelper::Ptr> >();
+
+    if (!_socket->bindUdpSock(port, host.c_str())) {
+        // udp 绑定端口失败, 可能是由于端口占用或权限问题
+        std::string err = (StrPrinter << "bind " << host << ":" << port << " failed:" << get_uv_errmsg(true));
+        throw std::runtime_error(err);
     }
 
-    // clone callbacks
-    _on_create_socket = that._on_create_socket;
-    _session_alloc = that._session_alloc;
-
-    // clone socket info
-    auto addr = that._socket->get_local_ip();
-    auto port = that._socket->get_local_port();
-    _socket->bindUdpSock(port, addr);
+    // 新建一个定时器定时管理这些 udp 会话,这些对象只由主server做超时管理，cloned server不管理
     std::weak_ptr<UdpServer> weak_self = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
         auto strong_self = weak_self.lock();
@@ -60,64 +59,106 @@ void UdpServer::cloneFrom(const UdpServer &that) {
         return true;
     }, _poller);
 
+    //clone server至不同线程，让udp server支持多线程
+    EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor) {
+        auto poller = std::dynamic_pointer_cast<EventPoller>(executor);
+        if (poller == _poller || !poller) {
+            return;
+        }
+
+        auto &serverRef = _cloned_server[poller.get()];
+        if (!serverRef) {
+            serverRef = onCreatServer(poller);
+        }
+        if (serverRef) {
+            serverRef->cloneFrom(*this);
+        }
+    });
+
+    InfoL << "UDP Server bind to " << host << ":" << port;
+}
+
+UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {
+    return std::make_shared<UdpServer>(poller);
+}
+
+void UdpServer::cloneFrom(const UdpServer &that) {
+    if (!that._socket) {
+        throw std::invalid_argument("UdpServer::cloneFrom other with NULL socket!");
+    }
+    // clone callbacks
+    _on_create_socket = that._on_create_socket;
+    _session_alloc = that._session_alloc;
+    _session_mutex = that._session_mutex;
+    _session_map = that._session_map;
+    // clone udp socket
+    _socket->bindUdpSock(that._socket->get_local_port(), that._socket->get_local_ip());
     // clone properties
     this->mINI::operator=(that);
-
     _cloned = true;
 }
 
 void UdpServer::onRead(const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
     const auto id = makeSockId(addr, addr_len);
-    onRead_l(id, buf, addr, addr_len);
+    onRead_l(true, id, buf, addr, addr_len);
 }
 
-void UdpServer::onManagerSession() {
-    assert(_poller->isCurrentThread());
-
-    onceToken token([&]() {
-        _is_on_manager = true;
-    }, [&]() {
-        _is_on_manager = false;
-    });
-
-    for (auto &pr : _session_map) {
-        // 遍历时, 可能触发 onErr 事件(也会操作 _session_map)
-        try {
-            // UDP 会话需要处理超时
-            pr.second->session()->onManager();
-        } catch (exception &ex) {
-            WarnL << ex.what();
-        }
-    }
-}
-
-void UdpServer::onRead_l(const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
-    if (auto session = getOrCreateSession(id, addr, addr_len)) {
+void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
+    // udp server fd收到数据时触发此函数；大部分情况下数据应该在peer fd触发，此函数应该不是热点函数
+    bool is_new = false;
+    if (auto &session = getOrCreateSession(id, addr, addr_len, is_new)) {
         std::weak_ptr<Session> weak_session = session;
-        // 应不需要切换, Linux 下暂未发现已绑定的会话收到其他已创建会话的数据
+        //数据可能漂移到其他线程，所以此处尝试切换线程(通常不需要)
         session->async([weak_session, buf]() {
             if (auto strong_session = weak_session.lock()) {
                 strong_session->onRecv(buf);
             }
         });
+#if !defined(NDEBUG)
+        if (!session->getPoller()->isCurrentThread()) {
+            WarnL << "udp packet incoming from other thread";
+        }
+        if (!is_new) {
+            TraceL << "udp packet incoming from " << (is_server_fd ? "server fd" : "other peer fd");
+        }
+#endif
     }
 }
 
-Session::Ptr UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, sockaddr *addr, int addr_len) {
-    std::lock_guard<std::mutex> lock(_session_mutex);
-    auto it = _session_map.find(id);
-    if (it != _session_map.end())
-        return it->second->session();
+void UdpServer::onManagerSession() {
+    assert(_poller->isCurrentThread());
+    std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
+    for (auto &pr : *_session_map) {
+        // 由于session对象可能分布在不同cloned server上(不同线程)，所以需要切换线程再执行onManager函数
+        auto session = pr.second->session();
+        pr.second->session()->async([session]() {
+            try {
+                // UDP 会话需要处理超时
+                session->onManager();
+            } catch (exception &ex) {
+                WarnL << ex.what();
+            }
+        }, false);
+    }
+}
 
-    // under lock
+const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, sockaddr *addr, int addr_len, bool &is_new) {
+    {
+        //减小临界区
+        std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
+        auto it = _session_map->find(id);
+        if (it != _session_map->end()) {
+            return it->second->session();
+        }
+    }
+    is_new = true;
     return createSession(id, addr, addr_len);
 }
 
-Session::Ptr UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int addr_len) {
+const Session::Ptr& UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int addr_len) {
     auto socket = createSocket();
     auto server = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
     auto helper = _session_alloc(server, socket);
-
     auto session = helper->session();
     // 把本服务器的配置传递给 Session
     session->attachServer(*this);
@@ -130,7 +171,7 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int 
             return;
         }
 
-        // 快速判断是否为本会话的的数据, 通常应该成立
+        //快速判断是否为本会话的的数据, 通常应该成立
         if (id == makeSockId(addr, addr_len)) {
             if (auto strong_session = weak_session.lock()) {
                 strong_session->onRecv(buf);
@@ -138,8 +179,8 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int 
             return;
         }
 
-        // 不支持绑定 socket 或收到新连接, 重新查找, 实测主要是有新连接
-        strong_self->onRead(buf, addr, addr_len);
+        //收到非本peer fd的数据，让server去派发此数据到合适的session对象
+        strong_self->onRead_l(false, id, buf, addr, addr_len);
     });
     socket->setOnErr([weak_self, weak_session, id](const SockException &err) {
         // 在本函数作用域结束时移除会话对象
@@ -152,18 +193,9 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int 
                 return;
             }
             assert(strong_self->_poller->isCurrentThread());
-            if (!strong_self->_is_on_manager) {
-                // 该事件不是 onManager 时触发的, 直接操作 map
-                strong_self->_session_map.erase(id);
-            } else {
-                // 遍历 map 时不能直接删除元素
-                strong_self->_poller->async([weak_self, id]() {
-                    auto strong_self = weak_self.lock();
-                    if (strong_self) {
-                        strong_self->_session_map.erase(id);
-                    }
-                }, false);
-            }
+            //从共享map中移除本session对象
+            lock_guard<std::recursive_mutex> lck(*strong_self->_session_mutex);
+            strong_self->_session_map->erase(id);
         });
 
         // 获取会话强应用
@@ -174,11 +206,34 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int 
     });
 
     socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
-    SockUtil::connectUdpSock(socket->rawFD(), addr, addr_len);
+    socket->bindPeerAddr(addr, addr_len);
     //在connect peer后再取消绑定关系, 避免在 server 的 socket 或其他cloned server中收到后续数据包.
     SockUtil::dissolveUdpSock(_socket->rawFD());
-    _session_map.emplace(id, std::move(helper));
-    return session;
+
+    lock_guard<std::recursive_mutex> lck(*_session_mutex);
+    auto pr = _session_map->emplace(id, std::move(helper));
+    assert(pr.second);
+    return pr.first->second->session();
+}
+
+void UdpServer::setOnCreateSocket(Socket::onCreateSocket cb) {
+    if (cb) {
+        _on_create_socket = std::move(cb);
+    } else {
+        _on_create_socket = [](const EventPoller::Ptr &poller) {
+            return Socket::createSocket(poller, false);
+        };
+    }
+    for (auto &pr : _cloned_server) {
+        pr.second->setOnCreateSocket(cb);
+    }
+}
+
+uint16_t UdpServer::getPort() {
+    if (!_socket) {
+        return 0;
+    }
+    return _socket->get_local_port();
 }
 
 StatisticImp(UdpServer)
