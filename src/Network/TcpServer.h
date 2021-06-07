@@ -260,7 +260,6 @@ private:
     bool _cloned = false;
     bool _is_on_manager = false;
     Socket::Ptr _socket;
-    EventPoller::Ptr _poller;
     std::shared_ptr<Timer> _timer;
     Socket::onCreateSocket _on_create_socket;
     unordered_map<SessionHelper *, SessionHelper::Ptr> _session_map;
