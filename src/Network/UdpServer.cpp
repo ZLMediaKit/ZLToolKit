@@ -126,20 +126,33 @@ void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, con
 }
 
 void UdpServer::onManagerSession() {
-    assert(_poller->isCurrentThread());
-    std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
-    for (auto &pr : *_session_map) {
-        // 由于session对象可能分布在不同cloned server上(不同线程)，所以需要切换线程再执行onManager函数
-        auto session = pr.second->session();
-        pr.second->session()->async([session]() {
-            try {
-                // UDP 会话需要处理超时
-                session->onManager();
-            } catch (exception &ex) {
-                WarnL << ex.what();
-            }
-        }, false);
+    decltype(_session_map) copy_map;
+    {
+        std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
+        //拷贝map，防止遍历时移除对象
+        copy_map = std::make_shared<std::unordered_map<PeerIdType, SessionHelper::Ptr> >(*_session_map);
     }
+    EventPollerPool::Instance().for_each([copy_map](const TaskExecutor::Ptr &executor) {
+        auto poller = std::dynamic_pointer_cast<EventPoller>(executor);
+        if (!poller) {
+            return;
+        }
+        poller->async([copy_map]() {
+            for (auto &pr : *copy_map) {
+                auto &session = pr.second->session();
+                if (!session->getPoller()->isCurrentThread()) {
+                    //该session不归属该poller管理
+                    continue;
+                }
+                try {
+                    // UDP 会话需要处理超时
+                    session->onManager();
+                } catch (exception &ex) {
+                    WarnL << ex.what();
+                }
+            }
+        });
+    });
 }
 
 const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, sockaddr *addr, int addr_len, bool &is_new) {
