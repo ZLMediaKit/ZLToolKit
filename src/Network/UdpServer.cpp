@@ -170,6 +170,12 @@ const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &i
 
 const Session::Ptr& UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int addr_len) {
     auto socket = createSocket();
+
+    socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
+    socket->bindPeerAddr(addr, addr_len);
+    //在connect peer后再取消绑定关系, 避免在 server 的 socket 或其他cloned server中收到后续数据包.
+    SockUtil::dissolveUdpSock(_socket->rawFD());
+
     auto server = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
     auto helper = _session_alloc(server, socket);
     auto session = helper->session();
@@ -217,11 +223,6 @@ const Session::Ptr& UdpServer::createSession(const PeerIdType &id, sockaddr *add
             strong_session->onError(err);
         }
     });
-
-    socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
-    socket->bindPeerAddr(addr, addr_len);
-    //在connect peer后再取消绑定关系, 避免在 server 的 socket 或其他cloned server中收到后续数据包.
-    SockUtil::dissolveUdpSock(_socket->rawFD());
 
     lock_guard<std::recursive_mutex> lck(*_session_mutex);
     auto pr = _session_map->emplace(id, std::move(helper));
