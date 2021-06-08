@@ -79,10 +79,12 @@ int SockUtil::setReuseable(int sockFd, bool on) {
         TraceL << "设置 SO_REUSEADDR 失败!";
         return ret;
     }
+#if defined(SO_REUSEPORT)
     ret = setsockopt(sockFd, SOL_SOCKET, SO_REUSEPORT, (char *) &opt, static_cast<socklen_t>(sizeof(opt)));
     if (ret == -1) {
         TraceL << "设置 SO_REUSEPORT 失败!";
     }
+#endif
     return ret;
 }
 
