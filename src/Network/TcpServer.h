@@ -139,7 +139,7 @@ protected:
         weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
         //创建一个TcpSession;这里实现创建不同的服务会话实例
         auto helper = _session_alloc(std::dynamic_pointer_cast<TcpServer>(shared_from_this()), sock);
-        auto session = dynamic_pointer_cast<TcpSession>(helper->session());
+        auto session = helper->session();
         //把本服务器的配置传递给TcpSession
         session->attachServer(*this);
 
@@ -147,7 +147,7 @@ protected:
         auto success = _session_map.emplace(helper.get(), helper).second;
         assert(success == true);
 
-        weak_ptr<TcpSession> weak_session = session;
+        weak_ptr<Session> weak_session = session;
         //会话接收数据事件
         sock->setOnRead([weak_session](const Buffer::Ptr &buf, struct sockaddr *, int) {
             //获取会话强应用
