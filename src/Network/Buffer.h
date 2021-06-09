@@ -463,25 +463,31 @@ struct msghdr {
 #endif
 
 class BufferList;
-class BufferSock : public Buffer{
+class BufferSock : public Buffer {
 public:
-    typedef std::shared_ptr<BufferSock> Ptr;
+    using Ptr = std::shared_ptr<BufferSock>;
+    using onResult = function<void(size_t size)>;
     friend class BufferList;
-    BufferSock(Buffer::Ptr ptr,struct sockaddr *addr = nullptr, int addr_len = 0);
+
+    BufferSock(Buffer::Ptr ptr, struct sockaddr *addr = nullptr, int addr_len = 0, onResult cb = nullptr);
     ~BufferSock();
-    char *data() const override ;
+
+    char *data() const override;
     size_t size() const override;
+    void setSendResult(onResult cb);
+    void onSendSuccess();
 
 private:
     int _addr_len = 0;
     struct sockaddr *_addr = nullptr;
     Buffer::Ptr _buffer;
+    onResult _result;
 };
 
 class BufferList : public noncopyable {
 public:
     typedef std::shared_ptr<BufferList> Ptr;
-    BufferList(List<Buffer::Ptr> &list);
+    BufferList(List<BufferSock::Ptr> &list);
     ~BufferList() {}
 
     bool empty();
@@ -496,7 +502,7 @@ private:
     size_t _iovec_off = 0;
     size_t _remainSize = 0;
     vector<struct iovec> _iovec;
-    List<Buffer::Ptr> _pkt_list;
+    List<BufferSock::Ptr> _pkt_list;
     //对象个数统计
     ObjectStatistic<BufferList> _statistic;
 };

@@ -343,7 +343,11 @@ ssize_t Socket::send(string buf, struct sockaddr *addr, socklen_t addr_len, bool
     return send(std::make_shared<BufferString>(std::move(buf)), addr, addr_len, try_flush);
 }
 
-ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush){
+ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
+    return send(std::make_shared<BufferSock>(std::move(buf), addr, addr_len), try_flush);
+}
+
+ssize_t Socket::send(BufferSock::Ptr buf, bool try_flush) {
     auto size = buf ? buf->size() : 0;
     if (!size) {
         return 0;
@@ -362,7 +366,7 @@ ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len,
 
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
-        _send_buf_waiting.emplace_back(sock->type() == SockNum::Sock_UDP ? std::make_shared<BufferSock>(std::move(buf), addr, addr_len) : buf);
+        _send_buf_waiting.emplace_back(std::move(buf));
     }
 
     if(try_flush){
@@ -374,7 +378,7 @@ ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len,
         //该socket不可写,判断发送超时
         if (_send_flush_ticker.elapsedTime() > _max_send_buffer_ms) {
             //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
-            emitErr(SockException(Err_other, "Socket send timeout"));
+            emitErr(SockException(Err_other, "socket send timeout"));
             return -1;
         }
     }
