@@ -96,6 +96,9 @@ ssize_t BufferList::send_l(int fd, int flags,bool udp) {
         //全部写完了
         _iovec_off = _iovec.size();
         _remainSize = 0;
+        _pkt_list.for_each([](BufferSock::Ptr &buffer){
+            buffer->onSendSuccess();
+        });
         return n;
     }
 
