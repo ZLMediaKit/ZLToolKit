@@ -18,7 +18,7 @@ static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
 
 UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
     setOnCreateSocket(nullptr);
-    _socket = createSocket();
+    _socket = createSocket(_poller);
     _socket->setOnRead([this](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
         onRead(buf, addr, addr_len);
     });
@@ -169,7 +169,7 @@ const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &i
 }
 
 const Session::Ptr& UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int addr_len) {
-    auto socket = createSocket();
+    auto socket = createSocket(_poller);
 
     socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
     socket->bindPeerAddr(addr, addr_len);
@@ -249,6 +249,11 @@ uint16_t UdpServer::getPort() {
     }
     return _socket->get_local_port();
 }
+
+Socket::Ptr UdpServer::createSocket(const EventPoller::Ptr &poller) {
+    return _on_create_socket(poller);
+}
+
 
 StatisticImp(UdpServer)
 

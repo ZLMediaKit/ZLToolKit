@@ -31,12 +31,10 @@ public:
     void start(uint16_t port, const std::string &host = "0.0.0.0") {
         // Session 创建器, 通过它创建不同类型的服务器
         _session_alloc = [](const UdpServer::Ptr &server, const Socket::Ptr &sock) {
-            Session::Ptr session = std::make_shared<SessionType>(sock);
-            std::weak_ptr<Server> weak_server = std::static_pointer_cast<Server>(server);
+            auto session = std::make_shared<SessionType>(sock);
             session->setOnCreateSocket(server->_on_create_socket);
-            return std::make_shared<SessionHelper>(weak_server, session);
+            return std::make_shared<SessionHelper>(server, session);
         };
-
         start_l(port, host);
     }
 
@@ -92,7 +90,7 @@ private:
     /**
      * @brief 创建socket
      */
-    Socket::Ptr createSocket() { return _on_create_socket(_poller); }
+    Socket::Ptr createSocket(const EventPoller::Ptr &poller);
 
 private:
     bool _cloned = false;
