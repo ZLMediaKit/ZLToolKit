@@ -259,7 +259,7 @@ public:
     //发生错误回调
     typedef function<void(const SockException &err)> onErrCB;
     //tcp监听接收到连接请求
-    typedef function<void(Socket::Ptr &sock)> onAcceptCB;
+    typedef function<void(Socket::Ptr &sock, shared_ptr<void> &complete)> onAcceptCB;
     //socket发送缓存清空事件，返回true代表下次继续监听该事件，否则停止
     typedef function<bool()> onFlush;
     //在接收到连接请求前，拦截Socket默认生成方式

@@ -83,16 +83,17 @@ private:
     void onManagerSession();
     Socket::Ptr createSocket(const EventPoller::Ptr &poller);
     void start_l(uint16_t port, const std::string &host, uint32_t backlog);
+    const Ptr& getServer(const EventPoller *) const;
 
 private:
-    bool _cloned = false;
     bool _is_on_manager = false;
+    const TcpServer *_parent = nullptr;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
     Socket::onCreateSocket _on_create_socket;
     unordered_map<SessionHelper *, SessionHelper::Ptr> _session_map;
     function<SessionHelper::Ptr(const TcpServer::Ptr &server, const Socket::Ptr &)> _session_alloc;
-    unordered_map<EventPoller *, Ptr> _cloned_server;
+    unordered_map<const EventPoller *, Ptr> _cloned_server;
     //对象个数统计
     ObjectStatistic<TcpServer> _statistic;
 };

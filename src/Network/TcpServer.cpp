@@ -21,13 +21,18 @@ TcpServer::TcpServer(const EventPoller::Ptr &poller) : Server(poller) {
     _socket->setOnBeforeAccept([this](const EventPoller::Ptr &poller) {
         return onBeforeAcceptConnection(poller);
     });
-    _socket->setOnAccept([this](Socket::Ptr &sock) {
-        onAcceptConnection(sock);
+    _socket->setOnAccept([this](Socket::Ptr &sock, shared_ptr<void> &complete) {
+        auto ptr = sock->getPoller().get();
+        auto server = getServer(ptr);
+        ptr->async([server, sock, complete]() {
+            //该tcp客户端派发给对应线程的TcpServer服务器
+            server->onAcceptConnection(sock);
+        });
     });
 }
 
 TcpServer::~TcpServer() {
-    if (!_cloned && _socket->rawFD() != -1) {
+    if (!_parent && _socket->rawFD() != -1) {
         InfoL << "close tcp server " << _socket->get_local_ip() << ":" << _socket->get_local_port();
     }
     _timer.reset();
@@ -63,7 +68,8 @@ TcpServer::Ptr TcpServer::onCreatServer(const EventPoller::Ptr &poller) {
 
 Socket::Ptr TcpServer::onBeforeAcceptConnection(const EventPoller::Ptr &poller) {
     assert(_poller->isCurrentThread());
-    return createSocket(poller);
+    //此处改成自定义获取poller对象，防止负载不均衡
+    return createSocket(EventPollerPool::Instance().getPoller());
 }
 
 void TcpServer::cloneFrom(const TcpServer &that) {
@@ -83,7 +89,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
         return true;
     }, _poller);
     this->mINI::operator=(that);
-    _cloned = true;
+    _parent = &that;
 }
 
 // 接收到客户端连接请求
@@ -178,6 +184,10 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
             serverRef->cloneFrom(*this);
         }
     });
+
+    //记录本对象
+    _cloned_server[_poller.get()] = static_pointer_cast<TcpServer>(shared_from_this());
+
     InfoL << "TCP Server listening on " << host << ":" << port;
 }
 
@@ -203,6 +213,14 @@ void TcpServer::onManagerSession() {
 Socket::Ptr TcpServer::createSocket(const EventPoller::Ptr &poller) {
     return _on_create_socket(poller);
 }
+
+const TcpServer::Ptr &TcpServer::getServer(const EventPoller *poller) const {
+    auto &ref = _parent ? _parent->_cloned_server : _cloned_server;
+    auto it = ref.find(poller);
+    assert(it != ref.end());
+    return it->second;
+}
+
 
 } /* namespace toolkit */
 

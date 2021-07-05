@@ -98,7 +98,7 @@ void Socket::setOnAccept(onAcceptCB cb) {
     if (cb) {
         _on_accept = std::move(cb);
     } else {
-        _on_accept = [](Socket::Ptr &sock) {
+        _on_accept = [](Socket::Ptr &sock, shared_ptr<void> &complete) {
             WarnL << "Socket not set acceptCB";
         };
     }
@@ -500,17 +500,15 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
             SockUtil::setCloExec(fd);
 
             Socket::Ptr peer_sock;
-            {
-                //拦截Socket对象的构造
+            try {
+                //此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题
                 LOCK_GUARD(_mtx_event);
-                try {
-                    //此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题
-                    peer_sock = _on_before_accept(_poller);
-                } catch (std::exception &ex) {
-                    ErrorL << "触发socket before accept事件时,捕获到异常:" << ex.what();
-                    close(fd);
-                    continue;
-                }
+                //拦截Socket对象的构造
+                peer_sock = _on_before_accept(_poller);
+            } catch (std::exception &ex) {
+                ErrorL << "触发socket before accept事件时,捕获到异常:" << ex.what();
+                close(fd);
+                continue;
             }
 
             if (!peer_sock) {
@@ -521,22 +519,26 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
             //设置好fd,以备在onAccept事件中可以正常访问该fd
             auto peer_sock_fd = peer_sock->setPeerSock(fd);
 
-            {
-                //先触发onAccept事件，此时应该监听该Socket的onRead等事件
-                LOCK_GUARD(_mtx_event);
+            shared_ptr<void> completed(nullptr, [peer_sock, peer_sock_fd](void *) {
                 try {
-                    //此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题
-                    _on_accept(peer_sock);
+                    //然后把该fd加入poll监听(确保先触发onAccept事件然后再触发onRead等事件)
+                    if (!peer_sock->attachEvent(peer_sock_fd, false)) {
+                        //加入poll监听失败，触发onErr事件，通知该Socket无效
+                        peer_sock->emitErr(SockException(Err_eof, "add event to poller failed when accept a socket"));
+                    }
                 } catch (std::exception &ex) {
-                    ErrorL << "触发socket accept事件时,捕获到异常:" << ex.what();
-                    continue;
+                    ErrorL << ex.what();
                 }
-            }
+            });
 
-            //然后把该fd加入poll监听(确保先触发onAccept事件然后再触发onRead等事件)
-            if (!peer_sock->attachEvent(peer_sock_fd, false)) {
-                //加入poll监听失败，触发onErr事件，通知该Socket无效
-                peer_sock->emitErr(SockException(Err_eof, "add event to poller failed when accept a socket"));
+            try {
+                //此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题
+                LOCK_GUARD(_mtx_event);
+                //先触发onAccept事件，此时应该监听该Socket的onRead等事件
+                _on_accept(peer_sock, completed);
+            } catch (std::exception &ex) {
+                ErrorL << "触发socket accept事件时,捕获到异常:" << ex.what();
+                continue;
             }
         }
 
