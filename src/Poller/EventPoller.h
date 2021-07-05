@@ -251,9 +251,9 @@ public:
      * 根据负载情况获取轻负载的实例
      * 如果优先返回当前线程，那么会返回当前线程
      * 返回当前线程的目的是为了提高线程安全性
-     * @return
+     * @param prefer_current_thread 是否优先获取当前线程
      */
-    EventPoller::Ptr getPoller();
+    EventPoller::Ptr getPoller(bool prefer_current_thread = true);
 
     /**
      * 设置 getPoller() 是否优先返回当前线程

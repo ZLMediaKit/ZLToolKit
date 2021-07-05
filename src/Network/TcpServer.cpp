@@ -69,7 +69,7 @@ TcpServer::Ptr TcpServer::onCreatServer(const EventPoller::Ptr &poller) {
 Socket::Ptr TcpServer::onBeforeAcceptConnection(const EventPoller::Ptr &poller) {
     assert(_poller->isCurrentThread());
     //此处改成自定义获取poller对象，防止负载不均衡
-    return createSocket(EventPollerPool::Instance().getPoller());
+    return createSocket(EventPollerPool::Instance().getPoller(false));
 }
 
 void TcpServer::cloneFrom(const TcpServer &that) {

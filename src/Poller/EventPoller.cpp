@@ -445,9 +445,9 @@ EventPoller::Ptr EventPollerPool::getFirstPoller(){
     return dynamic_pointer_cast<EventPoller>(_threads.front());
 }
 
-EventPoller::Ptr EventPollerPool::getPoller(){
+EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread){
     auto poller = EventPoller::getCurrentPoller();
-    if(_preferCurrentThread && poller){
+    if (prefer_current_thread && _preferCurrentThread && poller) {
         return poller;
     }
     return dynamic_pointer_cast<EventPoller>(getExecutor());
