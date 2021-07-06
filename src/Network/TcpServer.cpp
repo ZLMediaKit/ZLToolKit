@@ -185,9 +185,6 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
         }
     });
 
-    //记录本对象
-    _cloned_server[_poller.get()] = static_pointer_cast<TcpServer>(shared_from_this());
-
     InfoL << "TCP Server listening on " << host << ":" << port;
 }
 
@@ -214,11 +211,16 @@ Socket::Ptr TcpServer::createSocket(const EventPoller::Ptr &poller) {
     return _on_create_socket(poller);
 }
 
-const TcpServer::Ptr &TcpServer::getServer(const EventPoller *poller) const {
+TcpServer::Ptr TcpServer::getServer(const EventPoller *poller) const {
     auto &ref = _parent ? _parent->_cloned_server : _cloned_server;
     auto it = ref.find(poller);
-    assert(it != ref.end());
-    return it->second;
+    if (it != ref.end()) {
+        //派发到cloned server
+        return it->second;
+    }
+    //派发到parent server
+    return static_pointer_cast<TcpServer>(_parent ? const_cast<TcpServer *>(_parent)->shared_from_this() :
+                                          const_cast<TcpServer *>(this)->shared_from_this());
 }
 
 
