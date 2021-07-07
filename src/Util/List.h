@@ -59,10 +59,11 @@ public:
         _front = nullptr;
         _back = nullptr;
     }
-    template <typename  FUN>
-    void for_each(FUN &&fun){
+
+    template<typename FUN>
+    void for_each(FUN &&fun) const {
         auto ptr = _front;
-        while(ptr){
+        while (ptr) {
             fun(ptr->_data);
             ptr = ptr->next;
         }
