@@ -43,7 +43,7 @@ typedef function<void(int event)> PollEventCB;
 typedef function<void(bool success)> PollDelCB;
 typedef TaskCancelableImp<uint64_t(void)> DelayTask;
 
-class EventPoller : public TaskExecutor , public std::enable_shared_from_this<EventPoller> {
+class EventPoller : public TaskExecutor, public AnyStorage, public std::enable_shared_from_this<EventPoller> {
 public:
     typedef std::shared_ptr<EventPoller> Ptr;
     friend class EventPollerPool;
@@ -221,7 +221,6 @@ private:
     //定时器相关
     multimap<uint64_t, DelayTask::Ptr> _delay_task_map;
 };
-
 
 class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, public TaskExecutorGetterImp {
 public:
