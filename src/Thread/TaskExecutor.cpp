@@ -192,17 +192,13 @@ inline bool set_cpu(int i) {
 }
 
 size_t TaskExecutorGetterImp::addPoller(size_t size, int priority, bool register_thread) {
-#if defined(__linux) || defined(__linux__) || defined(__MACH__) || defined(__APPLE__)
-    auto cpus = sysconf(_SC_NPROCESSORS_ONLN);
-#else
-    auto cpus thread::hardware_concurrency();
-#endif
+    auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;
     for (auto i = 0; i < size; ++i) {
         EventPoller::Ptr poller(new EventPoller((ThreadPool::Priority) priority));
         poller->runLoop(false, register_thread);
-        poller->async([i, size]() {
-            set_cpu(i % size);
+        poller->async([i, cpus]() {
+            set_cpu(i % cpus);
         });
         _threads.emplace_back(std::move(poller));
     }
