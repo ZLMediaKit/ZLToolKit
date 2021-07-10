@@ -234,7 +234,7 @@ public:
     void for_each(const function<void(const TaskExecutor::Ptr &)> &cb);
 
 protected:
-    size_t addPoller(size_t size, int priority);
+    size_t addPoller(size_t size, int priority, bool register_thread);
 
 protected:
     size_t _thread_pos = 0;

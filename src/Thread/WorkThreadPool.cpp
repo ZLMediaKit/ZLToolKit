@@ -29,7 +29,7 @@ EventPoller::Ptr WorkThreadPool::getPoller(){
 
 WorkThreadPool::WorkThreadPool(){
     //最低优先级
-    addPoller(s_pool_size, ThreadPool::PRIORITY_LOWEST);
+    addPoller(s_pool_size, ThreadPool::PRIORITY_LOWEST, false);
 }
 
 void WorkThreadPool::setPoolSize(size_t size) {

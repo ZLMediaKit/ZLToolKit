@@ -191,8 +191,7 @@ inline bool set_cpu(int i) {
     return false;
 }
 
-
-size_t TaskExecutorGetterImp::addPoller(size_t size, int priority){
+size_t TaskExecutorGetterImp::addPoller(size_t size, int priority, bool register_thread) {
 #if defined(__linux) || defined(__linux__) || defined(__MACH__) || defined(__APPLE__)
     auto cpus = sysconf(_SC_NPROCESSORS_ONLN);
 #else
@@ -201,7 +200,7 @@ size_t TaskExecutorGetterImp::addPoller(size_t size, int priority){
     size = size > 0 ? size : cpus;
     for (auto i = 0; i < size; ++i) {
         EventPoller::Ptr poller(new EventPoller((ThreadPool::Priority) priority));
-        poller->runLoop(false, true);
+        poller->runLoop(false, register_thread);
         poller->async([i, size]() {
             set_cpu(i % size);
         });
