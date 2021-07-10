@@ -152,7 +152,7 @@ public:
      * @param on 是否开启该特性
      * @return 0代表成功，-1为失败
      */
-    static int setReuseable(int sock, bool on = true);
+    static int setReuseable(int sock, bool on = true, bool reuse_port = true);
 
     /**
      * 运行发送或接收udp广播信息

@@ -72,7 +72,7 @@ int SockUtil::setNoDelay(int sockFd, bool on) {
     return ret;
 }
 
-int SockUtil::setReuseable(int sockFd, bool on) {
+int SockUtil::setReuseable(int sockFd, bool on, bool reuse_port) {
     int opt = on ? 1 : 0;
     int ret = setsockopt(sockFd, SOL_SOCKET, SO_REUSEADDR, (char *) &opt, static_cast<socklen_t>(sizeof(opt)));
     if (ret == -1) {
@@ -80,9 +80,11 @@ int SockUtil::setReuseable(int sockFd, bool on) {
         return ret;
     }
 #if defined(SO_REUSEPORT)
-    ret = setsockopt(sockFd, SOL_SOCKET, SO_REUSEPORT, (char *) &opt, static_cast<socklen_t>(sizeof(opt)));
-    if (ret == -1) {
-        TraceL << "设置 SO_REUSEPORT 失败!";
+    if (reuse_port) {
+        ret = setsockopt(sockFd, SOL_SOCKET, SO_REUSEPORT, (char *) &opt, static_cast<socklen_t>(sizeof(opt)));
+        if (ret == -1) {
+            TraceL << "设置 SO_REUSEPORT 失败!";
+        }
     }
 #endif
     return ret;
@@ -302,7 +304,7 @@ int SockUtil::listen(const uint16_t port, const char* localIp, int backLog) {
         return -1;
     }
 
-    setReuseable(sockfd);
+    setReuseable(sockfd, true, false);
     setNoBlocked(sockfd);
     setCloExec(sockfd);
 
