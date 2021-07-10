@@ -83,7 +83,7 @@ private:
     void onManagerSession();
     Socket::Ptr createSocket(const EventPoller::Ptr &poller);
     void start_l(uint16_t port, const std::string &host, uint32_t backlog);
-    const Ptr& getServer(const EventPoller *) const;
+    Ptr getServer(const EventPoller *) const;
 
 private:
     bool _is_on_manager = false;
