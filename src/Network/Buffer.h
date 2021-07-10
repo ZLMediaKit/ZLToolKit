@@ -28,12 +28,14 @@
 #include "Network/sockutil.h"
 using namespace std;
 
-namespace std {
-    template <typename T> struct is_pointer<shared_ptr<T> > : std::true_type {};
-    template <typename T> struct is_pointer<shared_ptr<T const> > : std::true_type {};
-}
-
 namespace toolkit {
+
+template <typename T> struct is_pointer : public std::false_type {};
+template <typename T> struct is_pointer<shared_ptr<T> > : public std::true_type {};
+template <typename T> struct is_pointer<shared_ptr<T const> > : public std::true_type {};
+template <typename T> struct is_pointer<T*> : public true_type {};
+template <typename T> struct is_pointer<const T*> : public true_type {};
+
 //缓存基类
 class Buffer : public noncopyable {
 public:
@@ -92,13 +94,13 @@ private:
     }
 
     template<typename T>
-    static typename std::enable_if<std::is_pointer<T>::value, const T &>::type
+    static typename std::enable_if<toolkit::is_pointer<T>::value, const T &>::type
     getPointer(const T &data) {
         return data;
     }
 
     template<typename T>
-    static typename std::enable_if<!std::is_pointer<T>::value, const T *>::type
+    static typename std::enable_if<!toolkit::is_pointer<T>::value, const T *>::type
     getPointer(const T &data) {
         return &data;
     }
