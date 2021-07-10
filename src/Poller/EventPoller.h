@@ -39,15 +39,13 @@ typedef enum {
     Event_LT = 1 << 3,//水平触发
 } Poll_Event;
 
-typedef function<void(int event)> PollEventCB;
-typedef function<void(bool success)> PollDelCB;
-typedef TaskCancelableImp<uint64_t(void)> DelayTask;
+using PollEventCB = function<void(int event)>;
+using PollDelCB = function<void(bool success)>;
+using DelayTask = TaskCancelableImp<uint64_t(void)>;
 
 class EventPoller : public TaskExecutor, public AnyStorage, public std::enable_shared_from_this<EventPoller> {
 public:
-    typedef std::shared_ptr<EventPoller> Ptr;
-    friend class EventPollerPool;
-    friend class WorkThreadPool;
+    using Ptr = std::shared_ptr<EventPoller>;
     friend class TaskExecutorGetterImp;
 
     ~EventPoller();
@@ -217,7 +215,7 @@ private:
 #else
     //select相关
     struct Poll_Record {
-        typedef std::shared_ptr<Poll_Record> Ptr;
+        using Ptr = std::shared_ptr<Poll_Record>;
         int event;
         int attach;
         PollEventCB callBack;
@@ -231,7 +229,7 @@ private:
 
 class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, public TaskExecutorGetterImp {
 public:
-    typedef std::shared_ptr<EventPollerPool> Ptr;
+    using Ptr = std::shared_ptr<EventPollerPool>;
     ~EventPollerPool(){};
 
     /**
