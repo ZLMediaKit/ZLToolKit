@@ -259,5 +259,15 @@ string getTimeStr(const char *fmt,time_t time = 0);
  */
 struct tm getLocalTime(time_t sec);
 
+/**
+ * 设置线程名
+ */
+void setThreadName(const char *name);
+
+/**
+ * 获取线程名
+ */
+string getThreadName();
+
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */

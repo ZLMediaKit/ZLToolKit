@@ -135,18 +135,18 @@ static inline const char *getFunctionName(const char *func) {
 #endif
 }
 
-LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, thread::id thread_id /*= 0*/) :
+LogContext::LogContext(LogLevel level, const char *file, const char *function, int line) :
         _level(level),
         _line(line),
         _file(getFileName(file)),
-        _function(getFunctionName(function)),
-        _thread_id(std::move(thread_id)) {
+        _function(getFunctionName(function)) {
     gettimeofday(&_tv, NULL);
+    _thread_name = getThreadName();
 }
 
 ///////////////////AsyncLogWriter///////////////////
-LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line, thread::id thread_id) :
-        _ctx(new LogContext(level, file, function, line, std::move(thread_id))), _logger(logger) {
+LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
+        _ctx(new LogContext(level, file, function, line)), _logger(logger) {
 }
 
 LogContextCapturer::LogContextCapturer(const LogContextCapturer &that) : _ctx(that._ctx), _logger(that._logger) {
@@ -191,6 +191,7 @@ void AsyncLogWriter::write(const LogContextPtr &ctx, Logger &logger) {
 }
 
 void AsyncLogWriter::run() {
+    setThreadName("async log thread");
     while (!_exit_flag) {
         _sem.wait();
         flushAll();
@@ -314,9 +315,9 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 
     if (enableDetail) {
 #if defined(_WIN32)
-        ost << logger.getName() <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_id;
+        ost << logger.getName() <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
 #else
-        ost << logger.getName() << "[" << getpid() << "-" << ctx->_thread_id;
+        ost << logger.getName() << "[" << getpid() << "-" << ctx->_thread_name;
 #endif
         ost << "] " << ctx->_file << ":" << ctx->_line << " "<< ctx->_function << " | ";
     }

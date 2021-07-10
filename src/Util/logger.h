@@ -126,14 +126,14 @@ public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
 
-    LogContext(LogLevel level, const char *file, const char *function, int line, thread::id thread_id);
+    LogContext(LogLevel level, const char *file, const char *function, int line);
     ~LogContext() = default;
 
     LogLevel _level;
     int _line;
     string _file;
     string _function;
-    thread::id _thread_id;
+    string _thread_name;
     struct timeval _tv;
 };
 
@@ -143,7 +143,7 @@ public:
 class LogContextCapturer {
 public:
     typedef std::shared_ptr<LogContextCapturer> Ptr;
-    LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line, thread::id thread_id = thread::id());
+    LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line);
     LogContextCapturer(const LogContextCapturer &that);
     ~LogContextCapturer();
 
@@ -339,11 +339,11 @@ public:
 
 //可重置默认值
 extern Logger *g_defaultLogger;
-#define TraceL LogContextCapturer(getLogger(), LTrace, __FILE__,__FUNCTION__, __LINE__, this_thread::get_id())
-#define DebugL LogContextCapturer(getLogger(),LDebug, __FILE__,__FUNCTION__, __LINE__,  this_thread::get_id())
-#define InfoL LogContextCapturer(getLogger(),LInfo, __FILE__,__FUNCTION__, __LINE__,  this_thread::get_id())
-#define WarnL LogContextCapturer(getLogger(),LWarn,__FILE__, __FUNCTION__, __LINE__,  this_thread::get_id())
-#define ErrorL LogContextCapturer(getLogger(),LError,__FILE__, __FUNCTION__, __LINE__,  this_thread::get_id())
-#define WriteL(level) LogContextCapturer(getLogger(),level,__FILE__, __FUNCTION__, __LINE__,  this_thread::get_id())
+#define TraceL LogContextCapturer(getLogger(), LTrace, __FILE__,__FUNCTION__, __LINE__)
+#define DebugL LogContextCapturer(getLogger(),LDebug, __FILE__,__FUNCTION__, __LINE__)
+#define InfoL LogContextCapturer(getLogger(),LInfo, __FILE__,__FUNCTION__, __LINE__)
+#define WarnL LogContextCapturer(getLogger(),LWarn,__FILE__, __FUNCTION__, __LINE__)
+#define ErrorL LogContextCapturer(getLogger(),LError,__FILE__, __FUNCTION__, __LINE__)
+#define WriteL(level) LogContextCapturer(getLogger(),level,__FILE__, __FUNCTION__, __LINE__)
 } /* namespace toolkit */
 #endif /* UTIL_LOGGER_H_ */

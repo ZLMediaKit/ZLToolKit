@@ -462,7 +462,7 @@ void EventPollerPool::preferCurrentThread(bool flag) {
 }
 
 EventPollerPool::EventPollerPool() {
-    auto size = addPoller(s_pool_size, ThreadPool::PRIORITY_HIGHEST, true);
+    auto size = addPoller("event poller", s_pool_size, ThreadPool::PRIORITY_HIGHEST, true);
     InfoL << "创建EventPoller个数:" << size;
 }
 

@@ -191,13 +191,15 @@ inline bool set_cpu(int i) {
     return false;
 }
 
-size_t TaskExecutorGetterImp::addPoller(size_t size, int priority, bool register_thread) {
+size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread) {
     auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;
-    for (auto i = 0; i < size; ++i) {
+    for (size_t i = 0; i < size; ++i) {
         EventPoller::Ptr poller(new EventPoller((ThreadPool::Priority) priority));
         poller->runLoop(false, register_thread);
-        poller->async([i, cpus]() {
+        auto full_name = name + " " + to_string(i);
+        poller->async([i, cpus, full_name]() {
+            setThreadName(full_name.data());
             set_cpu(i % cpus);
         });
         _threads.emplace_back(std::move(poller));
