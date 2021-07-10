@@ -441,7 +441,7 @@ DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> t
 
 ///////////////////////////////////////////////
 
-size_t s_pool_size = 0;
+static size_t s_pool_size = 0;
 
 INSTANCE_IMP(EventPollerPool);
 

@@ -15,7 +15,7 @@
 
 namespace toolkit {
 
-size_t s_pool_size = 0;
+static size_t s_pool_size = 0;
 
 INSTANCE_IMP(WorkThreadPool);
 
