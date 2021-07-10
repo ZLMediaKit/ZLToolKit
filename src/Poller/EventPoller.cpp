@@ -260,6 +260,10 @@ BufferRaw::Ptr EventPoller::getSharedBuffer() {
     return ret;
 }
 
+const thread::id &EventPoller::getThreadId() const {
+    return _loop_thread_id;
+}
+
 //static
 EventPoller::Ptr EventPoller::getCurrentPoller(){
     lock_guard<mutex> lck(s_all_poller_mtx);
@@ -437,15 +441,15 @@ DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> t
 
 ///////////////////////////////////////////////
 
-int s_pool_size = 0;
+size_t s_pool_size = 0;
 
 INSTANCE_IMP(EventPollerPool);
 
-EventPoller::Ptr EventPollerPool::getFirstPoller(){
+EventPoller::Ptr EventPollerPool::getFirstPoller() {
     return dynamic_pointer_cast<EventPoller>(_threads.front());
 }
 
-EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread){
+EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread) {
     auto poller = EventPoller::getCurrentPoller();
     if (prefer_current_thread && _preferCurrentThread && poller) {
         return poller;
@@ -453,24 +457,18 @@ EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread){
     return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
-void EventPollerPool::preferCurrentThread(bool flag){
+void EventPollerPool::preferCurrentThread(bool flag) {
     _preferCurrentThread = flag;
 }
 
-EventPollerPool::EventPollerPool(){
-    auto size = s_pool_size > 0 ? s_pool_size : thread::hardware_concurrency();
-    createThreads([]() {
-        EventPoller::Ptr ret(new EventPoller);
-        ret->runLoop(false, true);
-        return ret;
-    }, size);
+EventPollerPool::EventPollerPool() {
+    auto size = addPoller(s_pool_size, ThreadPool::PRIORITY_HIGHEST);
     InfoL << "创建EventPoller个数:" << size;
 }
 
-void EventPollerPool::setPoolSize(int size) {
+void EventPollerPool::setPoolSize(size_t size) {
     s_pool_size = size;
 }
-
 
 }  // namespace toolkit
 

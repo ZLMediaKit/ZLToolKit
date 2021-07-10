@@ -48,6 +48,8 @@ public:
     typedef std::shared_ptr<EventPoller> Ptr;
     friend class EventPollerPool;
     friend class WorkThreadPool;
+    friend class TaskExecutorGetterImp;
+
     ~EventPoller();
 
     /**
@@ -121,6 +123,11 @@ public:
      * 获取当前线程下所有socket共享的读缓存
      */
     BufferRaw::Ptr getSharedBuffer();
+
+    /**
+     * 获取poller线程id
+     */
+    const thread::id& getThreadId() const;
 
 private:
     /**
@@ -238,7 +245,7 @@ public:
      * 在不调用此方法的情况下，默认创建thread::hardware_concurrency()个EventPoller实例
      * @param size  EventPoller个数，如果为0则为thread::hardware_concurrency()
      */
-    static void setPoolSize(int size = 0);
+    static void setPoolSize(size_t size = 0);
 
     /**
      * 获取第一个实例
