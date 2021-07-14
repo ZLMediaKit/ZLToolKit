@@ -415,11 +415,13 @@ void setThreadName(const char *name) {
 
 string getThreadName() {
 #if defined(__linux) || defined(__linux__) || defined(__MACH__) || defined(__APPLE__)
-    char buf[32] = {0};
+    string ret;
+    ret.resize(32);
     auto tid = pthread_self();
-    pthread_getname_np(tid, buf, sizeof(buf) - 1);
-    if (buf[0]) {
-        return buf;
+    pthread_getname_np(tid, (char *) ret.data(), ret.size());
+    if (ret[0]) {
+        ret.resize(strlen(ret.data()));
+        return ret;
     }
     return to_string((uint64_t) tid);
 #else
