@@ -43,7 +43,10 @@ public:
      * @param weakPool 管理本指针的循环池
      * @param quit 对接是否放弃循环使用
      */
-    shared_ptr_imp(C *ptr,const std::weak_ptr<ResourcePool_l<C> > &weakPool, std::shared_ptr<atomic_bool> quit) ;
+    shared_ptr_imp(C *ptr,
+                   const std::weak_ptr<ResourcePool_l<C> > &weakPool,
+                   std::shared_ptr<atomic_bool> quit,
+                   const function<void(C *)> &on_recycle);
 
     /**
      * 放弃或恢复回到循环池继续使用
@@ -90,7 +93,7 @@ public:
         _poolsize = size;
     }
 
-    ValuePtr obtain() {
+    ValuePtr obtain(const function<void(C *)> &on_recycle = nullptr) {
         C *ptr;
         auto is_busy = _busy.test_and_set();
         if (!is_busy) {
@@ -106,7 +109,7 @@ public:
             //未获取到锁
             ptr = _allotter();
         }
-        return ValuePtr(ptr, _weak_self, std::make_shared<atomic_bool>(false));
+        return ValuePtr(ptr, _weak_self, std::make_shared<atomic_bool>(false), on_recycle);
     }
 
 private:
@@ -160,8 +163,8 @@ public:
     void setSize(size_t size) {
         pool->setSize(size);
     }
-    ValuePtr obtain() {
-        return pool->obtain();
+    ValuePtr obtain(const function<void(C *)> &on_recycle = nullptr) {
+        return pool->obtain(on_recycle);
     }
 private:
     std::shared_ptr<ResourcePool_l<C> > pool;
@@ -169,9 +172,13 @@ private:
 
 template<typename C>
 shared_ptr_imp<C>::shared_ptr_imp(C *ptr,
-                                  const std::weak_ptr<ResourcePool_l<C> > &weakPool ,
-                                  std::shared_ptr<atomic_bool> quit ) :
-        shared_ptr<C>(ptr,[weakPool,quit](C *ptr){
+                                  const std::weak_ptr<ResourcePool_l<C> > &weakPool,
+                                  std::shared_ptr<atomic_bool> quit,
+                                  const function<void(C *)> &on_recycle) :
+        shared_ptr<C>(ptr, [weakPool, quit, on_recycle](C *ptr) {
+            if (on_recycle) {
+                on_recycle(ptr);
+            }
             auto strongPool = weakPool.lock();
             if (strongPool && !(*quit)) {
                 //循环池还在并且不放弃放入循环池
@@ -179,7 +186,7 @@ shared_ptr_imp<C>::shared_ptr_imp(C *ptr,
             } else {
                 delete ptr;
             }
-        }),_quit(std::move(quit)) {}
+        }), _quit(std::move(quit)) {}
 
 } /* namespace toolkit */
 #endif /* UTIL_RECYCLEPOOL_H_ */
