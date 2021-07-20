@@ -79,14 +79,12 @@ ssize_t BufferList::send_l(int fd, int flags,bool udp) {
     do {
         struct msghdr msg;
         if (!udp) {
-            msg.msg_name = NULL;
+            msg.msg_name = nullptr;
             msg.msg_namelen = 0;
         } else {
             auto ptr = getBufferSockPtr(_pkt_list.front());
-            if (ptr) {
-                msg.msg_name = ptr->_addr;
-                msg.msg_namelen = ptr->_addr_len;
-            }
+            msg.msg_name = ptr ? ptr->_addr : nullptr;
+            msg.msg_namelen = ptr ? ptr->_addr_len : 0;
         }
 
         msg.msg_iov = &(_iovec[_iovec_off]);
