@@ -344,10 +344,15 @@ ssize_t Socket::send(string buf, struct sockaddr *addr, socklen_t addr_len, bool
 }
 
 ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
-    return send(std::make_shared<BufferSock>(std::move(buf), addr, addr_len), try_flush);
+    if (!addr || !addr_len) {
+        return send_l(std::move(buf), false, try_flush);
+    }
+    auto sock_buf = std::make_shared<BufferSock>();
+    sock_buf->assign(std::move(buf), addr, addr_len, nullptr);
+    return send_l(std::move(sock_buf), true, try_flush);
 }
 
-ssize_t Socket::send(BufferSock::Ptr buf, bool try_flush) {
+ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
     auto size = buf ? buf->size() : 0;
     if (!size) {
         return 0;
@@ -366,7 +371,7 @@ ssize_t Socket::send(BufferSock::Ptr buf, bool try_flush) {
 
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
-        _send_buf_waiting.emplace_back(std::move(buf));
+        _send_buf_waiting.emplace_back(std::move(buf), is_buf_sock);
     }
 
     if(try_flush){

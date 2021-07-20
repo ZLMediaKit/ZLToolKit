@@ -471,13 +471,14 @@ public:
     using onResult = function<void(size_t size)>;
     friend class BufferList;
 
-    BufferSock(Buffer::Ptr ptr, struct sockaddr *addr = nullptr, int addr_len = 0, onResult cb = nullptr);
+    BufferSock() = default;
     ~BufferSock();
 
+    void assign(Buffer::Ptr ptr, struct sockaddr *addr = nullptr, int addr_len = 0, onResult cb = nullptr);
     char *data() const override;
     size_t size() const override;
     void setSendResult(onResult cb);
-    void onSendSuccess();
+    void onSendResult(bool success);
 
 private:
     int _addr_len = 0;
@@ -489,7 +490,7 @@ private:
 class BufferList : public noncopyable {
 public:
     typedef std::shared_ptr<BufferList> Ptr;
-    BufferList(List<BufferSock::Ptr> &list);
+    BufferList(List<std::pair<Buffer::Ptr, bool> > &list);
     ~BufferList() {}
 
     bool empty();
@@ -504,7 +505,7 @@ private:
     size_t _iovec_off = 0;
     size_t _remainSize = 0;
     vector<struct iovec> _iovec;
-    List<BufferSock::Ptr> _pkt_list;
+    List<std::pair<Buffer::Ptr, bool> > _pkt_list;
     //对象个数统计
     ObjectStatistic<BufferList> _statistic;
 };

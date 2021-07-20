@@ -356,13 +356,9 @@ public:
 
     /**
      * 发送Buffer对象，Socket对象发送数据的统一出口
+     * socket对象发送数据的统一出口
      */
-    ssize_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
-
-    /**
-     * 发送BufferSock对象，Socket对象发送数据的统一出口
-     */
-    virtual ssize_t send(BufferSock::Ptr buf, bool try_flush = true);
+    virtual ssize_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 关闭socket且触发onErr回调，onErr回调将在poller线程中进行
@@ -458,6 +454,7 @@ private:
     bool listen(const SockFD::Ptr &sock);
     bool flushData(const SockFD::Ptr &sock, bool poller_thread);
     bool attachEvent(const SockFD::Ptr &sock, bool is_udp = false);
+    ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
 
 private:
     //send socket时的flag
@@ -499,7 +496,7 @@ private:
     MutexWrapper<recursive_mutex> _mtx_event;
 
     //一级发送缓存, socket可写时，会把一级缓存批量送入到二级缓存
-    List<BufferSock::Ptr> _send_buf_waiting;
+    List<std::pair<Buffer::Ptr, bool> > _send_buf_waiting;
     //一级发送缓存锁
     MutexWrapper<recursive_mutex> _mtx_send_buf_waiting;
     //二级发送缓存, socket可写时，会把二级缓存批量写入到socket
