@@ -181,6 +181,9 @@ BufferList::BufferList(List<std::pair<Buffer::Ptr, bool> > &list, SendResult cb)
 }
 
 BufferList::~BufferList() {
+    if (!_cb) {
+        return;
+    }
     //未发送成功的buffer
     while (!_pkt_list.empty()) {
         _cb(_pkt_list.front().first, false);
