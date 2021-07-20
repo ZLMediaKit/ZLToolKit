@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include <condition_variable>
 #include <functional>
-#include <deque>
+#include "List.h"
 #include "Poller/EventPoller.h"
 using namespace std;
 
@@ -92,10 +92,9 @@ private:
         if (!_use_cache) {
             return;
         }
-        auto &cache = _storage->getCache();
-        for (auto &pr : cache) {
+        _storage->getCache().for_each([&](const pair<bool, T> &pr) {
             onRead(pr.second, pr.first);
-        }
+        });
     }
 
 private:
@@ -156,7 +155,7 @@ public:
         return ret;
     }
 
-    const deque<pair<bool, T> > &getCache() const {
+    const List<pair<bool, T> > &getCache() const {
         return _data_cache;
     }
 
@@ -172,7 +171,7 @@ private:
     bool _have_idr = false;
     int _size = 0;
     int _max_size;
-    deque<pair<bool, T> > _data_cache;
+    List<pair<bool, T> > _data_cache;
 };
 
 template<typename T>
