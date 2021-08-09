@@ -147,7 +147,7 @@ LogContext::LogContext(LogLevel level, const char *file, const char *function, i
 
 ///////////////////AsyncLogWriter///////////////////
 LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
-        _ctx(new LogContext(level, file, function, line)), _logger(logger) {
+        _ctx(new LogContext(level, file, function, line, _moudle_name.c_str())), _logger(logger) {
 }
 
 LogContextCapturer::LogContextCapturer(const LogContextCapturer &that) : _ctx(that._ctx), _logger(that._logger) {
