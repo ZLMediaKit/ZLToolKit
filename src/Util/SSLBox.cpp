@@ -22,6 +22,7 @@
 #include <openssl/bio.h>
 #include <openssl/ossl_typ.h>
 
+/*
 #if defined(_WIN32)
 #if defined(_WIN64)
 
@@ -46,7 +47,7 @@
 #endif // !defined(NDEBUG)
 
 #endif //defined(_WIN64)
-#endif // defined(_WIN32)
+#endif // defined(_WIN32)*/
 
 #endif //defined(ENABLE_OPENSSL)
 

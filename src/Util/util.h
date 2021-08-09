@@ -177,9 +177,9 @@ private:
 string makeRandStr(int sz, bool printable = true);
 string hexdump(const void *buf, size_t len);
 string hexmem(const void* buf, size_t len);
-string exePath();
-string exeDir();
-string exeName();
+string exePath(bool isExe = true);
+string exeDir(bool isExe = true);
+string exeName(bool isExe = true);
 
 vector<string> split(const string& s, const char *delim);
 //去除前后的空格、回车符、制表符...
