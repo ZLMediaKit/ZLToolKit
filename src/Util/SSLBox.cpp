@@ -21,33 +21,6 @@
 #include <openssl/conf.h>
 #include <openssl/bio.h>
 #include <openssl/ossl_typ.h>
-
-#if defined(_WIN32)
-#if defined(_WIN64)
-
-//64bit
-#if !defined(NDEBUG)
-#pragma  comment (lib,"libssl64MDd")
-#pragma  comment (lib,"libcrypto64MDd")
-#else
-#pragma  comment (lib,"libssl64MD")
-#pragma  comment (lib,"libcrypto64MD")
-#endif // !defined(NDEBUG)
-
-#else
-
-//32 bit
-#if !defined(NDEBUG)
-#pragma  comment (lib,"libssl32MDd")
-#pragma  comment (lib,"libcrypto32MDd")
-#else
-#pragma  comment (lib,"libssl32MD")
-#pragma  comment (lib,"libcrypto32MD")
-#endif // !defined(NDEBUG)
-
-#endif //defined(_WIN64)
-#endif // defined(_WIN32)
-
 #endif //defined(ENABLE_OPENSSL)
 
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
