@@ -405,7 +405,7 @@ public:
         _str.reserve(size);
     }
 
-    void resize(size_t size, char c) {
+    void resize(size_t size, char c = '\0') {
         _str.resize(size, c);
         _erase_head = 0;
         _erase_tail = 0;
