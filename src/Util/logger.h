@@ -126,7 +126,7 @@ public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
 
-    LogContext(LogLevel level, const char *file, const char *function, int line);
+    LogContext(LogLevel level, const char *file, const char *function, int line, const char* moudleName);
     ~LogContext() = default;
 
     LogLevel _level;
@@ -134,6 +134,7 @@ public:
     string _file;
     string _function;
     string _thread_name;
+    string _moudle_name;
     struct timeval _tv;
 };
 
@@ -168,6 +169,7 @@ public:
 private:
     LogContextPtr _ctx;
     Logger &_logger;
+    static string _moudle_name; 
 };
 
 
