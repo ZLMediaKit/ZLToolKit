@@ -13,6 +13,7 @@
 #include "File.h"
 #include <string.h>
 #include <sys/stat.h>
+#include "NoticeCenter.h"
 
 namespace toolkit {
 #ifdef _WIN32
@@ -208,6 +209,18 @@ void AsyncLogWriter::flushAll() {
     tmp.for_each([&](std::pair<LogContextPtr, Logger *> &pr) {
         pr.second->writeChannels(pr.first);
     });
+}
+
+///////////////////EventChannel////////////////////
+#define BroadcastEventChannl "kBroadcastEventLog"
+EventChannel::EventChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
+EventChannel::~EventChannel(){}
+
+void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
+    if (_level > ctx->_level) {
+        return;
+    }
+    NoticeCenter::Instance().emitEvent(BroadcastEventChannl, ctx->_level, ctx-> _file.data(), ctx-> _line, ctx->_function.data(),ctx->str().data());
 }
 
 ///////////////////ConsoleChannel///////////////////

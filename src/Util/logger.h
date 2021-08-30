@@ -229,6 +229,16 @@ protected:
 };
 
 /**
+ * 输出日至到广播
+ */
+class EventChannel : public LogChannel {
+public:
+  EventChannel(const string &name = "EventChannel", LogLevel level = LTrace);
+  ~EventChannel();
+  void write(const Logger &logger, const LogContextPtr &logContext) override;
+};
+
+/**
  * 输出日志至终端，支持输出日志至android logcat
  */
 class ConsoleChannel : public LogChannel {
