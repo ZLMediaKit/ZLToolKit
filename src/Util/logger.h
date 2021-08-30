@@ -233,9 +233,15 @@ protected:
  */
 class EventChannel : public LogChannel {
 public:
-  EventChannel(const string &name = "EventChannel", LogLevel level = LTrace);
-  ~EventChannel();
-  void write(const Logger &logger, const LogContextPtr &logContext) override;
+    //输出日志时的广播名
+    static const string kBroadcastLogEvent;
+    //日志广播参数类型和列表
+    #define BroadcastLogEventArgs const Logger &logger, const LogContextPtr &ctx
+
+    EventChannel(const string &name = "EventChannel", LogLevel level = LTrace);
+    ~EventChannel() override = default;
+
+    void write(const Logger &logger, const LogContextPtr &ctx) override;
 };
 
 /**
@@ -244,7 +250,8 @@ public:
 class ConsoleChannel : public LogChannel {
 public:
     ConsoleChannel(const string &name = "ConsoleChannel", LogLevel level = LTrace);
-    ~ConsoleChannel();
+    ~ConsoleChannel() override = default;
+
     void write(const Logger &logger, const LogContextPtr &logContext) override;
 };
 
@@ -254,7 +261,7 @@ public:
 class FileChannelBase : public LogChannel {
 public:
     FileChannelBase(const string &name = "FileChannelBase", const string &path = exePath() + ".log", LogLevel level = LTrace);
-    ~FileChannelBase();
+    ~FileChannelBase() override;
 
     void write(const Logger &logger, const LogContextPtr &ctx) override;
     bool setPath(const string &path);
@@ -279,7 +286,7 @@ class Ticker;
 class FileChannel : public FileChannelBase {
 public:
     FileChannel(const string &name = "FileChannel", const string &dir = exeDir() + "log/", LogLevel level = LTrace);
-    ~FileChannel() override;
+    ~FileChannel() override = default;
 
     /**
      * 写日志时才会触发新建日志文件或者删除老的日志文件
@@ -342,7 +349,8 @@ private:
 class SysLogChannel : public LogChannel {
 public:
     SysLogChannel(const string &name = "SysLogChannel" , LogLevel level = LTrace) ;
-    ~SysLogChannel();
+    ~SysLogChannel() override = default;
+
     void write(const Logger &logger , const LogContextPtr &logContext) override;
 };
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))

@@ -212,15 +212,16 @@ void AsyncLogWriter::flushAll() {
 }
 
 ///////////////////EventChannel////////////////////
-#define BroadcastEventChannl "kBroadcastEventLog"
+
+const string EventChannel::kBroadcastLogEvent = "kBroadcastLogEvent";
+
 EventChannel::EventChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
-EventChannel::~EventChannel(){}
 
 void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     if (_level > ctx->_level) {
         return;
     }
-    NoticeCenter::Instance().emitEvent(BroadcastEventChannl, ctx->_level, ctx-> _file.data(), ctx-> _line, ctx->_function.data(),ctx->str().data());
+    NoticeCenter::Instance().emitEvent(kBroadcastLogEvent, logger, ctx);
 }
 
 ///////////////////ConsoleChannel///////////////////
@@ -230,7 +231,6 @@ void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 #endif //ANDROID
 
 ConsoleChannel::ConsoleChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
-ConsoleChannel::~ConsoleChannel() {}
 
 void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     if (_level > ctx->_level) {
@@ -261,7 +261,6 @@ void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 #include <sys/syslog.h>
 
 SysLogChannel::SysLogChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
-SysLogChannel::~SysLogChannel() {}
 
 void SysLogChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     if (_level > ctx->_level) {
@@ -349,6 +348,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 }
 
 ///////////////////FileChannelBase///////////////////
+
 FileChannelBase::FileChannelBase(const string &name, const string &path, LogLevel level) : LogChannel(name, level), _path(path) {}
 
 FileChannelBase::~FileChannelBase() {
@@ -458,8 +458,6 @@ static time_t getLogFileTime(const string &full_path){
 static uint64_t getDay(time_t second) {
     return (second + s_gmtoff) / s_second_per_day;
 }
-
-FileChannel::~FileChannel() {}
 
 FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
     _dir = dir;
