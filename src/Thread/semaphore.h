@@ -22,6 +22,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+
 using namespace std;
 
 namespace toolkit {
@@ -35,44 +36,48 @@ public:
         _count = 0;
 #endif
     }
+
     ~semaphore() {
 #if defined(HAVE_SEM)
         sem_destroy(&_sem);
 #endif
     }
+
     void post(size_t n = 1) {
 #if defined(HAVE_SEM)
         while (n--) {
             sem_post(&_sem);
         }
 #else
-        unique_lock<mutex> lock(_mutex);
+        unique_lock<recursive_mutex> lock(_mutex);
         _count += n;
-        if(n == 1){
+        if (n == 1) {
             _condition.notify_one();
-        }else{
+        } else {
             _condition.notify_all();
         }
 #endif
 
     }
+
     void wait() {
 #if defined(HAVE_SEM)
         sem_wait(&_sem);
 #else
-        unique_lock<mutex> lock(_mutex);
+        unique_lock<recursive_mutex> lock(_mutex);
         while (_count == 0) {
             _condition.wait(lock);
         }
         --_count;
 #endif
     }
+
 private:
 #if defined(HAVE_SEM)
     sem_t _sem;
 #else
     size_t _count;
-    mutex _mutex;
+    recursive_mutex _mutex;
     condition_variable_any _condition;
 #endif
 };
