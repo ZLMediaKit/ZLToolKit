@@ -112,6 +112,7 @@ private:
 class SockNum{
 public:
     typedef enum {
+        Sock_Invalid = -1,
         Sock_TCP = 0,
         Sock_UDP = 1
     } SockType;
@@ -386,6 +387,11 @@ public:
      * @return 文件描述符
      */
     virtual int rawFD() const;
+
+    /**
+     * 返回socket类型
+     */
+    virtual SockNum::SockType sockType() const;
 
     /**
      * 设置发送超时主动断开时间;默认10秒

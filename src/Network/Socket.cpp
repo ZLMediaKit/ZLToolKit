@@ -747,6 +747,14 @@ int Socket::rawFD() const{
     return _sock_fd->rawFd();
 }
 
+SockNum::SockType Socket::sockType() const {
+    LOCK_GUARD(_mtx_sock_fd);
+    if (!_sock_fd) {
+        return SockNum::Sock_Invalid;
+    }
+    return _sock_fd->type();
+}
+
 void Socket::setSendTimeOutSecond(uint32_t second){
     _max_send_buffer_ms = second * 1000;
 }
