@@ -106,7 +106,7 @@ void UdpServer::onRead(const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
 void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
     // udp server fd收到数据时触发此函数；大部分情况下数据应该在peer fd触发，此函数应该不是热点函数
     bool is_new = false;
-    if (auto &session = getOrCreateSession(id, addr, addr_len, is_new)) {
+    if (auto session = getOrCreateSession(id, addr, addr_len, is_new)) {
         std::weak_ptr<Session> weak_session = session;
         //数据可能漂移到其他线程，所以此处尝试切换线程(通常不需要)
         session->async([weak_session, buf]() {
