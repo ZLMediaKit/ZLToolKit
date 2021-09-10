@@ -106,7 +106,7 @@ void UdpServer::onRead(const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
 void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
     // udp server fd收到数据时触发此函数；大部分情况下数据应该在peer fd触发，此函数应该不是热点函数
     bool is_new = false;
-    if (auto session = getOrCreateSession(id, addr, addr_len, is_new)) {
+    if (auto session = getOrCreateSession(id, buf, addr, addr_len, is_new)) {
         std::weak_ptr<Session> weak_session = session;
         //数据可能漂移到其他线程，所以此处尝试切换线程(通常不需要)
         session->async([weak_session, buf]() {
@@ -155,7 +155,7 @@ void UdpServer::onManagerSession() {
     });
 }
 
-const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, sockaddr *addr, int addr_len, bool &is_new) {
+const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len, bool &is_new) {
     {
         //减小临界区
         std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
@@ -165,11 +165,15 @@ const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &i
         }
     }
     is_new = true;
-    return createSession(id, addr, addr_len);
+    return createSession(id, buf, addr, addr_len);
 }
 
-const Session::Ptr& UdpServer::createSession(const PeerIdType &id, sockaddr *addr, int addr_len) {
-    auto socket = createSocket(_poller);
+static Session::Ptr s_null_session;
+const Session::Ptr& UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
+    auto socket = createSocket(_poller, buf, addr, addr_len);
+    if (!socket) {
+        return s_null_session;
+    }
 
     socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
     socket->bindPeerAddr(addr, addr_len);
@@ -211,7 +215,6 @@ const Session::Ptr& UdpServer::createSession(const PeerIdType &id, sockaddr *add
             if (!strong_self) {
                 return;
             }
-            assert(strong_self->_poller->isCurrentThread());
             //从共享map中移除本session对象
             lock_guard<std::recursive_mutex> lck(*strong_self->_session_mutex);
             strong_self->_session_map->erase(id);
@@ -230,11 +233,11 @@ const Session::Ptr& UdpServer::createSession(const PeerIdType &id, sockaddr *add
     return pr.first->second->session();
 }
 
-void UdpServer::setOnCreateSocket(Socket::onCreateSocket cb) {
+void UdpServer::setOnCreateSocket(onCreateSocket cb) {
     if (cb) {
         _on_create_socket = std::move(cb);
     } else {
-        _on_create_socket = [](const EventPoller::Ptr &poller) {
+        _on_create_socket = [](const EventPoller::Ptr &poller, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
             return Socket::createSocket(poller, false);
         };
     }
@@ -250,8 +253,8 @@ uint16_t UdpServer::getPort() {
     return _socket->get_local_port();
 }
 
-Socket::Ptr UdpServer::createSocket(const EventPoller::Ptr &poller) {
-    return _on_create_socket(poller);
+Socket::Ptr UdpServer::createSocket(const EventPoller::Ptr &poller, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+    return _on_create_socket(poller, buf, addr, addr_len);
 }
 
 
