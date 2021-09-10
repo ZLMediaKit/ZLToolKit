@@ -414,7 +414,7 @@ void setThreadName(const char *name) {
 }
 
 string getThreadName() {
-#if defined(__linux) || defined(__linux__) || defined(__MACH__) || defined(__APPLE__)
+#if ((defined(__linux) || defined(__linux__)) && !defined(ANDROID)) || (defined(__MACH__) || defined(__APPLE__)) || (defined(ANDROID) && __ANDROID_API__ >= 26)
     string ret;
     ret.resize(32);
     auto tid = pthread_self();

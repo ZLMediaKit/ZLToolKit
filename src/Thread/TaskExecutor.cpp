@@ -179,7 +179,7 @@ void TaskExecutorGetterImp::for_each(const function<void(const TaskExecutor::Ptr
 }
 
 inline bool set_cpu(int i) {
-#if defined(__linux) || defined(__linux__)
+#if (defined(__linux) || defined(__linux__)) && !defined(ANDROID)
     cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(i, &mask);
