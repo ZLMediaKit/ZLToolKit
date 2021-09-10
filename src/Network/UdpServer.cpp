@@ -107,17 +107,23 @@ void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, con
     // udp server fd收到数据时触发此函数；大部分情况下数据应该在peer fd触发，此函数应该不是热点函数
     bool is_new = false;
     if (auto session = getOrCreateSession(id, buf, addr, addr_len, is_new)) {
-        std::weak_ptr<Session> weak_session = session;
-        //数据可能漂移到其他线程，所以此处尝试切换线程(通常不需要)
-        session->async([weak_session, buf]() {
-            if (auto strong_session = weak_session.lock()) {
-                strong_session->onRecv(buf);
-            }
-        });
-#if !defined(NDEBUG)
-        if (!session->getPoller()->isCurrentThread()) {
+        if (session->getPoller()->isCurrentThread()) {
+            //当前线程收到数据
+            session->onRecv(buf);
+        } else {
+            //数据漂移到其他线程
             WarnL << "udp packet incoming from other thread";
+            std::weak_ptr<Session> weak_session = session;
+            //由于socket读buffer是该线程上所有socket共享复用的，所以不能跨线程使用，必须先拷贝一下
+            auto cacheable_buf = std::make_shared<BufferString>(buf->toString());
+            session->async([weak_session, cacheable_buf]() {
+                if (auto strong_session = weak_session.lock()) {
+                    strong_session->onRecv(cacheable_buf);
+                }
+            });
         }
+
+#if !defined(NDEBUG)
         if (!is_new) {
             TraceL << "udp packet incoming from " << (is_server_fd ? "server fd" : "other peer fd");
         }
