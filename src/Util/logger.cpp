@@ -136,18 +136,22 @@ static inline const char *getFunctionName(const char *func) {
 #endif
 }
 
-LogContext::LogContext(LogLevel level, const char *file, const char *function, int line) :
+LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, const char* moudleName) :
         _level(level),
         _line(line),
         _file(getFileName(file)),
-        _function(getFunctionName(function)) {
+        _function(getFunctionName(function)),
+		_moudle_name(moudleName) {
     gettimeofday(&_tv, NULL);
     _thread_name = getThreadName();
 }
 
 ///////////////////AsyncLogWriter///////////////////
+
+static string s_moudle_name = exeName(false);
+
 LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
-        _ctx(new LogContext(level, file, function, line)), _logger(logger) {
+        _ctx(new LogContext(level, file, function, line, s_moudle_name.c_str())), _logger(logger) {
 }
 
 LogContextCapturer::LogContextCapturer(const LogContextCapturer &that) : _ctx(that._ctx), _logger(that._logger) {
@@ -172,6 +176,7 @@ void LogContextCapturer::clear() {
 }
 
 ///////////////////AsyncLogWriter///////////////////
+
 AsyncLogWriter::AsyncLogWriter() : _exit_flag(false) {
     _thread = std::make_shared<thread>([this]() { this->run(); });
 }
@@ -327,7 +332,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 
     if (enableDetail) {
 #if defined(_WIN32)
-        ost << logger.getName() <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
+        ost << ctx->_moudle_name <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
 #else
         ost << logger.getName() << "[" << getpid() << "-" << ctx->_thread_name;
 #endif
