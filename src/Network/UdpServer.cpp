@@ -31,7 +31,7 @@ UdpServer::~UdpServer() {
     _timer.reset();
     _socket.reset();
     _cloned_server.clear();
-    if (!_cloned) {
+    if (!_cloned && _session_mutex && _session_map) {
         lock_guard<std::recursive_mutex> lck(*_session_mutex);
         _session_map->clear();
     }
