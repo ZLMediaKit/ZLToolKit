@@ -269,5 +269,12 @@ void setThreadName(const char *name);
  */
 string getThreadName();
 
+/**
+ * 设置当前线程cpu亲和性
+ * @param i cpu索引，如果为-1，那么取消cpu亲和性
+ * @return 是否成功，目前只支持linux
+ */
+bool setThreadAffinity(int i);
+
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */

@@ -498,5 +498,20 @@ string getThreadName() {
 #endif
 }
 
+bool setThreadAffinity(int i) {
+#if (defined(__linux) || defined(__linux__)) && !defined(ANDROID)
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    if(i >= 0){
+        CPU_SET(i, &mask);
+    }
+    if (!pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask)) {
+        return true;
+    }
+    WarnL << "pthread_setaffinity_np failed:" << get_uv_errmsg();
+#endif
+    return false;
+}
+
 }  // namespace toolkit
 
