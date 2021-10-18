@@ -53,5 +53,11 @@ int main() {
     ErrorL << "void *:" << (void *)0x12345678 << endl;
     //根据RAII的原理，此处不需要输入 endl，也会在被函数栈pop时打印log
     ErrorL << "without endl!";
+
+    PrintT("this is a %s test:%d", "printf trace", 124);
+    PrintD("this is a %s test:%p", "printf debug", (void*)124);
+    PrintI("this is a %s test:%c", "printf info", 'a');
+    PrintW("this is a %s test:%X", "printf warn", 0x7F);
+    PrintE("this is a %s test:%x", "printf err", 0xab);
     return 0;
 }

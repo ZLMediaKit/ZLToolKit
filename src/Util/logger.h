@@ -370,12 +370,12 @@ extern Logger *g_defaultLogger;
 #define WarnL WriteL(LWarn)
 #define ErrorL WriteL(LError)
 
-#define PrintLog(level, fmt, ...) printLog(getLogger(), level, __FILE__,__FUNCTION__, __LINE__, fmt, ##__VA_ARGS__)
-#define PrintT(...) PrintLog(LTrace, ##__VA_ARGS__)
-#define PrintD(...) PrintLog(LDebug, ##__VA_ARGS__)
-#define PrintI(...) PrintLog(LInfo, ##__VA_ARGS__)
-#define PrintW(...) PrintLog(LWarn, ##__VA_ARGS__)
-#define PrintE(...) PrintLog(LError, ##__VA_ARGS__)
+#define PrintLog(level, fmt, ...) printLog(getLogger(), level, __FILE__, __FUNCTION__, __LINE__, fmt, ##__VA_ARGS__)
+#define PrintT(fmt, ...) PrintLog(LTrace, fmt, ##__VA_ARGS__)
+#define PrintD(fmt, ...) PrintLog(LDebug, fmt, ##__VA_ARGS__)
+#define PrintI(fmt, ...) PrintLog(LInfo, fmt, ##__VA_ARGS__)
+#define PrintW(fmt, ...) PrintLog(LWarn, fmt, ##__VA_ARGS__)
+#define PrintE(fmt, ...) PrintLog(LError, fmt, ##__VA_ARGS__)
 
 } /* namespace toolkit */
 #endif /* UTIL_LOGGER_H_ */
