@@ -217,6 +217,7 @@ std::string to_string(T value){
 int gettimeofday(struct timeval *tp, void *tzp);
 void usleep(int micro_seconds);
 void sleep(int second);
+int vasprintf(char **strp, const char *fmt, va_list ap);
 int asprintf(char **strp, const char *fmt, ...);
 const char *strcasestr(const char *big, const char *little);
 
