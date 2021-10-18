@@ -12,6 +12,7 @@
 #define UTIL_LOGGER_H_
 
 #include <time.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <set>
@@ -356,13 +357,25 @@ public:
 };
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
+//printf样式的日志打印
+void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap);
+void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...);
+
 //可重置默认值
 extern Logger *g_defaultLogger;
-#define TraceL LogContextCapturer(getLogger(), LTrace, __FILE__,__FUNCTION__, __LINE__)
-#define DebugL LogContextCapturer(getLogger(),LDebug, __FILE__,__FUNCTION__, __LINE__)
-#define InfoL LogContextCapturer(getLogger(),LInfo, __FILE__,__FUNCTION__, __LINE__)
-#define WarnL LogContextCapturer(getLogger(),LWarn,__FILE__, __FUNCTION__, __LINE__)
-#define ErrorL LogContextCapturer(getLogger(),LError,__FILE__, __FUNCTION__, __LINE__)
-#define WriteL(level) LogContextCapturer(getLogger(),level,__FILE__, __FUNCTION__, __LINE__)
+#define WriteL(level) LogContextCapturer(getLogger(), level, __FILE__, __FUNCTION__, __LINE__)
+#define TraceL WriteL(LTrace)
+#define DebugL WriteL(LDebug)
+#define InfoL WriteL(LInfo)
+#define WarnL WriteL(LWarn)
+#define ErrorL WriteL(LError)
+
+#define PrintLog(level, fmt, ...) printLog(getLogger(), level, __FILE__,__FUNCTION__, __LINE__, fmt, ##__VA_ARGS__)
+#define PrintT(...) PrintLog(LTrace, ##__VA_ARGS__)
+#define PrintD(...) PrintLog(LDebug, ##__VA_ARGS__)
+#define PrintI(...) PrintLog(LInfo, ##__VA_ARGS__)
+#define PrintW(...) PrintLog(LWarn, ##__VA_ARGS__)
+#define PrintE(...) PrintLog(LError, ##__VA_ARGS__)
+
 } /* namespace toolkit */
 #endif /* UTIL_LOGGER_H_ */
