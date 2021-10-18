@@ -11,8 +11,9 @@
 #include "logger.h"
 #include "onceToken.h"
 #include "File.h"
-#include <string.h>
 #include <sys/stat.h>
+#include <assert.h>
+#include <string.h>
 #include "NoticeCenter.h"
 
 namespace toolkit {
