@@ -33,8 +33,9 @@ public:
      * @param url 服务器ip或域名
      * @param port 服务器端口
      * @param timeout_sec 超时时间,单位秒
+     * @param local_port 本地端口
      */
-    virtual void startConnect(const string &url, uint16_t port, float timeout_sec = 5);
+    virtual void startConnect(const string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0);
 
     /**
      * 主动断开连接
@@ -133,9 +134,9 @@ public:
         TcpClientType::send(std::move(const_cast<Buffer::Ptr &>(buf)));
     }
 
-    void startConnect(const string &url, uint16_t port, float timeout_sec = 5) override {
+    void startConnect(const string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0) override {
         _host = url;
-        TcpClientType::startConnect(url, port, timeout_sec);
+        TcpClientType::startConnect(url, port, timeout_sec, local_port);
     }
 
 protected:
