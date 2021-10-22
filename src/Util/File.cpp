@@ -15,7 +15,6 @@
 #include <dirent.h>
 #endif // WIN32
 
-#include <cassert>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <string>
@@ -351,6 +350,9 @@ void File::scanDir(const string &path_in, const function<bool(const string &path
 }
 
 uint64_t File::fileSize(FILE *fp, bool remain_size) {
+    if (!fp) {
+        return 0;
+    }
     auto current = ftell64(fp);
     fseek64(fp, 0L, SEEK_END); /* 定位到文件末尾 */
     auto end = ftell64(fp); /* 得到文件大小 */
@@ -359,7 +361,9 @@ uint64_t File::fileSize(FILE *fp, bool remain_size) {
 }
 
 uint64_t File::fileSize(const char *path) {
-    assert(path);
+    if (!path) {
+        return 0;
+    }
     auto fp = std::unique_ptr<FILE, decltype(&fclose)>(fopen(path, "rb"), fclose);
     return fileSize(fp.get());
 }
