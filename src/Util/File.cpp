@@ -15,6 +15,7 @@
 #include <dirent.h>
 #endif // WIN32
 
+#include <cassert>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <string>
@@ -355,6 +356,12 @@ uint64_t File::fileSize(FILE *fp, bool remain_size) {
     auto end = ftell64(fp); /* 得到文件大小 */
     fseek64(fp, current, SEEK_SET);
     return end - (remain_size ? current : 0);
+}
+
+uint64_t File::fileSize(const char *path) {
+    assert(path);
+    auto fp = std::unique_ptr<FILE, decltype(&fclose)>(fopen(path, "rb"), fclose);
+    return fileSize(fp.get());
 }
 
 } /* namespace toolkit */

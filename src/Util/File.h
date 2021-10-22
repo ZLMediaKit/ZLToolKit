@@ -124,6 +124,14 @@ public:
      */
     static uint64_t fileSize(FILE *fp, bool remain_size = false);
 
+    /**
+     * 获取文件大小
+     * @param path 文件路径
+     * @return 文件大小
+     * @warning 调用者应确保文件存在
+     */
+    static uint64_t fileSize(const char *path);
+
 private:
     File();
     ~File();
