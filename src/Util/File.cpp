@@ -359,6 +359,7 @@ uint64_t File::fileSize(FILE *fp, bool remain_size) {
 }
 
 uint64_t File::fileSize(const char *path) {
+    assert(path);
     auto fp = std::unique_ptr<FILE, decltype(&fclose)>(fopen(path, "rb"), fclose);
     return fileSize(fp.get());
 }
