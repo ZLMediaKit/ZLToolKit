@@ -441,6 +441,10 @@ static string getLogFilePath(const string &dir, time_t second, int32_t index) {
     return dir + buf;
 }
 
+#if defined(_WIN32)
+#include "strptime_win.h"
+#endif
+
 //根据日志文件名返回GMT UNIX时间戳
 static time_t getLogFileTime(const string &full_path){
     auto name = getFileName(full_path.data());
