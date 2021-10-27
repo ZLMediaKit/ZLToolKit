@@ -444,25 +444,17 @@ static string getLogFilePath(const string &dir, time_t second, int32_t index) {
 //根据日志文件名返回GMT UNIX时间戳
 static time_t getLogFileTime(const string &full_path){
     auto name = getFileName(full_path.data());
-    int tm_mday;  // day of the month - [1, 31]
-    int tm_mon;   // months since January - [0, 11]
-    int tm_year;  // years since 1900
-    int32_t index;
-    int count = sscanf(name, "%d-%02d-%02d_%d.log", &tm_year, &tm_mon, &tm_mday, &index);
-    if (count != 4) {
+    struct tm tm{0};
+    if (!strptime(name, "%Y-%m-%d", &tm)) {
         return 0;
     }
-    struct tm tm{0};
-    tm.tm_year = tm_year - 1900;
-    tm.tm_mon = tm_mon - 1;
-    tm.tm_mday = tm_mday;
-    //本地时间转换成GMT时间
-    return mktime(&tm) + s_gmtoff;//UTC时间+时间差
+    //此函数会把本地时间转换成GMT时间戳
+    return mktime(&tm);
 }
 
 //获取1970年以来的第几天
 static uint64_t getDay(time_t second) {
-    return (second - s_gmtoff) / s_second_per_day;//GMT时间-时间差
+    return (second + s_gmtoff) / s_second_per_day;
 }
 
 FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
