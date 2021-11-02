@@ -51,7 +51,7 @@ public:
     bool get_task(T &tsk) {
         _sem.wait();
         lock_guard<decltype(_mutex)> lock(_mutex);
-        if (_queue.size() == 0) {
+        if (_queue.empty() ) {
             return false;
         }
         //改成右值引用后性能提升了1倍多！
