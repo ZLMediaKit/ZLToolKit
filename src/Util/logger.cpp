@@ -198,7 +198,7 @@ void AsyncLogWriter::write(const LogContextPtr &ctx, Logger &logger) {
 }
 
 void AsyncLogWriter::run() {
-    setThreadName("async log thread");
+    setThreadName("async log");
     while (!_exit_flag) {
         _sem.wait();
         flushAll();

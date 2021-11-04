@@ -8,6 +8,7 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <mutex>
 #include <string>
@@ -408,6 +409,7 @@ struct tm getLocalTime(time_t sec) {
 
 void setThreadName(const char *name) {
 #if defined(__linux) || defined(__linux__)
+    assert(strlen(name) < 16); // linux平台下线程名字长度需小于16
     pthread_setname_np(pthread_self(), name);
 #elif defined(__MACH__) || defined(__APPLE__)
     pthread_setname_np(name);
