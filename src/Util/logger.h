@@ -370,18 +370,18 @@ public:
         LogContextCapturer log(logger, level, file, function, line);
     }
 
+    template<typename Log, typename First, typename ...ARGS>
+    static inline void appendLog(Log &out, First &&first, ARGS &&...args) {
+        out << std::forward<First>(first);
+        appendLog(out, std::forward<ARGS>(args)...);
+    }
+
+    template<typename Log>
+    static inline void appendLog(Log &out) {}
+
     //printf样式的日志打印
     static void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap);
     static void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...);
-
-private:
-    template<typename First, typename ...ARGS>
-    static inline void appendLog(LogContextCapturer &log, First &&first, ARGS &&...args) {
-        log << std::forward<First>(first);
-        appendLog(log, std::forward<ARGS>(args)...);
-    }
-
-    static inline void appendLog(LogContextCapturer &log) {}
 };
 
 
