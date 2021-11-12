@@ -36,6 +36,7 @@ int main() {
     Logger::Instance().add(std::make_shared<FileChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
+    InfoL << "测试std::cout风格打印：";
     //ostream支持的数据类型都支持,可以通过友元的方式打印自定义类型数据
     TraceL << "object int"<< TestLog((int)1)  << endl;
     DebugL << "object short:"<<TestLog((short)2)  << endl;
@@ -43,7 +44,6 @@ int main() {
     WarnL << "object double:" << TestLog((double)4.12345678901234567)  << endl;
     ErrorL << "object void *:" << TestLog((void *)0x12345678) << endl;
     ErrorL << "object string:" << TestLog("test string") << endl;
-
 
     //这是ostream原生支持的数据类型
     TraceL << "int"<< (int)1  << endl;
@@ -54,10 +54,18 @@ int main() {
     //根据RAII的原理，此处不需要输入 endl，也会在被函数栈pop时打印log
     ErrorL << "without endl!";
 
+    PrintI("测试printf风格打印：");
     PrintT("this is a %s test:%d", "printf trace", 124);
     PrintD("this is a %s test:%p", "printf debug", (void*)124);
     PrintI("this is a %s test:%c", "printf info", 'a');
     PrintW("this is a %s test:%X", "printf warn", 0x7F);
     PrintE("this is a %s test:%x", "printf err", 0xab);
+
+    LogI("测试可变长度模板样式打印：");
+    LogT(1, "+", "2", '=', 3);
+    LogD(1, "+", "2", '=', 3);
+    LogI(1, "+", "2", '=', 3);
+    LogW(1, "+", "2", '=', 3);
+    LogE(1, "+", "2", '=', 3);
     return 0;
 }

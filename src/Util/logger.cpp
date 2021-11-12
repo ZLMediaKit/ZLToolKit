@@ -586,7 +586,7 @@ void FileChannel::setFileMaxCount(size_t max_count) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
+void LoggerWrapper::printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
     assert(file && function && fmt);
     LogContextCapturer info(logger, (LogLevel) level, file, function, line);
     char *str = nullptr;
@@ -596,7 +596,7 @@ void printLog(Logger &logger, int level, const char *file, const char *function,
     free(str);
 }
 
-void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...) {
+void LoggerWrapper::printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     printLog(logger, level, file, function, line, fmt, ap);
