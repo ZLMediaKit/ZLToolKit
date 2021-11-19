@@ -111,8 +111,15 @@ void TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
     sock->setOnRead([weak_session](const Buffer::Ptr &buf, struct sockaddr *, int) {
         //获取会话强应用
         auto strong_session = weak_session.lock();
-        if (strong_session) {
+        if (!strong_session) {
+            return;
+        }
+        try {
             strong_session->onRecv(buf);
+        } catch (SockException &ex) {
+            strong_session->shutdown(ex);
+        } catch (exception &ex) {
+            strong_session->shutdown(SockException(Err_shutdown, ex.what()));
         }
     });
 
