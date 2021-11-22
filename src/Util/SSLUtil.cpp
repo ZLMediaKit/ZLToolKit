@@ -309,21 +309,23 @@ RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey){
 string SSLUtil::cryptWithRsaPublicKey(X509 *cer, const string &in_str, bool enc_or_dec) {
 #if defined(ENABLE_OPENSSL)
     EVP_PKEY *public_key = X509_get0_pubkey(cer);
-    if(!public_key){
+    if (!public_key) {
         return "";
     }
-    RSA *rsa = EVP_PKEY_get0_RSA(public_key);
-    if(!rsa){
+    auto rsa = EVP_PKEY_get1_RSA(public_key);
+    if (!rsa) {
         return "";
     }
-    string out_str(RSA_size(rsa),'\0');
+    string out_str(RSA_size(rsa), '\0');
     int ret = 0;
     if(enc_or_dec){
-        ret = RSA_public_encrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+        ret = RSA_public_encrypt(in_str.size(), (uint8_t *) in_str.data(), (uint8_t *) out_str.data(), rsa,
+                                 RSA_PKCS1_PADDING);
     } else {
-        ret = RSA_public_decrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+        ret = RSA_public_decrypt(in_str.size(), (uint8_t *) in_str.data(), (uint8_t *) out_str.data(), rsa,
+                                 RSA_PKCS1_PADDING);
     }
-    if(ret > 0){
+    if (ret > 0) {
         out_str.resize(ret);
         return out_str;
     }
@@ -335,22 +337,22 @@ string SSLUtil::cryptWithRsaPublicKey(X509 *cer, const string &in_str, bool enc_
 #endif //defined(ENABLE_OPENSSL)
 }
 
-
-
 string SSLUtil::cryptWithRsaPrivateKey(EVP_PKEY *private_key, const string &in_str, bool enc_or_dec) {
 #if defined(ENABLE_OPENSSL)
-    RSA *rsa = EVP_PKEY_get0_RSA(private_key);
-    if(!rsa){
+    auto rsa = EVP_PKEY_get1_RSA(private_key);
+    if (!rsa) {
         return "";
     }
-    string out_str(RSA_size(rsa),'\0');
+    string out_str(RSA_size(rsa), '\0');
     int ret = 0;
-    if(enc_or_dec){
-        ret = RSA_private_encrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+    if (enc_or_dec) {
+        ret = RSA_private_encrypt(in_str.size(), (uint8_t *) in_str.data(), (uint8_t *) out_str.data(), rsa,
+                                  RSA_PKCS1_PADDING);
     } else {
-        ret = RSA_private_decrypt(in_str.size(),(uint8_t *)in_str.data(),(uint8_t *)out_str.data(),rsa,RSA_PKCS1_PADDING);
+        ret = RSA_private_decrypt(in_str.size(), (uint8_t *) in_str.data(), (uint8_t *) out_str.data(), rsa,
+                                  RSA_PKCS1_PADDING);
     }
-    if(ret > 0){
+    if (ret > 0) {
         out_str.resize(ret);
         return out_str;
     }
@@ -376,6 +378,5 @@ string SSLUtil::getServerName(X509 *cer) {
     return "";
 #endif
 }
-
 
 }//namespace toolkit
