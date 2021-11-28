@@ -199,13 +199,12 @@ const Session::Ptr& UdpServer::createSession(const PeerIdType &id, const Buffer:
         if (!server) {
             return s_null_session;
         }
-        {
-            //如果已经创建该客户端对应的UdpSession类，那么直接返回
-            lock_guard<std::recursive_mutex> lck(*_session_mutex);
-            auto it = _session_map->find(id);
-            if (it != _session_map->end()) {
-                return it->second->session();
-            }
+
+        //如果已经创建该客户端对应的UdpSession类，那么直接返回
+        lock_guard<std::recursive_mutex> lck(*_session_mutex);
+        auto it = _session_map->find(id);
+        if (it != _session_map->end()) {
+            return it->second->session();
         }
 
         socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
@@ -258,7 +257,6 @@ const Session::Ptr& UdpServer::createSession(const PeerIdType &id, const Buffer:
             }
         });
 
-        lock_guard<std::recursive_mutex> lck(*_session_mutex);
         auto pr = _session_map->emplace(id, std::move(helper));
         assert(pr.second);
         return pr.first->second->session();
