@@ -17,8 +17,11 @@ Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {
 
 Session::~Session() = default;
 
-string Session::getIdentifier() const{
-    return to_string(getSock()->rawFD());
+string Session::getIdentifier() const {
+    if (_id.empty()) {
+        _id = to_string(getSock()->rawFD());
+    }
+    return _id;
 }
 
 void Session::safeShutdown(const SockException &ex) {
