@@ -81,7 +81,7 @@ if(NOT WIN32)
 endif()
 
 #编译动态库
-if(NOT IOS AND NOT ANDROID)
+if(NOT IOS AND NOT ANDROID AND NOT WIN32)
     add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
     target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${LINK_LIB_LIST})
     set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
@@ -99,27 +99,3 @@ install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION ${INSTALL_PATH_
 if(NOT IOS)
     add_subdirectory(tests)
 endif()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
