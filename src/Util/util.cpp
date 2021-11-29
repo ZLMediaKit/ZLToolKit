@@ -14,6 +14,7 @@
 #include <string>
 #include <algorithm>
 #include <unordered_map>
+#include <random>
 
 #include "util.h"
 #include "onceToken.h"
@@ -68,24 +69,20 @@ using namespace std;
 
 namespace toolkit {
 
+static constexpr char CCH[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 string makeRandStr(int sz, bool printable) {
-    char *tmp = new char[sz + 1];
-    static const char CCH[] =
-        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    int i;
+    string ret;
+    ret.resize(sz);
     std::mt19937 rng(std::random_device{}());
-    for (i = 0; i < sz; i++) {
+    for (int i = 0; i < sz; ++i) {
         if (printable) {
             uint32_t x = rng() % (sizeof(CCH) - 1);
-            tmp[i] = CCH[x];
-        }
-        else {
-            tmp[i] = rng() % 0xFF;
+            ret[i] = CCH[x];
+        } else {
+            ret[i] = rng() % 0xFF;
         }
     }
-    tmp[i] = 0;
-    string ret = tmp;
-    delete[] tmp;
     return ret;
 }
 
