@@ -7,9 +7,9 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
     add_executable(${TEST_EXE_NAME} ${TEST_SRC})
 
     if(ANDROID OR IOS OR WIN32)
-        target_link_libraries(${TEST_EXE_NAME} ${CMAKE_PROJECT_NAME}_static ${LINK_LIB_LIST})
+        target_link_libraries(${TEST_EXE_NAME} ${PROJECT_NAME}_static ${LINK_LIB_LIST})
     else()
-        target_link_libraries(${TEST_EXE_NAME} ${CMAKE_PROJECT_NAME}_shared ${LINK_LIB_LIST} pthread)
+        target_link_libraries(${TEST_EXE_NAME} ${PROJECT_NAME}_shared ${LINK_LIB_LIST} pthread)
     endif()
 
 endforeach(TEST_SRC ${TEST_SRC_LIST})
