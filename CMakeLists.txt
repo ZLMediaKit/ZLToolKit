@@ -1,6 +1,5 @@
 ﻿project(ZLToolKit)
 cmake_minimum_required(VERSION 3.1.3)
-
 #加载自定义模块
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #设置库文件路径
@@ -19,8 +18,8 @@ endif()
 
 #安装目录
 if(WIN32)
-    set(INSTALL_PATH_LIB $ENV{HOME}/${CMAKE_PROJECT_NAME}/lib)
-    set(INSTALL_PATH_INCLUDE $ENV{HOME}/${CMAKE_PROJECT_NAME}/include)
+    set(INSTALL_PATH_LIB $ENV{HOME}/${PROJECT_NAME}/lib)
+    set(INSTALL_PATH_INCLUDE $ENV{HOME}/${PROJECT_NAME}/include)
 else()
     set(INSTALL_PATH_LIB lib)
     set(INSTALL_PATH_INCLUDE include)
@@ -48,7 +47,6 @@ endif()
 set(ENABLE_OPENSSL ON CACHE BOOL "enable openssl")
 set(ENABLE_MYSQL ON CACHE BOOL "enable mysql")
 
-
 #查找openssl是否安装
 find_package(OpenSSL QUIET)
 if(OPENSSL_FOUND AND ENABLE_OPENSSL)
@@ -70,8 +68,6 @@ endif()
 
 #打印库文件
 message(STATUS "将链接依赖库:${LINK_LIB_LIST}")
-#引用头文件路径
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 #使能c++11
 set(CMAKE_CXX_STANDARD 11)
 
@@ -82,17 +78,20 @@ endif()
 
 #编译动态库
 if(NOT IOS AND NOT ANDROID AND NOT WIN32)
-    add_library(${CMAKE_PROJECT_NAME}_shared SHARED ${SRC_LIST})
-    target_link_libraries(${CMAKE_PROJECT_NAME}_shared ${LINK_LIB_LIST})
-    set_target_properties(${CMAKE_PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
-    install(TARGETS ${CMAKE_PROJECT_NAME}_shared  ARCHIVE DESTINATION ${INSTALL_PATH_LIB} LIBRARY DESTINATION ${INSTALL_PATH_LIB})
+    add_library(${PROJECT_NAME}_shared SHARED ${SRC_LIST})
+    target_include_directories(${PROJECT_NAME}_shared PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(${PROJECT_NAME}_shared ${LINK_LIB_LIST})
+    set_target_properties(${PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
+    install(TARGETS ${PROJECT_NAME}_shared  ARCHIVE DESTINATION ${INSTALL_PATH_LIB} LIBRARY DESTINATION ${INSTALL_PATH_LIB})
 endif()
 
 #编译静态库
-add_library(${CMAKE_PROJECT_NAME}_static STATIC ${SRC_LIST})
-set_target_properties(${CMAKE_PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${CMAKE_PROJECT_NAME}")
+add_library(${PROJECT_NAME}_static STATIC ${SRC_LIST})
+#引用头文件路径
+target_include_directories(${PROJECT_NAME}_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set_target_properties(${PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
 #安装静态库至系统目录
-install(TARGETS ${CMAKE_PROJECT_NAME}_static ARCHIVE DESTINATION ${INSTALL_PATH_LIB})
+install(TARGETS ${PROJECT_NAME}_static ARCHIVE DESTINATION ${INSTALL_PATH_LIB})
 
 
 #测试程序
