@@ -77,7 +77,7 @@ void Socket::setOnRead(onReadCB cb) {
         _on_read = std::move(cb);
     } else {
         _on_read = [](const Buffer::Ptr &buf, struct sockaddr *, int) {
-            WarnL << "Socket not set readCB";
+            WarnL << "Socket not set read callback, data ignored:" << buf->size();
         };
     }
 }
@@ -88,7 +88,7 @@ void Socket::setOnErr(onErrCB cb) {
         _on_err = std::move(cb);
     } else {
         _on_err = [](const SockException &err) {
-            WarnL << "Socket not set errCB";
+            WarnL << "Socket not set err callback, err:" << err.what();
         };
     }
 }
@@ -99,7 +99,7 @@ void Socket::setOnAccept(onAcceptCB cb) {
         _on_accept = std::move(cb);
     } else {
         _on_accept = [](Socket::Ptr &sock, shared_ptr<void> &complete) {
-            WarnL << "Socket not set acceptCB";
+            WarnL << "Socket not set accept callback, peer fd:" << sock->rawFD();
         };
     }
 }
