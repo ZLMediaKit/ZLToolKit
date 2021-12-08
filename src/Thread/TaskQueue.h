@@ -18,6 +18,7 @@
 #include <functional>
 #include "Util/List.h"
 #include "semaphore.h"
+
 using namespace std;
 
 namespace toolkit {
@@ -35,6 +36,7 @@ public:
         }
         _sem.post();
     }
+
     template<typename C>
     void push_task_first(C &&task_func) {
         {
@@ -43,31 +45,31 @@ public:
         }
         _sem.post();
     }
+
     //清空任务列队
     void push_exit(size_t n) {
         _sem.post(n);
     }
+
     //从列队获取一个任务，由执行线程执行
     bool get_task(T &tsk) {
         _sem.wait();
         lock_guard<decltype(_mutex)> lock(_mutex);
-        if (_queue.empty() ) {
+        if (_queue.empty()) {
             return false;
         }
-        //改成右值引用后性能提升了1倍多！
         tsk = std::move(_queue.front());
         _queue.pop_front();
         return true;
     }
-    size_t size() const{
+
+    size_t size() const {
         lock_guard<decltype(_mutex)> lock(_mutex);
         return _queue.size();
     }
+
 private:
-    //经过对比List,std::list,std::deque三种容器发现，
-    //在i5-6200U单线程环境下，执行1000万个任务时，分别耗时1.3，2.4，1.8秒左右
-    //所以此处我们替换成性能最好的List模板
-    List<T> _queue;
+    List <T> _queue;
     mutable mutex _mutex;
     semaphore _sem;
 };
