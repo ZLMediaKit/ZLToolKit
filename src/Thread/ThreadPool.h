@@ -18,9 +18,10 @@
 #include "TaskExecutor.h"
 #include "Util/util.h"
 #include "Util/logger.h"
+
 namespace toolkit {
 
-class ThreadPool : public TaskExecutor{
+class ThreadPool : public TaskExecutor {
 public:
     enum Priority {
         PRIORITY_LOWEST = 0,
@@ -30,23 +31,22 @@ public:
         PRIORITY_HIGHEST
     };
 
-    //num:线程池线程个数
-    ThreadPool(int num = 1,
-               Priority priority = PRIORITY_HIGHEST,
-               bool autoRun = true) :
-            _thread_num(num), _priority(priority) {
-        if(autoRun){
+    ThreadPool(int num = 1, Priority priority = PRIORITY_HIGHEST, bool auto_run = true) {
+        _thread_num = num;
+        _priority = priority;
+        if (auto_run) {
             start();
         }
         _logger = Logger::Instance().shared_from_this();
     }
+
     ~ThreadPool() {
         shutdown();
         wait();
     }
 
     //把任务打入线程池并异步执行
-    Task::Ptr async(TaskIn task,bool may_sync = true) override {
+    Task::Ptr async(TaskIn task, bool may_sync = true) override {
         if (may_sync && _thread_group.is_this_thread_in()) {
             task();
             return nullptr;
@@ -55,7 +55,8 @@ public:
         _queue.push_task(ret);
         return ret;
     }
-    Task::Ptr async_first(TaskIn task,bool may_sync = true) override{
+
+    Task::Ptr async_first(TaskIn task, bool may_sync = true) override {
         if (may_sync && _thread_group.is_this_thread_in()) {
             task();
             return nullptr;
@@ -66,12 +67,11 @@ public:
         return ret;
     }
 
-    size_t size(){
+    size_t size() {
         return _queue.size();
     }
 
-    static bool setPriority(Priority priority = PRIORITY_NORMAL,
-            thread::native_handle_type threadId = 0) {
+    static bool setPriority(Priority priority = PRIORITY_NORMAL, thread::native_handle_type threadId = 0) {
         // set priority
 #if defined(_WIN32)
         static int Priorities[] = { THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST };
@@ -88,8 +88,7 @@ public:
         if (Max == -1) {
             return false;
         }
-        static int Priorities[] = { Min, Min + (Max - Min) / 4, Min
-            + (Max - Min) / 2, Min + (Max - Min) * 3/ 4, Max };
+        static int Priorities[] = {Min, Min + (Max - Min) / 4, Min + (Max - Min) / 2, Min + (Max - Min) * 3 / 4, Max};
 
         if (threadId == 0) {
             threadId = pthread_self();
@@ -137,6 +136,7 @@ private:
     void shutdown() {
         _queue.push_exit(_thread_num);
     }
+
 private:
     size_t _thread_num;
     TaskQueue<Task::Ptr> _queue;
