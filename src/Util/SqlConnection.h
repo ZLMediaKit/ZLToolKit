@@ -23,12 +23,11 @@
 #include <stdexcept>
 #include "Util/logger.h"
 #include "Util/util.h"
-#if defined(_WIN32)
 #include <mysql.h>
+
+#if defined(_WIN32)
 #pragma  comment (lib,"libmysql") 
-#else
-#include <mysql/mysql.h>
-#endif // defined(_WIN32)
+#endif
 using namespace std;
 
 namespace toolkit {

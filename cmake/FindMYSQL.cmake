@@ -26,11 +26,14 @@ if(WIN32)
       $ENV{ProgramW6432}/MySQL/*/include
    )
 else(WIN32)
-   find_path(MYSQL_INCLUDE_DIR mysql/mysql.h
+   #在Mac OS下, mysql.h的文件可能不是在mysql目录下
+   #可能存在/usr/local/mysql/include/mysql.h
+   find_path(MYSQL_INCLUDE_DIR mysql.h
       PATHS
       $ENV{MYSQL_INCLUDE_DIR}
       $ENV{MYSQL_DIR}/include
       /usr/local/mysql/include
+      /usr/local/mysql/include/mysql
       /opt/mysql/mysql/include
       PATH_SUFFIXES
       mysql
@@ -110,7 +113,6 @@ endif(MYSQL_EMBEDDED_LIBRARIES)
 set( CMAKE_REQUIRED_INCLUDES ${MYSQL_INCLUDE_DIR} )
 set( CMAKE_REQUIRED_LIBRARIES ${MYSQL_EMBEDDED_LIBRARIES} )
 check_cxx_source_compiles( "#include <mysql.h>\nint main() { int i = MYSQL_OPT_USE_EMBEDDED_CONNECTION; }" HAVE_MYSQL_OPT_EMBEDDED_CONNECTION )
-
 if(MYSQL_INCLUDE_DIR AND MYSQL_LIBRARIES)
    set(MYSQL_FOUND TRUE)
    message(STATUS "Found MySQL: ${MYSQL_INCLUDE_DIR}, ${MYSQL_LIBRARIES}")
