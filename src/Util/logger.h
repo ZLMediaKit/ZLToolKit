@@ -27,7 +27,6 @@
 #include "Util/util.h"
 #include "Util/List.h"
 #include "Thread/semaphore.h"
-
 using namespace std;
 
 namespace toolkit {
@@ -63,19 +62,19 @@ public:
     ~Logger();
 
     /**
-     * 添加日志通道，非线程安全的
+     * 添加日志通道，线程安全
      * @param channel log通道
      */
     void add(const std::shared_ptr<LogChannel> &channel);
 
     /**
-     * 删除日志通道，非线程安全的
+     * 删除日志通道，线程安全
      * @param name log通道名
      */
     void del(const string &name);
 
     /**
-     * 获取日志通道，非线程安全的
+     * 获取日志通道，线程安全
      * @param name log通道名
      * @return 线程通道
      */
@@ -88,7 +87,7 @@ public:
     void setWriter(const std::shared_ptr<LogWriter> &writer);
 
     /**
-     * 设置所有日志通道的log等级
+     * 设置所有日志通道的log等级 线程安全
      * @param level log等级
      */
     void setLevel(LogLevel level);
@@ -113,7 +112,9 @@ private:
     void writeChannels(const LogContextPtr &ctx);
 
 private:
-    map<string, std::shared_ptr<LogChannel> > _channels;
+    std::mutex _channel_mtx;
+    std::shared_ptr<map<string, std::shared_ptr<LogChannel>>> _channels;
+
     std::shared_ptr<LogWriter> _writer;
     string _loggerName;
 };

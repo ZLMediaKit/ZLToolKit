@@ -63,6 +63,7 @@ INSTANCE_IMP(Logger, exeName());
 
 Logger::Logger(const string &loggerName) {
     _loggerName = loggerName;
+    _channels = std::make_shared<std::map<std::string, std::shared_ptr<LogChannel>>>();
 }
 
 Logger::~Logger() {
@@ -70,22 +71,40 @@ Logger::~Logger() {
     {
         LogContextCapturer(*this, LInfo, __FILE__, __FUNCTION__, __LINE__);
     }
-    _channels.clear();
+    //销毁时,线程不安全
+    _channels->clear();
 }
-
+/*
+ * 可以利用copy on write
+ * 这样在add channel 或者 del channel的时候可以避免过多的wait lock
+ * */
 void Logger::add(const std::shared_ptr<LogChannel> &channel) {
-    _channels[channel->name()] = channel;
+  std::lock_guard<std::mutex> lmtx(_channel_mtx);
+  //如果当前有其他线程引用,reset后再拷贝一份
+  if(!_channels.unique()){
+      _channels.reset(new std::map<string, std::shared_ptr<LogChannel>>(*_channels));
+  }
+  (*_channels)[channel->name()] = channel;
 }
 
 void Logger::del(const string &name) {
-    _channels.erase(name);
+  std::lock_guard<std::mutex> lmtx(_channel_mtx);
+  //如果当前有其他线程引用,reset后再拷贝一份
+  if(!_channels.unique()){
+    _channels.reset(new std::map<string, std::shared_ptr<LogChannel>>(*_channels));
+  }
+  (*_channels).erase(name);
 }
 
 std::shared_ptr<LogChannel> Logger::get(const string &name) {
-    auto it = _channels.find(name);
-    if (it == _channels.end()) {
-        return nullptr;
+    //拷贝的时候只拷贝一个指针
+    decltype(_channels) _tmp_channels = nullptr;
+    {
+      std::lock_guard<std::mutex> lmtx(_channel_mtx);
+      _tmp_channels = _channels;
     }
+    auto it = _tmp_channels->find(name);
+    if(it == _tmp_channels->end())return nullptr;
     return it->second;
 }
 
@@ -102,15 +121,26 @@ void Logger::write(const LogContextPtr &ctx) {
 }
 
 void Logger::setLevel(LogLevel level) {
-    for (auto &chn : _channels) {
-        chn.second->setLevel(level);
-    }
+
+  std::lock_guard<std::mutex> lmtx(_channel_mtx);
+  if(!_channels.unique()){
+    _channels.reset(new std::map<string, std::shared_ptr<LogChannel>>(*_channels));
+  }
+  for (auto &chn : (*_channels)) {
+    chn.second->setLevel(level);
+  }
 }
 
 void Logger::writeChannels(const LogContextPtr &ctx) {
-    for (auto &chn : _channels) {
-        chn.second->write(*this, ctx);
-    }
+  //拷贝的时候只拷贝一个指针
+  decltype(_channels) _tmp_channels = nullptr;
+  {
+    std::lock_guard<std::mutex> lmtx(_channel_mtx);
+    _tmp_channels = _channels;
+  }
+  for (auto &chn : (*_tmp_channels)) {
+      chn.second->write(*this, ctx);
+  }
 }
 
 const string &Logger::getName() const {
