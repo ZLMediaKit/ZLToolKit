@@ -148,7 +148,7 @@ public:
      * 需要加密明文调用此函数
      * @param buffer 需要加密的明文数据
      */
-    void onSend(const Buffer::Ptr &buffer);
+    void onSend(Buffer::Ptr buffer);
 
     /**
      * 设置解密后获取明文的回调

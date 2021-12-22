@@ -340,7 +340,7 @@ void SSL_Box::onRecv(const Buffer::Ptr &buffer) {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-void SSL_Box::onSend(const Buffer::Ptr &buffer) {
+void SSL_Box::onSend(Buffer::Ptr buffer) {
     if (!buffer->size()) {
         return;
     }
@@ -355,7 +355,7 @@ void SSL_Box::onSend(const Buffer::Ptr &buffer) {
         _send_handshake = true;
         SSL_do_handshake(_ssl.get());
     }
-    _buffer_send.emplace_back(buffer);
+    _buffer_send.emplace_back(std::move(buffer));
     flush();
 #endif //defined(ENABLE_OPENSSL)
 }
