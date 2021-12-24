@@ -29,7 +29,7 @@ void TcpClient::shutdown(const SockException &ex) {
     SocketHelper::shutdown(ex);
 }
 
-bool TcpClient::alive() {
+bool TcpClient::alive() const {
     auto sock = getSock();
     bool ret = sock && sock->rawFD() >= 0;
     return ret;

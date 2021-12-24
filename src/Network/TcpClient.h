@@ -46,7 +46,7 @@ public:
     /**
      * 判断是否与服务器连接中
      */
-    virtual bool alive();
+    virtual bool alive() const;
 
     /**
      * 设置网卡适配器,使用该网卡与服务器通信
