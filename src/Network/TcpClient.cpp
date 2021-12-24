@@ -97,7 +97,11 @@ void TcpClient::onSockConnect(const SockException &ex) {
             //已经重连socket，上传socket的事件忽略掉
             return;
         }
-        strongSelf->onRecv(pBuf);
+        try {
+            strongSelf->onRecv(pBuf);
+        } catch (std::exception &ex) {
+            strongSelf->shutdown(SockException(Err_other, ex.what()));
+        }
     });
 
     _timer = std::make_shared<Timer>(2.0f, [weakSelf]() {
