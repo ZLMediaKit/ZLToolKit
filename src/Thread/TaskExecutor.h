@@ -202,6 +202,11 @@ public:
      * @return 任务执行器
      */
     virtual TaskExecutor::Ptr getExecutor() = 0;
+
+    /**
+     * 获取执行器个数
+     */
+    virtual size_t getExecutorSize() const;
 };
 
 class TaskExecutorGetterImp : public TaskExecutorGetter {
@@ -232,6 +237,11 @@ public:
      * 遍历所有线程
      */
     void for_each(const function<void(const TaskExecutor::Ptr &)> &cb);
+
+    /**
+     * 获取线程数
+     */
+    size_t getExecutorSize() const override;
 
 protected:
     size_t addPoller(const string &name, size_t size, int priority, bool register_thread);

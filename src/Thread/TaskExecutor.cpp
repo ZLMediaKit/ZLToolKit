@@ -178,6 +178,10 @@ void TaskExecutorGetterImp::for_each(const function<void(const TaskExecutor::Ptr
     }
 }
 
+size_t TaskExecutorGetterImp::getExecutorSize() const {
+    return _threads.size();
+}
+
 size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread) {
     auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;
