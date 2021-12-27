@@ -206,7 +206,7 @@ public:
     /**
      * 获取执行器个数
      */
-    virtual size_t getExecutorSize() const;
+    virtual size_t getExecutorSize() const = 0;
 };
 
 class TaskExecutorGetterImp : public TaskExecutorGetter {
