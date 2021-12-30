@@ -30,9 +30,11 @@ extern "C" const IMAGE_DOS_HEADER __ImageBase;
 #endif // defined(_WIN32)
 
 #if defined(__MACH__) || defined(__APPLE__)
+#include <limits.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
+
 int uv_exepath(char* buffer, int *size) {
     /* realpath(exepath) may be > PATH_MAX so double it to be on the safe side. */
     char abspath[PATH_MAX * 2 + 1];
@@ -55,7 +57,7 @@ int uv_exepath(char* buffer, int *size) {
         return -EIO;
 
     *size -= 1;
-    if (*size > abspath_size)
+    if ((size_t) *size > abspath_size)
         *size = abspath_size;
 
     memcpy(buffer, abspath, *size);

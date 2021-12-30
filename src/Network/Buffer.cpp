@@ -89,7 +89,7 @@ ssize_t BufferList::send_l(int fd, int flags,bool udp) {
 
         msg.msg_iov = &(_iovec[_iovec_off]);
         msg.msg_iovlen = (decltype(msg.msg_iovlen)) (_iovec.size() - _iovec_off);
-        size_t max = udp ? 1 : IOV_MAX;
+        int max = udp ? 1 : IOV_MAX;
         if (msg.msg_iovlen > max) {
             msg.msg_iovlen = max;
         }

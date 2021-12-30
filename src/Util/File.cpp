@@ -13,6 +13,7 @@
 #include <direct.h>
 #else
 #include <dirent.h>
+#include <limits.h>
 #endif // WIN32
 
 #include <stdlib.h>
@@ -35,7 +36,6 @@ using namespace toolkit;
 
 #if defined(_WIN32)
 
-
 int mkdir(const char *path, int mode) {
     return _mkdir(path);
 }
@@ -56,6 +56,7 @@ DIR *opendir(const char *name) {
     dir->handle = hFind;
     return dir;
 }
+
 struct dirent *readdir(DIR *d) {
     HANDLE hFind = d->handle;
     WIN32_FIND_DATAA FileData;
@@ -81,6 +82,7 @@ struct dirent *readdir(DIR *d) {
     d->index = dir;
     return dir;
 }
+
 int closedir(DIR *d) {
     if (!d) {
         return -1;
@@ -99,7 +101,6 @@ int closedir(DIR *d) {
     return 0;
 }
 #endif // defined(_WIN32)
-
 
 namespace toolkit {
 
@@ -126,6 +127,7 @@ FILE *File::create_file(const char *file, const char *mode) {
     }
     return ret;
 }
+
 bool File::create_path(const char *file, unsigned int mod) {
     std::string path = file;
     std::string dir;

@@ -380,10 +380,9 @@ public:
     static inline void appendLog(Log &out) {}
 
     //printf样式的日志打印
-    static void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap);
     static void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...);
+    static void printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap);
 };
-
 
 //可重置默认值
 extern Logger *g_defaultLogger;
@@ -397,12 +396,12 @@ extern Logger *g_defaultLogger;
 #define ErrorL WriteL(LError)
 
 //用法: LogD("%d + %s = %c", 1 "2", 'c');
-#define PrintLog(level, fmt, ...) LoggerWrapper::printLog(getLogger(), level, __FILE__, __FUNCTION__, __LINE__, fmt, ##__VA_ARGS__)
-#define PrintT(fmt, ...) PrintLog(LTrace, fmt, ##__VA_ARGS__)
-#define PrintD(fmt, ...) PrintLog(LDebug, fmt, ##__VA_ARGS__)
-#define PrintI(fmt, ...) PrintLog(LInfo, fmt, ##__VA_ARGS__)
-#define PrintW(fmt, ...) PrintLog(LWarn, fmt, ##__VA_ARGS__)
-#define PrintE(fmt, ...) PrintLog(LError, fmt, ##__VA_ARGS__)
+#define PrintLog(level, ...) LoggerWrapper::printLog(getLogger(), level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define PrintT(...) PrintLog(LTrace, ##__VA_ARGS__)
+#define PrintD(...) PrintLog(LDebug, ##__VA_ARGS__)
+#define PrintI(...) PrintLog(LInfo, ##__VA_ARGS__)
+#define PrintW(...) PrintLog(LWarn, ##__VA_ARGS__)
+#define PrintE(...) PrintLog(LError, ##__VA_ARGS__)
 
 //用法: LogD(1, "+", "2", '=', 3);
 //用于模板实例化的原因，如果每次打印参数个数和类型不一致，可能会导致二进制代码膨胀

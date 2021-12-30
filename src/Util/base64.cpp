@@ -78,7 +78,7 @@ char *av_base64_encode_l(char *out, int *out_size, const uint8_t *in, int in_siz
     int i_shift = 0;
     int bytes_remaining = in_size;
 
-    if (in_size >= UINT_MAX / 4 || *out_size < AV_BASE64_SIZE(in_size)) {
+    if ((size_t)in_size >= UINT_MAX / 4 || *out_size < AV_BASE64_SIZE(in_size)) {
         return NULL;
     }
     ret = dst = out;
