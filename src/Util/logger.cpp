@@ -107,10 +107,34 @@ void Logger::setLevel(LogLevel level) {
     }
 }
 
-void Logger::writeChannels(const LogContextPtr &ctx) {
+void Logger::writeChannels_l(const LogContextPtr &ctx) {
     for (auto &chn : _channels) {
         chn.second->write(*this, ctx);
     }
+    _last_log = ctx;
+}
+
+//返回毫秒
+static int64_t timevalDiff(struct timeval &a, struct timeval &b) {
+    return (1000 * (b.tv_sec - a.tv_sec)) + ((b.tv_usec - a.tv_usec) / 1000);
+}
+
+void Logger::writeChannels(const LogContextPtr &ctx) {
+    if (_last_log && _last_log->_line == ctx->_line && _last_log->_file == ctx->_file) {
+        //重复的日志每隔500ms打印一次，过滤频繁的重复日志
+        ++_last_log->_repeat;
+        if (timevalDiff(_last_log->_tv, ctx->_tv) > 500) {
+            if (_last_log->_repeat > 1) {
+                ctx->_repeat = _last_log->_repeat;
+                writeChannels_l(ctx);
+                _last_log->_repeat = 0;
+            } else {
+                writeChannels_l(ctx);
+            }
+        }
+        return;
+    }
+    writeChannels_l(ctx);
 }
 
 const string &Logger::getName() const {
@@ -350,6 +374,9 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 #endif
     }
 
+    if (ctx->_repeat) {
+        ost << "\r\n    Last message repeated " << ctx->_repeat << " times";
+    }
     ost << endl;
 }
 

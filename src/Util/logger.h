@@ -111,8 +111,10 @@ private:
      * @param ctx 日志信息
      */
     void writeChannels(const LogContextPtr &ctx);
+    void writeChannels_l(const LogContextPtr &ctx);
 
 private:
+    LogContextPtr _last_log;
     map<string, std::shared_ptr<LogChannel> > _channels;
     std::shared_ptr<LogWriter> _writer;
     string _loggerName;
@@ -132,6 +134,7 @@ public:
 
     LogLevel _level;
     int _line;
+    int _repeat = 0;
     string _file;
     string _function;
     string _thread_name;

@@ -67,5 +67,13 @@ int main() {
     LogI(1, "+", "2", '=', 3);
     LogW(1, "+", "2", '=', 3);
     LogE(1, "+", "2", '=', 3);
+
+
+    for (int i = 0; i < 300; ++i) {
+        DebugL << "this is a repeat log";
+        this_thread::sleep_for(chrono::milliseconds(10));
+    }
+
+    InfoL << "done!";
     return 0;
 }
