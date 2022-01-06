@@ -366,7 +366,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 
     if (enableDetail) {
 #if defined(_WIN32)
-        ost << ctx->_moudle_name <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
+        ost << ctx->_module_name <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
 #else
         ost << logger.getName() << "[" << getpid() << "-" << ctx->_thread_name;
 #endif
