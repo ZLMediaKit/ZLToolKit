@@ -62,13 +62,14 @@ void setLogger(Logger *logger) {
 INSTANCE_IMP(Logger, exeName());
 
 Logger::Logger(const string &loggerName) {
-    _loggerName = loggerName;
+    _logger_name = loggerName;
+    _last_log = std::make_shared<LogContext>();
 }
 
 Logger::~Logger() {
     _writer.reset();
     {
-        LogContextCapturer(*this, LInfo, __FILE__, __FUNCTION__, __LINE__);
+        LogContextCapture(*this, LInfo, __FILE__, __FUNCTION__, __LINE__);
     }
     _channels.clear();
 }
@@ -112,6 +113,7 @@ void Logger::writeChannels_l(const LogContextPtr &ctx) {
         chn.second->write(*this, ctx);
     }
     _last_log = ctx;
+    _last_log->_repeat = 0;
 }
 
 //返回毫秒
@@ -120,25 +122,23 @@ static int64_t timevalDiff(struct timeval &a, struct timeval &b) {
 }
 
 void Logger::writeChannels(const LogContextPtr &ctx) {
-    if (_last_log && _last_log->_line == ctx->_line && _last_log->_file == ctx->_file) {
+    if (ctx->_line == _last_log->_line && ctx->_file == _last_log->_file && ctx->str() == _last_log->str()) {
         //重复的日志每隔500ms打印一次，过滤频繁的重复日志
         ++_last_log->_repeat;
         if (timevalDiff(_last_log->_tv, ctx->_tv) > 500) {
-            if (_last_log->_repeat > 1) {
-                ctx->_repeat = _last_log->_repeat;
-                writeChannels_l(ctx);
-                _last_log->_repeat = 0;
-            } else {
-                writeChannels_l(ctx);
-            }
+            ctx->_repeat = _last_log->_repeat;
+            writeChannels_l(ctx);
         }
         return;
+    }
+    if (_last_log->_repeat > 1) {
+        writeChannels_l(_last_log);
     }
     writeChannels_l(ctx);
 }
 
 const string &Logger::getName() const {
-    return _loggerName;
+    return _logger_name;
 }
 
 ///////////////////LogContext///////////////////
@@ -161,33 +161,42 @@ static inline const char *getFunctionName(const char *func) {
 #endif
 }
 
-LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, const char* moudleName) :
-        _level(level),
-        _line(line),
-        _file(getFileName(file)),
-        _function(getFunctionName(function)),
-		_moudle_name(moudleName) {
+LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name)
+    : _level(level)
+    , _line(line)
+    , _file(getFileName(file))
+    , _function(getFunctionName(function))
+    , _module_name(module_name) {
     gettimeofday(&_tv, NULL);
     _thread_name = getThreadName();
 }
 
-///////////////////AsyncLogWriter///////////////////
-
-static string s_moudle_name = exeName(false);
-
-LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
-        _ctx(new LogContext(level, file, function, line, s_moudle_name.c_str())), _logger(logger) {
+const string &LogContext::str() {
+    if (_got_content) {
+        return _content;
+    }
+    _content = ostringstream::str();
+    _got_content = true;
+    return _content;
 }
 
-LogContextCapturer::LogContextCapturer(const LogContextCapturer &that) : _ctx(that._ctx), _logger(that._logger) {
+///////////////////AsyncLogWriter///////////////////
+
+static string s_module_name = exeName(false);
+
+LogContextCapture::LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
+        _ctx(new LogContext(level, file, function, line, s_module_name.c_str())), _logger(logger) {
+}
+
+LogContextCapture::LogContextCapture(const LogContextCapture &that) : _ctx(that._ctx), _logger(that._logger) {
     const_cast<LogContextPtr &>(that._ctx).reset();
 }
 
-LogContextCapturer::~LogContextCapturer() {
+LogContextCapture::~LogContextCapture() {
     *this << endl;
 }
 
-LogContextCapturer &LogContextCapturer::operator<<(ostream &(*f)(ostream &)) {
+LogContextCapture &LogContextCapture::operator<<(ostream &(*f)(ostream &)) {
     if (!_ctx) {
         return *this;
     }
@@ -196,7 +205,7 @@ LogContextCapturer &LogContextCapturer::operator<<(ostream &(*f)(ostream &)) {
     return *this;
 }
 
-void LogContextCapturer::clear() {
+void LogContextCapture::clear() {
     _ctx.reset();
 }
 
@@ -615,7 +624,7 @@ void FileChannel::setFileMaxCount(size_t max_count) {
 
 void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
     assert(file && function && fmt);
-    LogContextCapturer info(logger, (LogLevel) level, file, function, line);
+    LogContextCapture info(logger, (LogLevel) level, file, function, line);
     char *str = nullptr;
     vasprintf(&str, fmt, ap);
     assert(str);

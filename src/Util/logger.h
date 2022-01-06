@@ -117,7 +117,7 @@ private:
     LogContextPtr _last_log;
     map<string, std::shared_ptr<LogChannel> > _channels;
     std::shared_ptr<LogWriter> _writer;
-    string _loggerName;
+    string _logger_name;
 };
 
 ///////////////////LogContext///////////////////
@@ -128,8 +128,8 @@ class LogContext : public ostringstream {
 public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
-
-    LogContext(LogLevel level, const char *file, const char *function, int line, const char* moudleName);
+    LogContext() = default;
+    LogContext(LogLevel level, const char *file, const char *function, int line, const char* module_name);
     ~LogContext() = default;
 
     LogLevel _level;
@@ -138,29 +138,34 @@ public:
     string _file;
     string _function;
     string _thread_name;
-    string _moudle_name;
+    string _module_name;
     struct timeval _tv;
+    const string &str();
+
+private:
+    bool _got_content = false;
+    string _content;
 };
 
 /**
  * 日志上下文捕获器
  */
-class LogContextCapturer {
+class LogContextCapture {
 public:
-    typedef std::shared_ptr<LogContextCapturer> Ptr;
-    LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line);
-    LogContextCapturer(const LogContextCapturer &that);
-    ~LogContextCapturer();
+    typedef std::shared_ptr<LogContextCapture> Ptr;
+    LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line);
+    LogContextCapture(const LogContextCapture &that);
+    ~LogContextCapture();
 
     /**
      * 输入std::endl(回车符)立即输出日志
      * @param f std::endl(回车符)
      * @return 自身引用
      */
-    LogContextCapturer &operator<<(ostream &(*f)(ostream &));
+    LogContextCapture &operator<<(ostream &(*f)(ostream &));
 
-    template<typename T>
-    LogContextCapturer &operator<<(T &&data) {
+    template <typename T>
+    LogContextCapture &operator<<(T &&data) {
         if (!_ctx) {
             return *this;
         }
@@ -364,13 +369,13 @@ class LoggerWrapper {
 public:
     template<typename First, typename ...ARGS>
     static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line, First &&first, ARGS && ...args) {
-        LogContextCapturer log(logger, level, file, function, line);
+        LogContextCapture log(logger, level, file, function, line);
         log << std::forward<First>(first);
         appendLog(log, std::forward<ARGS>(args)...);
     }
 
     static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line) {
-        LogContextCapturer log(logger, level, file, function, line);
+        LogContextCapture log(logger, level, file, function, line);
     }
 
     template<typename Log, typename First, typename ...ARGS>
@@ -391,7 +396,7 @@ public:
 extern Logger *g_defaultLogger;
 
 //用法: DebugL << 1 << "+" << 2 << '=' << 3;
-#define WriteL(level) LogContextCapturer(getLogger(), level, __FILE__, __FUNCTION__, __LINE__)
+#define WriteL(level) LogContextCapture(getLogger(), level, __FILE__, __FUNCTION__, __LINE__)
 #define TraceL WriteL(LTrace)
 #define DebugL WriteL(LDebug)
 #define InfoL WriteL(LInfo)
