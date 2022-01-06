@@ -372,7 +372,7 @@ void SSL_Box::flushWriteBio() {
 #if defined(ENABLE_OPENSSL)
     int total = 0;
     int nread = 0;
-    auto buffer_bio = _buffer_pool.obtain();
+    auto buffer_bio = _buffer_pool.obtain2();
     buffer_bio->setCapacity(_buff_size);
     auto buf_size = buffer_bio->getCapacity() - 1;
     do {
@@ -405,7 +405,7 @@ void SSL_Box::flushReadBio() {
 #if defined(ENABLE_OPENSSL)
     int total = 0;
     int nread = 0;
-    auto buffer_bio = _buffer_pool.obtain();
+    auto buffer_bio = _buffer_pool.obtain2();
     buffer_bio->setCapacity(_buff_size);
     auto buf_size = buffer_bio->getCapacity() - 1;
     do {
