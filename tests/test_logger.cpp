@@ -69,8 +69,18 @@ int main() {
     LogE(1, "+", "2", '=', 3);
 
 
-    for (int i = 0; i < 300; ++i) {
-        DebugL << "this is a repeat log";
+    for (int i = 0; i < 2; ++i) {
+        DebugL << "this is a repeat 2 times log";
+        this_thread::sleep_for(chrono::milliseconds(10));
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        DebugL << "this is a repeat 3 times log";
+        this_thread::sleep_for(chrono::milliseconds(10));
+    }
+
+    for (int i = 0; i < 100; ++i) {
+        DebugL << "this is a repeat 100 log";
         this_thread::sleep_for(chrono::milliseconds(10));
     }
 

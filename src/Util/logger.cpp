@@ -131,7 +131,7 @@ void Logger::writeChannels(const LogContextPtr &ctx) {
         }
         return;
     }
-    if (_last_log->_repeat > 1) {
+    if (_last_log->_repeat) {
         writeChannels_l(_last_log);
     }
     writeChannels_l(ctx);
@@ -383,7 +383,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 #endif
     }
 
-    if (ctx->_repeat) {
+    if (ctx->_repeat > 1) {
         ost << "\r\n    Last message repeated " << ctx->_repeat << " times";
     }
     ost << endl;
