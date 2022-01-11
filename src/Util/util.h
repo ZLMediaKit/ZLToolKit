@@ -24,7 +24,7 @@
 #undef FD_SETSIZE
 //修改默认64为1024路
 #define FD_SETSIZE 1024
-#include <WinSock2.h>
+#include <winsock2.h>
 #pragma comment (lib,"WS2_32")
 #else
 #include <unistd.h>

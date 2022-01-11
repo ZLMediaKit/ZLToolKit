@@ -24,7 +24,7 @@
 #include "Network/sockutil.h"
 
 #if defined(_WIN32)
-#include <shlwapi.h>  
+#include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
 extern "C" const IMAGE_DOS_HEADER __ImageBase;
 #endif // defined(_WIN32)
@@ -406,13 +406,15 @@ struct tm getLocalTime(time_t sec) {
     return tm;
 }
 
+static thread_local string thread_name;
+
 void setThreadName(const char *name) {
 #if defined(__linux) || defined(__linux__)
     assert(strlen(name) < 16); // linux平台下线程名字长度需小于16
     pthread_setname_np(pthread_self(), name);
 #elif defined(__MACH__) || defined(__APPLE__)
     pthread_setname_np(name);
-#elif defined(_WIN32)
+#elif defined(_MSC_VER)
     // SetThreadDescription was added in 1607 (aka RS1). Since we can't guarantee the user is running 1607 or later, we need to ask for the function from the kernel.
     using SetThreadDescriptionFunc = HRESULT(WINAPI * )(_In_ HANDLE hThread, _In_ PCWSTR lpThreadDescription);
     static auto setThreadDescription = reinterpret_cast<SetThreadDescriptionFunc>(::GetProcAddress(::GetModuleHandle("Kernel32.dll"), "SetThreadDescription"));
@@ -451,6 +453,8 @@ void setThreadName(const char *name) {
         } __except(GetExceptionCode() == MS_VC_EXCEPTION ? EXCEPTION_CONTINUE_EXECUTION : EXCEPTION_EXECUTE_HANDLER) {
         }
     }
+#else
+    thread_name = name ? name : "";
 #endif
 }
 
@@ -465,7 +469,7 @@ string getThreadName() {
         return ret;
     }
     return to_string((uint64_t) tid);
-#elif defined(_WIN32)
+#elif defined(_MSC_VER)
     using GetThreadDescriptionFunc = HRESULT(WINAPI * )(_In_ HANDLE hThread, _In_ PWSTR * ppszThreadDescription);
     static auto getThreadDescription = reinterpret_cast<GetThreadDescriptionFunc>(::GetProcAddress(::GetModuleHandleA("Kernel32.dll"), "GetThreadDescription"));
 
@@ -493,6 +497,9 @@ string getThreadName() {
         }
     }
 #else
+    if (!thread_name.empty()) {
+        return thread_name;
+    }
     std::ostringstream ss;
     ss << std::this_thread::get_id();
     return ss.str();
