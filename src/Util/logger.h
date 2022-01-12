@@ -12,6 +12,7 @@
 #define UTIL_LOGGER_H_
 
 #include <time.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <set>
@@ -110,11 +111,13 @@ private:
      * @param ctx 日志信息
      */
     void writeChannels(const LogContextPtr &ctx);
+    void writeChannels_l(const LogContextPtr &ctx);
 
 private:
+    LogContextPtr _last_log;
     map<string, std::shared_ptr<LogChannel> > _channels;
     std::shared_ptr<LogWriter> _writer;
-    string _loggerName;
+    string _logger_name;
 };
 
 ///////////////////LogContext///////////////////
@@ -125,38 +128,44 @@ class LogContext : public ostringstream {
 public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
-
-    LogContext(LogLevel level, const char *file, const char *function, int line, const char* moudleName);
+    LogContext() = default;
+    LogContext(LogLevel level, const char *file, const char *function, int line, const char* module_name);
     ~LogContext() = default;
 
     LogLevel _level;
     int _line;
+    int _repeat = 0;
     string _file;
     string _function;
     string _thread_name;
-    string _moudle_name;
+    string _module_name;
     struct timeval _tv;
+    const string &str();
+
+private:
+    bool _got_content = false;
+    string _content;
 };
 
 /**
  * 日志上下文捕获器
  */
-class LogContextCapturer {
+class LogContextCapture {
 public:
-    typedef std::shared_ptr<LogContextCapturer> Ptr;
-    LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line);
-    LogContextCapturer(const LogContextCapturer &that);
-    ~LogContextCapturer();
+    typedef std::shared_ptr<LogContextCapture> Ptr;
+    LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line);
+    LogContextCapture(const LogContextCapture &that);
+    ~LogContextCapture();
 
     /**
      * 输入std::endl(回车符)立即输出日志
      * @param f std::endl(回车符)
      * @return 自身引用
      */
-    LogContextCapturer &operator<<(ostream &(*f)(ostream &));
+    LogContextCapture &operator<<(ostream &(*f)(ostream &));
 
-    template<typename T>
-    LogContextCapturer &operator<<(T &&data) {
+    template <typename T>
+    LogContextCapture &operator<<(T &&data) {
         if (!_ctx) {
             return *this;
         }
@@ -357,13 +366,60 @@ public:
 };
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
+class LoggerWrapper {
+public:
+    template<typename First, typename ...ARGS>
+    static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line, First &&first, ARGS && ...args) {
+        LogContextCapture log(logger, level, file, function, line);
+        log << std::forward<First>(first);
+        appendLog(log, std::forward<ARGS>(args)...);
+    }
+
+    static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line) {
+        LogContextCapture log(logger, level, file, function, line);
+    }
+
+    template<typename Log, typename First, typename ...ARGS>
+    static inline void appendLog(Log &out, First &&first, ARGS &&...args) {
+        out << std::forward<First>(first);
+        appendLog(out, std::forward<ARGS>(args)...);
+    }
+
+    template<typename Log>
+    static inline void appendLog(Log &out) {}
+
+    //printf样式的日志打印
+    static void printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...);
+    static void printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap);
+};
+
 //可重置默认值
 extern Logger *g_defaultLogger;
-#define TraceL LogContextCapturer(getLogger(), LTrace, __FILE__,__FUNCTION__, __LINE__)
-#define DebugL LogContextCapturer(getLogger(),LDebug, __FILE__,__FUNCTION__, __LINE__)
-#define InfoL LogContextCapturer(getLogger(),LInfo, __FILE__,__FUNCTION__, __LINE__)
-#define WarnL LogContextCapturer(getLogger(),LWarn,__FILE__, __FUNCTION__, __LINE__)
-#define ErrorL LogContextCapturer(getLogger(),LError,__FILE__, __FUNCTION__, __LINE__)
-#define WriteL(level) LogContextCapturer(getLogger(),level,__FILE__, __FUNCTION__, __LINE__)
+
+//用法: DebugL << 1 << "+" << 2 << '=' << 3;
+#define WriteL(level) LogContextCapture(getLogger(), level, __FILE__, __FUNCTION__, __LINE__)
+#define TraceL WriteL(LTrace)
+#define DebugL WriteL(LDebug)
+#define InfoL WriteL(LInfo)
+#define WarnL WriteL(LWarn)
+#define ErrorL WriteL(LError)
+
+//用法: LogD("%d + %s = %c", 1 "2", 'c');
+#define PrintLog(level, ...) LoggerWrapper::printLog(getLogger(), level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define PrintT(...) PrintLog(LTrace, ##__VA_ARGS__)
+#define PrintD(...) PrintLog(LDebug, ##__VA_ARGS__)
+#define PrintI(...) PrintLog(LInfo, ##__VA_ARGS__)
+#define PrintW(...) PrintLog(LWarn, ##__VA_ARGS__)
+#define PrintE(...) PrintLog(LError, ##__VA_ARGS__)
+
+//用法: LogD(1, "+", "2", '=', 3);
+//用于模板实例化的原因，如果每次打印参数个数和类型不一致，可能会导致二进制代码膨胀
+#define LogL(level, ...) LoggerWrapper::printLogArray(getLogger(), (LogLevel)level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define LogT(...) LogL(LTrace, ##__VA_ARGS__)
+#define LogD(...) LogL(LDebug, ##__VA_ARGS__)
+#define LogI(...) LogL(LInfo, ##__VA_ARGS__)
+#define LogW(...) LogL(LWarn, ##__VA_ARGS__)
+#define LogE(...) LogL(LError, ##__VA_ARGS__)
+
 } /* namespace toolkit */
 #endif /* UTIL_LOGGER_H_ */

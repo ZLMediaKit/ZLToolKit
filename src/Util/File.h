@@ -53,6 +53,14 @@ struct dirent *readdir(DIR *);
 
 #endif // defined(_WIN32)
 
+#if defined(_WIN32) || defined(_WIN64)
+    #define fseek64 _fseeki64
+    #define ftell64 _ftelli64
+#else
+    #define fseek64 fseek
+    #define ftell64 ftell
+#endif
+
 namespace toolkit {
 
 class File {
@@ -108,6 +116,22 @@ public:
      * @param enterSubdirectory 是否进入子目录扫描
      */
     static void scanDir(const string &path,const function<bool(const string &path,bool isDir)> &cb, bool enterSubdirectory = false);
+
+    /**
+     * 获取文件大小
+     * @param fp 文件句柄
+     * @param remain_size true:获取文件剩余未读数据大小，false:获取文件总大小
+     */
+    static uint64_t fileSize(FILE *fp, bool remain_size = false);
+
+    /**
+     * 获取文件大小
+     * @param path 文件路径
+     * @return 文件大小
+     * @warning 调用者应确保文件存在
+     */
+    static uint64_t fileSize(const char *path);
+
 private:
     File();
     ~File();

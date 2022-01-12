@@ -13,6 +13,7 @@
 #include <direct.h>
 #else
 #include <dirent.h>
+#include <limits.h>
 #endif // WIN32
 
 #include <stdlib.h>
@@ -35,7 +36,6 @@ using namespace toolkit;
 
 #if defined(_WIN32)
 
-
 int mkdir(const char *path, int mode) {
     return _mkdir(path);
 }
@@ -56,6 +56,7 @@ DIR *opendir(const char *name) {
     dir->handle = hFind;
     return dir;
 }
+
 struct dirent *readdir(DIR *d) {
     HANDLE hFind = d->handle;
     WIN32_FIND_DATAA FileData;
@@ -81,6 +82,7 @@ struct dirent *readdir(DIR *d) {
     d->index = dir;
     return dir;
 }
+
 int closedir(DIR *d) {
     if (!d) {
         return -1;
@@ -99,7 +101,6 @@ int closedir(DIR *d) {
     return 0;
 }
 #endif // defined(_WIN32)
-
 
 namespace toolkit {
 
@@ -126,6 +127,7 @@ FILE *File::create_file(const char *file, const char *mode) {
     }
     return ret;
 }
+
 bool File::create_path(const char *file, unsigned int mod) {
     std::string path = file;
     std::string dir;
@@ -347,6 +349,25 @@ void File::scanDir(const string &path_in, const function<bool(const string &path
         }
     }
     closedir(pDir);
+}
+
+uint64_t File::fileSize(FILE *fp, bool remain_size) {
+    if (!fp) {
+        return 0;
+    }
+    auto current = ftell64(fp);
+    fseek64(fp, 0L, SEEK_END); /* 定位到文件末尾 */
+    auto end = ftell64(fp); /* 得到文件大小 */
+    fseek64(fp, current, SEEK_SET);
+    return end - (remain_size ? current : 0);
+}
+
+uint64_t File::fileSize(const char *path) {
+    if (!path) {
+        return 0;
+    }
+    auto fp = std::unique_ptr<FILE, decltype(&fclose)>(fopen(path, "rb"), fclose);
+    return fileSize(fp.get());
 }
 
 } /* namespace toolkit */

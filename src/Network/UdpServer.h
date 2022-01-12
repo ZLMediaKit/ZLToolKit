@@ -20,6 +20,7 @@ class UdpServer : public Server {
 public:
     using Ptr = std::shared_ptr<UdpServer>;
     using PeerIdType = uint64_t;
+    using onCreateSocket = function<Socket::Ptr(const EventPoller::Ptr &, const Buffer::Ptr &, struct sockaddr *, int)>;
 
     explicit UdpServer(const EventPoller::Ptr &poller = nullptr);
     ~UdpServer() override;
@@ -32,7 +33,10 @@ public:
         // Session 创建器, 通过它创建不同类型的服务器
         _session_alloc = [](const UdpServer::Ptr &server, const Socket::Ptr &sock) {
             auto session = std::make_shared<SessionType>(sock);
-            session->setOnCreateSocket(server->_on_create_socket);
+            auto sock_creator = server->_on_create_socket;
+            session->setOnCreateSocket([sock_creator](const EventPoller::Ptr &poller){
+                return sock_creator(poller, nullptr, nullptr, 0);
+            });
             return std::make_shared<SessionHelper>(server, session);
         };
         start_l(port, host);
@@ -46,7 +50,7 @@ public:
     /**
      * @brief 自定义socket构建行为
      */
-    void setOnCreateSocket(Socket::onCreateSocket cb);
+    void setOnCreateSocket(onCreateSocket cb);
 
 protected:
     virtual Ptr onCreatServer(const EventPoller::Ptr &poller);
@@ -80,23 +84,23 @@ private:
     /**
      * @brief 根据对端信息获取或创建一个会话
      */
-    const Session::Ptr& getOrCreateSession(const PeerIdType &id, struct sockaddr *addr, int addr_len, bool &is_new);
+    const Session::Ptr& getOrCreateSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len, bool &is_new);
 
     /**
      * @brief 创建一个会话, 同时进行必要的设置
      */
-    const Session::Ptr& createSession(const PeerIdType &id, struct sockaddr *addr, int addr_len);
+    const Session::Ptr& createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
 
     /**
      * @brief 创建socket
      */
-    Socket::Ptr createSocket(const EventPoller::Ptr &poller);
+    Socket::Ptr createSocket(const EventPoller::Ptr &poller, const Buffer::Ptr &buf = nullptr, struct sockaddr *addr = nullptr, int addr_len = 0);
 
 private:
     bool _cloned = false;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
-    Socket::onCreateSocket _on_create_socket;
+    onCreateSocket _on_create_socket;
     //cloned server共享主server的session map，防止数据在不同server间漂移
     std::shared_ptr<std::recursive_mutex> _session_mutex;
     std::shared_ptr<std::unordered_map<PeerIdType, SessionHelper::Ptr> > _session_map;

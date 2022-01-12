@@ -323,11 +323,8 @@ private:
 class CMD_help: public CMD {
 public:
     CMD_help(){
-        _parser = std::make_shared<OptionParser>(nullptr);
-        (*_parser) << Option('c', "cmd", Option::ArgNone, nullptr ,false,"列出所有命令",
-                             [](const std::shared_ptr<ostream> &stream,const string &arg) {
-            CMDRegister::Instance().printHelp(stream);
-            return true;
+		_parser = std::make_shared<OptionParser>([](const std::shared_ptr<ostream> &stream,mINI &){
+			CMDRegister::Instance().printHelp(stream);
         });
     }
     ~CMD_help() {}

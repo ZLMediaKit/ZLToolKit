@@ -33,8 +33,9 @@ public:
      * @param url 服务器ip或域名
      * @param port 服务器端口
      * @param timeout_sec 超时时间,单位秒
+     * @param local_port 本地端口
      */
-    virtual void startConnect(const string &url, uint16_t port, float timeout_sec = 5);
+    virtual void startConnect(const string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0);
 
     /**
      * 主动断开连接
@@ -45,7 +46,7 @@ public:
     /**
      * 判断是否与服务器连接中
      */
-    virtual bool alive();
+    virtual bool alive() const;
 
     /**
      * 设置网卡适配器,使用该网卡与服务器通信
@@ -118,7 +119,7 @@ public:
     ssize_t send(Buffer::Ptr buf) override {
         if (_ssl_box) {
             auto size = buf->size();
-            _ssl_box->onSend(buf);
+            _ssl_box->onSend(std::move(buf));
             return size;
         }
         return TcpClientType::send(std::move(buf));
@@ -133,9 +134,9 @@ public:
         TcpClientType::send(std::move(const_cast<Buffer::Ptr &>(buf)));
     }
 
-    void startConnect(const string &url, uint16_t port, float timeout_sec = 5) override {
+    void startConnect(const string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0) override {
         _host = url;
-        TcpClientType::startConnect(url, port, timeout_sec);
+        TcpClientType::startConnect(url, port, timeout_sec, local_port);
     }
 
 protected:

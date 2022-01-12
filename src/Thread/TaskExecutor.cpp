@@ -178,17 +178,8 @@ void TaskExecutorGetterImp::for_each(const function<void(const TaskExecutor::Ptr
     }
 }
 
-inline bool set_cpu(int i) {
-#if defined(__linux) || defined(__linux__)
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    CPU_SET(i, &mask);
-    if (!pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask)) {
-        return true;
-    }
-    WarnL << "pthread_setaffinity_np failed:" << get_uv_errmsg();
-#endif
-    return false;
+size_t TaskExecutorGetterImp::getExecutorSize() const {
+    return _threads.size();
 }
 
 size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread) {
@@ -200,7 +191,7 @@ size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int pri
         auto full_name = name + " " + to_string(i);
         poller->async([i, cpus, full_name]() {
             setThreadName(full_name.data());
-            set_cpu(i % cpus);
+            setThreadAffinity(i % cpus);
         });
         _threads.emplace_back(std::move(poller));
     }

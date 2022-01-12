@@ -8,11 +8,13 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <mutex>
 #include <string>
 #include <algorithm>
 #include <unordered_map>
+#include <random>
 
 #include "util.h"
 #include "onceToken.h"
@@ -22,15 +24,17 @@
 #include "Network/sockutil.h"
 
 #if defined(_WIN32)
-#include <shlwapi.h>  
+#include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
 extern "C" const IMAGE_DOS_HEADER __ImageBase;
 #endif // defined(_WIN32)
 
 #if defined(__MACH__) || defined(__APPLE__)
+#include <limits.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
+
 int uv_exepath(char* buffer, int *size) {
     /* realpath(exepath) may be > PATH_MAX so double it to be on the safe side. */
     char abspath[PATH_MAX * 2 + 1];
@@ -53,7 +57,7 @@ int uv_exepath(char* buffer, int *size) {
         return -EIO;
 
     *size -= 1;
-    if (*size > abspath_size)
+    if ((size_t) *size > abspath_size)
         *size = abspath_size;
 
     memcpy(buffer, abspath, *size);
@@ -67,24 +71,20 @@ using namespace std;
 
 namespace toolkit {
 
+static constexpr char CCH[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 string makeRandStr(int sz, bool printable) {
-    char *tmp = new char[sz + 1];
-    static const char CCH[] =
-        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    int i;
-    for (i = 0; i < sz; i++) {
-        srand((unsigned)time(NULL) + i);
+    string ret;
+    ret.resize(sz);
+    std::mt19937 rng(std::random_device{}());
+    for (int i = 0; i < sz; ++i) {
         if (printable) {
-            int x = rand() % (sizeof(CCH) - 1);
-            tmp[i] = CCH[x];
-        }
-        else {
-            tmp[i] = rand() % 0xFF;
+            uint32_t x = rng() % (sizeof(CCH) - 1);
+            ret[i] = CCH[x];
+        } else {
+            ret[i] = rng() % 0xFF;
         }
     }
-    tmp[i] = 0;
-    string ret = tmp;
-    delete[] tmp;
     return ret;
 }
 
@@ -406,60 +406,60 @@ struct tm getLocalTime(time_t sec) {
     return tm;
 }
 
+static thread_local string thread_name;
+
 void setThreadName(const char *name) {
 #if defined(__linux) || defined(__linux__)
+    assert(strlen(name) < 16); // linux平台下线程名字长度需小于16
     pthread_setname_np(pthread_self(), name);
 #elif defined(__MACH__) || defined(__APPLE__)
     pthread_setname_np(name);
-#elif defined(_WIN32)
+#elif defined(_MSC_VER)
     // SetThreadDescription was added in 1607 (aka RS1). Since we can't guarantee the user is running 1607 or later, we need to ask for the function from the kernel.
-    using SetThreadDescriptionFunc = HRESULT(WINAPI*)(_In_ HANDLE hThread, _In_ PCWSTR lpThreadDescription);
-
+    using SetThreadDescriptionFunc = HRESULT(WINAPI * )(_In_ HANDLE hThread, _In_ PCWSTR lpThreadDescription);
     static auto setThreadDescription = reinterpret_cast<SetThreadDescriptionFunc>(::GetProcAddress(::GetModuleHandle("Kernel32.dll"), "SetThreadDescription"));
-    if (setThreadDescription)
-    {
+    if (setThreadDescription) {
         // Convert the thread name to Unicode
         wchar_t threadNameW[MAX_PATH];
         size_t numCharsConverted;
         errno_t wcharResult = mbstowcs_s(&numCharsConverted, threadNameW, name, MAX_PATH - 1);
-        if (wcharResult == 0)
-        {
-            HRESULT hr =setThreadDescription(::GetCurrentThread(), threadNameW);
-            if(!SUCCEEDED(hr))
-            {
+        if (wcharResult == 0) {
+            HRESULT hr = setThreadDescription(::GetCurrentThread(), threadNameW);
+            if (!SUCCEEDED(hr)) {
                 int i = 0;
                 i++;
             }
         }
-    }else{
-            // For understanding the types and values used here, please see:
-            // https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code
+    } else {
+        // For understanding the types and values used here, please see:
+        // https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code
 
-            const DWORD MS_VC_EXCEPTION = 0x406D1388;
-#pragma pack(push,8)
-            struct THREADNAME_INFO {
-                DWORD dwType = 0x1000; // Must be 0x1000
-                LPCSTR szName;         // Pointer to name (in user address space)
-                DWORD dwThreadID;      // Thread ID (-1 for caller thread)
-                DWORD dwFlags = 0;     // Reserved for future use; must be zero
-            };
+        const DWORD MS_VC_EXCEPTION = 0x406D1388;
+#pragma pack(push, 8)
+        struct THREADNAME_INFO {
+            DWORD dwType = 0x1000; // Must be 0x1000
+            LPCSTR szName;         // Pointer to name (in user address space)
+            DWORD dwThreadID;      // Thread ID (-1 for caller thread)
+            DWORD dwFlags = 0;     // Reserved for future use; must be zero
+        };
 #pragma pack(pop)
 
-            THREADNAME_INFO info;
-            info.szName = name;
-            info.dwThreadID = (DWORD)-1;
+        THREADNAME_INFO info;
+        info.szName = name;
+        info.dwThreadID = (DWORD) - 1;
 
-            __try {
-                RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), reinterpret_cast<const ULONG_PTR*>(&info));
-            }
-            __except (GetExceptionCode() == MS_VC_EXCEPTION ? EXCEPTION_CONTINUE_EXECUTION : EXCEPTION_EXECUTE_HANDLER){
-            }
+        __try{
+                RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), reinterpret_cast<const ULONG_PTR *>(&info));
+        } __except(GetExceptionCode() == MS_VC_EXCEPTION ? EXCEPTION_CONTINUE_EXECUTION : EXCEPTION_EXECUTE_HANDLER) {
+        }
     }
+#else
+    thread_name = name ? name : "";
 #endif
 }
 
 string getThreadName() {
-#if defined(__linux) || defined(__linux__) || defined(__MACH__) || defined(__APPLE__)
+#if ((defined(__linux) || defined(__linux__)) && !defined(ANDROID)) || (defined(__MACH__) || defined(__APPLE__)) || (defined(ANDROID) && __ANDROID_API__ >= 26)
     string ret;
     ret.resize(32);
     auto tid = pthread_self();
@@ -469,16 +469,15 @@ string getThreadName() {
         return ret;
     }
     return to_string((uint64_t) tid);
-#elif defined(_WIN32)
-    using GetThreadDescriptionFunc = HRESULT(WINAPI*)(_In_ HANDLE hThread, _In_ PWSTR *ppszThreadDescription);
-
+#elif defined(_MSC_VER)
+    using GetThreadDescriptionFunc = HRESULT(WINAPI * )(_In_ HANDLE hThread, _In_ PWSTR * ppszThreadDescription);
     static auto getThreadDescription = reinterpret_cast<GetThreadDescriptionFunc>(::GetProcAddress(::GetModuleHandleA("Kernel32.dll"), "GetThreadDescription"));
 
-     if (!getThreadDescription) {
+    if (!getThreadDescription) {
         std::ostringstream ss;
         ss << std::this_thread::get_id();
         return ss.str();
-     }else{
+    } else {
         PWSTR data;
         HRESULT hr = getThreadDescription(GetCurrentThread(), &data);
         if (SUCCEEDED(hr) && data[0] != '\0') {
@@ -490,18 +489,36 @@ string getThreadName() {
                 std::ostringstream ss;
                 ss << threadName;
                 return ss.str();
-            }else {
+            } else {
                 return to_string((uint64_t) GetCurrentThreadId());
             }
-        }else {
+        } else {
             return to_string((uint64_t) GetCurrentThreadId());
-           }
-     }
+        }
+    }
 #else
+    if (!thread_name.empty()) {
+        return thread_name;
+    }
     std::ostringstream ss;
     ss << std::this_thread::get_id();
     return ss.str();
 #endif
+}
+
+bool setThreadAffinity(int i) {
+#if (defined(__linux) || defined(__linux__)) && !defined(ANDROID)
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    if(i >= 0){
+        CPU_SET(i, &mask);
+    }
+    if (!pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask)) {
+        return true;
+    }
+    WarnL << "pthread_setaffinity_np failed:" << get_uv_errmsg();
+#endif
+    return false;
 }
 
 }  // namespace toolkit

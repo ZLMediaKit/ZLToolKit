@@ -11,8 +11,9 @@
 #include "logger.h"
 #include "onceToken.h"
 #include "File.h"
-#include <string.h>
 #include <sys/stat.h>
+#include <assert.h>
+#include <string.h>
 #include "NoticeCenter.h"
 
 namespace toolkit {
@@ -61,13 +62,14 @@ void setLogger(Logger *logger) {
 INSTANCE_IMP(Logger, exeName());
 
 Logger::Logger(const string &loggerName) {
-    _loggerName = loggerName;
+    _logger_name = loggerName;
+    _last_log = std::make_shared<LogContext>();
 }
 
 Logger::~Logger() {
     _writer.reset();
     {
-        LogContextCapturer(*this, LInfo, __FILE__, __FUNCTION__, __LINE__);
+        LogContextCapture(*this, LInfo, __FILE__, __FUNCTION__, __LINE__);
     }
     _channels.clear();
 }
@@ -106,14 +108,37 @@ void Logger::setLevel(LogLevel level) {
     }
 }
 
-void Logger::writeChannels(const LogContextPtr &ctx) {
+void Logger::writeChannels_l(const LogContextPtr &ctx) {
     for (auto &chn : _channels) {
         chn.second->write(*this, ctx);
     }
+    _last_log = ctx;
+    _last_log->_repeat = 0;
+}
+
+//返回毫秒
+static int64_t timevalDiff(struct timeval &a, struct timeval &b) {
+    return (1000 * (b.tv_sec - a.tv_sec)) + ((b.tv_usec - a.tv_usec) / 1000);
+}
+
+void Logger::writeChannels(const LogContextPtr &ctx) {
+    if (ctx->_line == _last_log->_line && ctx->_file == _last_log->_file && ctx->str() == _last_log->str()) {
+        //重复的日志每隔500ms打印一次，过滤频繁的重复日志
+        ++_last_log->_repeat;
+        if (timevalDiff(_last_log->_tv, ctx->_tv) > 500) {
+            ctx->_repeat = _last_log->_repeat;
+            writeChannels_l(ctx);
+        }
+        return;
+    }
+    if (_last_log->_repeat) {
+        writeChannels_l(_last_log);
+    }
+    writeChannels_l(ctx);
 }
 
 const string &Logger::getName() const {
-    return _loggerName;
+    return _logger_name;
 }
 
 ///////////////////LogContext///////////////////
@@ -136,30 +161,43 @@ static inline const char *getFunctionName(const char *func) {
 #endif
 }
 
-LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, const char* moudleName) :
-        _level(level),
-        _line(line),
-        _file(getFileName(file)),
-        _function(getFunctionName(function)),
-		_moudle_name(moudleName) {
+
+LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name)
+    : _level(level)
+    , _line(line)
+    , _file(getFileName(file))
+    , _function(getFunctionName(function))
+    , _module_name(module_name) {
     gettimeofday(&_tv, NULL);
     _thread_name = getThreadName();
 }
 
-///////////////////AsyncLogWriter///////////////////
-LogContextCapturer::LogContextCapturer(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
-        _ctx(new LogContext(level, file, function, line, _moudle_name.c_str())), _logger(logger) {
+const string &LogContext::str() {
+    if (_got_content) {
+        return _content;
+    }
+    _content = ostringstream::str();
+    _got_content = true;
+    return _content;
 }
 
-LogContextCapturer::LogContextCapturer(const LogContextCapturer &that) : _ctx(that._ctx), _logger(that._logger) {
+///////////////////AsyncLogWriter///////////////////
+
+static string s_module_name = exeName(false);
+
+LogContextCapture::LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line) :
+        _ctx(new LogContext(level, file, function, line, s_module_name.c_str())), _logger(logger) {
+}
+
+LogContextCapture::LogContextCapture(const LogContextCapture &that) : _ctx(that._ctx), _logger(that._logger) {
     const_cast<LogContextPtr &>(that._ctx).reset();
 }
 
-LogContextCapturer::~LogContextCapturer() {
+LogContextCapture::~LogContextCapture() {
     *this << endl;
 }
 
-LogContextCapturer &LogContextCapturer::operator<<(ostream &(*f)(ostream &)) {
+LogContextCapture &LogContextCapture::operator<<(ostream &(*f)(ostream &)) {
     if (!_ctx) {
         return *this;
     }
@@ -168,12 +206,13 @@ LogContextCapturer &LogContextCapturer::operator<<(ostream &(*f)(ostream &)) {
     return *this;
 }
 
-void LogContextCapturer::clear() {
+void LogContextCapture::clear() {
     _ctx.reset();
 }
 
 string LogContextCapturer::_moudle_name = exeName(false);
 ///////////////////AsyncLogWriter///////////////////
+
 AsyncLogWriter::AsyncLogWriter() : _exit_flag(false) {
     _thread = std::make_shared<thread>([this]() { this->run(); });
 }
@@ -194,7 +233,7 @@ void AsyncLogWriter::write(const LogContextPtr &ctx, Logger &logger) {
 }
 
 void AsyncLogWriter::run() {
-    setThreadName("async log thread");
+    setThreadName("async log");
     while (!_exit_flag) {
         _sem.wait();
         flushAll();
@@ -329,7 +368,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 
     if (enableDetail) {
 #if defined(_WIN32)
-        ost << ctx->_moudle_name <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
+        ost << ctx->_module_name <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
 #else
         ost << logger.getName() << "[" << getpid() << "-" << ctx->_thread_name;
 #endif
@@ -346,6 +385,9 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 #endif
     }
 
+    if (ctx->_repeat > 1) {
+        ost << "\r\n    Last message repeated " << ctx->_repeat << " times";
+    }
     ost << endl;
 }
 
@@ -409,7 +451,7 @@ size_t FileChannelBase::size() {
 ///////////////////FileChannel///////////////////
 
 static const auto s_second_per_day = 24 * 60 * 60;
-static long s_gmtoff = 0;
+static long s_gmtoff = 0;//时间差
 static onceToken s_token([](){
 #ifdef _WIN32
     TIME_ZONE_INFORMATION tzinfo;
@@ -423,7 +465,7 @@ static onceToken s_token([](){
     if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT) {
         bias += tzinfo.DaylightBias;
     }
-    s_gmtoff = -bias * 60;
+    s_gmtoff = -bias * 60;//时间差(分钟)
 #else
     s_gmtoff = getLocalTime(time(NULL)).tm_gmtoff;
 #endif // _WIN32
@@ -437,23 +479,19 @@ static string getLogFilePath(const string &dir, time_t second, int32_t index) {
     return dir + buf;
 }
 
+#if defined(_WIN32)
+#include "strptime_win.h"
+#endif
+
 //根据日志文件名返回GMT UNIX时间戳
 static time_t getLogFileTime(const string &full_path){
     auto name = getFileName(full_path.data());
-    int tm_mday;  // day of the month - [1, 31]
-    int tm_mon;   // months since January - [0, 11]
-    int tm_year;  // years since 1900
-    int32_t index;
-    int count = sscanf(name, "%d-%02d-%02d_%d.log", &tm_year, &tm_mon, &tm_mday, &index);
-    if (count != 4) {
+    struct tm tm{0};
+    if (!strptime(name, "%Y-%m-%d", &tm)) {
         return 0;
     }
-    struct tm tm{0};
-    tm.tm_year = tm_year - 1900;
-    tm.tm_mon = tm_mon - 1;
-    tm.tm_mday = tm_mday;
-    //本地时间转换成GMT时间
-    return mktime(&tm) - s_gmtoff;
+    //此函数会把本地时间转换成GMT时间戳
+    return mktime(&tm);
 }
 
 //获取1970年以来的第几天
@@ -582,6 +620,23 @@ void FileChannel::setFileMaxSize(size_t max_size) {
 
 void FileChannel::setFileMaxCount(size_t max_count) {
     _log_max_count = max_count > 1 ? max_count : 1;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
+    LogContextCapture info(logger, (LogLevel) level, file, function, line);
+    char *str = nullptr;
+    vasprintf(&str, fmt, ap);
+    info << str;
+    free(str);
+}
+
+void LoggerWrapper::printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    printLogV(logger, level, file, function, line, fmt, ap);
+    va_end(ap);
 }
 
 } /* namespace toolkit */

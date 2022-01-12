@@ -24,7 +24,7 @@
 #undef FD_SETSIZE
 //修改默认64为1024路
 #define FD_SETSIZE 1024
-#include <WinSock2.h>
+#include <winsock2.h>
 #pragma comment (lib,"WS2_32")
 #else
 #include <unistd.h>
@@ -217,6 +217,7 @@ std::string to_string(T value){
 int gettimeofday(struct timeval *tp, void *tzp);
 void usleep(int micro_seconds);
 void sleep(int second);
+int vasprintf(char **strp, const char *fmt, va_list ap);
 int asprintf(char **strp, const char *fmt, ...);
 const char *strcasestr(const char *big, const char *little);
 
@@ -268,6 +269,13 @@ void setThreadName(const char *name);
  * 获取线程名
  */
 string getThreadName();
+
+/**
+ * 设置当前线程cpu亲和性
+ * @param i cpu索引，如果为-1，那么取消cpu亲和性
+ * @return 是否成功，目前只支持linux
+ */
+bool setThreadAffinity(int i);
 
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */

@@ -340,7 +340,7 @@ void SSL_Box::onRecv(const Buffer::Ptr &buffer) {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-void SSL_Box::onSend(const Buffer::Ptr &buffer) {
+void SSL_Box::onSend(Buffer::Ptr buffer) {
     if (!buffer->size()) {
         return;
     }
@@ -355,7 +355,7 @@ void SSL_Box::onSend(const Buffer::Ptr &buffer) {
         _send_handshake = true;
         SSL_do_handshake(_ssl.get());
     }
-    _buffer_send.emplace_back(buffer);
+    _buffer_send.emplace_back(std::move(buffer));
     flush();
 #endif //defined(ENABLE_OPENSSL)
 }
@@ -372,7 +372,7 @@ void SSL_Box::flushWriteBio() {
 #if defined(ENABLE_OPENSSL)
     int total = 0;
     int nread = 0;
-    auto buffer_bio = _buffer_pool.obtain();
+    auto buffer_bio = _buffer_pool.obtain2();
     buffer_bio->setCapacity(_buff_size);
     auto buf_size = buffer_bio->getCapacity() - 1;
     do {
@@ -405,7 +405,7 @@ void SSL_Box::flushReadBio() {
 #if defined(ENABLE_OPENSSL)
     int total = 0;
     int nread = 0;
-    auto buffer_bio = _buffer_pool.obtain();
+    auto buffer_bio = _buffer_pool.obtain2();
     buffer_bio->setCapacity(_buff_size);
     auto buf_size = buffer_bio->getCapacity() - 1;
     do {

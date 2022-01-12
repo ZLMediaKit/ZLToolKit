@@ -71,19 +71,16 @@ int av_base64_decode(uint8_t *out, const char *in, int out_size)
 * Fixed edge cases and made it work from data (vs. strings) by Ryan.
 *****************************************************************************/
 
-char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in_size)
-{
-    static const char b64[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+char *av_base64_encode_l(char *out, int *out_size, const uint8_t *in, int in_size) {
+    static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     char *ret, *dst;
     unsigned i_bits = 0;
     int i_shift = 0;
     int bytes_remaining = in_size;
 
-    if (in_size >= UINT_MAX / 4 || out_size < AV_BASE64_SIZE(in_size))
-     {
-         return NULL;
-     }
+    if ((size_t)in_size >= UINT_MAX / 4 || *out_size < AV_BASE64_SIZE(in_size)) {
+        return NULL;
+    }
     ret = dst = out;
     while (bytes_remaining) {
         i_bits = (i_bits << 8) + *in++;
@@ -99,33 +96,42 @@ char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in_size)
         *dst++ = '=';
     *dst = '\0';
 
+    *out_size = dst - out;
     return ret;
 }
 
-string encodeBase64(const string &txt){
-    if(txt.empty()){
+char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in_size) {
+    return av_base64_encode_l(out, &out_size, in, in_size);
+}
+
+string encodeBase64(const string &txt) {
+    if (txt.empty()) {
         return "";
     }
     int size = AV_BASE64_SIZE(txt.size()) + 10;
-    std::shared_ptr<char> txt_enc(new char[size],[](char *ptr){delete [] ptr;});
-    auto ret = av_base64_encode(txt_enc.get(),size,(uint8_t *)txt.data(),txt.size());
-    if(!ret ){
+    string ret;
+    ret.resize(size);
+
+    if (!av_base64_encode_l((char *) ret.data(), &size, (const uint8_t *) txt.data(), txt.size())) {
         return "";
     }
+    ret.resize(size);
     return ret;
 }
 
 string decodeBase64(const string &txt){
-    if(txt.empty()){
+    if (txt.empty()) {
         return "";
     }
-    int size = txt.size() * 3 / 4 +10;
-    std::shared_ptr<char> txt_dec(new char[size],[](char *ptr){delete [] ptr;});
-    size = av_base64_decode((uint8_t *)txt_dec.get(),txt.data(),size);
-    if(size <= 0){
+    string ret;
+    ret.resize(txt.size() * 3 / 4 + 10);
+    auto size = av_base64_decode((uint8_t *) ret.data(), txt.data(), ret.size());
+
+    if (size <= 0) {
         return "";
     }
-    return string(txt_dec.get(),size);
+    ret.resize(size);
+    return ret;
 }
 
 #ifdef TEST

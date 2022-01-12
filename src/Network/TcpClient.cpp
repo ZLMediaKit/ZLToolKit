@@ -29,7 +29,7 @@ void TcpClient::shutdown(const SockException &ex) {
     SocketHelper::shutdown(ex);
 }
 
-bool TcpClient::alive() {
+bool TcpClient::alive() const {
     auto sock = getSock();
     bool ret = sock && sock->rawFD() >= 0;
     return ret;
@@ -39,7 +39,7 @@ void TcpClient::setNetAdapter(const string &local_ip){
     _net_adapter = local_ip;
 }
 
-void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec) {
+void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec, uint16_t local_port) {
     _timer.reset();
     weak_ptr<TcpClient> weakSelf = shared_from_this();
     setSock(createSocket());
@@ -48,7 +48,7 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
         if (strongSelf) {
             strongSelf->onSockConnect(err);
         }
-    }, timeout_sec, _net_adapter.data());
+    }, timeout_sec, _net_adapter.data(), local_port);
 }
 
 void TcpClient::onSockConnect(const SockException &ex) {
@@ -97,7 +97,11 @@ void TcpClient::onSockConnect(const SockException &ex) {
             //已经重连socket，上传socket的事件忽略掉
             return;
         }
-        strongSelf->onRecv(pBuf);
+        try {
+            strongSelf->onRecv(pBuf);
+        } catch (std::exception &ex) {
+            strongSelf->shutdown(SockException(Err_other, ex.what()));
+        }
     });
 
     _timer = std::make_shared<Timer>(2.0f, [weakSelf]() {

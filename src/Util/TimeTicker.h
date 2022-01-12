@@ -26,7 +26,7 @@ public:
      * @param print_log 是否打印代码执行时间
      */
     Ticker(uint64_t min_ms = 0,
-           LogContextCapturer ctx = LogContextCapturer(Logger::Instance(), LWarn, __FILE__, "", __LINE__),
+        LogContextCapture ctx = LogContextCapture(Logger::Instance(), LWarn, __FILE__, "", __LINE__),
            bool print_log = false) : _ctx(std::move(ctx)) {
         if (!print_log) {
             _ctx.clear();
@@ -69,7 +69,7 @@ private:
     uint64_t _min_ms;
     uint64_t _begin;
     uint64_t _created;
-    LogContextCapturer _ctx;
+    LogContextCapture _ctx;
 };
 
 class SmoothTicker {
