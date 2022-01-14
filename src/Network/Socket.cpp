@@ -464,9 +464,9 @@ bool Socket::listen(uint16_t port, const string &local_ip, int backlog) {
     return listen(makeSock(sock, SockNum::Sock_TCP));
 }
 
-bool Socket::bindUdpSock(uint16_t port, const string &local_ip) {
+bool Socket::bindUdpSock(uint16_t port, const string &local_ip,bool enable_reuse) {
     closeSock();
-    int fd = SockUtil::bindUdpSock(port, local_ip.data());
+    int fd = SockUtil::bindUdpSock(port, local_ip.data(),enable_reuse);
     if (fd == -1) {
         return false;
     }

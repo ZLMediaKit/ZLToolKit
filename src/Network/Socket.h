@@ -304,7 +304,7 @@ public:
      * @param local_ip 绑定的网卡ip
      * @return 是否成功
      */
-    virtual bool bindUdpSock(uint16_t port, const string &local_ip = "0.0.0.0");
+    virtual bool bindUdpSock(uint16_t port, const string &local_ip = "0.0.0.0",bool enable_reuse = true);
 
     ////////////设置事件回调////////////
 
