@@ -10,9 +10,7 @@
 
 #include "Buffer.h"
 #include "Util/onceToken.h"
-#if defined(ANDROID)
 #include <cstdlib>
-#endif //ANDROID
 namespace toolkit {
 
 StatisticImp(Buffer);
