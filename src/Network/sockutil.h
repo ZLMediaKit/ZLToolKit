@@ -76,9 +76,10 @@ public:
      * 创建udp套接字
      * @param port 监听的本地端口
      * @param localIp 绑定的本地网卡ip
+     * @param enable_reuse 是否允许重复bind端口
      * @return -1代表失败，其他为socket fd号
      */
-    static int bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0",bool enable_reuse=true);
+    static int bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0", bool enable_reuse = true);
 
     /**
      * @brief 初始化套接字 sock 连接关系

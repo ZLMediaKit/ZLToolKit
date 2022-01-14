@@ -555,13 +555,13 @@ int SockUtil::bindSock(int sockFd,const char *ifr_ip,uint16_t port){
     return 0;
 }
 
-int SockUtil::bindUdpSock(const uint16_t port, const char* localIp,bool enable_reuse) {
+int SockUtil::bindUdpSock(const uint16_t port, const char *localIp, bool enable_reuse) {
     int sockfd = -1;
-    if ((sockfd = (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+    if ((sockfd = (int) socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
-    if(enable_reuse) {
+    if (enable_reuse) {
         setReuseable(sockfd);
     }
     setNoSigpipe(sockfd);
@@ -571,7 +571,7 @@ int SockUtil::bindUdpSock(const uint16_t port, const char* localIp,bool enable_r
     setCloseWait(sockfd);
     setCloExec(sockfd);
 
-    if(bindSock(sockfd,localIp,port) == -1){
+    if (bindSock(sockfd, localIp, port) == -1) {
         close(sockfd);
         return -1;
     }
