@@ -104,6 +104,8 @@ public:
      * @param ctx 日志信息
      */
     void write(const LogContextPtr &ctx);
+    std::string _str;
+    std::string _last_str;
 
 private:
     /**
@@ -140,11 +142,6 @@ public:
     string _thread_name;
     string _module_name;
     struct timeval _tv;
-    const string &str();
-
-private:
-    bool _got_content = false;
-    string _content;
 };
 
 /**
