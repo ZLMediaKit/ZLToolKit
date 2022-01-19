@@ -124,7 +124,7 @@ static int64_t timevalDiff(struct timeval &a, struct timeval &b) {
 
 void Logger::writeChannels(const LogContextPtr &ctx) {
     _str = ctx->str();
-    if (ctx->_line == _last_log->_line && _str.length() == _last_str.length() && ctx->_file.length() == _last_log->_file.length() && ctx->_file == _last_log->_file && _str == _last_str) {
+    if (ctx->_line == _last_log->_line && ctx->_file == _last_log->_file && _str == _last_str) {
         //重复的日志每隔500ms打印一次，过滤频繁的重复日志
         ++_last_log->_repeat;
         if (timevalDiff(_last_log->_tv, ctx->_tv) > 500) {
