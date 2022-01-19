@@ -30,9 +30,7 @@ void TcpClient::shutdown(const SockException &ex) {
 }
 
 bool TcpClient::alive() const {
-    auto sock = getSock();
-    bool ret = sock && sock->rawFD() >= 0;
-    return ret;
+    return (bool) _timer;
 }
 
 void TcpClient::setNetAdapter(const string &local_ip){
@@ -40,13 +38,22 @@ void TcpClient::setNetAdapter(const string &local_ip){
 }
 
 void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec, uint16_t local_port) {
-    _timer.reset();
-    weak_ptr<TcpClient> weakSelf = shared_from_this();
+    weak_ptr<TcpClient> weak_self = shared_from_this();
+
+    _timer = std::make_shared<Timer>(2.0f, [weak_self]() {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return false;
+        }
+        strong_self->onManager();
+        return true;
+    }, getPoller());
+    
     setSock(createSocket());
-    getSock()->connect(url, port, [weakSelf](const SockException &err) {
-        auto strongSelf = weakSelf.lock();
-        if (strongSelf) {
-            strongSelf->onSockConnect(err);
+    getSock()->connect(url, port, [weak_self](const SockException &err) {
+        auto strong_self = weak_self.lock();
+        if (strong_self) {
+            strong_self->onSockConnect(err);
         }
     }, timeout_sec, _net_adapter.data(), local_port);
 }
@@ -60,58 +67,49 @@ void TcpClient::onSockConnect(const SockException &ex) {
     }
 
     auto sock_ptr = getSock().get();
-    weak_ptr<TcpClient> weakSelf = shared_from_this();
+    weak_ptr<TcpClient> weak_self = shared_from_this();
 
-    getSock()->setOnErr([weakSelf, sock_ptr](const SockException &ex) {
-        auto strongSelf = weakSelf.lock();
-        if (!strongSelf) {
+    getSock()->setOnErr([weak_self, sock_ptr](const SockException &ex) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
             return;
         }
-        if (sock_ptr != strongSelf->getSock().get()) {
+        if (sock_ptr != strong_self->getSock().get()) {
             //已经重连socket，上次的socket的事件忽略掉
             return;
         }
-        strongSelf->_timer.reset();
-        strongSelf->onErr(ex);
+        strong_self->_timer.reset();
+        strong_self->onErr(ex);
     });
 
-    getSock()->setOnFlush([weakSelf, sock_ptr]() {
-        auto strongSelf = weakSelf.lock();
-        if (!strongSelf) {
+    getSock()->setOnFlush([weak_self, sock_ptr]() {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
             return false;
         }
-        if (sock_ptr != strongSelf->getSock().get()) {
+        if (sock_ptr != strong_self->getSock().get()) {
             //已经重连socket，上传socket的事件忽略掉
             return false;
         }
-        strongSelf->onFlush();
+        strong_self->onFlush();
         return true;
     });
 
-    getSock()->setOnRead([weakSelf, sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr *, int) {
-        auto strongSelf = weakSelf.lock();
-        if (!strongSelf) {
+    getSock()->setOnRead([weak_self, sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr *, int) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
             return;
         }
-        if (sock_ptr != strongSelf->getSock().get()) {
+        if (sock_ptr != strong_self->getSock().get()) {
             //已经重连socket，上传socket的事件忽略掉
             return;
         }
         try {
-            strongSelf->onRecv(pBuf);
+            strong_self->onRecv(pBuf);
         } catch (std::exception &ex) {
-            strongSelf->shutdown(SockException(Err_other, ex.what()));
+            strong_self->shutdown(SockException(Err_other, ex.what()));
         }
     });
-
-    _timer = std::make_shared<Timer>(2.0f, [weakSelf]() {
-        auto strongSelf = weakSelf.lock();
-        if (!strongSelf) {
-            return false;
-        }
-        strongSelf->onManager();
-        return true;
-    }, getPoller());
 
     onConnect(ex);
 }

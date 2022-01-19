@@ -44,7 +44,7 @@ public:
     void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override;
 
     /**
-     * 判断是否与服务器连接中
+     * 连接中或已连接返回true，断开连接时返回false
      */
     virtual bool alive() const;
 
