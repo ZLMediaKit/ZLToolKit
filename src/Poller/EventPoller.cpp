@@ -246,9 +246,6 @@ void EventPoller::wait() {
     lock_guard<mutex> lck(_mtx_runing);
 }
 
-static mutex s_all_poller_mtx;
-static map<thread::id, weak_ptr<EventPoller> > s_all_poller;
-
 BufferRaw::Ptr EventPoller::getSharedBuffer() {
     auto ret = _shared_buffer.lock();
     if (!ret) {
@@ -264,24 +261,20 @@ const thread::id &EventPoller::getThreadId() const {
     return _loop_thread_id;
 }
 
-//static
-EventPoller::Ptr EventPoller::getCurrentPoller(){
-    lock_guard<mutex> lck(s_all_poller_mtx);
-    auto it = s_all_poller.find(this_thread::get_id());
-    if (it == s_all_poller.end()) {
-        return nullptr;
-    }
-    return it->second.lock();
+static thread_local std::weak_ptr<EventPoller> s_current_poller;
+
+// static
+EventPoller::Ptr EventPoller::getCurrentPoller() {
+    return s_current_poller.lock();
 }
 
-void EventPoller::runLoop(bool blocked,bool regist_self) {
+void EventPoller::runLoop(bool blocked, bool regist_self) {
     if (blocked) {
         ThreadPool::setPriority(_priority);
         lock_guard<mutex> lck(_mtx_runing);
         _loop_thread_id = this_thread::get_id();
         if (regist_self) {
-            lock_guard<mutex> lck(s_all_poller_mtx);
-            s_all_poller[_loop_thread_id] = shared_from_this();
+            s_current_poller = shared_from_this();
         }
         _sem_run_started.post();
         _exit_flag = false;
