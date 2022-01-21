@@ -255,7 +255,7 @@ bool SockUtil::getDomainIP(const char *host,uint16_t port,struct sockaddr &addr)
     return flag;
 }
 
-int SockUtil::connect(const char *host, uint16_t port,bool bAsync,const char *localIp ,uint16_t localPort) {
+int SockUtil::connect(const char *host, uint16_t port, bool bAsync, const char *localIp, uint16_t localPort) {
     sockaddr addr;
     if(!DnsCache::Instance().getDomainIP(host,addr)){
         //dns解析失败

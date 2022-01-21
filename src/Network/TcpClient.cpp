@@ -55,7 +55,7 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
         if (strong_self) {
             strong_self->onSockConnect(err);
         }
-    }, timeout_sec, _net_adapter.data(), local_port);
+    }, timeout_sec, _net_adapter, local_port);
 }
 
 void TcpClient::onSockConnect(const SockException &ex) {
