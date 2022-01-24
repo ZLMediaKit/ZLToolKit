@@ -14,7 +14,6 @@
 #include <memory>
 #include "ThreadPool.h"
 #include "Poller/EventPoller.h"
-using namespace std;
 
 namespace toolkit {
 

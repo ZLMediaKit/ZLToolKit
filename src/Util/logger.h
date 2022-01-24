@@ -28,7 +28,6 @@
 #include "Util/List.h"
 #include "Thread/semaphore.h"
 
-using namespace std;
 
 namespace toolkit {
 
@@ -59,7 +58,7 @@ public:
      */
     static Logger &Instance();
 
-    Logger(const string &loggerName);
+    explicit Logger(const std::string &loggerName);
     ~Logger();
 
     /**
@@ -72,14 +71,14 @@ public:
      * 删除日志通道，非线程安全的
      * @param name log通道名
      */
-    void del(const string &name);
+    void del(const std::string &name);
 
     /**
      * 获取日志通道，非线程安全的
      * @param name log通道名
      * @return 线程通道
      */
-    std::shared_ptr<LogChannel> get(const string &name);
+    std::shared_ptr<LogChannel> get(const std::string &name);
 
     /**
      * 设置写log器，非线程安全的
@@ -97,7 +96,7 @@ public:
      * 获取logger名
      * @return logger名
      */
-    const string &getName() const;
+    const std::string &getName() const;
 
     /**
      * 写日志
@@ -115,16 +114,16 @@ private:
 
 private:
     LogContextPtr _last_log;
-    map<string, std::shared_ptr<LogChannel> > _channels;
+    std::map<std::string, std::shared_ptr<LogChannel> > _channels;
     std::shared_ptr<LogWriter> _writer;
-    string _logger_name;
+    std::string _logger_name;
 };
 
 ///////////////////LogContext///////////////////
 /**
 * 日志上下文
 */
-class LogContext : public ostringstream {
+class LogContext : public std::ostringstream {
 public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
@@ -135,16 +134,16 @@ public:
     LogLevel _level;
     int _line;
     int _repeat = 0;
-    string _file;
-    string _function;
-    string _thread_name;
-    string _module_name;
+    std::string _file;
+    std::string _function;
+    std::string _thread_name;
+    std::string _module_name;
     struct timeval _tv;
-    const string &str();
+    const std::string &str();
 
 private:
     bool _got_content = false;
-    string _content;
+    std::string _content;
 };
 
 /**
@@ -162,7 +161,7 @@ public:
      * @param f std::endl(回车符)
      * @return 自身引用
      */
-    LogContextCapture &operator<<(ostream &(*f)(ostream &));
+    LogContextCapture &operator<<(std::ostream &(*f)(std::ostream &));
 
     template <typename T>
     LogContextCapture &operator<<(T &&data) {
@@ -204,9 +203,9 @@ private:
 
 private:
     bool _exit_flag;
-    mutex _mutex;
+    std::mutex _mutex;
     semaphore _sem;
-    std::shared_ptr<thread> _thread;
+    std::shared_ptr<std::thread> _thread;
     List<std::pair<LogContextPtr,Logger *> > _pending;
 };
 
@@ -216,11 +215,11 @@ private:
  */
 class LogChannel : public noncopyable {
 public:
-    LogChannel(const string &name, LogLevel level = LTrace);
+    LogChannel(const std::string &name, LogLevel level = LTrace);
     virtual ~LogChannel();
 
     virtual void write(const Logger &logger, const LogContextPtr &ctx) = 0;
-    const string &name() const;
+    const std::string &name() const;
     void setLevel(LogLevel level);
     static std::string printTime(const timeval &tv);
 
@@ -231,10 +230,10 @@ protected:
     * @param enableColor 是否启用颜色
     * @param enableDetail 是否打印细节(函数名、源码文件名、源码行)
     */
-    virtual void format(const Logger &logger, ostream &ost, const LogContextPtr &ctx, bool enableColor = true, bool enableDetail = true);
+    virtual void format(const Logger &logger, std::ostream &ost, const LogContextPtr &ctx, bool enableColor = true, bool enableDetail = true);
 
 protected:
-    string _name;
+    std::string _name;
     LogLevel _level;
 };
 
@@ -244,11 +243,11 @@ protected:
 class EventChannel : public LogChannel {
 public:
     //输出日志时的广播名
-    static const string kBroadcastLogEvent;
+    static const std::string kBroadcastLogEvent;
     //日志广播参数类型和列表
     #define BroadcastLogEventArgs const Logger &logger, const LogContextPtr &ctx
 
-    EventChannel(const string &name = "EventChannel", LogLevel level = LTrace);
+    EventChannel(const std::string &name = "EventChannel", LogLevel level = LTrace);
     ~EventChannel() override = default;
 
     void write(const Logger &logger, const LogContextPtr &ctx) override;
@@ -259,7 +258,7 @@ public:
  */
 class ConsoleChannel : public LogChannel {
 public:
-    ConsoleChannel(const string &name = "ConsoleChannel", LogLevel level = LTrace);
+    ConsoleChannel(const std::string &name = "ConsoleChannel", LogLevel level = LTrace);
     ~ConsoleChannel() override = default;
 
     void write(const Logger &logger, const LogContextPtr &logContext) override;
@@ -270,12 +269,12 @@ public:
  */
 class FileChannelBase : public LogChannel {
 public:
-    FileChannelBase(const string &name = "FileChannelBase", const string &path = exePath() + ".log", LogLevel level = LTrace);
+    FileChannelBase(const std::string &name = "FileChannelBase", const std::string &path = exePath() + ".log", LogLevel level = LTrace);
     ~FileChannelBase() override;
 
     void write(const Logger &logger, const LogContextPtr &ctx) override;
-    bool setPath(const string &path);
-    const string &path() const;
+    bool setPath(const std::string &path);
+    const std::string &path() const;
 
 protected:
     virtual bool open();
@@ -283,8 +282,8 @@ protected:
     virtual size_t size();
 
 protected:
-    string _path;
-    ofstream _fstream;
+    std::string _path;
+    std::ofstream _fstream;
 };
 
 class Ticker;
@@ -295,7 +294,7 @@ class Ticker;
  */
 class FileChannel : public FileChannelBase {
 public:
-    FileChannel(const string &name = "FileChannel", const string &dir = exeDir() + "log/", LogLevel level = LTrace);
+    FileChannel(const std::string &name = "FileChannel", const std::string &dir = exeDir() + "log/", LogLevel level = LTrace);
     ~FileChannel() override = default;
 
     /**
@@ -351,14 +350,14 @@ private:
     size_t _index = 0;
     int64_t _last_day = -1;
     time_t _last_check_time = 0;
-    string _dir;
-    set<string> _log_file_map;
+    std::string _dir;
+    std::set<std::string> _log_file_map;
 };
 
 #if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) && !defined(ANDROID))
 class SysLogChannel : public LogChannel {
 public:
-    SysLogChannel(const string &name = "SysLogChannel" , LogLevel level = LTrace) ;
+    SysLogChannel(const std::string &name = "SysLogChannel" , LogLevel level = LTrace) ;
     ~SysLogChannel() override = default;
 
     void write(const Logger &logger , const LogContextPtr &logContext) override;

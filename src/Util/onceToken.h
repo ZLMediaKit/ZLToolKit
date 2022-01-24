@@ -13,21 +13,20 @@
 
 #include <functional>
 #include <type_traits>
-using namespace std;
 
 namespace toolkit {
 
 class onceToken {
 public:
-    typedef function<void(void)> task;
+    typedef std::function<void(void)> task;
 
     template<typename FUNC>
-    onceToken(const FUNC &onConstructed, function<void(void)> onDestructed = nullptr) {
+    onceToken(const FUNC &onConstructed, std::function<void(void)> onDestructed = nullptr) {
         onConstructed();
         _onDestructed = std::move(onDestructed);
     }
 
-    onceToken(nullptr_t, function<void(void)> onDestructed = nullptr) {
+    onceToken(nullptr_t, std::function<void(void)> onDestructed = nullptr) {
         _onDestructed = std::move(onDestructed);
     }
 

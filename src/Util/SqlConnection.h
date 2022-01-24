@@ -28,7 +28,6 @@
 #if defined(_WIN32)
 #pragma  comment (lib,"libmysql") 
 #endif
-using namespace std;
 
 namespace toolkit {
 

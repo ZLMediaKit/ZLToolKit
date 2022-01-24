@@ -10,6 +10,8 @@
 
 #include "Network/UdpServer.h"
 
+using namespace std;
+
 namespace toolkit {
 
 static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {

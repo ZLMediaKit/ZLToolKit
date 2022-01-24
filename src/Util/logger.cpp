@@ -16,6 +16,8 @@
 #include <string.h>
 #include "NoticeCenter.h"
 
+using namespace std;
+
 namespace toolkit {
 #ifdef _WIN32
 #define CLEAR_COLOR 7

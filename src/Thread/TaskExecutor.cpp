@@ -11,6 +11,8 @@
 #include "TaskExecutor.h"
 #include "Poller/EventPoller.h"
 
+using namespace std;
+
 namespace toolkit {
 
 ThreadLoadCounter::ThreadLoadCounter(uint64_t max_size,uint64_t max_usec){

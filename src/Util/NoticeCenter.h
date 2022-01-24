@@ -20,7 +20,6 @@
 #include <thread>
 #include "function_traits.h"
 #include "onceToken.h"
-using namespace std;
 
 namespace toolkit {
 
@@ -31,7 +30,7 @@ public:
     ~EventDispatcher() = default;
 
 private:
-    typedef unordered_multimap<void *, std::shared_ptr<void> > MapType;
+    typedef std::unordered_multimap<void *, std::shared_ptr<void> > MapType;
     EventDispatcher() = default;
 
     class InterruptException : public std::runtime_error {
@@ -42,11 +41,11 @@ private:
 
     template<typename ...ArgsType>
     int emitEvent(ArgsType &&...args) {
-        typedef function<void(decltype(std::forward<ArgsType>(args))...)> funType;
+        typedef std::function<void(decltype(std::forward<ArgsType>(args))...)> funType;
         decltype(_mapListener) copy;
         {
             //先拷贝(开销比较小)，目的是防止在触发回调时还是上锁状态从而导致交叉互锁
-            lock_guard<recursive_mutex> lck(_mtxListener);
+            std::lock_guard<std::recursive_mutex> lck(_mtxListener);
             copy = _mapListener;
         }
 
@@ -71,18 +70,18 @@ private:
             funType *obj = (funType *) ptr;
             delete obj;
         });
-        lock_guard<recursive_mutex> lck(_mtxListener);
+        std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         _mapListener.emplace(tag, pListener);
     }
 
     void delListener(void *tag, bool &empty) {
-        lock_guard<recursive_mutex> lck(_mtxListener);
+        std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         _mapListener.erase(tag);
         empty = _mapListener.empty();
     }
 
 private:
-    recursive_mutex _mtxListener;
+    std::recursive_mutex _mtxListener;
     MapType _mapListener;
 };
 
@@ -93,7 +92,7 @@ public:
     static NoticeCenter &Instance();
 
     template<typename ...ArgsType>
-    int emitEvent(const string &strEvent, ArgsType &&...args) {
+    int emitEvent(const std::string &strEvent, ArgsType &&...args) {
         auto dispatcher = getDispatcher(strEvent);
         if (!dispatcher) {
             //该事件无人监听
@@ -103,11 +102,11 @@ public:
     }
 
     template<typename FUNC>
-    void addListener(void *tag, const string &event, FUNC &&func) {
+    void addListener(void *tag, const std::string &event, FUNC &&func) {
         getDispatcher(event, true)->addListener(tag, std::forward<FUNC>(func));
     }
 
-    void delListener(void *tag, const string &event) {
+    void delListener(void *tag, const std::string &event) {
         auto dispatcher = getDispatcher(event);
         if (!dispatcher) {
             //不存在该事件
@@ -122,7 +121,7 @@ public:
 
     //这个方法性能比较差
     void delListener(void *tag) {
-        lock_guard<recursive_mutex> lck(_mtxListener);
+        std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         bool empty;
         for (auto it = _mapListener.begin(); it != _mapListener.end();) {
             it->second->delListener(tag, empty);
@@ -135,12 +134,12 @@ public:
     }
 
     void clearAll() {
-        lock_guard<recursive_mutex> lck(_mtxListener);
+        std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         _mapListener.clear();
     }
 private:
-    EventDispatcher::Ptr getDispatcher(const string &event, bool create = false) {
-        lock_guard<recursive_mutex> lck(_mtxListener);
+    EventDispatcher::Ptr getDispatcher(const std::string &event, bool create = false) {
+        std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         auto it = _mapListener.find(event);
         if (it != _mapListener.end()) {
             return it->second;
@@ -154,8 +153,8 @@ private:
         return nullptr;
     }
 
-    void delDispatcher(const string &event, const EventDispatcher::Ptr &dispatcher) {
-        lock_guard<recursive_mutex> lck(_mtxListener);
+    void delDispatcher(const std::string &event, const EventDispatcher::Ptr &dispatcher) {
+        std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         auto it = _mapListener.find(event);
         if (it != _mapListener.end() && dispatcher == it->second) {
             //两者相同则删除
@@ -165,8 +164,8 @@ private:
 
     NoticeCenter() {}
 private:
-    recursive_mutex _mtxListener;
-    unordered_map<string, EventDispatcher::Ptr> _mapListener;
+    std::recursive_mutex _mtxListener;
+    std::unordered_map<std::string, EventDispatcher::Ptr> _mapListener;
 };
 
 } /* namespace toolkit */

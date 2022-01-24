@@ -17,7 +17,6 @@
 #include "Socket.h"
 #include "Util/TimeTicker.h"
 #include "Util/SSLBox.h"
-using namespace std;
 
 namespace toolkit {
 
@@ -35,7 +34,7 @@ public:
      * @param timeout_sec 超时时间,单位秒
      * @param local_port 本地端口
      */
-    virtual void startConnect(const string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0);
+    virtual void startConnect(const std::string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0);
 
     /**
      * 主动断开连接
@@ -52,7 +51,7 @@ public:
      * 设置网卡适配器,使用该网卡与服务器通信
      * @param local_ip 本地网卡ip
      */
-    virtual void setNetAdapter(const string &local_ip);
+    virtual void setNetAdapter(const std::string &local_ip);
 
 protected:
     /**
@@ -87,7 +86,7 @@ private:
     void onSockConnect(const SockException &ex);
 
 private:
-    string _net_adapter = "0.0.0.0";
+    std::string _net_adapter = "0.0.0.0";
     std::shared_ptr<Timer> _timer;
     //对象个数统计
     ObjectStatistic<TcpClient> _statistic;
@@ -134,7 +133,7 @@ public:
         TcpClientType::send(std::move(const_cast<Buffer::Ptr &>(buf)));
     }
 
-    void startConnect(const string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0) override {
+    void startConnect(const std::string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0) override {
         _host = url;
         TcpClientType::startConnect(url, port, timeout_sec, local_port);
     }
@@ -159,7 +158,7 @@ protected:
     }
 
 private:
-    string _host;
+    std::string _host;
     std::shared_ptr<SSL_Box> _ssl_box;
 };
 

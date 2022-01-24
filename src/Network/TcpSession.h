@@ -14,7 +14,6 @@
 #include "Util/SSLBox.h"
 #include "Network/Session.h"
 
-using namespace std;
 
 namespace toolkit {
 

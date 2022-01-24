@@ -24,7 +24,6 @@
 #include "Thread/TaskExecutor.h"
 #include "Thread/ThreadPool.h"
 #include "Network/Buffer.h"
-using namespace std;
 
 #if defined(__linux__) || defined(__linux)
 #define HAS_EPOLL
@@ -39,8 +38,8 @@ typedef enum {
     Event_LT = 1 << 3,//水平触发
 } Poll_Event;
 
-using PollEventCB = function<void(int event)>;
-using PollDelCB = function<void(bool success)>;
+using PollEventCB = std::function<void(int event)>;
+using PollDelCB = std::function<void(bool success)>;
 using DelayTask = TaskCancelableImp<uint64_t(void)>;
 
 class EventPoller : public TaskExecutor, public AnyStorage, public std::enable_shared_from_this<EventPoller> {
@@ -96,7 +95,7 @@ public:
      * @param may_sync 如果调用该函数的线程就是本对象的轮询线程，那么may_sync为true时就是同步执行任务
      * @return 是否成功，一定会返回true
      */
-    Task::Ptr async_first(TaskIn task, bool may_sync = true) override ;
+    Task::Ptr async_first(TaskIn task, bool may_sync = true) override;
 
     /**
      * 判断执行该接口的线程是否为本对象的轮询线程
@@ -110,7 +109,7 @@ public:
      * @param task 任务，返回值为0时代表不再重复任务，否则为下次执行延时，如果任务中抛异常，那么默认不重复任务
      * @return 可取消的任务标签
      */
-    DelayTask::Ptr doDelayTask(uint64_t delayMS, function<uint64_t()> task);
+    DelayTask::Ptr doDelayTask(uint64_t delayMS, std::function<uint64_t()> task);
 
     /**
      * 获取当前线程关联的Poller实例
@@ -125,7 +124,7 @@ public:
     /**
      * 获取poller线程id
      */
-    const thread::id& getThreadId() const;
+    const std::thread::id& getThreadId() const;
 
 private:
     /**
@@ -187,22 +186,22 @@ private:
     //标记loop线程是否退出
     bool _exit_flag;
     //当前线程下，所有socket共享的读缓存
-    weak_ptr<BufferRaw> _shared_buffer;
+    std::weak_ptr<BufferRaw> _shared_buffer;
     //线程优先级
     ThreadPool::Priority _priority;
     //正在运行事件循环时该锁处于被锁定状态
-    mutex _mtx_runing;
+    std::mutex _mtx_runing;
     //执行事件循环的线程
-    thread *_loop_thread = nullptr;
+    std::thread *_loop_thread = nullptr;
     //事件循环的线程id
-    thread::id _loop_thread_id;
+    std::thread::id _loop_thread_id;
     //通知事件循环的线程已启动
     semaphore _sem_run_started;
 
     //内部事件管道
     PipeWrap _pipe;
     //从其他线程切换过来的任务
-    mutex _mtx_task;
+    std::mutex _mtx_task;
     List<Task::Ptr> _list_task;
 
     //保持日志可用
@@ -224,7 +223,7 @@ private:
 #endif //HAS_EPOLL
 
     //定时器相关
-    multimap<uint64_t, DelayTask::Ptr> _delay_task_map;
+    std::multimap<uint64_t, DelayTask::Ptr> _delay_task_map;
 };
 
 class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, public TaskExecutorGetterImp {

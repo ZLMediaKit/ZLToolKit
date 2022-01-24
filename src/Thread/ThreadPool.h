@@ -71,7 +71,7 @@ public:
         return _queue.size();
     }
 
-    static bool setPriority(Priority priority = PRIORITY_NORMAL, thread::native_handle_type threadId = 0) {
+    static bool setPriority(Priority priority = PRIORITY_NORMAL, std::thread::native_handle_type threadId = 0) {
         // set priority
 #if defined(_WIN32)
         static int Priorities[] = { THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST };
@@ -105,7 +105,7 @@ public:
         }
         size_t total = _thread_num - _thread_group.size();
         for (size_t i = 0; i < total; ++i) {
-            _thread_group.create_thread(bind(&ThreadPool::run, this));
+            _thread_group.create_thread(std::bind(&ThreadPool::run, this));
         }
     }
 

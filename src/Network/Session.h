@@ -66,7 +66,7 @@ public:
 private:
     // 对象个数统计
     ObjectStatistic<Session> _statistic;
-    mutable string _id;
+    mutable std::string _id;
 };
 
 //TCP服务器连接对象，一个tcp连接对应一个TcpSession对象

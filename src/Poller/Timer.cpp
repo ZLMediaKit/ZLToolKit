@@ -13,7 +13,7 @@
 namespace toolkit {
 
 Timer::Timer(float second,
-             const function<bool()> &cb,
+             const std::function<bool()> &cb,
              const EventPoller::Ptr &poller,
              bool continueWhenException) {
     _poller = poller;

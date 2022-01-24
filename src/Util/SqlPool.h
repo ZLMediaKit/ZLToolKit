@@ -21,7 +21,6 @@
 #include "SqlConnection.h"
 #include "Thread/WorkThreadPool.h"
 #include "Util/ResourcePool.h"
-using namespace std;
 
 namespace toolkit {
 
