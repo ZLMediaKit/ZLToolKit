@@ -241,7 +241,7 @@ private:
         };
 
         std::shared_ptr<RingReader> reader(new RingReader(_storage, use_cache), on_dealloc);
-        _reader_map[reader.get()] = std::move(reader);
+        _reader_map[reader.get()] = reader;
         ++_reader_size;
         onSizeChanged(true);
         return reader;
