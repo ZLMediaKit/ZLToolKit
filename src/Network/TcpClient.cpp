@@ -30,7 +30,14 @@ void TcpClient::shutdown(const SockException &ex) {
 }
 
 bool TcpClient::alive() const {
-    return (bool) _timer;
+    if (_timer) {
+        //连接中或已连接
+        return true;
+    }
+    //在websocket client(zlmediakit)相关代码中，
+    //_timer一直为空，但是socket fd有效，alive状态也应该返回true
+    auto sock = getSock();
+    return sock && sock->rawFD() >= 0;
 }
 
 void TcpClient::setNetAdapter(const string &local_ip){
