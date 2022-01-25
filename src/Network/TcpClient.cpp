@@ -50,7 +50,22 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
     }, getPoller());
     
     setSock(createSocket());
-    getSock()->connect(url, port, [weak_self](const SockException &err) {
+
+    auto sock_ptr = getSock().get();
+    sock_ptr->setOnErr([weak_self, sock_ptr](const SockException &ex) {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+        if (sock_ptr != strong_self->getSock().get()) {
+            //已经重连socket，上次的socket的事件忽略掉
+            return;
+        }
+        strong_self->_timer.reset();
+        strong_self->onErr(ex);
+    });
+
+    sock_ptr->connect(url, port, [weak_self](const SockException &err) {
         auto strong_self = weak_self.lock();
         if (strong_self) {
             strong_self->onSockConnect(err);
@@ -69,20 +84,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
     auto sock_ptr = getSock().get();
     weak_ptr<TcpClient> weak_self = shared_from_this();
 
-    getSock()->setOnErr([weak_self, sock_ptr](const SockException &ex) {
-        auto strong_self = weak_self.lock();
-        if (!strong_self) {
-            return;
-        }
-        if (sock_ptr != strong_self->getSock().get()) {
-            //已经重连socket，上次的socket的事件忽略掉
-            return;
-        }
-        strong_self->_timer.reset();
-        strong_self->onErr(ex);
-    });
-
-    getSock()->setOnFlush([weak_self, sock_ptr]() {
+    sock_ptr->setOnFlush([weak_self, sock_ptr]() {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return false;
@@ -95,7 +97,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
         return true;
     });
 
-    getSock()->setOnRead([weak_self, sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr *, int) {
+    sock_ptr->setOnRead([weak_self, sock_ptr](const Buffer::Ptr &pBuf, struct sockaddr *, int) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
