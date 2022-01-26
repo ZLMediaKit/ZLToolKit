@@ -109,7 +109,7 @@ public:
     R operator()(ArgTypes ...args) const {
         auto strongTask = _weakTask.lock();
         if (strongTask && *strongTask) {
-            return (*strongTask)(forward<ArgTypes>(args)...);
+            return (*strongTask)(std::forward<ArgTypes>(args)...);
         }
         return defaultValue<R>();
     }

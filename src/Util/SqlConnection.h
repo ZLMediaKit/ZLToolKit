@@ -34,21 +34,21 @@ namespace toolkit {
 /**
  * 数据库异常类
  */
-class SqlException : public exception {
+class SqlException : public std::exception {
 public:
-    SqlException(const string &sql,const string &err){
+    SqlException(const std::string &sql, const std::string &err) {
         _sql = sql;
         _err = err;
     }
     virtual const char* what() const noexcept {
         return _err.data();
     }
-    const string &getSql() const{
+    const std::string &getSql() const{
         return _sql;
     }
 private:
-    string _sql;
-    string _err;
+    std::string _sql;
+    std::string _err;
 };
 
 /**
@@ -65,9 +65,9 @@ public:
      * @param password 用户密码
      * @param character 字符集
      */
-    SqlConnection(const string &url, unsigned short port,
-                  const string &dbname, const string &username,
-                  const string &password, const string &character = "utf8mb4") {
+    SqlConnection(const std::string &url, unsigned short port,
+                  const std::string &dbname, const std::string &username,
+                  const std::string &password, const std::string &character = "utf8mb4") {
         mysql_init(&_sql);
         unsigned int timeout = 3;
         mysql_options(&_sql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
@@ -112,17 +112,17 @@ public:
      * @param arg 可变参数列表
      * @return 影响行数
      */
-    template<typename Fmt,typename ...Args>
-    int64_t query(int64_t &rowId,vector<vector<string> > &ret, Fmt &&fmt, Args && ...arg){
-        return queryList(rowId,ret,std::forward<Fmt>(fmt),std::forward<Args>(arg)...);
+    template<typename Fmt, typename ...Args>
+    int64_t query(int64_t &rowId, std::vector<std::vector<std::string> > &ret, Fmt &&fmt, Args && ...arg){
+        return queryList(rowId, ret, std::forward<Fmt>(fmt), std::forward<Args>(arg)...);
     }
-    template<typename Fmt,typename ...Args>
-    int64_t query(int64_t &rowId,vector<list<string> > &ret, Fmt &&fmt, Args && ...arg){
-        return queryList(rowId,ret,std::forward<Fmt>(fmt),std::forward<Args>(arg)...);
+    template<typename Fmt, typename... Args>
+    int64_t query(int64_t &rowId, std::vector<std::list<std::string>> &ret, Fmt &&fmt, Args &&...arg) {
+        return queryList(rowId, ret, std::forward<Fmt>(fmt), std::forward<Args>(arg)...);
     }
-    template<typename Fmt,typename ...Args>
-    int64_t query(int64_t &rowId,vector<deque<string> > &ret, Fmt &&fmt, Args && ...arg){
-        return queryList(rowId,ret,std::forward<Fmt>(fmt),std::forward<Args>(arg)...);
+    template<typename Fmt, typename ...Args>
+    int64_t query(int64_t &rowId, std::vector<std::deque<std::string> > &ret, Fmt &&fmt, Args && ...arg){
+        return queryList(rowId, ret, std::forward<Fmt>(fmt), std::forward<Args>(arg)...);
     }
 
     /**
@@ -133,8 +133,8 @@ public:
      * @param arg 可变参数列表
      * @return 影响行数
      */
-    template<typename Map,typename Fmt,typename ...Args>
-    int64_t query(int64_t &rowId,vector<Map> &ret, Fmt &&fmt, Args && ...arg) {
+    template<typename Map, typename Fmt, typename ...Args>
+    int64_t query(int64_t &rowId, std::vector<Map> &ret, Fmt &&fmt, Args && ...arg) {
         check();
         auto tmp = queryString(std::forward<Fmt>(fmt), std::forward<Args>(arg)...);
         if (doQuery(tmp)) {
@@ -153,7 +153,7 @@ public:
             ret.emplace_back();
             auto &back = ret.back();
             for (unsigned int i = 0; i < column; i++) {
-                back[string(fields[i].name,fields[i].name_length)] = (row[i] ? row[i] : "");
+                back[std::string(fields[i].name, fields[i].name_length)] = (row[i] ? row[i] : "");
             }
         }
         mysql_free_result(res);
@@ -161,20 +161,20 @@ public:
         return mysql_affected_rows(&_sql);
     }
 
-    string escape(const string &str) {
+    std::string escape(const std::string &str) {
         char *out = new char[str.length() * 2 + 1];
         mysql_real_escape_string(&_sql, out, str.c_str(), str.size());
-        string ret(out);
+        std::string ret(out);
         delete [] out;
         return ret;
     }
 
     template<typename ...Args>
-    static string queryString(const char *fmt, Args && ...arg) {
+    static std::string queryString(const char *fmt, Args && ...arg) {
         char *ptr_out = NULL;
         asprintf(&ptr_out, fmt, arg...);
         if (ptr_out) {
-            string ret(ptr_out);
+            std::string ret(ptr_out);
             free(ptr_out);
             return ret;
         }
@@ -182,18 +182,18 @@ public:
     }
 
     template<typename ...Args>
-    static string queryString(const string &fmt, Args && ...args) {
+    static std::string queryString(const std::string &fmt, Args && ...args) {
         return queryString(fmt.data(),std::forward<Args>(args)...);
     }
     static const char *queryString(const char *fmt) {
         return fmt;
     }
-    static const string &queryString(const string &fmt) {
+    static const std::string &queryString(const std::string &fmt) {
         return fmt;
     }
 private:
-    template<typename List,typename Fmt,typename ...Args>
-    int64_t queryList(int64_t &rowId,vector<List> &ret, Fmt &&fmt, Args && ...arg) {
+    template<typename List, typename Fmt, typename... Args>
+    int64_t queryList(int64_t &rowId, std::vector<List> &ret, Fmt &&fmt, Args &&...arg) {
         check();
         auto tmp = queryString(std::forward<Fmt>(fmt), std::forward<Args>(arg)...);
         if (doQuery(tmp)) {
@@ -225,7 +225,7 @@ private:
         }
     }
 
-    int doQuery(const string &sql){
+    int doQuery(const std::string &sql){
         return mysql_query(&_sql,sql.data());
     }
     int doQuery(const char *sql){

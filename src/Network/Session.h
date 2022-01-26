@@ -78,7 +78,7 @@ public:
     ~TcpSession() override = default;
 
     Ptr shared_from_this() {
-        return static_pointer_cast<TcpSession>(Session::shared_from_this());
+        return std::static_pointer_cast<TcpSession>(Session::shared_from_this());
     }
 
 private:
@@ -95,7 +95,7 @@ public:
     ~UdpSession() override = default;
 
     Ptr shared_from_this() {
-        return static_pointer_cast<UdpSession>(Session::shared_from_this());
+        return std::static_pointer_cast<UdpSession>(Session::shared_from_this());
     }
 
 private:

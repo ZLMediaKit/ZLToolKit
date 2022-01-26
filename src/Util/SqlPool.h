@@ -28,7 +28,7 @@ class SqlPool : public std::enable_shared_from_this<SqlPool> {
 public:
     typedef std::shared_ptr<SqlPool> Ptr;
     typedef ResourcePool<SqlConnection> PoolType;
-    typedef vector<vector<string> > SqlRetType;
+    typedef std::vector<std::vector<std::string> > SqlRetType;
 
     static SqlPool &Instance();
 
@@ -87,7 +87,7 @@ public:
             //捕获执行异常
             mysql = _pool->obtain();
             return mysql->query(std::forward<Args>(arg)...);
-        } catch (exception &e) {
+        } catch (std::exception &e) {
             mysql.quit();
             throw;
         }
@@ -99,9 +99,9 @@ public:
      * @param str
      * @return
      */
-    string escape(const string &str) {
+    std::string escape(const std::string &str) {
         checkInited();
-        return _pool->obtain()->escape(const_cast<string &>(str));
+        return _pool->obtain()->escape(const_cast<std::string &>(str));
     }
 
 private:
@@ -118,19 +118,19 @@ private:
      * @param sql sql语句
      * @param tryCnt 重试次数
      */
-    void asyncQuery_l(const string &sql,int tryCnt = 3) {
+    void asyncQuery_l(const std::string &sql,int tryCnt = 3) {
         auto lam = [this,sql,tryCnt]() {
             int64_t rowID;
             auto cnt = tryCnt - 1;
             try {
                 syncQuery(rowID,sql);
-            }catch(exception &ex) {
-                if( cnt > 0) {
+            } catch (std::exception &ex) {
+                if (cnt > 0) {
                     //失败重试
-                    lock_guard<mutex> lk(_error_query_mutex);
+                    std::lock_guard<std::mutex> lk(_error_query_mutex);
                     sqlQuery query(sql,cnt);
                     _error_query.push_back(query);
-                }else{
+                } else {
                     WarnL <<  ex.what();
                 }
             }
@@ -144,11 +144,11 @@ private:
     void flushError() {
         decltype(_error_query) query_copy;
         {
-            lock_guard<mutex> lck(_error_query_mutex);
+            std::lock_guard<std::mutex> lck(_error_query_mutex);
             query_copy.swap(_error_query);
         }
         for (auto &query : query_copy) {
-            asyncQuery(query.sql_str,query.tryCnt);
+            asyncQuery(query.sql_str, query.tryCnt);
         }
     }
 
@@ -162,14 +162,14 @@ private:
     }
 private:
     struct sqlQuery {
-        sqlQuery(const string &sql,int cnt):sql_str(sql),tryCnt(cnt){}
-        string sql_str;
+        sqlQuery(const std::string &sql,int cnt):sql_str(sql),tryCnt(cnt){}
+        std::string sql_str;
         int tryCnt = 0;
     } ;
 private:
-    deque<sqlQuery> _error_query;
+    std::deque<sqlQuery> _error_query;
     TaskExecutor::Ptr _threadPool;
-    mutex _error_query_mutex;
+    std::mutex _error_query_mutex;
     std::shared_ptr<PoolType> _pool;
     Timer::Ptr _timer;
 };
@@ -185,26 +185,26 @@ public:
     template<typename T>
     SqlStream& operator <<(T &&data) {
         auto pos = _sql.find('?', _startPos);
-        if (pos == string::npos) {
+        if (pos == std::string::npos) {
             return *this;
         }
         _str_tmp.str("");
         _str_tmp << std::forward<T>(data);
-        string str = SqlPool::Instance().escape(_str_tmp.str());
+        std::string str = SqlPool::Instance().escape(_str_tmp.str());
         _startPos = pos + str.size();
         _sql.replace(pos, 1, str);
         return *this;
     }
-    const string& operator <<(std::ostream&(*f)(std::ostream&)) const {
+    const std::string& operator <<(std::ostream&(*f)(std::ostream&)) const {
         return _sql;
     }
-    operator string (){
+    operator std::string (){
         return _sql;
     }
 private:
-    stringstream _str_tmp;
-    string _sql;
-    string::size_type _startPos = 0;
+    std::stringstream _str_tmp;
+    std::string _sql;
+    std::string::size_type _startPos = 0;
 };
 
 
@@ -246,9 +246,9 @@ public:
      * 异步执行sql，不会抛异常
      * @param f std::endl
      */
-    void operator <<(std::ostream&(*f)(std::ostream&)) {
+    void operator<<(std::ostream &(*f)(std::ostream &)) {
         //异步执行sql不会抛异常
-        SqlPool::Instance().asyncQuery((string)_sqlstream);
+        SqlPool::Instance().asyncQuery((std::string)_sqlstream);
     }
 
     /**
@@ -259,11 +259,11 @@ public:
      * @return 影响行数
      */
     template <typename Row>
-    int64_t operator <<(vector<Row> &ret) {
+    int64_t operator <<(std::vector<Row> &ret) {
         try {
-            _affectedRows = SqlPool::Instance().syncQuery(_rowId,ret, (string)_sqlstream);
-        }catch (std::exception &ex){
-            if(!_throwAble){
+            _affectedRows = SqlPool::Instance().syncQuery(_rowId, ret, (std::string)_sqlstream);
+        } catch (std::exception &ex) {
+            if (!_throwAble) {
                 WarnL << ex.what();
             } else {
                 throw;
