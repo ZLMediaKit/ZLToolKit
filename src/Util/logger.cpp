@@ -473,7 +473,7 @@ static onceToken s_token([]() {
 //根据GMT UNIX时间戳生产日志文件名
 static string getLogFilePath(const string &dir, time_t second, int32_t index) {
     auto tm = getLocalTime(second);
-    char buf[32];
+    char buf[64];
     snprintf(buf, sizeof(buf), "%d-%02d-%02d_%02d.log", 1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, index);
     return dir + buf;
 }
@@ -626,9 +626,10 @@ void FileChannel::setFileMaxCount(size_t max_count) {
 void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
     LogContextCapture info(logger, (LogLevel) level, file, function, line);
     char *str = nullptr;
-    vasprintf(&str, fmt, ap);
-    info << str;
-    free(str);
+    if (vasprintf(&str, fmt, ap) > 0 && str) {
+        info << str;
+        free(str);
+    }
 }
 
 void LoggerWrapper::printLog(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, ...) {

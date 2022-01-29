@@ -20,7 +20,7 @@
 #include "Poller/Timer.h"
 #include "SqlConnection.h"
 #include "Thread/WorkThreadPool.h"
-#include "Util/ResourcePool.h"
+#include "ResourcePool.h"
 
 namespace toolkit {
 

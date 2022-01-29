@@ -18,7 +18,7 @@
 #include <vector>
 #include <iostream>
 #include <functional>
-#include "Util/mini.h"
+#include "mini.h"
 
 namespace toolkit{
 

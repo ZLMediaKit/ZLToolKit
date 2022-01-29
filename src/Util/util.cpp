@@ -16,8 +16,9 @@
 
 #include "util.h"
 #include "onceToken.h"
-#include "Util/logger.h"
-#include "Util/uv_errno.h"
+#include "File.h"
+#include "logger.h"
+#include "uv_errno.h"
 #include "Network/sockutil.h"
 
 #if defined(_WIN32)
@@ -28,8 +29,6 @@ extern "C" const IMAGE_DOS_HEADER __ImageBase;
 
 #if defined(__MACH__) || defined(__APPLE__)
 #include <limits.h>
-#include <mach/mach.h>
-#include <mach/mach_time.h>
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
 
 int uv_exepath(char *buffer, int *size) {

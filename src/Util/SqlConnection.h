@@ -21,8 +21,8 @@
 #include <sstream>
 #include <iostream>
 #include <stdexcept>
-#include "Util/logger.h"
-#include "Util/util.h"
+#include "logger.h"
+#include "util.h"
 #include <mysql.h>
 
 #if defined(_WIN32)

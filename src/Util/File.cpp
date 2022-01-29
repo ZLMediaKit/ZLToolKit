@@ -18,9 +18,9 @@
 
 #include <sys/stat.h>
 #include "File.h"
-#include "Util/util.h"
-#include "Util/logger.h"
-#include "Util/uv_errno.h"
+#include "util.h"
+#include "logger.h"
+#include "uv_errno.h"
 
 using namespace std;
 using namespace toolkit;

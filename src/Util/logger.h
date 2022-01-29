@@ -17,8 +17,8 @@
 #include <thread>
 #include <memory>
 #include <mutex>
-#include "Util/util.h"
-#include "Util/List.h"
+#include "util.h"
+#include "List.h"
 #include "Thread/semaphore.h"
 
 namespace toolkit {

@@ -49,7 +49,6 @@ class_name &class_name::Instance() { \
     return s_insteanc_ref; \
 }
 
-
 namespace toolkit {
 
 #define StrPrinter _StrPrinter()

@@ -18,7 +18,7 @@
 #include "List.h"
 #include "util.h"
 #include "Network/Buffer.h"
-#include "Util/ResourcePool.h"
+#include "ResourcePool.h"
 
 typedef struct x509_st X509;
 typedef struct evp_pkey_st EVP_PKEY;
