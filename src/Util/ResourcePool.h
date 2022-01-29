@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -11,7 +11,7 @@
 #ifndef UTIL_RECYCLEPOOL_H_
 #define UTIL_RECYCLEPOOL_H_
 
-#include "Util/List.h"
+#include "List.h"
 #include <atomic>
 #include <deque>
 #include <functional>
@@ -63,7 +63,7 @@ private:
 template <typename C>
 class ResourcePool_l : public std::enable_shared_from_this<ResourcePool_l<C>> {
 public:
-    typedef shared_ptr_imp<C> ValuePtr;
+    using ValuePtr = shared_ptr_imp<C>;
     friend class shared_ptr_imp<C>;
     friend class ResourcePool<C>;
 
@@ -159,7 +159,7 @@ private:
 template <typename C>
 class ResourcePool {
 public:
-    typedef shared_ptr_imp<C> ValuePtr;
+    using ValuePtr = shared_ptr_imp<C>;
     ResourcePool() {
         pool.reset(new ResourcePool_l<C>());
         pool->setup();

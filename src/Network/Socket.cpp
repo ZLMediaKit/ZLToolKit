@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -23,7 +23,7 @@ using namespace std;
 
 namespace toolkit {
 
-StatisticImp(Socket);
+StatisticImp(Socket)
 
 static SockException toSockException(int error) {
     switch (error) {
@@ -49,7 +49,7 @@ static SockException getSockErr(const SockFD::Ptr &sock, bool try_errno = true) 
 }
 
 Socket::Ptr Socket::createSocket(const EventPoller::Ptr &poller, bool enable_mutex){
-    return Socket::Ptr(new Socket(poller, enable_mutex));
+    return std::make_shared<Socket>(poller, enable_mutex);
 }
 
 Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex) :
@@ -165,7 +165,7 @@ void Socket::connect(const string &url, uint16_t port, onErrCB con_cb_in, float 
         weak_ptr<SockFD> weak_sock_fd = sock_fd;
 
         //监听该socket是否可写，可写表明已经连接服务器成功
-        int result = strong_self->_poller->addEvent(sock, Event_Write, [weak_self, weak_sock_fd, con_cb](int event) {
+        int result = strong_self->_poller->addEvent(sock, EventPoller::Event_Write, [weak_self, weak_sock_fd, con_cb](int event) {
             auto strong_sock_fd = weak_sock_fd.lock();
             auto strong_self = weak_self.lock();
             if (strong_sock_fd && strong_self) {
@@ -235,20 +235,20 @@ bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
     weak_ptr<SockFD> weak_sock = sock;
     _enable_recv = true;
     _read_buffer = _poller->getSharedBuffer();
-    int result = _poller->addEvent(sock->rawFd(), Event_Read | Event_Error | Event_Write, [weak_self,weak_sock,is_udp](int event) {
+    int result = _poller->addEvent(sock->rawFd(), EventPoller::Event_Read | EventPoller::Event_Error | EventPoller::Event_Write, [weak_self,weak_sock,is_udp](int event) {
         auto strong_self = weak_self.lock();
         auto strong_sock = weak_sock.lock();
         if (!strong_self || !strong_sock) {
             return;
         }
 
-        if (event & Event_Read) {
+        if (event & EventPoller::Event_Read) {
             strong_self->onRead(strong_sock, is_udp);
         }
-        if (event & Event_Write) {
+        if (event & EventPoller::Event_Write) {
             strong_self->onWriteAble(strong_sock);
         }
-        if (event & Event_Error) {
+        if (event & EventPoller::Event_Error) {
             strong_self->emitErr(getSockErr(strong_sock));
         }
     });
@@ -438,7 +438,7 @@ bool Socket::listen(const SockFD::Ptr &sock){
     weak_ptr<SockFD> weak_sock = sock;
     weak_ptr<Socket> weak_self = shared_from_this();
     _enable_recv = true;
-    int result = _poller->addEvent(sock->rawFd(), Event_Read | Event_Error, [weak_self, weak_sock](int event) {
+    int result = _poller->addEvent(sock->rawFd(), EventPoller::Event_Read | EventPoller::Event_Error, [weak_self, weak_sock](int event) {
         auto strong_self = weak_self.lock();
         auto strong_sock = weak_sock.lock();
         if (!strong_self || !strong_sock) {
@@ -482,9 +482,9 @@ bool Socket::bindUdpSock(uint16_t port, const string &local_ip, bool enable_reus
 int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
     int fd;
     while (true) {
-        if (event & Event_Read) {
+        if (event & EventPoller::Event_Read) {
             do {
-                fd = (int)accept(sock->rawFd(), NULL, NULL);
+                fd = (int)accept(sock->rawFd(), nullptr, nullptr);
             } while (-1 == fd && UV_EINTR == get_uv_error(true));
 
             if (fd == -1) {
@@ -550,7 +550,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
             }
         }
 
-        if (event & Event_Error) {
+        if (event & EventPoller::Event_Error) {
             auto ex = getSockErr(sock);
             emitErr(ex);
             ErrorL << "tcp服务器监听异常:" << ex.what();
@@ -713,15 +713,15 @@ void Socket::onWriteAble(const SockFD::Ptr &sock) {
 void Socket::startWriteAbleEvent(const SockFD::Ptr &sock) {
     //开始监听socket可写事件
     _sendable = false;
-    int flag = _enable_recv ? Event_Read : 0;
-    _poller->modifyEvent(sock->rawFd(), flag | Event_Error | Event_Write);
+    int flag = _enable_recv ? EventPoller::Event_Read : 0;
+    _poller->modifyEvent(sock->rawFd(), flag | EventPoller::Event_Error | EventPoller::Event_Write);
 }
 
 void Socket::stopWriteAbleEvent(const SockFD::Ptr &sock) {
     //停止监听socket可写事件
     _sendable = true;
-    int flag = _enable_recv ? Event_Read : 0;
-    _poller->modifyEvent(sock->rawFd(), flag | Event_Error);
+    int flag = _enable_recv ? EventPoller::Event_Read : 0;
+    _poller->modifyEvent(sock->rawFd(), flag | EventPoller::Event_Error);
 }
 
 void Socket::enableRecv(bool enabled) {
@@ -729,10 +729,10 @@ void Socket::enableRecv(bool enabled) {
         return;
     }
     _enable_recv = enabled;
-    int read_flag = _enable_recv ? Event_Read : 0;
+    int read_flag = _enable_recv ? EventPoller::Event_Read : 0;
     //可写时，不监听可写事件
-    int send_flag = _sendable ? 0 : Event_Write;
-    _poller->modifyEvent(rawFD(), read_flag | send_flag | Event_Error);
+    int send_flag = _sendable ? 0 : EventPoller::Event_Write;
+    _poller->modifyEvent(rawFD(), read_flag | send_flag | EventPoller::Event_Error);
 }
 
 SockFD::Ptr Socket::makeSock(int sock, SockNum::SockType type) {
@@ -937,6 +937,11 @@ void SocketHelper::setOnCreateSocket(Socket::onCreateSocket cb){
 
 Socket::Ptr SocketHelper::createSocket(){
     return _on_create_socket(_poller);
+}
+
+std::ostream &operator<<(std::ostream &ost, const SockException &err) {
+    ost << err.getErrCode() << "(" << err.what() << ")";
+    return ost;
 }
 
 }  // namespace toolkit

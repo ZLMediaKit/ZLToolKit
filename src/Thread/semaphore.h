@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -14,12 +14,12 @@
 /*
  * 目前发现信号量在32位的系统上有问题，
  * 休眠的线程无法被正常唤醒，先禁用之
- #if defined(__linux__)
+#if defined(__linux__)
 #include <semaphore.h>
 #define HAVE_SEM
 #endif //HAVE_SEM
 */
-#include <atomic>
+
 #include <mutex>
 #include <condition_variable>
 
@@ -55,7 +55,6 @@ public:
             _condition.notify_all();
         }
 #endif
-
     }
 
     void wait() {

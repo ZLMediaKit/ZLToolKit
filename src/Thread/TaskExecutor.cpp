@@ -1,28 +1,31 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <memory>
 #include "TaskExecutor.h"
 #include "Poller/EventPoller.h"
+#include "Util/onceToken.h"
+#include "Util/TimeTicker.h"
 
 using namespace std;
 
 namespace toolkit {
 
-ThreadLoadCounter::ThreadLoadCounter(uint64_t max_size,uint64_t max_usec){
+ThreadLoadCounter::ThreadLoadCounter(uint64_t max_size, uint64_t max_usec) {
     _last_sleep_time = _last_wake_time = getCurrentMicrosecond();
     _max_size = max_size;
     _max_usec = max_usec;
 }
 
 void ThreadLoadCounter::startSleep() {
-    lock_guard <mutex> lck(_mtx);
+    lock_guard<mutex> lck(_mtx);
     _sleeping = true;
     auto current_time = getCurrentMicrosecond();
     auto run_time = current_time - _last_wake_time;
@@ -34,7 +37,7 @@ void ThreadLoadCounter::startSleep() {
 }
 
 void ThreadLoadCounter::sleepWakeUp() {
-    lock_guard <mutex> lck(_mtx);
+    lock_guard<mutex> lck(_mtx);
     _sleeping = false;
     auto current_time = getCurrentMicrosecond();
     auto sleep_time = current_time - _last_sleep_time;
@@ -83,7 +86,7 @@ int ThreadLoadCounter::load() {
 ////////////////////////////////////////////////////////////////////////////
 
 Task::Ptr TaskExecutorInterface::async_first(TaskIn task, bool may_sync) {
-    return async(std::move(task),may_sync);
+    return async(std::move(task), may_sync);
 }
 
 void TaskExecutorInterface::sync(const TaskIn &task) {
@@ -116,7 +119,7 @@ void TaskExecutorInterface::sync_first(const TaskIn &task) {
 
 //////////////////////////////////////////////////////////////////
 
-TaskExecutor::TaskExecutor(uint64_t max_size, uint64_t max_usec) : ThreadLoadCounter(max_size,max_usec) {}
+TaskExecutor::TaskExecutor(uint64_t max_size, uint64_t max_usec) : ThreadLoadCounter(max_size, max_usec) {}
 
 //////////////////////////////////////////////////////////////////
 

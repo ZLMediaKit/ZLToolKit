@@ -1,11 +1,11 @@
 ﻿#ifndef ZLMEDIAKIT_STRPTIME_WIN_H
 #define ZLMEDIAKIT_STRPTIME_WIN_H
 
-#include <time.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
+#include <ctime>
+#include <cstring>
+#include <cstdlib>
+#include <cstdio>
+#include <cctype>
 
 #define TM_YEAR_BASE 1900
 

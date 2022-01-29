@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -11,12 +11,11 @@
 #ifndef ZLTOOLKIT_TASKEXECUTOR_H
 #define ZLTOOLKIT_TASKEXECUTOR_H
 
+#include <mutex>
 #include <memory>
 #include <functional>
 #include "Util/List.h"
 #include "Util/util.h"
-#include "Util/onceToken.h"
-#include "Util/TimeTicker.h"
 
 namespace toolkit {
 
@@ -56,8 +55,8 @@ private:
             _sleep = slp;
         }
 
-        uint64_t _time;
         bool _sleep;
+        uint64_t _time;
     };
 
 private:
@@ -102,7 +101,7 @@ public:
         return _strongTask && *_strongTask;
     }
 
-    void operator=(nullptr_t) {
+    void operator=(std::nullptr_t) {
         _strongTask = nullptr;
     }
 

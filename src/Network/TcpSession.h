@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -11,9 +11,8 @@
 #ifndef SERVER_SESSION_H_
 #define SERVER_SESSION_H_
 
+#include "Session.h"
 #include "Util/SSLBox.h"
-#include "Network/Session.h"
-
 
 namespace toolkit {
 
@@ -31,7 +30,7 @@ public:
         });
     }
 
-    ~TcpSessionWithSSL() override{
+    ~TcpSessionWithSSL() override {
         _ssl_box.flush();
     }
 

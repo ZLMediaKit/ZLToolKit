@@ -11,8 +11,8 @@
 #ifndef TOOLKIT_NETWORK_UDPSERVER_H
 #define TOOLKIT_NETWORK_UDPSERVER_H
 
-#include "Network/Server.h"
-#include "Network/Session.h"
+#include "Server.h"
+#include "Session.h"
 
 namespace toolkit {
 
@@ -34,7 +34,7 @@ public:
         _session_alloc = [](const UdpServer::Ptr &server, const Socket::Ptr &sock) {
             auto session = std::make_shared<SessionType>(sock);
             auto sock_creator = server->_on_create_socket;
-            session->setOnCreateSocket([sock_creator](const EventPoller::Ptr &poller){
+            session->setOnCreateSocket([sock_creator](const EventPoller::Ptr &poller) {
                 return sock_creator(poller, nullptr, nullptr, 0);
             });
             return std::make_shared<SessionHelper>(server, session);
@@ -84,12 +84,12 @@ private:
     /**
      * @brief 根据对端信息获取或创建一个会话
      */
-    const Session::Ptr& getOrCreateSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len, bool &is_new);
+    const Session::Ptr &getOrCreateSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len, bool &is_new);
 
     /**
      * @brief 创建一个会话, 同时进行必要的设置
      */
-    const Session::Ptr& createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
+    const Session::Ptr &createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
 
     /**
      * @brief 创建socket
@@ -106,7 +106,7 @@ private:
     std::shared_ptr<std::unordered_map<PeerIdType, SessionHelper::Ptr> > _session_map;
     //主server持有cloned server的引用
     std::unordered_map<EventPoller *, Ptr> _cloned_server;
-    std::function<SessionHelper::Ptr(const UdpServer::Ptr&, const Socket::Ptr&)> _session_alloc;
+    std::function<SessionHelper::Ptr(const UdpServer::Ptr &, const Socket::Ptr &)> _session_alloc;
     // 对象个数统计
     ObjectStatistic<UdpServer> _statistic;
 };

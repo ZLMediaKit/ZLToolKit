@@ -21,6 +21,8 @@
 #include <iostream>
 #include <string>
 
+namespace toolkit {
+
 class SHA1 final
 {
 public:
@@ -42,3 +44,4 @@ private:
     uint64_t transforms;
 };
 
+}//namespace toolkit

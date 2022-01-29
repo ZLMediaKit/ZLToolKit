@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -11,23 +11,15 @@
 #ifndef UTIL_LOGGER_H_
 #define UTIL_LOGGER_H_
 
-#include <time.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
 #include <set>
 #include <map>
-#include <deque>
-#include <iostream>
 #include <fstream>
-#include <sstream>
 #include <thread>
 #include <memory>
 #include <mutex>
-#include "Util/util.h"
-#include "Util/List.h"
+#include "util.h"
+#include "List.h"
 #include "Thread/semaphore.h"
-
 
 namespace toolkit {
 
@@ -36,7 +28,8 @@ class LogChannel;
 class LogWriter;
 class Logger;
 
-typedef std::shared_ptr<LogContext> LogContextPtr;
+using LogContextPtr = std::shared_ptr<LogContext>;
+
 typedef enum {
     LTrace = 0, LDebug, LInfo, LWarn, LError
 } LogLevel;
@@ -50,7 +43,7 @@ void setLogger(Logger *logger);
 class Logger : public std::enable_shared_from_this<Logger>, public noncopyable {
 public:
     friend class AsyncLogWriter;
-    typedef std::shared_ptr<Logger> Ptr;
+    using Ptr = std::shared_ptr<Logger>;
 
     /**
      * 获取日志单例
@@ -114,9 +107,9 @@ private:
 
 private:
     LogContextPtr _last_log;
-    std::map<std::string, std::shared_ptr<LogChannel> > _channels;
-    std::shared_ptr<LogWriter> _writer;
     std::string _logger_name;
+    std::shared_ptr<LogWriter> _writer;
+    std::map<std::string, std::shared_ptr<LogChannel> > _channels;
 };
 
 ///////////////////LogContext///////////////////
@@ -128,7 +121,7 @@ public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
     LogContext() = default;
-    LogContext(LogLevel level, const char *file, const char *function, int line, const char* module_name);
+    LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name);
     ~LogContext() = default;
 
     LogLevel _level;
@@ -139,6 +132,7 @@ public:
     std::string _thread_name;
     std::string _module_name;
     struct timeval _tv;
+
     const std::string &str();
 
 private:
@@ -151,7 +145,8 @@ private:
  */
 class LogContextCapture {
 public:
-    typedef std::shared_ptr<LogContextCapture> Ptr;
+    using Ptr = std::shared_ptr<LogContextCapture>;
+
     LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line);
     LogContextCapture(const LogContextCapture &that);
     ~LogContextCapture();
@@ -163,7 +158,7 @@ public:
      */
     LogContextCapture &operator<<(std::ostream &(*f)(std::ostream &));
 
-    template <typename T>
+    template<typename T>
     LogContextCapture &operator<<(T &&data) {
         if (!_ctx) {
             return *this;
@@ -186,8 +181,9 @@ private:
  */
 class LogWriter : public noncopyable {
 public:
-    LogWriter() {}
-    virtual ~LogWriter() {}
+    LogWriter() = default;
+    virtual ~LogWriter() = default;
+
     virtual void write(const LogContextPtr &ctx, Logger &logger) = 0;
 };
 
@@ -203,10 +199,10 @@ private:
 
 private:
     bool _exit_flag;
-    std::mutex _mutex;
     semaphore _sem;
+    std::mutex _mutex;
     std::shared_ptr<std::thread> _thread;
-    List<std::pair<LogContextPtr,Logger *> > _pending;
+    List<std::pair<LogContextPtr, Logger *> > _pending;
 };
 
 ///////////////////LogChannel///////////////////
@@ -227,10 +223,10 @@ protected:
     /**
     * 打印日志至输出流
     * @param ost 输出流
-    * @param enableColor 是否启用颜色
-    * @param enableDetail 是否打印细节(函数名、源码文件名、源码行)
+    * @param enable_color 是否启用颜色
+    * @param enable_detail 是否打印细节(函数名、源码文件名、源码行)
     */
-    virtual void format(const Logger &logger, std::ostream &ost, const LogContextPtr &ctx, bool enableColor = true, bool enableDetail = true);
+    virtual void format(const Logger &logger, std::ostream &ost, const LogContextPtr &ctx, bool enable_color = true, bool enable_detail = true);
 
 protected:
     std::string _name;
@@ -357,17 +353,18 @@ private:
 #if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) && !defined(ANDROID))
 class SysLogChannel : public LogChannel {
 public:
-    SysLogChannel(const std::string &name = "SysLogChannel" , LogLevel level = LTrace) ;
+    SysLogChannel(const std::string &name = "SysLogChannel", LogLevel level = LTrace);
     ~SysLogChannel() override = default;
 
-    void write(const Logger &logger , const LogContextPtr &logContext) override;
+    void write(const Logger &logger, const LogContextPtr &logContext) override;
 };
+
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
 class LoggerWrapper {
 public:
     template<typename First, typename ...ARGS>
-    static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line, First &&first, ARGS && ...args) {
+    static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line, First &&first, ARGS &&...args) {
         LogContextCapture log(logger, level, file, function, line);
         log << std::forward<First>(first);
         appendLog(log, std::forward<ARGS>(args)...);

@@ -8,15 +8,13 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "Network/Session.h"
+#include "Session.h"
 
 using namespace std;
 
 namespace toolkit {
 
-Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {
-}
-
+Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {}
 Session::~Session() = default;
 
 string Session::getIdentifier() const {

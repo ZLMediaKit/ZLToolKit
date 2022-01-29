@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -9,7 +9,6 @@
  */
 
 #include "SSLBox.h"
-#include "util.h"
 #include "onceToken.h"
 #include "SSLUtil.h"
 
@@ -66,7 +65,7 @@ SSL_Initor::SSL_Initor() {
 #if !defined(_WIN32)
         return (unsigned long) pthread_self();
 #else
-        return (unsigned long)GetCurrentThreadId();
+        return (unsigned long) GetCurrentThreadId();
 #endif
     });
 
@@ -81,11 +80,11 @@ SSL_Initor::~SSL_Initor() {
     ERR_free_strings();
     ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_thread_state(NULL);
+    ERR_remove_thread_state(nullptr);
 #elif OPENSSL_VERSION_NUMBER < 0x10000000L
     ERR_remove_state(0);
 #endif
-    CRYPTO_set_locking_callback(NULL);
+    CRYPTO_set_locking_callback(nullptr);
     //sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
     CRYPTO_cleanup_all_ex_data();
     CONF_modules_unload(1);
@@ -93,7 +92,8 @@ SSL_Initor::~SSL_Initor() {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-bool SSL_Initor::loadCertificate(const string &pem_or_p12, bool server_mode, const string &password, bool is_file, bool is_default) {
+bool SSL_Initor::loadCertificate(const string &pem_or_p12, bool server_mode, const string &password, bool is_file,
+                                 bool is_default) {
     auto cers = SSLUtil::loadPublicKey(pem_or_p12, password, is_file);
     auto key = SSLUtil::loadPrivateKey(pem_or_p12, password, is_file);
     auto ssl_ctx = SSLUtil::makeSSLContext(cers, key, server_mode);
@@ -116,7 +116,7 @@ int SSL_Initor::findCertificate(SSL *ssl, int *, void *arg) {
         return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
 
-    SSL_CTX *ctx = NULL;
+    SSL_CTX *ctx = nullptr;
     static auto &ref = SSL_Initor::Instance();
     const char *vhost = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
 
@@ -126,7 +126,7 @@ int SSL_Initor::findCertificate(SSL *ssl, int *, void *arg) {
         if (!ctx) {
             //未找到对应的证书
             WarnL << "can not find any certificate of host:" << vhost
-                  << ", select default certificate of:" << ref._default_vhost[ (bool) (arg)];
+                  << ", select default certificate of:" << ref._default_vhost[(bool) (arg)];
         }
     }
 
@@ -137,7 +137,8 @@ int SSL_Initor::findCertificate(SSL *ssl, int *, void *arg) {
 
     if (!ctx) {
         //未有任何有效的证书
-        WarnL << "can not find any available certificate of host:" << (vhost ? vhost : "default host") << ", tls handshake failed";
+        WarnL << "can not find any available certificate of host:" << (vhost ? vhost : "default host")
+              << ", tls handshake failed";
         return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
 
@@ -166,7 +167,7 @@ bool SSL_Initor::setContext(const string &vhost, const shared_ptr<SSL_CTX> &ctx,
         if (is_default) {
             _default_vhost[server_mode] = vhost;
         }
-        if(vhost.find("*.") == 0){
+        if (vhost.find("*.") == 0) {
             //通配符证书
             _ctxs_wildcards[server_mode][vhost.substr(1)] = ctx;
         }
@@ -240,7 +241,7 @@ bool SSL_Initor::trustCertificate(const string &pem_p12_cer, bool server_mode, c
     return true;
 }
 
-std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost, bool server_mode){
+std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost, bool server_mode) {
     auto ret = getSSLCtx_l(vhost, server_mode);
     if (ret) {
         return ret;
@@ -248,7 +249,7 @@ std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost, bool server_
     return getSSLCtxWildcards(vhost, server_mode);
 }
 
-std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtxWildcards(const string &vhost, bool server_mode){
+std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtxWildcards(const string &vhost, bool server_mode) {
     for (auto &pr : _ctxs_wildcards[server_mode]) {
         auto pos = strcasestr(vhost.data(), pr.first.data());
         if (pos && pos + pr.first.size() == &vhost.back() + 1) {
@@ -258,7 +259,7 @@ std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtxWildcards(const string &vhost, boo
     return nullptr;
 }
 
-std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx_l(const string &vhost_in, bool server_mode){
+std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx_l(const string &vhost_in, bool server_mode) {
     if (!server_mode) {
         return _ctx_empty[server_mode];
     }
@@ -362,11 +363,11 @@ void SSL_Box::onSend(Buffer::Ptr buffer) {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-void SSL_Box::setOnDecData(const function<void(const Buffer::Ptr &)> &cb){
+void SSL_Box::setOnDecData(const function<void(const Buffer::Ptr &)> &cb) {
     _on_dec = cb;
 }
 
-void SSL_Box::setOnEncData(const function<void(const Buffer::Ptr &)> &cb){
+void SSL_Box::setOnEncData(const function<void(const Buffer::Ptr &)> &cb) {
     _on_enc = cb;
 }
 
@@ -484,7 +485,7 @@ void SSL_Box::flush() {
 }
 
 bool SSL_Box::setHost(const char *host) {
-    if(!_ssl) {
+    if (!_ssl) {
         return false;
     }
 #ifdef SSL_ENABLE_SNI

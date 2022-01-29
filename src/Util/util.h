@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -12,8 +12,8 @@
 #define UTIL_UTIL_H_
 
 #include <ctime>
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <sstream>
@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <stddef.h>
+#include <cstddef>
 #endif // defined(_WIN32)
 
 #if defined(__APPLE__)
@@ -48,7 +48,6 @@ class_name &class_name::Instance() { \
     static class_name &s_insteanc_ref = *s_instance; \
     return s_insteanc_ref; \
 }
-
 
 namespace toolkit {
 
@@ -88,7 +87,7 @@ private:
 //可以保存任意的对象
 class Any{
 public:
-    typedef std::shared_ptr<Any> Ptr;
+    using Ptr = std::shared_ptr<Any>;
 
     Any() = default;
     ~Any() = default;
@@ -123,7 +122,7 @@ class AnyStorage : public std::unordered_map<std::string,Any>{
 public:
     AnyStorage() = default;
     ~AnyStorage() = default;
-    typedef std::shared_ptr<AnyStorage> Ptr;
+    using Ptr = std::shared_ptr<AnyStorage>;
 };
 
 //对象安全的构建和析构

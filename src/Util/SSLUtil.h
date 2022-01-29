@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -21,7 +21,7 @@ typedef struct ssl_ctx_st SSL_CTX;
 typedef struct ssl_st SSL;
 typedef struct bio_st BIO;
 
-namespace toolkit{
+namespace toolkit {
 /**
  * ssl证书后缀一般分为以下几种
  * pem:这个是base64的字符编码串，可能存在公钥、私钥或者两者都存在
@@ -39,7 +39,7 @@ public:
      * @param isFile 是否为文件
      * @return 公钥证书列表
      */
-    static std::vector<std::shared_ptr<X509> > loadPublicKey(const std::string &file_path_or_data,const std::string &passwd = "",bool isFile = true);
+    static std::vector<std::shared_ptr<X509> > loadPublicKey(const std::string &file_path_or_data, const std::string &passwd = "", bool isFile = true);
 
     /**
      * 加载私钥证书，支持pem,p12后缀
@@ -48,7 +48,7 @@ public:
      * @param isFile 是否为文件
      * @return 私钥证书
      */
-    static std::shared_ptr<EVP_PKEY> loadPrivateKey(const std::string &file_path_or_data,const std::string &passwd = "",bool isFile = true);
+    static std::shared_ptr<EVP_PKEY> loadPrivateKey(const std::string &file_path_or_data, const std::string &passwd = "", bool isFile = true);
 
     /**
      * 创建SSL_CTX对象
@@ -62,10 +62,8 @@ public:
     /**
      * 创建ssl对象
      * @param ctx SSL_CTX对象
-     * @return
      */
     static std::shared_ptr<SSL> makeSSL(SSL_CTX *ctx);
-
 
     /**
      * specifies that the default locations from which CA certificates are loaded should be used.
@@ -76,24 +74,22 @@ public:
      *  Alternatively the SSL_CERT_FILE environment variable can be defined to override this location.
      * 信任/usr/local/ssl/certs/目录下的所有证书/usr/local/ssl/cert.pem的证书
      * 环境变量SSL_CERT_FILE将替换/usr/local/ssl/cert.pem的路径
-     * @param ctx
      */
     static bool loadDefaultCAs(SSL_CTX *ctx);
 
     /**
      * 信任某公钥
-     * @param cer
      */
-    static bool trustCertificate(SSL_CTX *ctx , X509 *cer);
+    static bool trustCertificate(SSL_CTX *ctx, X509 *cer);
 
 
     /**
      * 验证证书合法性
      * @param cer 待验证的证书
-     * @param ... 信任的CA根证书，X509类型，以NULL结尾
+     * @param ... 信任的CA根证书，X509类型，以nullptr结尾
      * @return 是否合法
      */
-    static bool verifyX509(X509 *cer,...);
+    static bool verifyX509(X509 *cer, ...);
 
     /**
      * 使用公钥加解密数据
@@ -102,7 +98,7 @@ public:
      * @param enc_or_dec true:加密,false:解密
      * @return 加密或解密后的数据
      */
-    static std::string cryptWithRsaPublicKey(X509 *cer , const std::string &in_str,bool enc_or_dec);
+    static std::string cryptWithRsaPublicKey(X509 *cer, const std::string &in_str, bool enc_or_dec);
 
     /**
      * 使用私钥加解密数据

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -25,7 +25,8 @@ public:
     bool isSet(int fd);
     void *_ptr;
 };
-int zl_select(int cnt,FdSet *read,FdSet *write,FdSet *err,struct timeval *tv);
+
+int zl_select(int cnt, FdSet *read, FdSet *write, FdSet *err, struct timeval *tv);
 
 } /* namespace toolkit */
 #endif /* SRC_POLLER_SELECTWRAP_H_ */

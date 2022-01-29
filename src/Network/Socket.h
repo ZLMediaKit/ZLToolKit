@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -13,20 +13,14 @@
 
 #include <memory>
 #include <string>
-#include <deque>
 #include <mutex>
-#include <vector>
 #include <atomic>
 #include <sstream>
 #include <functional>
-#include "Util/util.h"
-#include "Util/onceToken.h"
-#include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
-#include "Util/ResourcePool.h"
+#include "sockutil.h"
 #include "Poller/Timer.h"
 #include "Poller/EventPoller.h"
-#include "Network/sockutil.h"
 #include "Buffer.h"
 
 namespace toolkit {
@@ -67,61 +61,66 @@ typedef enum {
 } ErrCode;
 
 //错误信息类
-class SockException: public std::exception {
+class SockException : public std::exception {
 public:
-    SockException(ErrCode errCode = Err_success,
-                  const std::string &errMsg = "",
-                  int customCode = 0) {
-        _errMsg = errMsg;
-        _errCode = errCode;
-        _customCode = customCode;
+    SockException(ErrCode code = Err_success, const std::string &msg = "", int custom_code = 0) {
+        _msg = msg;
+        _code = code;
+        _custom_code = custom_code;
     }
 
     //重置错误
-    void reset(ErrCode errCode, const std::string &errMsg) {
-        _errMsg = errMsg;
-        _errCode = errCode;
+    void reset(ErrCode code, const std::string &msg, int custom_code = 0) {
+        _msg = msg;
+        _code = code;
+        _custom_code = custom_code;
     }
+
     //错误提示
-    const char* what() const noexcept override{
-        return _errMsg.c_str();
+    const char *what() const noexcept override {
+        return _msg.c_str();
     }
+
     //错误代码
     ErrCode getErrCode() const {
-        return _errCode;
+        return _code;
     }
-    //判断是否真的有错
-    operator bool() const{
-        return _errCode != Err_success;
-    }
+
     //用户自定义错误代码
-    int getCustomCode () const{
-        return _customCode;
+    int getCustomCode() const {
+        return _custom_code;
     }
-    //获取用户自定义错误代码
-    void setCustomCode(int code) {
-        _customCode = code;
-    };
+
+    //判断是否真的有错
+    operator bool() const {
+        return _code != Err_success;
+    }
+
 private:
-    std::string _errMsg;
-    ErrCode _errCode;
-    int _customCode = 0;
+    ErrCode _code;
+    int _custom_code = 0;
+    std::string _msg;
 };
 
-class SockNum{
+//std::cout等输出流可以直接输出SockException对象
+std::ostream &operator<<(std::ostream &ost, const SockException &err);
+
+class SockNum {
 public:
+    using Ptr = std::shared_ptr<SockNum>;
+
     typedef enum {
         Sock_Invalid = -1,
         Sock_TCP = 0,
         Sock_UDP = 1
     } SockType;
 
-    typedef std::shared_ptr<SockNum> Ptr;
-    SockNum(int fd,SockType type){
+    SockNum(int fd, SockType type) {
         _fd = fd;
         _type = type;
     }
-    ~SockNum(){
+
+    ~SockNum() {
 #if defined (OS_IPHONE)
         unsetSocketOfIOS(_fd);
 #endif //OS_IPHONE
@@ -129,28 +128,31 @@ public:
         close(_fd);
     }
 
-    int rawFd() const{
+    int rawFd() const {
         return _fd;
     }
 
-    SockType type(){
+    SockType type() {
         return _type;
     }
 
-    void setConnected(){
+    void setConnected() {
 #if defined (OS_IPHONE)
         setSocketOfIOS(_fd);
 #endif //OS_IPHONE
     }
-private:
-    SockType _type;
-    int _fd;
+
 #if defined (OS_IPHONE)
-    void *readStream=NULL;
-    void *writeStream=NULL;
+private:
+    void *readStream=nullptr;
+    void *writeStream=nullptr;
     bool setSocketOfIOS(int socket);
     void unsetSocketOfIOS(int socket);
 #endif //OS_IPHONE
+
+private:
+    int _fd;
+    SockType _type;
 };
 
 //socket 文件描述符的包装
@@ -158,14 +160,15 @@ private:
 //防止描述符溢出
 class SockFD : public noncopyable {
 public:
-    typedef std::shared_ptr<SockFD> Ptr;
+    using Ptr = std::shared_ptr<SockFD>;
+
     /**
      * 创建一个fd对象
      * @param num 文件描述符，int数字
      * @param poller 事件监听器
      */
-    SockFD(int num,SockNum::SockType type,const EventPoller::Ptr &poller){
-        _num = std::make_shared<SockNum>(num,type);
+    SockFD(int num, SockNum::SockType type, const EventPoller::Ptr &poller) {
+        _num = std::make_shared<SockNum>(num, type);
         _poller = poller;
     }
 
@@ -174,10 +177,10 @@ public:
      * @param that 源对象
      * @param poller 事件监听器
      */
-    SockFD(const SockFD &that,const EventPoller::Ptr &poller){
+    SockFD(const SockFD &that, const EventPoller::Ptr &poller) {
         _num = that._num;
         _poller = poller;
-        if(_poller == that._poller){
+        if (_poller == that._poller) {
             throw std::invalid_argument("copy a SockFD with same poller!");
         }
     }
@@ -204,24 +207,27 @@ private:
     EventPoller::Ptr _poller;
 };
 
-template <class Mtx = std::recursive_mutex>
+template<class Mtx = std::recursive_mutex>
 class MutexWrapper {
 public:
-    MutexWrapper(bool enable){
+    MutexWrapper(bool enable) {
         _enable = enable;
     }
-    ~MutexWrapper(){}
 
-    inline void lock(){
-        if(_enable){
+    ~MutexWrapper() = default;
+
+    inline void lock() {
+        if (_enable) {
             _mtx.lock();
         }
     }
-    inline void unlock(){
-        if(_enable){
+
+    inline void unlock() {
+        if (_enable) {
             _mtx.unlock();
         }
     }
+
 private:
     bool _enable;
     Mtx _mtx;
@@ -237,7 +243,7 @@ public:
     //获取本机端口号
     virtual uint16_t get_local_port() = 0;
     //获取对方ip
-    virtual std::string  get_peer_ip() = 0;
+    virtual std::string get_peer_ip() = 0;
     //获取对方端口号
     virtual uint16_t get_peer_port() = 0;
     //获取标识符
@@ -274,7 +280,6 @@ public:
     */
     static Ptr createSocket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
     Socket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
-
     ~Socket() override;
 
     /**
@@ -287,7 +292,8 @@ public:
      * @param local_port 绑定本地网卡端口号
      */
     virtual void connect(const std::string &url, uint16_t port, onErrCB con_cb, float timeout_sec = 5,
-                 const std::string &local_ip = "0.0.0.0", uint16_t local_port = 0);
+                         const std::string &local_ip = "0.0.0.0", uint16_t local_port = 0);
+
     /**
      * 创建tcp监听服务器
      * @param port 监听端口，0则随机

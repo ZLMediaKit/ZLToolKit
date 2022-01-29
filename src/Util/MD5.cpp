@@ -36,8 +36,8 @@ documentation and/or software.
 /* interface header */
 #include "MD5.h"
 /* system implementation headers */
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 namespace toolkit {
 

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -25,12 +25,12 @@ public:
     int writeFD() const {
         return _pipe_fd[1];
     }
+
 private:
-    int _pipe_fd[2] = { -1,-1 };
     void clearFD();
-#if defined(_WIN32)
-    int _listenerFd = -1;
-#endif // defined(_WIN32)
+
+private:
+    int _pipe_fd[2] = {-1, -1};
 };
 
 } /* namespace toolkit */
