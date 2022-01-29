@@ -11,6 +11,7 @@
 #ifndef ZLTOOLKIT_TASKEXECUTOR_H
 #define ZLTOOLKIT_TASKEXECUTOR_H
 
+#include <mutex>
 #include <memory>
 #include <functional>
 #include "Util/List.h"
