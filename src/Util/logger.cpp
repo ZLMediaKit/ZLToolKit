@@ -9,6 +9,7 @@
  */
 
 #include <sys/stat.h>
+#include <cstdarg>
 #include <iostream>
 #include "logger.h"
 #include "onceToken.h"

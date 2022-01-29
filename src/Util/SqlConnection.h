@@ -177,8 +177,7 @@ public:
     template<typename ...Args>
     static std::string queryString(const char *fmt, Args &&...arg) {
         char *ptr_out = nullptr;
-        asprintf(&ptr_out, fmt, arg...);
-        if (ptr_out) {
+        if (asprintf(&ptr_out, fmt, arg...) > 0 && ptr_out) {
             std::string ret(ptr_out);
             free(ptr_out);
             return ret;
