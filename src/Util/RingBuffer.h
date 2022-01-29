@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -29,7 +29,7 @@ namespace toolkit {
 template<typename T>
 class RingDelegate {
 public:
-    typedef std::shared_ptr<RingDelegate> Ptr;
+    using Ptr = std::shared_ptr<RingDelegate>;
     RingDelegate() {}
     virtual ~RingDelegate() {}
     virtual void onWrite(T in, bool is_key = true) = 0;
@@ -51,7 +51,7 @@ class _RingReaderDispatcher;
 template<typename T>
 class _RingReader {
 public:
-    typedef std::shared_ptr<_RingReader> Ptr;
+    using Ptr = std::shared_ptr<_RingReader>;
     friend class _RingReaderDispatcher<T>;
 
     _RingReader(const std::shared_ptr<_RingStorage<T> > &storage, bool use_cache) {
@@ -106,7 +106,7 @@ private:
 template<typename T>
 class _RingStorage {
 public:
-    typedef std::shared_ptr<_RingStorage> Ptr;
+    using Ptr = std::shared_ptr<_RingStorage>;
 
     _RingStorage(int max_size) {
         //gop缓存个数不能小于32
@@ -183,9 +183,9 @@ class RingBuffer;
 template<typename T>
 class _RingReaderDispatcher : public std::enable_shared_from_this<_RingReaderDispatcher<T> > {
 public:
-    typedef std::shared_ptr<_RingReaderDispatcher> Ptr;
-    typedef _RingReader<T> RingReader;
-    typedef _RingStorage<T> RingStorage;
+    using Ptr = std::shared_ptr<_RingReaderDispatcher>;
+    using RingReader = _RingReader<T>;
+    using RingStorage = _RingStorage<T>;
 
     friend class RingBuffer<T>;
 
@@ -266,11 +266,11 @@ private:
 template<typename T>
 class RingBuffer : public std::enable_shared_from_this<RingBuffer<T> > {
 public:
-    typedef std::shared_ptr<RingBuffer> Ptr;
-    typedef _RingReader<T> RingReader;
-    typedef _RingStorage<T> RingStorage;
-    typedef _RingReaderDispatcher<T> RingReaderDispatcher;
-    typedef std::function<void(int size)> onReaderChanged;
+    using Ptr = std::shared_ptr<RingBuffer>;
+    using RingReader = _RingReader<T>;
+    using RingStorage = _RingStorage<T>;
+    using RingReaderDispatcher = _RingReaderDispatcher<T>;
+    using onReaderChanged = std::function<void(int size)>;
 
     RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr) {
         _on_reader_changed = cb;

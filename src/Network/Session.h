@@ -12,24 +12,24 @@
 #define ZLTOOLKIT_SESSION_H
 
 #include <memory>
-
-#include "Network/Socket.h"
 #include "Util/util.h"
+#include "Network/Socket.h"
 
 namespace toolkit {
 
 // 会话, 用于存储一对客户端与服务端间的关系
 class Server;
+
 class Session : public std::enable_shared_from_this<Session>, public SocketHelper {
 public:
-    typedef std::shared_ptr<Session> Ptr;
+    using Ptr = std::shared_ptr<Session>;
 
     Session(const Socket::Ptr &sock);
     ~Session() override;
 
     /**
      * 接收数据入口
-     * @param buf 数据，可以重复使用内存区
+     * @param buf 数据，可以重复使用内存区,不可被缓存使用
      */
     virtual void onRecv(const Buffer::Ptr &buf) = 0;
 
@@ -49,7 +49,7 @@ public:
      * 在创建 Session 后, Server 会把自身的配置参数通过该函数传递给 Session
      * @param server, 服务器对象
      */
-    virtual void attachServer(const Server &) {}
+    virtual void attachServer(const Server &server) {}
 
     /**
      * 作为该 Session 的唯一标识符
@@ -64,9 +64,9 @@ public:
     void safeShutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
 
 private:
+    mutable std::string _id;
     // 对象个数统计
     ObjectStatistic<Session> _statistic;
-    mutable std::string _id;
 };
 
 //TCP服务器连接对象，一个tcp连接对应一个TcpSession对象
@@ -91,7 +91,7 @@ class UdpSession : public Session {
 public:
     using Ptr = std::shared_ptr<UdpSession>;
 
-    UdpSession(const Socket::Ptr &sock) : Session(sock){}
+    UdpSession(const Socket::Ptr &sock) : Session(sock) {}
     ~UdpSession() override = default;
 
     Ptr shared_from_this() {

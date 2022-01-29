@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -13,14 +13,14 @@
 #include "Util/logger.h"
 #include "Util/util.h"
 #include "Network/TcpClient.h"
-#include <signal.h>
+#include <csignal>
 
 using namespace std;
 using namespace toolkit;
 
 class TestClient: public TcpClient {
 public:
-    typedef std::shared_ptr<TestClient> Ptr;
+    using Ptr = std::shared_ptr<TestClient>;
     TestClient() : TcpClient(){}
     ~TestClient(){}
     void connect(const string &strUrl, uint16_t iPort,float fTimeoutSec){

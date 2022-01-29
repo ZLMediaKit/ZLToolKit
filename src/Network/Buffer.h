@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -11,19 +11,14 @@
 #ifndef ZLTOOLKIT_BUFFER_H
 #define ZLTOOLKIT_BUFFER_H
 
-#include <assert.h>
+#include <cassert>
 #include <memory>
 #include <string>
-#include <deque>
-#include <mutex>
 #include <vector>
-#include <atomic>
-#include <sstream>
 #include <type_traits>
 #include <functional>
 #include "Util/util.h"
 #include "Util/List.h"
-#include "Util/uv_errno.h"
 #include "Util/ResourcePool.h"
 #include "Network/sockutil.h"
 
@@ -38,18 +33,20 @@ template <typename T> struct is_pointer<const T*> : public std::true_type {};
 //缓存基类
 class Buffer : public noncopyable {
 public:
-    typedef std::shared_ptr<Buffer> Ptr;
-    Buffer(){};
-    virtual ~Buffer(){};
+    using Ptr = std::shared_ptr<Buffer>;
+
+    Buffer() = default;
+    virtual ~Buffer() = default;
+
     //返回数据长度
-    virtual char *data() const = 0 ;
+    virtual char *data() const = 0;
     virtual size_t size() const = 0;
 
     virtual std::string toString() const {
-        return std::string(data(),size());
+        return std::string(data(), size());
     }
 
-    virtual size_t getCapacity() const{
+    virtual size_t getCapacity() const {
         return size();
     }
 
@@ -61,24 +58,24 @@ private:
 template <typename C>
 class BufferOffset : public  Buffer {
 public:
-    typedef std::shared_ptr<BufferOffset> Ptr;
+    using Ptr = std::shared_ptr<BufferOffset>;
 
     BufferOffset(C data, size_t offset = 0, size_t len = 0) : _data(std::move(data)) {
         setup(offset, len);
     }
 
-    ~BufferOffset() {}
+    ~BufferOffset() override = default;
 
     char *data() const override {
         return const_cast<char *>(getPointer<C>(_data)->data()) + _offset;
     }
 
-    size_t size() const override{
+    size_t size() const override {
         return _size;
     }
 
     std::string toString() const override {
-        return std::string(data(),size());
+        return std::string(data(), size());
     }
 
 private:
@@ -106,76 +103,81 @@ private:
 
 private:
     C _data;
-    size_t _offset;
     size_t _size;
+    size_t _offset;
 };
 
-typedef BufferOffset<std::string> BufferString;
+using BufferString = BufferOffset<std::string>;
 
 //指针式缓存对象，
-class BufferRaw : public Buffer{
+class BufferRaw : public Buffer {
 public:
     using Ptr = std::shared_ptr<BufferRaw>;
 
     static Ptr create();
 
-    ~BufferRaw() override{
-        if(_data){
-            delete [] _data;
+    ~BufferRaw() override {
+        if (_data) {
+            delete[] _data;
         }
     }
+
     //在写入数据时请确保内存是否越界
     char *data() const override {
         return _data;
     }
+
     //有效数据大小
-    size_t size() const override{
+    size_t size() const override {
         return _size;
     }
+
     //分配内存大小
-    void setCapacity(size_t capacity){
-        if(_data){
-            do{
-                if(capacity > _capacity){
+    void setCapacity(size_t capacity) {
+        if (_data) {
+            do {
+                if (capacity > _capacity) {
                     //请求的内存大于当前内存，那么重新分配
                     break;
                 }
 
-                if(_capacity < 2 * 1024){
+                if (_capacity < 2 * 1024) {
                     //2K以下，不重复开辟内存，直接复用
                     return;
                 }
 
-                if(2 * capacity > _capacity){
+                if (2 * capacity > _capacity) {
                     //如果请求的内存大于当前内存的一半，那么也复用
                     return;
                 }
-            }while(false);
+            } while (false);
 
-            delete [] _data;
+            delete[] _data;
         }
         _data = new char[capacity];
         _capacity = capacity;
     }
+
     //设置有效数据大小
-    void setSize(size_t size){
-        if(size > _capacity){
+    void setSize(size_t size) {
+        if (size > _capacity) {
             throw std::invalid_argument("Buffer::setSize out of range");
         }
         _size = size;
     }
+
     //赋值数据
-    void assign(const char *data,size_t size = 0){
-        if(size <=0 ){
+    void assign(const char *data, size_t size = 0) {
+        if (size <= 0) {
             size = strlen(data);
         }
         setCapacity(size + 1);
-        memcpy(_data,data,size);
+        memcpy(_data, data, size);
         _data[size] = '\0';
         setSize(size);
     }
 
-    size_t getCapacity() const override{
+    size_t getCapacity() const override {
         return _capacity;
     }
 
@@ -183,15 +185,14 @@ protected:
     friend class ResourcePool_l<BufferRaw>;
 
     BufferRaw(size_t capacity = 0) {
-        if(capacity){
+        if (capacity) {
             setCapacity(capacity);
         }
     }
 
-    BufferRaw(const char *data,size_t size = 0){
-        assign(data,size);
+    BufferRaw(const char *data, size_t size = 0) {
+        assign(data, size);
     }
-
 
 private:
     size_t _size = 0;
@@ -203,36 +204,36 @@ private:
 
 class BufferLikeString : public Buffer {
 public:
-    ~BufferLikeString() override {}
+    ~BufferLikeString() override = default;
 
     BufferLikeString() {
         _erase_head = 0;
-        _erase_tail  = 0;
+        _erase_tail = 0;
     }
 
     BufferLikeString(std::string str) {
         _str = std::move(str);
         _erase_head = 0;
-        _erase_tail  = 0;
+        _erase_tail = 0;
     }
 
-    BufferLikeString& operator= (std::string str){
+    BufferLikeString &operator=(std::string str) {
         _str = std::move(str);
         _erase_head = 0;
-        _erase_tail  = 0;
+        _erase_tail = 0;
         return *this;
     }
 
     BufferLikeString(const char *str) {
         _str = str;
         _erase_head = 0;
-        _erase_tail  = 0;
+        _erase_tail = 0;
     }
 
-    BufferLikeString& operator= (const char *str){
+    BufferLikeString &operator=(const char *str) {
         _str = str;
         _erase_head = 0;
-        _erase_tail  = 0;
+        _erase_tail = 0;
         return *this;
     }
 
@@ -244,7 +245,7 @@ public:
         that._erase_tail = 0;
     }
 
-    BufferLikeString& operator= (BufferLikeString &&that){
+    BufferLikeString &operator=(BufferLikeString &&that) {
         _str = std::move(that._str);
         _erase_head = that._erase_head;
         _erase_tail = that._erase_tail;
@@ -259,22 +260,22 @@ public:
         _erase_tail = that._erase_tail;
     }
 
-    BufferLikeString& operator= (const BufferLikeString &that){
+    BufferLikeString &operator=(const BufferLikeString &that) {
         _str = that._str;
         _erase_head = that._erase_head;
         _erase_tail = that._erase_tail;
         return *this;
     }
 
-    char* data() const override{
-        return (char *)_str.data() + _erase_head;
+    char *data() const override {
+        return (char *) _str.data() + _erase_head;
     }
 
-    size_t size() const override{
+    size_t size() const override {
         return _str.size() - _erase_tail - _erase_head;
     }
 
-    BufferLikeString& erase(size_t pos = 0, size_t n = std::string::npos) {
+    BufferLikeString &erase(size_t pos = 0, size_t n = std::string::npos) {
         if (pos == 0) {
             //移除前面的数据
             if (n != std::string::npos) {
@@ -315,19 +316,19 @@ public:
         return *this;
     }
 
-    BufferLikeString& append(const BufferLikeString &str){
+    BufferLikeString &append(const BufferLikeString &str) {
         return append(str.data(), str.size());
     }
 
-    BufferLikeString& append(const std::string &str){
+    BufferLikeString &append(const std::string &str) {
         return append(str.data(), str.size());
     }
 
-    BufferLikeString& append(const char *data){
+    BufferLikeString &append(const char *data) {
         return append(data, strlen(data));
     }
 
-    BufferLikeString& append(const char *data, size_t len){
+    BufferLikeString &append(const char *data, size_t len) {
         if (len <= 0) {
             return *this;
         }
@@ -342,8 +343,8 @@ public:
         return *this;
     }
 
-    void push_back(char c){
-        if(_erase_tail == 0){
+    void push_back(char c) {
+        if (_erase_tail == 0) {
             _str.push_back(c);
             return;
         }
@@ -352,16 +353,16 @@ public:
         data()[size()] = '\0';
     }
 
-    BufferLikeString& insert(size_t pos, const char* s, size_t n){
+    BufferLikeString &insert(size_t pos, const char *s, size_t n) {
         _str.insert(_erase_head + pos, s, n);
         return *this;
     }
 
-    BufferLikeString& assign(const char *data) {
+    BufferLikeString &assign(const char *data) {
         return assign(data, strlen(data));
     }
 
-    BufferLikeString& assign(const char *data, size_t len) {
+    BufferLikeString &assign(const char *data, size_t len) {
         if (len <= 0) {
             return *this;
         }
@@ -385,22 +386,22 @@ public:
         _str.clear();
     }
 
-    char& operator[](size_t pos){
+    char &operator[](size_t pos) {
         if (pos >= size()) {
             throw std::out_of_range("BufferLikeString::operator[] out_of_range");
         }
         return data()[pos];
     }
 
-    const char& operator[](size_t pos) const{
+    const char &operator[](size_t pos) const {
         return (*const_cast<BufferLikeString *>(this))[pos];
     }
 
-    size_t capacity() const{
+    size_t capacity() const {
         return _str.capacity();
     }
 
-    void reserve(size_t size){
+    void reserve(size_t size) {
         _str.reserve(size);
     }
 
@@ -410,11 +411,11 @@ public:
         _erase_tail = 0;
     }
 
-    bool empty() const{
+    bool empty() const {
         return size() <= 0;
     }
 
-    std::string substr(size_t pos, size_t n = std::string::npos) const{
+    std::string substr(size_t pos, size_t n = std::string::npos) const {
         if (n == std::string::npos) {
             //获取末尾所有的
             if (pos >= size()) {
@@ -431,7 +432,7 @@ public:
     }
 
 private:
-    void moveData(){
+    void moveData() {
         if (_erase_head) {
             _str.erase(0, _erase_head);
             _erase_head = 0;
@@ -470,6 +471,7 @@ struct msghdr {
 #endif
 
 class BufferList;
+
 class BufferSock : public Buffer {
 public:
     using Ptr = std::shared_ptr<BufferSock>;

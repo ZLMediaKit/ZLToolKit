@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -31,6 +31,7 @@ namespace toolkit {
 class SSL_Initor {
 public:
     friend class SSL_Box;
+
     static SSL_Initor &Instance();
 
     /**
@@ -43,7 +44,8 @@ public:
      * @param is_file 参数pem_or_p12是否为文件路径
      * @param is_default 是否为默认证书
      */
-    bool loadCertificate(const std::string &pem_or_p12, bool server_mode = true, const std::string &password = "", bool is_file = true, bool is_default = true);
+    bool loadCertificate(const std::string &pem_or_p12, bool server_mode = true, const std::string &password = "",
+                         bool is_file = true, bool is_default = true);
 
     /**
      * 是否忽略无效的证书
@@ -61,7 +63,8 @@ public:
      * @param is_file 是否为文件路径
      * @return 是否加载成功
      */
-    bool trustCertificate(const std::string &pem_p12_cer, bool server_mode = false, const std::string &password = "", bool is_file = true);
+    bool trustCertificate(const std::string &pem_p12_cer, bool server_mode = false, const std::string &password = "",
+                          bool is_file = true);
 
     /**
      * 信任某证书
@@ -69,7 +72,7 @@ public:
      * @param server_mode 是否为服务模式
      * @return 是否加载成功
      */
-    bool trustCertificate(X509 *cer,bool server_mode = false);
+    bool trustCertificate(X509 *cer, bool server_mode = false);
 
 private:
     SSL_Initor();
@@ -102,7 +105,9 @@ private:
      * @return SSL_CTX对象
      */
     std::shared_ptr<SSL_CTX> getSSLCtx(const std::string &vhost, bool server_mode);
+
     std::shared_ptr<SSL_CTX> getSSLCtx_l(const std::string &vhost, bool server_mode);
+
     std::shared_ptr<SSL_CTX> getSSLCtxWildcards(const std::string &vhost, bool server_mode);
 
     /**
@@ -116,7 +121,6 @@ private:
     static int findCertificate(SSL *ssl, int *ad, void *arg);
 
 private:
-
     struct less_nocase {
         bool operator()(const std::string &x, const std::string &y) const {
             return strcasecmp(x.data(), y.data()) < 0;
@@ -124,10 +128,10 @@ private:
     };
 
 private:
+    std::string _default_vhost[2];
     std::shared_ptr<SSL_CTX> _ctx_empty[2];
     std::map<std::string, std::shared_ptr<SSL_CTX>, less_nocase> _ctxs[2];
-    std::map<std::string, std::shared_ptr<SSL_CTX>, less_nocase > _ctxs_wildcards[2];
-    std::string _default_vhost[2];
+    std::map<std::string, std::shared_ptr<SSL_CTX>, less_nocase> _ctxs_wildcards[2];
 };
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -135,6 +139,7 @@ private:
 class SSL_Box {
 public:
     SSL_Box(bool server_mode = true, bool enable = true, int buff_size = 32 * 1024);
+
     ~SSL_Box();
 
     /**
@@ -180,20 +185,21 @@ public:
 
 private:
     void flushWriteBio();
+
     void flushReadBio();
 
 private:
     bool _server_mode;
     bool _send_handshake;
-    std::shared_ptr<SSL> _ssl;
+    bool _is_flush = false;
+    int _buff_size;
     BIO *_read_bio;
     BIO *_write_bio;
+    std::shared_ptr<SSL> _ssl;
+    List <Buffer::Ptr> _buffer_send;
+    ResourcePool <BufferRaw> _buffer_pool;
     std::function<void(const Buffer::Ptr &)> _on_dec;
     std::function<void(const Buffer::Ptr &)> _on_enc;
-    List<Buffer::Ptr> _buffer_send;
-    ResourcePool<BufferRaw> _buffer_pool;
-    int _buff_size;
-    bool _is_flush = false;
 };
 
 } /* namespace toolkit */

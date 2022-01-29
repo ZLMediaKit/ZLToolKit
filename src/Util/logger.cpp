@@ -1,19 +1,18 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <sys/stat.h>
+#include <iostream>
 #include "logger.h"
 #include "onceToken.h"
 #include "File.h"
-#include <sys/stat.h>
-#include <assert.h>
-#include <string.h>
 #include "NoticeCenter.h"
 
 using namespace std;
@@ -47,7 +46,7 @@ static const char *LOG_CONST_TABLE[][3] = {
         {"\033[41;37m", "\033[31m", "E"}};
 #endif
 
-Logger* g_defaultLogger = nullptr;
+Logger *g_defaultLogger = nullptr;
 
 Logger &getLogger() {
     if (!g_defaultLogger) {
@@ -61,7 +60,8 @@ void setLogger(Logger *logger) {
 }
 
 ///////////////////Logger///////////////////
-INSTANCE_IMP(Logger, exeName());
+
+INSTANCE_IMP(Logger, exeName())
 
 Logger::Logger(const string &loggerName) {
     _logger_name = loggerName;
@@ -164,12 +164,9 @@ static inline const char *getFunctionName(const char *func) {
 }
 
 LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name)
-    : _level(level)
-    , _line(line)
-    , _file(getFileName(file))
-    , _function(getFunctionName(function))
-    , _module_name(module_name) {
-    gettimeofday(&_tv, NULL);
+        : _level(level), _line(line), _file(getFileName(file)), _function(getFunctionName(function)),
+          _module_name(module_name) {
+    gettimeofday(&_tv, nullptr);
     _thread_name = getThreadName();
 }
 
@@ -346,13 +343,14 @@ std::string LogChannel::printTime(const timeval &tv) {
     return buf;
 }
 
-void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr &ctx, bool enableColor, bool enableDetail) {
-    if (!enableDetail && ctx->str().empty()) {
+void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr &ctx, bool enable_color,
+                        bool enable_detail) {
+    if (!enable_detail && ctx->str().empty()) {
         //没有任何信息打印
         return;
     }
 
-    if (enableColor) {
+    if (enable_color) {
 #ifdef _WIN32
         SetConsoleColor(LOG_CONST_TABLE[ctx->_level][1]);
 #else
@@ -366,18 +364,18 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
     ost << printTime(ctx->_tv) << " " << LOG_CONST_TABLE[ctx->_level][2] << " ";
 #endif
 
-    if (enableDetail) {
+    if (enable_detail) {
 #if defined(_WIN32)
         ost << ctx->_module_name <<"[" << GetCurrentProcessId() << "-" << ctx->_thread_name;
 #else
         ost << logger.getName() << "[" << getpid() << "-" << ctx->_thread_name;
 #endif
-        ost << "] " << ctx->_file << ":" << ctx->_line << " "<< ctx->_function << " | ";
+        ost << "] " << ctx->_file << ":" << ctx->_line << " " << ctx->_function << " | ";
     }
 
     ost << ctx->str();
 
-    if (enableColor) {
+    if (enable_color) {
 #ifdef _WIN32
         SetConsoleColor(CLEAR_COLOR);
 #else
@@ -452,7 +450,7 @@ size_t FileChannelBase::size() {
 
 static const auto s_second_per_day = 24 * 60 * 60;
 static long s_gmtoff = 0;//时间差
-static onceToken s_token([](){
+static onceToken s_token([]() {
 #ifdef _WIN32
     TIME_ZONE_INFORMATION tzinfo;
     DWORD dwStandardDaylight;
@@ -467,7 +465,7 @@ static onceToken s_token([](){
     }
     s_gmtoff = -bias * 60;//时间差(分钟)
 #else
-    s_gmtoff = getLocalTime(time(NULL)).tm_gmtoff;
+    s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
 #endif // _WIN32
 });
 
@@ -484,7 +482,7 @@ static string getLogFilePath(const string &dir, time_t second, int32_t index) {
 #endif
 
 //根据日志文件名返回GMT UNIX时间戳
-static time_t getLogFileTime(const string &full_path){
+static time_t getLogFileTime(const string &full_path) {
     auto name = getFileName(full_path.data());
     struct tm tm{0};
     if (!strptime(name, "%Y-%m-%d", &tm)) {
@@ -559,7 +557,7 @@ void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 
 void FileChannel::clean() {
     //获取今天是第几天
-    auto today = getDay(time(NULL));
+    auto today = getDay(time(nullptr));
     //遍历所有日志文件，删除超过若干天前的过期日志文件
     for (auto it = _log_file_map.begin(); it != _log_file_map.end();) {
         auto day = getDay(getLogFileTime(it->data()));

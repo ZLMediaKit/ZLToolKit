@@ -21,6 +21,8 @@
 #include <iomanip>
 #include <fstream>
 
+namespace toolkit {
+
 static const size_t BLOCK_INTS = 16;  /* number of 32bit integers per SHA1 block */
 static const size_t BLOCK_BYTES = BLOCK_INTS * 4;
 
@@ -335,3 +337,5 @@ std::string SHA1::encode_bin(const std::string &s)
     sha1.update(s);
     return sha1.final_bin();
 }
+
+} //namespace toolkit

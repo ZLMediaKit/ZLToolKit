@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -17,31 +17,32 @@
 #include <exception>
 #include <functional>
 #include <unordered_map>
-#include <thread>
 #include "function_traits.h"
-#include "onceToken.h"
 
 namespace toolkit {
 
 class EventDispatcher {
 public:
     friend class NoticeCenter;
-    typedef std::shared_ptr<EventDispatcher> Ptr;
+    using Ptr = std::shared_ptr<EventDispatcher>;
+
     ~EventDispatcher() = default;
 
 private:
-    typedef std::unordered_multimap<void *, std::shared_ptr<void> > MapType;
+    using MapType = std::unordered_multimap<void *, std::shared_ptr<void> >;
+
     EventDispatcher() = default;
 
     class InterruptException : public std::runtime_error {
     public:
         InterruptException() : std::runtime_error("InterruptException") {}
+
         ~InterruptException() {}
     };
 
     template<typename ...ArgsType>
     int emitEvent(ArgsType &&...args) {
-        typedef std::function<void(decltype(std::forward<ArgsType>(args))...)> funType;
+        using funType = std::function<void(decltype(std::forward<ArgsType>(args))...)>;
         decltype(_mapListener) copy;
         {
             //先拷贝(开销比较小)，目的是防止在触发回调时还是上锁状态从而导致交叉互锁
@@ -65,7 +66,7 @@ private:
 
     template<typename FUNC>
     void addListener(void *tag, FUNC &&func) {
-        typedef typename function_traits<typename std::remove_reference<FUNC>::type>::stl_function_type funType;
+        using funType = typename function_traits<typename std::remove_reference<FUNC>::type>::stl_function_type;
         std::shared_ptr<void> pListener(new funType(std::forward<FUNC>(func)), [](void *ptr) {
             funType *obj = (funType *) ptr;
             delete obj;
@@ -87,8 +88,8 @@ private:
 
 class NoticeCenter : public std::enable_shared_from_this<NoticeCenter> {
 public:
-    typedef std::shared_ptr<NoticeCenter> Ptr;
-    ~NoticeCenter() {}
+    using Ptr = std::shared_ptr<NoticeCenter>;
+
     static NoticeCenter &Instance();
 
     template<typename ...ArgsType>
@@ -137,6 +138,7 @@ public:
         std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         _mapListener.clear();
     }
+
 private:
     EventDispatcher::Ptr getDispatcher(const std::string &event, bool create = false) {
         std::lock_guard<std::recursive_mutex> lck(_mtxListener);
@@ -162,7 +164,6 @@ private:
         }
     }
 
-    NoticeCenter() {}
 private:
     std::recursive_mutex _mtxListener;
     std::unordered_map<std::string, EventDispatcher::Ptr> _mapListener;

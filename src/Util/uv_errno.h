@@ -22,7 +22,7 @@
 #ifndef UV_ERRNO_H_
 #define UV_ERRNO_H_
 
-#include <errno.h>
+#include <cerrno>
 
 #define UV__EOF     (-4095)
 #define UV__UNKNOWN (-4094)
@@ -502,6 +502,8 @@
   XX(EHOSTDOWN, "host is down")                                               \
   XX(EREMOTEIO, "remote I/O error")                                           \
 
+namespace toolkit {
+
 typedef enum {
 #define XX(code, _) UV_ ## code = UV__ ## code,
     UV_ERRNO_MAP(XX)
@@ -509,16 +511,14 @@ typedef enum {
     UV_ERRNO_MAX = UV__EOF - 1
 } uv_errno_t;
 
-
-const char* uv_err_name(int err);
-const char* uv_strerror(int err);
-
+const char *uv_err_name(int err);
+const char *uv_strerror(int err);
 int uv_translate_posix_error(int err);
 //netErr参数在windows平台下才有效
 int get_uv_error(bool netErr = true);
 //netErr参数在windows平台下才有效
-const char* get_uv_errmsg(bool netErr = true);
+const char *get_uv_errmsg(bool netErr = true);
 
-
+}//namespace toolkit
 
 #endif /* UV_ERRNO_H_ */

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -30,26 +30,26 @@ using namespace std;
 
 namespace toolkit {
 
-PipeWrap::PipeWrap(){
-
+PipeWrap::PipeWrap() {
 #if defined(_WIN32)
-    _listenerFd = SockUtil::listen(0, "127.0.0.1");
-    checkFD(_listenerFd)
-    SockUtil::setNoBlocked(_listenerFd,false);
-    auto localPort = SockUtil::get_local_port(_listenerFd);
+    auto listener_fd = SockUtil::listen(0, "127.0.0.1");
+    checkFD(listener_fd)
+    SockUtil::setNoBlocked(listener_fd,false);
+    auto localPort = SockUtil::get_local_port(listener_fd);
     _pipe_fd[1] = SockUtil::connect("127.0.0.1", localPort,false);
     checkFD(_pipe_fd[1])
-    _pipe_fd[0] = (int)accept(_listenerFd, nullptr, nullptr);
+    _pipe_fd[0] = (int)accept(listener_fd, nullptr, nullptr);
     checkFD(_pipe_fd[0])
     SockUtil::setNoDelay(_pipe_fd[0]);
     SockUtil::setNoDelay(_pipe_fd[1]);
+    close(listener_fd);
 #else
     if (pipe(_pipe_fd) == -1) {
-        throw runtime_error(StrPrinter << "create posix pipe failed:" << get_uv_errmsg());\
+        throw runtime_error(StrPrinter << "create posix pipe failed:" << get_uv_errmsg());
     }
 #endif // defined(_WIN32)	
-    SockUtil::setNoBlocked(_pipe_fd[0],true);
-    SockUtil::setNoBlocked(_pipe_fd[1],false);
+    SockUtil::setNoBlocked(_pipe_fd[0], true);
+    SockUtil::setNoBlocked(_pipe_fd[1], false);
     SockUtil::setCloExec(_pipe_fd[0]);
     SockUtil::setCloExec(_pipe_fd[1]);
 }
@@ -57,13 +57,9 @@ PipeWrap::PipeWrap(){
 void PipeWrap::clearFD() {
     closeFD(_pipe_fd[0]);
     closeFD(_pipe_fd[1]);
-
-#if defined(_WIN32)
-    closeFD(_listenerFd);
-#endif // defined(_WIN32)
-
 }
-PipeWrap::~PipeWrap(){
+
+PipeWrap::~PipeWrap() {
     clearFD();
 }
 
@@ -73,7 +69,7 @@ int PipeWrap::write(const void *buf, int n) {
 #if defined(_WIN32)
         ret = send(_pipe_fd[1], (char *)buf, n, 0);
 #else
-        ret = ::write(_pipe_fd[1],buf,n);
+        ret = ::write(_pipe_fd[1], buf, n);
 #endif // defined(_WIN32)
     } while (-1 == ret && UV_EINTR == get_uv_error(true));
     return ret;

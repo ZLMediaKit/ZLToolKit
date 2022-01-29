@@ -8,6 +8,8 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "Util/uv_errno.h"
+#include "Util/onceToken.h"
 #include "Network/UdpServer.h"
 
 using namespace std;
@@ -15,7 +17,7 @@ using namespace std;
 namespace toolkit {
 
 static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
-    return ((uint64_t)((struct sockaddr_in *) addr)->sin_addr.s_addr) << 16 | ((struct sockaddr_in *) addr)->sin_port;
+    return ((uint64_t) ((struct sockaddr_in *) addr)->sin_addr.s_addr) << 16 | ((struct sockaddr_in *) addr)->sin_port;
 }
 
 UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
@@ -86,7 +88,7 @@ UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {
 
 void UdpServer::cloneFrom(const UdpServer &that) {
     if (!that._socket) {
-        throw std::invalid_argument("UdpServer::cloneFrom other with NULL socket!");
+        throw std::invalid_argument("UdpServer::cloneFrom other with null socket!");
     }
     // clone callbacks
     _on_create_socket = that._on_create_socket;
@@ -105,7 +107,7 @@ void UdpServer::onRead(const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
     onRead_l(true, id, buf, addr, addr_len);
 }
 
-static void emitSessionRecv(const Session::Ptr &session, const Buffer::Ptr &buf){
+static void emitSessionRecv(const Session::Ptr &session, const Buffer::Ptr &buf) {
     try {
         session->onRecv(buf);
     } catch (SockException &ex) {
@@ -173,7 +175,7 @@ void UdpServer::onManagerSession() {
     });
 }
 
-const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len, bool &is_new) {
+const Session::Ptr &UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len, bool &is_new) {
     {
         //减小临界区
         std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
@@ -187,7 +189,8 @@ const Session::Ptr& UdpServer::getOrCreateSession(const UdpServer::PeerIdType &i
 }
 
 static Session::Ptr s_null_session;
-const Session::Ptr& UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+
+const Session::Ptr &UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
     auto socket = createSocket(_poller, buf, addr, addr_len);
     if (!socket) {
         //创建socket失败，本次onRead事件收到的数据直接丢弃
@@ -196,7 +199,7 @@ const Session::Ptr& UdpServer::createSession(const PeerIdType &id, const Buffer:
 
     auto addr_str = string((char *) addr, addr_len);
     std::weak_ptr<UdpServer> weak_self = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
-    auto session_creator = [this, weak_self, socket, addr_str, id]() -> const Session::Ptr& {
+    auto session_creator = [this, weak_self, socket, addr_str, id]() -> const Session::Ptr & {
         auto server = weak_self.lock();
         if (!server) {
             return s_null_session;
@@ -210,7 +213,7 @@ const Session::Ptr& UdpServer::createSession(const PeerIdType &id, const Buffer:
         }
 
         socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
-        socket->bindPeerAddr((struct sockaddr *)addr_str.data(), addr_str.size());
+        socket->bindPeerAddr((struct sockaddr *) addr_str.data(), addr_str.size());
         //在connect peer后再取消绑定关系, 避免在 server 的 socket 或其他cloned server中收到后续数据包.
         SockUtil::dissolveUdpSock(_socket->rawFD());
 

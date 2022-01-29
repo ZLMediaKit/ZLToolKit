@@ -1,41 +1,35 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <fcntl.h>
-#include <string.h>
-#include <list>
 #include "SelectWrap.h"
 #include "EventPoller.h"
 #include "Util/util.h"
-#include "Util/logger.h"
 #include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
-#include "Util/onceToken.h"
-#include "Thread/ThreadPool.h"
 #include "Network/sockutil.h"
 
 using namespace std;
 
 #if defined(HAS_EPOLL)
-    #include <sys/epoll.h>
+#include <sys/epoll.h>
 
-    #if !defined(EPOLLEXCLUSIVE)
-    #define EPOLLEXCLUSIVE 0
-    #endif
+#if !defined(EPOLLEXCLUSIVE)
+#define EPOLLEXCLUSIVE 0
+#endif
 
-    #define EPOLL_SIZE 1024
-    #define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
+#define EPOLL_SIZE 1024
+#define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
                                 | (((event) & Event_Write) ? EPOLLOUT : 0) \
                                 | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
                                 | (((event) & Event_LT) ?  0 : EPOLLET)
-    #define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
+#define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
                                 | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
                                 | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
                                 | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
@@ -47,7 +41,7 @@ EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
 
-EventPoller::EventPoller(ThreadPool::Priority priority ) {
+EventPoller::EventPoller(ThreadPool::Priority priority) {
     _priority = priority;
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
@@ -75,7 +69,7 @@ void EventPoller::shutdown() {
 
     if (_loop_thread) {
         //防止作为子进程时崩溃
-        try { _loop_thread->join(); } catch (...) { }
+        try { _loop_thread->join(); } catch (...) {}
         delete _loop_thread;
         _loop_thread = nullptr;
     }
@@ -121,9 +115,9 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
             return -1;
         }
 #endif
-        Poll_Record::Ptr record(new Poll_Record);
+        auto record = std::make_shared<Poll_Record>();
         record->event = event;
-        record->callBack = std::move(cb);
+        record->call_back = std::move(cb);
         _event_map.emplace(fd, record);
         return 0;
 #endif //HAS_EPOLL
@@ -143,7 +137,7 @@ int EventPoller::delEvent(int fd, PollDelCB cb) {
 
     if (isCurrentThread()) {
 #if defined(HAS_EPOLL)
-        bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL) == 0 && _event_map.erase(fd) > 0;
+        bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr) == 0 && _event_map.erase(fd) > 0;
         cb(success);
         return success ? 0 : -1;
 #else
@@ -190,7 +184,7 @@ Task::Ptr EventPoller::async_first(TaskIn task, bool may_sync) {
     return async_l(std::move(task), may_sync, true);
 }
 
-Task::Ptr EventPoller::async_l(TaskIn task,bool may_sync, bool first) {
+Task::Ptr EventPoller::async_l(TaskIn task, bool may_sync, bool first) {
     TimeTicker();
     if (may_sync && isCurrentThread()) {
         task();
@@ -216,7 +210,6 @@ bool EventPoller::isCurrentThread() {
 }
 
 inline void EventPoller::onPipeEvent() {
-    TimeTicker();
     char buf[1024];
     int err = 0;
     do {
@@ -244,7 +237,7 @@ inline void EventPoller::onPipeEvent() {
 }
 
 void EventPoller::wait() {
-    lock_guard<mutex> lck(_mtx_runing);
+    lock_guard<mutex> lck(_mtx_running);
 }
 
 BufferRaw::Ptr EventPoller::getSharedBuffer() {
@@ -269,12 +262,12 @@ EventPoller::Ptr EventPoller::getCurrentPoller() {
     return s_current_poller.lock();
 }
 
-void EventPoller::runLoop(bool blocked, bool regist_self) {
+void EventPoller::runLoop(bool blocked, bool ref_self) {
     if (blocked) {
         ThreadPool::setPriority(_priority);
-        lock_guard<mutex> lck(_mtx_runing);
+        lock_guard<mutex> lck(_mtx_running);
         _loop_thread_id = this_thread::get_id();
-        if (regist_self) {
+        if (ref_self) {
             s_current_poller = shared_from_this();
         }
         _sem_run_started.post();
@@ -296,7 +289,7 @@ void EventPoller::runLoop(bool blocked, bool regist_self) {
                 int fd = ev.data.fd;
                 auto it = _event_map.find(fd);
                 if (it == _event_map.end()) {
-                    epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+                    epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
                     continue;
                 }
                 auto cb = it->second;
@@ -315,7 +308,7 @@ void EventPoller::runLoop(bool blocked, bool regist_self) {
         while (!_exit_flag) {
             //定时器事件中可能操作_event_map
             minDelay = getMinDelay();
-            tv.tv_sec = (decltype(tv.tv_sec))(minDelay / 1000);
+            tv.tv_sec = (decltype(tv.tv_sec)) (minDelay / 1000);
             tv.tv_usec = 1000 * (minDelay % 1000);
 
             set_read.fdZero();
@@ -338,7 +331,7 @@ void EventPoller::runLoop(bool blocked, bool regist_self) {
             }
 
             startSleep();//用于统计当前线程负载情况
-            ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay ? &tv : NULL);
+            ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay ? &tv : nullptr);
             sleepWakeUp();//用于统计当前线程负载情况
 
             if (ret <= 0) {
@@ -365,7 +358,7 @@ void EventPoller::runLoop(bool blocked, bool regist_self) {
 
             callback_list.for_each([](Poll_Record::Ptr &record) {
                 try {
-                    record->callBack(record->attach);
+                    record->call_back(record->attach);
                 } catch (std::exception &ex) {
                     ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
                 }
@@ -374,7 +367,7 @@ void EventPoller::runLoop(bool blocked, bool regist_self) {
         }
 #endif //HAS_EPOLL
     } else {
-        _loop_thread = new thread(&EventPoller::runLoop, this, true, regist_self);
+        _loop_thread = new thread(&EventPoller::runLoop, this, true, ref_self);
         _sem_run_started.wait();
     }
 }
@@ -423,9 +416,9 @@ uint64_t EventPoller::getMinDelay() {
     return flushDelayTask(now);
 }
 
-DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> task) {
+EventPoller::DelayTask::Ptr EventPoller::doDelayTask(uint64_t delay_ms, function<uint64_t()> task) {
     DelayTask::Ptr ret = std::make_shared<DelayTask>(std::move(task));
-    auto time_line = getCurrentMillisecond() + delayMS;
+    auto time_line = getCurrentMillisecond() + delay_ms;
     async_first([time_line, ret, this]() {
         //异步执行的目的是刷新select或epoll的休眠时间
         _delay_task_map.emplace(time_line, ret);
@@ -437,7 +430,7 @@ DelayTask::Ptr EventPoller::doDelayTask(uint64_t delayMS, function<uint64_t()> t
 
 static size_t s_pool_size = 0;
 
-INSTANCE_IMP(EventPollerPool);
+INSTANCE_IMP(EventPollerPool)
 
 EventPoller::Ptr EventPollerPool::getFirstPoller() {
     return dynamic_pointer_cast<EventPoller>(_threads.front());
@@ -445,14 +438,14 @@ EventPoller::Ptr EventPollerPool::getFirstPoller() {
 
 EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread) {
     auto poller = EventPoller::getCurrentPoller();
-    if (prefer_current_thread && _preferCurrentThread && poller) {
+    if (prefer_current_thread && _prefer_current_thread && poller) {
         return poller;
     }
     return dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
 void EventPollerPool::preferCurrentThread(bool flag) {
-    _preferCurrentThread = flag;
+    _prefer_current_thread = flag;
 }
 
 EventPollerPool::EventPollerPool() {

@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -9,25 +9,22 @@
  */
 
 #include "WorkThreadPool.h"
-#include "Util/logger.h"
-#include "Util/onceToken.h"
-#include "ThreadPool.h"
 
 namespace toolkit {
 
 static size_t s_pool_size = 0;
 
-INSTANCE_IMP(WorkThreadPool);
+INSTANCE_IMP(WorkThreadPool)
 
-EventPoller::Ptr WorkThreadPool::getFirstPoller(){
+EventPoller::Ptr WorkThreadPool::getFirstPoller() {
     return std::dynamic_pointer_cast<EventPoller>(_threads.front());
 }
 
-EventPoller::Ptr WorkThreadPool::getPoller(){
+EventPoller::Ptr WorkThreadPool::getPoller() {
     return std::dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
-WorkThreadPool::WorkThreadPool(){
+WorkThreadPool::WorkThreadPool() {
     //最低优先级
     addPoller("work poller", s_pool_size, ThreadPool::PRIORITY_LOWEST, false);
 }

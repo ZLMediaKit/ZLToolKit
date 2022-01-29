@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -27,11 +27,11 @@
 #include <netinet/tcp.h>
 #endif // defined(_WIN32)
 
+#include <cstring>
+#include <cstdint>
 #include <map>
 #include <vector>
 #include <string>
-#include <string.h>
-#include <stdint.h>
 
 namespace toolkit {
 
@@ -55,30 +55,30 @@ public:
      * 创建tcp客户端套接字并连接服务器
      * @param host 服务器ip或域名
      * @param port 服务器端口号
-     * @param bAsync 是否异步连接
-     * @param localIp 绑定的本地网卡ip
-     * @param localPort 绑定的本地端口号
+     * @param async 是否异步连接
+     * @param local_ip 绑定的本地网卡ip
+     * @param local_port 绑定的本地端口号
      * @return -1代表失败，其他为socket fd号
      */
-    static int connect(const char *host, uint16_t port, bool bAsync = true,const char *localIp = "0.0.0.0",uint16_t localPort = 0);
+    static int connect(const char *host, uint16_t port, bool async = true, const char *local_ip = "0.0.0.0", uint16_t local_port = 0);
 
     /**
      * 创建tcp监听套接字
      * @param port 监听的本地端口
-     * @param localIp 绑定的本地网卡ip
-     * @param backLog accept列队长度
+     * @param local_ip 绑定的本地网卡ip
+     * @param back_log accept列队长度
      * @return -1代表失败，其他为socket fd号
      */
-    static int listen(const uint16_t port, const char *localIp = "0.0.0.0", int backLog = 1024);
+    static int listen(const uint16_t port, const char *local_ip = "0.0.0.0", int back_log = 1024);
 
     /**
      * 创建udp套接字
      * @param port 监听的本地端口
-     * @param localIp 绑定的本地网卡ip
+     * @param local_ip 绑定的本地网卡ip
      * @param enable_reuse 是否允许重复bind端口
      * @return -1代表失败，其他为socket fd号
      */
-    static int bindUdpSock(const uint16_t port, const char *localIp = "0.0.0.0", bool enable_reuse = true);
+    static int bindUdpSock(const uint16_t port, const char *local_ip = "0.0.0.0", bool enable_reuse = true);
 
     /**
      * @brief 初始化套接字 sock 连接关系
@@ -98,77 +98,77 @@ public:
 
     /**
      * 绑定socket fd至某个网卡和端口
-     * @param sock socket fd号
-     * @param localIp 绑定的本地网卡ip
+     * @param fd socket fd号
+     * @param local_op 绑定的本地网卡ip
      * @param port 绑定的本地端口
      * @return 0代表成功，-1为失败
      */
-    static int bindSock(int sock,const char *localIp,uint16_t port);
+    static int bindSock(int fd, const char *local_op, uint16_t port);
 
     /**
      * 开启TCP_NODELAY，降低TCP交互延时
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @param on 是否开启
      * @return 0代表成功，-1为失败
      */
-    static int setNoDelay(int sock, bool on = true);
+    static int setNoDelay(int fd, bool on = true);
 
     /**
      * 写socket不触发SIG_PIPE信号(貌似只有mac有效)
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @return 0代表成功，-1为失败
      */
-    static int setNoSigpipe(int sock);
+    static int setNoSigpipe(int fd);
 
     /**
      * 设置读写socket是否阻塞
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @param noblock 是否阻塞
      * @return 0代表成功，-1为失败
      */
-    static int setNoBlocked(int sock, bool noblock = true);
+    static int setNoBlocked(int fd, bool noblock = true);
 
     /**
      * 设置socket接收缓存，默认貌似8K左右，一般有设置上限
      * 可以通过配置内核配置文件调整
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @param size 接收缓存大小
      * @return 0代表成功，-1为失败
      */
-    static int setRecvBuf(int sock, int size = SOCKET_DEFAULT_BUF_SIZE);
+    static int setRecvBuf(int fd, int size = SOCKET_DEFAULT_BUF_SIZE);
 
     /**
      * 设置socket接收缓存，默认貌似8K左右，一般有设置上限
      * 可以通过配置内核配置文件调整
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @param size 接收缓存大小
      * @return 0代表成功，-1为失败
      */
-    static int setSendBuf(int sock, int size = SOCKET_DEFAULT_BUF_SIZE);
+    static int setSendBuf(int fd, int size = SOCKET_DEFAULT_BUF_SIZE);
 
     /**
      * 设置后续可绑定复用端口(处于TIME_WAITE状态)
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @param on 是否开启该特性
      * @return 0代表成功，-1为失败
      */
-    static int setReuseable(int sock, bool on = true, bool reuse_port = true);
+    static int setReuseable(int fd, bool on = true, bool reuse_port = true);
 
     /**
      * 运行发送或接收udp广播信息
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @param on 是否开启该特性
      * @return 0代表成功，-1为失败
      */
-    static int setBroadcast(int sock, bool on = true);
+    static int setBroadcast(int fd, bool on = true);
 
     /**
      * 是否开启TCP KeepAlive特性
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @param on 是否开启该特性
      * @return 0代表成功，-1为失败
      */
-    static int setKeepAlive(int sock, bool on = true);
+    static int setKeepAlive(int fd, bool on = true);
 
     /**
      * 是否开启FD_CLOEXEC特性(多进程相关)
@@ -193,7 +193,7 @@ public:
      * @param addr sockaddr结构体
      * @return 是否成功
      */
-    static bool getDomainIP(const char *host,uint16_t port,struct sockaddr &addr);
+    static bool getDomainIP(const char *host, uint16_t port, struct sockaddr &addr);
 
     /**
      * 设置组播ttl
@@ -206,63 +206,63 @@ public:
     /**
      * 设置组播发送网卡
      * @param sock socket fd号
-     * @param strLocalIp 本机网卡ip
+     * @param local_ip 本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int setMultiIF(int sock, const char *strLocalIp);
+    static int setMultiIF(int sock, const char *local_ip);
 
     /**
      * 设置是否接收本机发出的组播包
-     * @param sock socket fd号
-     * @param bAccept 是否接收
+     * @param fd socket fd号
+     * @param acc 是否接收
      * @return 0代表成功，-1为失败
      */
-    static int setMultiLOOP(int sock, bool bAccept = false);
+    static int setMultiLOOP(int fd, bool acc = false);
 
     /**
      * 加入组播
-     * @param sock socket fd号
-     * @param strAddr 组播地址
-     * @param strLocalIp 本机网卡ip
+     * @param fd socket fd号
+     * @param addr 组播地址
+     * @param local_ip 本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int joinMultiAddr(int sock, const char *strAddr, const char* strLocalIp = "0.0.0.0");
+    static int joinMultiAddr(int fd, const char *addr, const char *local_ip = "0.0.0.0");
 
     /**
      * 退出组播
-     * @param sock socket fd号
-     * @param strAddr 组播地址
-     * @param strLocalIp 本机网卡ip
+     * @param fd socket fd号
+     * @param addr 组播地址
+     * @param local_ip 本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int leaveMultiAddr(int sock, const char *strAddr, const char* strLocalIp = "0.0.0.0");
+    static int leaveMultiAddr(int fd, const char *addr, const char *local_ip = "0.0.0.0");
 
     /**
      * 加入组播并只接受该源端的组播数据
      * @param sock socket fd号
-     * @param strAddr 组播地址
-     * @param strSrcIp 数据源端地址
-     * @param strLocalIp  本机网卡ip
+     * @param addr 组播地址
+     * @param src_ip 数据源端地址
+     * @param local_ip  本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int joinMultiAddrFilter(int sock, const char* strAddr, const char* strSrcIp, const char* strLocalIp = "0.0.0.0");
+    static int joinMultiAddrFilter(int sock, const char *addr, const char *src_ip, const char *local_ip = "0.0.0.0");
 
     /**
      * 退出组播
-     * @param sock socket fd号
-     * @param strAddr 组播地址
-     * @param strSrcIp 数据源端地址
-     * @param strLocalIp  本机网卡ip
+     * @param fd socket fd号
+     * @param addr 组播地址
+     * @param src_ip 数据源端地址
+     * @param local_ip  本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int leaveMultiAddrFilter(int sock, const char* strAddr, const char* strSrcIp, const char* strLocalIp = "0.0.0.0");
+    static int leaveMultiAddrFilter(int fd, const char *addr, const char *src_ip, const char *local_ip = "0.0.0.0");
 
     /**
      * 获取该socket当前发生的错误
-     * @param sock socket fd号
+     * @param fd socket fd号
      * @return 错误代码
      */
-    static int getSockError(int sock);
+    static int getSockError(int fd);
 
     /**
      * 获取网卡列表
@@ -306,34 +306,34 @@ public:
 
     /**
      * 获取网卡ip
-     * @param ifrName 网卡名
+     * @param if_name 网卡名
      */
-    static std::string get_ifr_ip(const char *ifrName);
+    static std::string get_ifr_ip(const char *if_name);
 
     /**
      * 获取网卡名
-     * @param localIp 网卡ip
+     * @param local_op 网卡ip
      */
-    static std::string get_ifr_name(const char *localIp);
+    static std::string get_ifr_name(const char *local_op);
 
     /**
      * 根据网卡名获取子网掩码
-     * @param ifrName 网卡名
+     * @param if_name 网卡名
      */
-    static std::string get_ifr_mask(const char *ifrName);
+    static std::string get_ifr_mask(const char *if_name);
 
     /**
      * 根据网卡名获取广播地址
-     * @param ifrName 网卡名
+     * @param if_name 网卡名
      */
-    static std::string get_ifr_brdaddr(const char *ifrName);
+    static std::string get_ifr_brdaddr(const char *if_name);
 
     /**
      * 判断两个ip是否为同一网段
-     * @param myIp 我的ip
-     * @param dstIp 对方ip
+     * @param src_ip 我的ip
+     * @param dts_ip 对方ip
      */
-    static bool in_same_lan(const char *myIp, const char *dstIp);
+    static bool in_same_lan(const char *src_ip, const char *dts_ip);
 };
 
 }  // namespace toolkit

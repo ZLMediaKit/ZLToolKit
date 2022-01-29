@@ -14,9 +14,7 @@ using namespace std;
 
 namespace toolkit {
 
-Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {
-}
-
+Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {}
 Session::~Session() = default;
 
 string Session::getIdentifier() const {

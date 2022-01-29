@@ -22,7 +22,7 @@
 #ifndef AVUTIL_BASE64_H
 #define AVUTIL_BASE64_H
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 
 /**

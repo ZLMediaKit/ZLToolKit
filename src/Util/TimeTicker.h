@@ -1,7 +1,7 @@
 ﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
- * This file is part of ZLToolKit(https://github.com/xia-chu/ZLToolKit).
+ * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
  *
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
@@ -11,9 +11,8 @@
 #ifndef UTIL_TIMETICKER_H_
 #define UTIL_TIMETICKER_H_
 
-#include <assert.h>
+#include <cassert>
 #include "logger.h"
-#include "Util/util.h"
 
 namespace toolkit {
 
@@ -26,7 +25,7 @@ public:
      * @param print_log 是否打印代码执行时间
      */
     Ticker(uint64_t min_ms = 0,
-        LogContextCapture ctx = LogContextCapture(Logger::Instance(), LWarn, __FILE__, "", __LINE__),
+           LogContextCapture ctx = LogContextCapture(Logger::Instance(), LWarn, __FILE__, "", __LINE__),
            bool print_log = false) : _ctx(std::move(ctx)) {
         if (!print_log) {
             _ctx.clear();
@@ -96,8 +95,8 @@ public:
                 double elapse_time = (now_time - last_time);
                 _time_inc += (elapse_time / ++_pkt_count) / 3;
                 auto ret_time = last_time + _time_inc;
-                _last_time = (uint64_t)ret_time;
-                return (uint64_t)ret_time;
+                _last_time = (uint64_t) ret_time;
+                return (uint64_t) ret_time;
             }
             _first_time = now_time;
             _last_time = now_time;
@@ -112,8 +111,8 @@ public:
         if (elapse_time > _reset_ms) {
             _first_time = 0;
         }
-        _last_time = (uint64_t)ret_time;
-        return (uint64_t)ret_time;
+        _last_time = (uint64_t) ret_time;
+        return (uint64_t) ret_time;
     }
 
     /**
@@ -135,13 +134,13 @@ private:
 };
 
 #if !defined(NDEBUG)
-    #define TimeTicker() Ticker __ticker(5,WarnL,true)
-    #define TimeTicker1(tm) Ticker __ticker1(tm,WarnL,true)
-    #define TimeTicker2(tm,log) Ticker __ticker2(tm,log,true)
+#define TimeTicker() Ticker __ticker(5,WarnL,true)
+#define TimeTicker1(tm) Ticker __ticker1(tm,WarnL,true)
+#define TimeTicker2(tm, log) Ticker __ticker2(tm,log,true)
 #else
-    #define TimeTicker()
-    #define TimeTicker1(tm)
-    #define TimeTicker2(tm,log)
+#define TimeTicker()
+#define TimeTicker1(tm)
+#define TimeTicker2(tm,log)
 #endif
 
 } /* namespace toolkit */
