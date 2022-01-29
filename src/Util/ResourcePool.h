@@ -18,7 +18,6 @@
 #include <memory>
 #include <mutex>
 #include <unordered_set>
-using namespace std;
 
 namespace toolkit {
 
@@ -44,8 +43,8 @@ public:
      * @param quit 对接是否放弃循环使用
      */
     shared_ptr_imp(
-        C *ptr, const std::weak_ptr<ResourcePool_l<C>> &weakPool, std::shared_ptr<atomic_bool> quit,
-        const function<void(C *)> &on_recycle);
+        C *ptr, const std::weak_ptr<ResourcePool_l<C>> &weakPool, std::shared_ptr<std::atomic_bool> quit,
+        const std::function<void(C *)> &on_recycle);
 
     /**
      * 放弃或恢复回到循环池继续使用
@@ -58,11 +57,11 @@ public:
     }
 
 private:
-    std::shared_ptr<atomic_bool> _quit;
+    std::shared_ptr<std::atomic_bool> _quit;
 };
 
 template <typename C>
-class ResourcePool_l : public enable_shared_from_this<ResourcePool_l<C>> {
+class ResourcePool_l : public std::enable_shared_from_this<ResourcePool_l<C>> {
 public:
     typedef shared_ptr_imp<C> ValuePtr;
     friend class shared_ptr_imp<C>;
@@ -90,8 +89,8 @@ public:
         _objs.reserve(size);
     }
 
-    ValuePtr obtain(const function<void(C *)> &on_recycle = nullptr) {
-        return ValuePtr(getPtr(), _weak_self, std::make_shared<atomic_bool>(false), on_recycle);
+    ValuePtr obtain(const std::function<void(C *)> &on_recycle = nullptr) {
+        return ValuePtr(getPtr(), _weak_self, std::make_shared<std::atomic_bool>(false), on_recycle);
     }
 
     std::shared_ptr<C> obtain2() {
@@ -147,10 +146,10 @@ private:
 
 private:
     size_t _pool_size = 8;
-    vector<C *> _objs;
-    function<C *(void)> _alloc;
-    atomic_flag _busy { false };
-    weak_ptr<ResourcePool_l> _weak_self;
+    std::vector<C *> _objs;
+    std::function<C *(void)> _alloc;
+    std::atomic_flag _busy { false };
+    std::weak_ptr<ResourcePool_l> _weak_self;
 };
 
 /**
@@ -175,7 +174,7 @@ public:
     void setSize(size_t size) { pool->setSize(size); }
 
     //获取一个对象，性能差些，但是功能丰富些
-    ValuePtr obtain(const function<void(C *)> &on_recycle = nullptr) { return pool->obtain(on_recycle); }
+    ValuePtr obtain(const std::function<void(C *)> &on_recycle = nullptr) { return pool->obtain(on_recycle); }
 
     //获取一个对象，性能好些
     std::shared_ptr<C> obtain2() { return pool->obtain2(); }
@@ -187,9 +186,9 @@ private:
 template<typename C>
 shared_ptr_imp<C>::shared_ptr_imp(C *ptr,
                                   const std::weak_ptr<ResourcePool_l<C> > &weakPool,
-                                  std::shared_ptr<atomic_bool> quit,
-                                  const function<void(C *)> &on_recycle) :
-        shared_ptr<C>(ptr, [weakPool, quit, on_recycle](C *ptr) {
+                                  std::shared_ptr<std::atomic_bool> quit,
+                                  const std::function<void(C *)> &on_recycle) :
+    std::shared_ptr<C>(ptr, [weakPool, quit, on_recycle](C *ptr) {
             if (on_recycle) {
                 on_recycle(ptr);
             }

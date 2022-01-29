@@ -2,7 +2,6 @@
 #define SRC_UTIL_FUNCTION_TRAITS_H_
 
 #include <tuple>
-using namespace std;
 
 namespace toolkit {
 

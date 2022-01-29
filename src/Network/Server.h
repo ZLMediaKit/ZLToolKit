@@ -30,20 +30,20 @@ public:
     ~SessionMap() {};
 
     //获取Session
-    Session::Ptr get(const string &tag);
-    void for_each_session(const function<void(const string &id, const Session::Ptr &session)> &cb);
+    Session::Ptr get(const std::string &tag);
+    void for_each_session(const std::function<void(const std::string &id, const Session::Ptr &session)> &cb);
 
 private:
     SessionMap() = default;
 
     //移除Session
-    bool del(const string &tag);
+    bool del(const std::string &tag);
     //添加Session
-    bool add(const string &tag, const Session::Ptr &session);
+    bool add(const std::string &tag, const Session::Ptr &session);
 
 private:
-    mutex _mtx_session;
-    unordered_map<string, weak_ptr<Session> > _map_session;
+    std::mutex _mtx_session;
+    std::unordered_map<std::string, std::weak_ptr<Session> > _map_session;
 };
 
 class Server;
@@ -57,7 +57,7 @@ public:
     const Session::Ptr &session() const;
 
 private:
-    string _identifier;
+    std::string _identifier;
     Session::Ptr _session;
     SessionMap::Ptr _session_map;
     std::weak_ptr<Server> _server;

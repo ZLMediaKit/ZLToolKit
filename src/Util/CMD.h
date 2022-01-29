@@ -21,13 +21,12 @@
 #include <functional>
 #include "Util/mini.h"
 #include "Util/onceToken.h"
-using namespace std;
 
 namespace toolkit{
 
 class Option {
 public:
-    typedef function<bool(const std::shared_ptr<ostream> &stream, const string &arg)> OptionHandler;
+    typedef std::function<bool(const std::shared_ptr<std::ostream> &stream, const std::string &arg)> OptionHandler;
     enum ArgType {
         ArgNone = 0,//no_argument,
         ArgRequired = 1,//required_argument,
@@ -46,7 +45,7 @@ public:
         _argType = argType;
         if(argType != ArgNone){
             if(defaultValue){
-                _defaultValue = std::make_shared<string>(defaultValue);
+                _defaultValue = std::make_shared<std::string>(defaultValue);
             }
             if(!_defaultValue && mustExist){
                 _mustExist = true;
@@ -56,34 +55,34 @@ public:
         _cb = cb;
     }
     ~Option() {}
-    bool operator()(const std::shared_ptr<ostream> &stream, const string &arg){
+    bool operator()(const std::shared_ptr<std::ostream> &stream, const std::string &arg){
         return _cb ? _cb(stream,arg): true;
     }
 private:
     friend class OptionParser;
     char _shortOpt;
-    string _longOpt;
-    std::shared_ptr<string> _defaultValue;
+    std::string _longOpt;
+    std::shared_ptr<std::string> _defaultValue;
     enum ArgType _argType;
-    string _des;
+    std::string _des;
     OptionHandler _cb;
     bool _mustExist = false;
 };
 
 class OptionParser {
 public:
-    typedef function< void(const std::shared_ptr<ostream> &,mINI &)> OptionCompleted;
+    typedef std::function< void(const std::shared_ptr<std::ostream> &,mINI &)> OptionCompleted;
     OptionParser(const OptionCompleted &cb = nullptr,bool enableEmptyArgs = true) {
         _onCompleted = cb;
         _enableEmptyArgs = enableEmptyArgs;
         _helper = Option('h', "help", Option::ArgNone, nullptr, false, "打印此信息",
-                         [this](const std::shared_ptr<ostream> &stream,const string &arg)->bool {
+                         [this](const std::shared_ptr<std::ostream> &stream,const std::string &arg)->bool {
             static const char *argsType[] = {"无参","有参","选参"};
             static const char *mustExist[] = {"选填","必填"};
-            static string defaultPrefix = "默认:";
-            static string defaultNull = "null";
+            static std::string defaultPrefix = "默认:";
+            static std::string defaultNull = "null";
 
-            stringstream printer;
+            std::stringstream printer;
             size_t maxLen_longOpt = 0;
             auto maxLen_default = defaultNull.size();
 
@@ -112,7 +111,7 @@ public:
                 //打印是否有参
                 printer << "  " << argsType[opt._argType];
                 //打印默认参数
-                string defaultValue = defaultNull;
+                std::string defaultValue = defaultNull;
                 if(opt._defaultValue){
                     defaultValue = *opt._defaultValue;
                 }
@@ -123,7 +122,7 @@ public:
                 //打印是否必填参数
                 printer << "  " << mustExist[opt._mustExist];
                 //打印描述
-                printer << "  " << opt._des << endl;
+                printer << "  " << opt._des << std::endl;
             }
             throw std::invalid_argument(printer.str());
         });
@@ -159,13 +158,13 @@ public:
             }
         }
     }
-    void operator ()(mINI &allArg, int argc, char *argv[],const std::shared_ptr<ostream> &stream);
+    void operator ()(mINI &allArg, int argc, char *argv[],const std::shared_ptr<std::ostream> &stream);
 private:
-    map<int,Option> _map_options;
-    map<char,int> _map_charIndex;
+    std::map<int,Option> _map_options;
+    std::map<char,int> _map_charIndex;
     OptionCompleted _onCompleted;
     Option _helper;
-    static mutex s_mtx_opt;
+    static std::mutex s_mtx_opt;
     bool _enableEmptyArgs;
 };
 
@@ -176,9 +175,9 @@ public:
     virtual const char *description() const {
         return "description";
     }
-    void operator ()(int argc, char *argv[],const std::shared_ptr<ostream> &stream = nullptr) {
+    void operator ()(int argc, char *argv[],const std::shared_ptr<std::ostream> &stream = nullptr) {
         this->clear();
-        std::shared_ptr<ostream> coutPtr(&cout,[](ostream *){});
+        std::shared_ptr<std::ostream> coutPtr(&std::cout,[](std::ostream *){});
         (*_parser)(*this,argc, argv,stream? stream : coutPtr );
     }
 
@@ -186,8 +185,8 @@ public:
         return this->find(key) != this->end();
     }
 
-    vector<variant> splitedVal(const char *key,const char *delim= ":"){
-        vector<variant> ret;
+    std::vector<variant> splitedVal(const char *key,const char *delim= ":"){
+        std::vector<variant> ret;
         auto &val = (*this)[key];
         split(val,delim,ret);
         return ret;
@@ -200,10 +199,10 @@ public:
 protected:
     std::shared_ptr<OptionParser> _parser;
 private:
-    void split(const string& s, const char *delim,vector<variant> &ret){
+    void split(const std::string& s, const char *delim, std::vector<variant> &ret){
         size_t last = 0;
         auto index = s.find(delim, last);
-        while (index != string::npos) {
+        while (index != std::string::npos) {
             if(index - last > 0){
                 ret.push_back(s.substr(last, index - last));
             }
@@ -224,40 +223,40 @@ public:
     ~CMDRegister(){};
     static CMDRegister &Instance();
     void clear(){
-        lock_guard<recursive_mutex> lck(_mtxCMD);
+        std::lock_guard<std::recursive_mutex> lck(_mtxCMD);
         _mapCMD.clear();
     }
     void registCMD(const char *name,const std::shared_ptr<CMD> &cmd){
-        lock_guard<recursive_mutex> lck(_mtxCMD);
+        std::lock_guard<std::recursive_mutex> lck(_mtxCMD);
         _mapCMD.emplace(name,cmd);
     }
     void unregistCMD(const char *name){
-        lock_guard<recursive_mutex> lck(_mtxCMD);
+        std::lock_guard<std::recursive_mutex> lck(_mtxCMD);
         _mapCMD.erase(name);
     }
     std::shared_ptr<CMD> operator[](const char *name){
-        lock_guard<recursive_mutex> lck(_mtxCMD);
+        std::lock_guard<std::recursive_mutex> lck(_mtxCMD);
         auto it = _mapCMD.find(name);
         if(it == _mapCMD.end()){
-            throw std::invalid_argument(string("命令不存在:") + name);
+            throw std::invalid_argument(std::string("命令不存在:") + name);
         }
         return it->second;
     }
 
-    void operator()(const char *name,int argc,char *argv[],const std::shared_ptr<ostream> &stream = nullptr){
+    void operator()(const char *name,int argc,char *argv[],const std::shared_ptr<std::ostream> &stream = nullptr){
         auto cmd = (*this)[name];
         if(!cmd){
-            throw std::invalid_argument(string("命令不存在:") + name);
+            throw std::invalid_argument(std::string("命令不存在:") + name);
         }
         (*cmd)(argc,argv,stream);
     };
-    void printHelp(const std::shared_ptr<ostream> &streamTmp = nullptr){
+    void printHelp(const std::shared_ptr<std::ostream> &streamTmp = nullptr){
         auto stream = streamTmp;
         if(!stream){
-            stream.reset(&cout,[](ostream *){});
+            stream.reset(&std::cout,[](std::ostream *){});
         }
 
-        lock_guard<recursive_mutex> lck(_mtxCMD);
+        std::lock_guard<std::recursive_mutex> lck(_mtxCMD);
         size_t maxLen = 0;
         for (auto &pr : _mapCMD) {
             if(pr.first.size() > maxLen){
@@ -269,23 +268,23 @@ public:
             for (size_t i = 0; i < maxLen - pr.first.size(); ++i) {
                 (*stream) << " ";
             }
-            (*stream) << "  " << pr.second->description() << endl;
+            (*stream) << "  " << pr.second->description() << std::endl;
         }
     };
-    void operator()(const string &line,const std::shared_ptr<ostream> &stream = nullptr){
+    void operator()(const std::string &line,const std::shared_ptr<std::ostream> &stream = nullptr){
         if(line.empty()){
             return;
         }
-        vector<char *> argv;
+        std::vector<char *> argv;
         size_t argc = getArgs((char *)line.data(), argv);
         if (argc == 0) {
             return;
         }
-        string cmd = argv[0];
-        lock_guard<recursive_mutex> lck(_mtxCMD);
+        std::string cmd = argv[0];
+        std::lock_guard<std::recursive_mutex> lck(_mtxCMD);
         auto it = _mapCMD.find(cmd);
         if (it == _mapCMD.end()) {
-            stringstream ss;
+            std::stringstream ss;
             ss << "  未识别的命令\"" << cmd << "\",输入 \"help\" 获取帮助.";
             throw std::invalid_argument(ss.str());
         }
@@ -293,7 +292,7 @@ public:
     };
 
 private:
-    size_t getArgs(char *buf, vector<char *> &argv) {
+    size_t getArgs(char *buf, std::vector<char *> &argv) {
         size_t argc = 0;
         bool start = false;
         auto len = strlen(buf);
@@ -314,8 +313,8 @@ private:
         return argc;
     }
 private:
-    map<string,std::shared_ptr<CMD> > _mapCMD;
-    recursive_mutex _mtxCMD;
+    std::map<std::string,std::shared_ptr<CMD> > _mapCMD;
+    std::recursive_mutex _mtxCMD;
 
 };
 
@@ -323,7 +322,7 @@ private:
 class CMD_help: public CMD {
 public:
     CMD_help(){
-		_parser = std::make_shared<OptionParser>([](const std::shared_ptr<ostream> &stream,mINI &){
+		_parser = std::make_shared<OptionParser>([](const std::shared_ptr<std::ostream> &stream,mINI &){
 			CMDRegister::Instance().printHelp(stream);
         });
     }
@@ -346,7 +345,7 @@ public:
 class CMD_exit: public CMD {
 public:
     CMD_exit(){
-        _parser = std::make_shared<OptionParser>([](const std::shared_ptr<ostream> &,mINI &){
+        _parser = std::make_shared<OptionParser>([](const std::shared_ptr<std::ostream> &,mINI &){
             throw ExitException();
         });
     }
@@ -365,7 +364,7 @@ class CMD_clear : public CMD
 {
 public:
     CMD_clear(){
-        _parser = std::make_shared<OptionParser>([this](const std::shared_ptr<ostream> &stream,mINI &args){
+        _parser = std::make_shared<OptionParser>([this](const std::shared_ptr<std::ostream> &stream,mINI &args){
             clear(stream);
         });
     }
@@ -374,7 +373,7 @@ public:
         return "清空屏幕输出";
     }
 private:
-    void clear(const std::shared_ptr<ostream> &stream){
+    void clear(const std::shared_ptr<std::ostream> &stream){
         (*stream) << "\x1b[2J\x1b[H";
         stream->flush();
     }

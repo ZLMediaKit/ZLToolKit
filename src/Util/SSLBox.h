@@ -19,7 +19,6 @@
 #include "util.h"
 #include "Network/Buffer.h"
 #include "Util/ResourcePool.h"
-using namespace std;
 
 typedef struct x509_st X509;
 typedef struct evp_pkey_st EVP_PKEY;
@@ -44,7 +43,7 @@ public:
      * @param is_file 参数pem_or_p12是否为文件路径
      * @param is_default 是否为默认证书
      */
-    bool loadCertificate(const string &pem_or_p12, bool server_mode = true, const string &password = "", bool is_file = true, bool is_default = true);
+    bool loadCertificate(const std::string &pem_or_p12, bool server_mode = true, const std::string &password = "", bool is_file = true, bool is_default = true);
 
     /**
      * 是否忽略无效的证书
@@ -62,7 +61,7 @@ public:
      * @param is_file 是否为文件路径
      * @return 是否加载成功
      */
-    bool trustCertificate(const string &pem_p12_cer, bool server_mode = false, const string &password = "", bool is_file = true);
+    bool trustCertificate(const std::string &pem_p12_cer, bool server_mode = false, const std::string &password = "", bool is_file = true);
 
     /**
      * 信任某证书
@@ -79,7 +78,7 @@ private:
     /**
      * 创建SSL对象
      */
-    shared_ptr<SSL> makeSSL(bool server_mode);
+    std::shared_ptr<SSL> makeSSL(bool server_mode);
 
     /**
      * 设置ssl context
@@ -88,7 +87,7 @@ private:
      * @param server_mode ssl context
      * @param is_default 是否为默认证书
      */
-    bool setContext(const string &vhost, const std::shared_ptr<SSL_CTX> &ctx, bool server_mode, bool is_default = true);
+    bool setContext(const std::string &vhost, const std::shared_ptr<SSL_CTX> &ctx, bool server_mode, bool is_default = true);
 
     /**
      * 设置SSL_CTX的默认配置
@@ -102,14 +101,14 @@ private:
      * @param server_mode 是否为服务器模式
      * @return SSL_CTX对象
      */
-    std::shared_ptr<SSL_CTX> getSSLCtx(const string &vhost, bool server_mode);
-    std::shared_ptr<SSL_CTX> getSSLCtx_l(const string &vhost, bool server_mode);
-    std::shared_ptr<SSL_CTX> getSSLCtxWildcards(const string &vhost, bool server_mode);
+    std::shared_ptr<SSL_CTX> getSSLCtx(const std::string &vhost, bool server_mode);
+    std::shared_ptr<SSL_CTX> getSSLCtx_l(const std::string &vhost, bool server_mode);
+    std::shared_ptr<SSL_CTX> getSSLCtxWildcards(const std::string &vhost, bool server_mode);
 
     /**
      * 获取默认的虚拟主机
      */
-    string defaultVhost(bool server_mode);
+    std::string defaultVhost(bool server_mode);
 
     /**
      * 完成vhost name 匹配的回调函数
@@ -119,16 +118,16 @@ private:
 private:
 
     struct less_nocase {
-        bool operator()(const string &x, const string &y) const {
+        bool operator()(const std::string &x, const std::string &y) const {
             return strcasecmp(x.data(), y.data()) < 0;
         }
     };
 
 private:
     std::shared_ptr<SSL_CTX> _ctx_empty[2];
-    map<string, std::shared_ptr<SSL_CTX>, less_nocase> _ctxs[2];
-    map<string, std::shared_ptr<SSL_CTX>, less_nocase > _ctxs_wildcards[2];
-    string _default_vhost[2];
+    std::map<std::string, std::shared_ptr<SSL_CTX>, less_nocase> _ctxs[2];
+    std::map<std::string, std::shared_ptr<SSL_CTX>, less_nocase > _ctxs_wildcards[2];
+    std::string _default_vhost[2];
 };
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -154,13 +153,13 @@ public:
      * 设置解密后获取明文的回调
      * @param cb 回调对象
      */
-    void setOnDecData(const function<void(const Buffer::Ptr &)> &cb);
+    void setOnDecData(const std::function<void(const Buffer::Ptr &)> &cb);
 
     /**
      * 设置加密后获取密文的回调
      * @param cb 回调对象
      */
-    void setOnEncData(const function<void(const Buffer::Ptr &)> &cb);
+    void setOnEncData(const std::function<void(const Buffer::Ptr &)> &cb);
 
     /**
      * 终结ssl
@@ -186,11 +185,11 @@ private:
 private:
     bool _server_mode;
     bool _send_handshake;
-    shared_ptr<SSL> _ssl;
+    std::shared_ptr<SSL> _ssl;
     BIO *_read_bio;
     BIO *_write_bio;
-    function<void(const Buffer::Ptr &)> _on_dec;
-    function<void(const Buffer::Ptr &)> _on_enc;
+    std::function<void(const Buffer::Ptr &)> _on_dec;
+    std::function<void(const Buffer::Ptr &)> _on_enc;
     List<Buffer::Ptr> _buffer_send;
     ResourcePool<BufferRaw> _buffer_pool;
     int _buff_size;

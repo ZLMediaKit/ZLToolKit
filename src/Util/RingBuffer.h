@@ -19,11 +19,10 @@
 #include <functional>
 #include "List.h"
 #include "Poller/EventPoller.h"
-using namespace std;
 
 //GOP缓存最大长度下限值
 #define RING_MIN_SIZE 32
-#define LOCK_GUARD(mtx) lock_guard<decltype(mtx)> lck(mtx)
+#define LOCK_GUARD(mtx) std::lock_guard<decltype(mtx)> lck(mtx)
 
 namespace toolkit {
 
@@ -62,7 +61,7 @@ public:
 
     ~_RingReader() {}
 
-    void setReadCB(const function<void(const T &)> &cb) {
+    void setReadCB(const std::function<void(const T &)> &cb) {
         if (!cb) {
             _read_cb = [](const T &) {};
         } else {
@@ -71,7 +70,7 @@ public:
         }
     }
 
-    void setDetachCB(const function<void()> &cb) {
+    void setDetachCB(const std::function<void()> &cb) {
         if (!cb) {
             _detach_cb = []() {};
         } else {
@@ -92,16 +91,16 @@ private:
         if (!_use_cache) {
             return;
         }
-        _storage->getCache().for_each([&](const pair<bool, T> &pr) {
+        _storage->getCache().for_each([&](const std::pair<bool, T> &pr) {
             onRead(pr.second, pr.first);
         });
     }
 
 private:
     bool _use_cache;
-    shared_ptr<_RingStorage<T> > _storage;
-    function<void(void)> _detach_cb = []() {};
-    function<void(const T &)> _read_cb = [](const T &) {};
+    std::shared_ptr<_RingStorage<T> > _storage;
+    std::function<void(void)> _detach_cb = []() {};
+    std::function<void(const T &)> _read_cb = [](const T &) {};
 };
 
 template<typename T>
@@ -155,7 +154,7 @@ public:
         return ret;
     }
 
-    const List<pair<bool, T> > &getCache() const {
+    const List<std::pair<bool, T> > &getCache() const {
         return _data_cache;
     }
 
@@ -171,7 +170,7 @@ private:
     bool _have_idr = false;
     int _size = 0;
     int _max_size;
-    List<pair<bool, T> > _data_cache;
+    List<std::pair<bool, T> > _data_cache;
 };
 
 template<typename T>
@@ -182,7 +181,7 @@ class RingBuffer;
 * @tparam T
 */
 template<typename T>
-class _RingReaderDispatcher : public enable_shared_from_this<_RingReaderDispatcher<T> > {
+class _RingReaderDispatcher : public std::enable_shared_from_this<_RingReaderDispatcher<T> > {
 public:
     typedef std::shared_ptr<_RingReaderDispatcher> Ptr;
     typedef _RingReader<T> RingReader;
@@ -202,7 +201,7 @@ public:
     }
 
 private:
-    _RingReaderDispatcher(const typename RingStorage::Ptr &storage, const function<void(int, bool)> &onSizeChanged) {
+    _RingReaderDispatcher(const typename RingStorage::Ptr &storage, const std::function<void(int, bool)> &onSizeChanged) {
         _storage = storage;
         _reader_size = 0;
         _on_size_changed = onSizeChanged;
@@ -228,7 +227,7 @@ private:
             throw std::runtime_error("必须在绑定的poller线程中执行attach操作");
         }
 
-        weak_ptr<_RingReaderDispatcher> weakSelf = this->shared_from_this();
+        std::weak_ptr<_RingReaderDispatcher> weakSelf = this->shared_from_this();
         auto on_dealloc = [weakSelf, poller](RingReader *ptr) {
             poller->async([weakSelf, ptr]() {
                 auto strongSelf = weakSelf.lock();
@@ -258,20 +257,20 @@ private:
     }
 
 private:
-    atomic_int _reader_size;
-    function<void(int, bool)> _on_size_changed;
+    std::atomic_int _reader_size;
+    std::function<void(int, bool)> _on_size_changed;
     typename RingStorage::Ptr _storage;
-    unordered_map<void *, std::weak_ptr<RingReader> > _reader_map;
+    std::unordered_map<void *, std::weak_ptr<RingReader> > _reader_map;
 };
 
 template<typename T>
-class RingBuffer : public enable_shared_from_this<RingBuffer<T> > {
+class RingBuffer : public std::enable_shared_from_this<RingBuffer<T> > {
 public:
     typedef std::shared_ptr<RingBuffer> Ptr;
     typedef _RingReader<T> RingReader;
     typedef _RingStorage<T> RingStorage;
     typedef _RingReaderDispatcher<T> RingReaderDispatcher;
-    typedef function<void(int size)> onReaderChanged;
+    typedef std::function<void(int size)> onReaderChanged;
 
     RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr) {
         _on_reader_changed = cb;
@@ -307,7 +306,7 @@ public:
             LOCK_GUARD(_mtx_map);
             auto &ref = _dispatcher_map[poller];
             if (!ref) {
-                weak_ptr<RingBuffer> weakSelf = this->shared_from_this();
+                std::weak_ptr<RingBuffer> weakSelf = this->shared_from_this();
                 auto onSizeChanged = [weakSelf, poller](int size, bool add_flag) {
                     auto strongSelf = weakSelf.lock();
                     if (!strongSelf) {
@@ -371,12 +370,12 @@ private:
     };
 
 private:
-    mutex _mtx_map;
-    atomic_int _total_count {0};
+    std::mutex _mtx_map;
+    std::atomic_int _total_count {0};
     typename RingStorage::Ptr _storage;
     typename RingDelegate<T>::Ptr _delegate;
     onReaderChanged _on_reader_changed;
-    unordered_map<EventPoller::Ptr, typename RingReaderDispatcher::Ptr, HashOfPtr> _dispatcher_map;
+    std::unordered_map<EventPoller::Ptr, typename RingReaderDispatcher::Ptr, HashOfPtr> _dispatcher_map;
 };
 
 } /* namespace toolkit */

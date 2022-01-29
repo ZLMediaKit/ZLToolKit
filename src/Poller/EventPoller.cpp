@@ -21,6 +21,7 @@
 #include "Thread/ThreadPool.h"
 #include "Network/sockutil.h"
 
+using namespace std;
 
 #if defined(HAS_EPOLL)
     #include <sys/epoll.h>

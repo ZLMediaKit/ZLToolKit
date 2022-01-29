@@ -16,6 +16,8 @@
 #include <getopt.h>
 #endif // defined(_WIN32)
 
+using namespace std;
+
 namespace toolkit{
 
 mutex OptionParser::s_mtx_opt;

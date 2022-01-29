@@ -13,7 +13,6 @@
 
 #include <list>
 #include <type_traits>
-using namespace std;
 
 namespace toolkit {
 
@@ -183,10 +182,10 @@ private:
 #else
 
 template<typename T>
-class List : public list<T> {
+class List : public std::list<T> {
 public:
     template<typename ... ARGS>
-    List(ARGS &&...args) : list<T>(std::forward<ARGS>(args)...) {};
+    List(ARGS &&...args) : std::list<T>(std::forward<ARGS>(args)...) {};
 
     ~List() = default;
 

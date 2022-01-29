@@ -10,6 +10,8 @@
 
 #include "TcpServer.h"
 
+using namespace std;
+
 namespace toolkit {
 
 INSTANCE_IMP(SessionMap);

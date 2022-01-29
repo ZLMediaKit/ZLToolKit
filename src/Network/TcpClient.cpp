@@ -10,6 +10,8 @@
 
 #include "TcpClient.h"
 
+using namespace std;
+
 namespace toolkit {
 
 StatisticImp(TcpClient);

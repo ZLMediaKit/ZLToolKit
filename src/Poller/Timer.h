@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <functional>
 #include "EventPoller.h"
-using namespace std;
 
 namespace toolkit {
 
@@ -30,12 +29,12 @@ public:
      * @param continueWhenException 定时回调中抛异常是否继续标记
      */
     Timer(float second,
-          const function<bool()> &cb,
+          const std::function<bool()> &cb,
           const EventPoller::Ptr &poller /*=nullptr*/,
           bool continueWhenException = true );
     ~Timer();
 private:
-    weak_ptr<DelayTask> _tag;
+    std::weak_ptr<DelayTask> _tag;
     //定时器保持EventPoller的强引用
     EventPoller::Ptr _poller;
 };

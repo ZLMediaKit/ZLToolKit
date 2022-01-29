@@ -26,15 +26,14 @@
 #include "Util/uv_errno.h"
 #include "Util/ResourcePool.h"
 #include "Network/sockutil.h"
-using namespace std;
 
 namespace toolkit {
 
 template <typename T> struct is_pointer : public std::false_type {};
-template <typename T> struct is_pointer<shared_ptr<T> > : public std::true_type {};
-template <typename T> struct is_pointer<shared_ptr<T const> > : public std::true_type {};
-template <typename T> struct is_pointer<T*> : public true_type {};
-template <typename T> struct is_pointer<const T*> : public true_type {};
+template <typename T> struct is_pointer<std::shared_ptr<T> > : public std::true_type {};
+template <typename T> struct is_pointer<std::shared_ptr<T const> > : public std::true_type {};
+template <typename T> struct is_pointer<T*> : public std::true_type {};
+template <typename T> struct is_pointer<const T*> : public std::true_type {};
 
 //缓存基类
 class Buffer : public noncopyable {
@@ -46,8 +45,8 @@ public:
     virtual char *data() const = 0 ;
     virtual size_t size() const = 0;
 
-    virtual string toString() const {
-        return string(data(),size());
+    virtual std::string toString() const {
+        return std::string(data(),size());
     }
 
     virtual size_t getCapacity() const{
@@ -78,8 +77,8 @@ public:
         return _size;
     }
 
-    string toString() const override {
-        return string(data(),size());
+    std::string toString() const override {
+        return std::string(data(),size());
     }
 
 private:
@@ -111,7 +110,7 @@ private:
     size_t _size;
 };
 
-typedef BufferOffset<string> BufferString;
+typedef BufferOffset<std::string> BufferString;
 
 //指针式缓存对象，
 class BufferRaw : public Buffer{
@@ -211,13 +210,13 @@ public:
         _erase_tail  = 0;
     }
 
-    BufferLikeString(string str) {
+    BufferLikeString(std::string str) {
         _str = std::move(str);
         _erase_head = 0;
         _erase_tail  = 0;
     }
 
-    BufferLikeString& operator= (string str){
+    BufferLikeString& operator= (std::string str){
         _str = std::move(str);
         _erase_head = 0;
         _erase_tail  = 0;
@@ -275,10 +274,10 @@ public:
         return _str.size() - _erase_tail - _erase_head;
     }
 
-    BufferLikeString& erase(size_t pos = 0, size_t n = string::npos) {
+    BufferLikeString& erase(size_t pos = 0, size_t n = std::string::npos) {
         if (pos == 0) {
             //移除前面的数据
-            if (n != string::npos) {
+            if (n != std::string::npos) {
                 //移除部分
                 if (n > size()) {
                     //移除太多数据了
@@ -296,7 +295,7 @@ public:
             return *this;
         }
 
-        if (n == string::npos || pos + n >= size()) {
+        if (n == std::string::npos || pos + n >= size()) {
             //移除末尾所有数据
             if (pos >= size()) {
                 //移除太多数据
@@ -320,7 +319,7 @@ public:
         return append(str.data(), str.size());
     }
 
-    BufferLikeString& append(const string &str){
+    BufferLikeString& append(const std::string &str){
         return append(str.data(), str.size());
     }
 
@@ -415,8 +414,8 @@ public:
         return size() <= 0;
     }
 
-    string substr(size_t pos, size_t n = string::npos) const{
-        if (n == string::npos) {
+    std::string substr(size_t pos, size_t n = std::string::npos) const{
+        if (n == std::string::npos) {
             //获取末尾所有的
             if (pos >= size()) {
                 throw std::out_of_range("BufferLikeString::substr out_of_range");
@@ -442,7 +441,7 @@ private:
 private:
     size_t _erase_head;
     size_t _erase_tail;
-    string _str;
+    std::string _str;
     //对象个数统计
     ObjectStatistic<BufferLikeString> _statistic;
 };
@@ -491,7 +490,7 @@ private:
 class BufferList : public noncopyable {
 public:
     using Ptr = std::shared_ptr<BufferList>;
-    using SendResult = function<void(const Buffer::Ptr &buffer, bool send_success)>;
+    using SendResult = std::function<void(const Buffer::Ptr &buffer, bool send_success)>;
     BufferList(List<std::pair<Buffer::Ptr, bool> > &list, SendResult cb = nullptr);
     ~BufferList();
 
@@ -506,7 +505,7 @@ private:
 private:
     size_t _iovec_off = 0;
     size_t _remain_size = 0;
-    vector<struct iovec> _iovec;
+    std::vector<struct iovec> _iovec;
     List<std::pair<Buffer::Ptr, bool> > _pkt_list;
     SendResult _cb;
     //对象个数统计

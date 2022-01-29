@@ -28,7 +28,6 @@
 #include "Poller/EventPoller.h"
 #include "Network/sockutil.h"
 #include "Buffer.h"
-using namespace std;
 
 namespace toolkit {
 
@@ -71,7 +70,7 @@ typedef enum {
 class SockException: public std::exception {
 public:
     SockException(ErrCode errCode = Err_success,
-                  const string &errMsg = "",
+                  const std::string &errMsg = "",
                   int customCode = 0) {
         _errMsg = errMsg;
         _errCode = errCode;
@@ -79,7 +78,7 @@ public:
     }
 
     //重置错误
-    void reset(ErrCode errCode, const string &errMsg) {
+    void reset(ErrCode errCode, const std::string &errMsg) {
         _errMsg = errMsg;
         _errCode = errCode;
     }
@@ -104,7 +103,7 @@ public:
         _customCode = code;
     };
 private:
-    string _errMsg;
+    std::string _errMsg;
     ErrCode _errCode;
     int _customCode = 0;
 };
@@ -179,7 +178,7 @@ public:
         _num = that._num;
         _poller = poller;
         if(_poller == that._poller){
-            throw invalid_argument("copy a SockFD with same poller!");
+            throw std::invalid_argument("copy a SockFD with same poller!");
         }
     }
 
@@ -205,7 +204,7 @@ private:
     EventPoller::Ptr _poller;
 };
 
-template <class Mtx = recursive_mutex>
+template <class Mtx = std::recursive_mutex>
 class MutexWrapper {
 public:
     MutexWrapper(bool enable){
@@ -234,15 +233,15 @@ public:
     virtual ~SockInfo() = default;
 
     //获取本机ip
-    virtual string get_local_ip() = 0;
+    virtual std::string get_local_ip() = 0;
     //获取本机端口号
     virtual uint16_t get_local_port() = 0;
     //获取对方ip
-    virtual string  get_peer_ip() = 0;
+    virtual std::string  get_peer_ip() = 0;
     //获取对方端口号
     virtual uint16_t get_peer_port() = 0;
     //获取标识符
-    virtual string getIdentifier() const { return ""; }
+    virtual std::string getIdentifier() const { return ""; }
 };
 
 #define TraceP(ptr) TraceL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "
@@ -256,15 +255,15 @@ class Socket : public std::enable_shared_from_this<Socket>, public noncopyable, 
 public:
     using Ptr = std::shared_ptr<Socket>;
     //接收数据回调
-    using onReadCB = function<void(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len)>;
+    using onReadCB = std::function<void(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len)>;
     //发生错误回调
-    using onErrCB = function<void(const SockException &err)>;
+    using onErrCB = std::function<void(const SockException &err)>;
     //tcp监听接收到连接请求
-    using onAcceptCB = function<void(Socket::Ptr &sock, shared_ptr<void> &complete)>;
+    using onAcceptCB = std::function<void(Socket::Ptr &sock, std::shared_ptr<void> &complete)>;
     //socket发送缓存清空事件，返回true代表下次继续监听该事件，否则停止
-    using onFlush = function<bool()>;
+    using onFlush = std::function<bool()>;
     //在接收到连接请求前，拦截Socket默认生成方式
-    using onCreateSocket = function<Ptr(const EventPoller::Ptr &poller)>;
+    using onCreateSocket = std::function<Ptr(const EventPoller::Ptr &poller)>;
     //发送buffer成功与否回调
     using onSendResult = BufferList::SendResult;
 
@@ -287,8 +286,8 @@ public:
      * @param local_ip 绑定本地网卡ip
      * @param local_port 绑定本地网卡端口号
      */
-    virtual void connect(const string &url, uint16_t port, onErrCB con_cb, float timeout_sec = 5,
-                 const string &local_ip = "0.0.0.0", uint16_t local_port = 0);
+    virtual void connect(const std::string &url, uint16_t port, onErrCB con_cb, float timeout_sec = 5,
+                 const std::string &local_ip = "0.0.0.0", uint16_t local_port = 0);
     /**
      * 创建tcp监听服务器
      * @param port 监听端口，0则随机
@@ -296,7 +295,7 @@ public:
      * @param backlog tcp最大积压数
      * @return 是否成功
      */
-    virtual bool listen(uint16_t port, const string &local_ip = "0.0.0.0", int backlog = 1024);
+    virtual bool listen(uint16_t port, const std::string &local_ip = "0.0.0.0", int backlog = 1024);
 
     /**
      * 创建udp套接字,udp是无连接的，所以可以作为服务器和客户端
@@ -304,7 +303,7 @@ public:
      * @param local_ip 绑定的网卡ip
      * @return 是否成功
      */
-    virtual bool bindUdpSock(uint16_t port, const string &local_ip = "0.0.0.0", bool enable_reuse = true);
+    virtual bool bindUdpSock(uint16_t port, const std::string &local_ip = "0.0.0.0", bool enable_reuse = true);
 
     ////////////设置事件回调////////////
 
@@ -361,7 +360,7 @@ public:
     /**
      * 发送string
      */
-    ssize_t send(string buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    ssize_t send(std::string buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 发送Buffer对象，Socket对象发送数据的统一出口
@@ -449,11 +448,11 @@ public:
     virtual uint64_t elapsedTimeAfterFlushed();
 
     ////////////SockInfo override////////////
-    string get_local_ip() override;
+    std::string get_local_ip() override;
     uint16_t get_local_port() override;
-    string get_peer_ip() override;
+    std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
-    string getIdentifier() const override;
+    std::string getIdentifier() const override;
 
 private:
     SockFD::Ptr setPeerSock(int fd);
@@ -476,14 +475,14 @@ private:
     //最大发送缓存，单位毫秒，距上次发送缓存清空时间不能超过该参数
     uint32_t _max_send_buffer_ms = SEND_TIME_OUT_SEC * 1000;
     //控制是否接收监听socket可读事件，关闭后可用于流量控制
-    atomic<bool> _enable_recv {true};
+    std::atomic<bool> _enable_recv {true};
     //标记该socket是否可写，socket写缓存满了就不可写
-    atomic<bool> _sendable {true};
+    std::atomic<bool> _sendable {true};
 
     //tcp连接超时定时器
     Timer::Ptr _con_timer;
     //tcp连接结果回调对象
-    std::shared_ptr<function<void(int)> > _async_con_cb;
+    std::shared_ptr<std::function<void(int)> > _async_con_cb;
 
     //记录上次发送缓存(包括socket写缓存、应用层缓存)清空的计时器
     Ticker _send_flush_ticker;
@@ -494,7 +493,7 @@ private:
     //本socket绑定的poller线程，事件触发于此线程
     EventPoller::Ptr _poller;
     //跨线程访问_sock_fd时需要上锁
-    mutable MutexWrapper<recursive_mutex> _mtx_sock_fd;
+    mutable MutexWrapper<std::recursive_mutex> _mtx_sock_fd;
 
     //socket异常事件(比如说断开)
     onErrCB _on_err;
@@ -507,16 +506,16 @@ private:
     //tcp监听收到accept请求，自定义创建peer Socket事件(可以控制子Socket绑定到其他poller线程)
     onCreateSocket _on_before_accept;
     //设置上述回调函数的锁
-    MutexWrapper<recursive_mutex> _mtx_event;
+    MutexWrapper<std::recursive_mutex> _mtx_event;
 
     //一级发送缓存, socket可写时，会把一级缓存批量送入到二级缓存
     List<std::pair<Buffer::Ptr, bool> > _send_buf_waiting;
     //一级发送缓存锁
-    MutexWrapper<recursive_mutex> _mtx_send_buf_waiting;
+    MutexWrapper<std::recursive_mutex> _mtx_send_buf_waiting;
     //二级发送缓存, socket可写时，会把二级缓存批量写入到socket
     List<BufferList::Ptr> _send_buf_sending;
     //二级发送缓存锁
-    MutexWrapper<recursive_mutex> _mtx_send_buf_sending;
+    MutexWrapper<std::recursive_mutex> _mtx_send_buf_sending;
     //发送buffer结果回调
     BufferList::SendResult _send_result;
     //对象个数统计
@@ -533,20 +532,20 @@ public:
     //发送char *
     SockSender &operator << (const char *buf);
     //发送字符串
-    SockSender &operator << (string buf);
+    SockSender &operator << (std::string buf);
     //发送Buffer对象
     SockSender &operator << (Buffer::Ptr buf);
 
     //发送其他类型是数据
     template<typename T>
     SockSender &operator << (T &&buf) {
-        ostringstream ss;
+        std::ostringstream ss;
         ss << std::forward<T>(buf);
         send(ss.str());
         return *this;
     }
 
-    ssize_t send(string buf);
+    ssize_t send(std::string buf);
     ssize_t send(const char *buf, size_t size = 0);
 };
 
@@ -556,7 +555,7 @@ public:
     SocketHelper(const Socket::Ptr &sock);
     ~SocketHelper() override;
 
-    ///////////////////// Socket util functions /////////////////////
+    ///////////////////// Socket util std::functions /////////////////////
     /**
      * 获取poller线程
      */
@@ -591,9 +590,9 @@ public:
     Socket::Ptr createSocket();
 
     ///////////////////// SockInfo override /////////////////////
-    string get_local_ip() override;
+    std::string get_local_ip() override;
     uint16_t get_local_port() override;
-    string get_peer_ip() override;
+    std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
 
     ///////////////////// TaskExecutorInterface override /////////////////////
@@ -625,8 +624,8 @@ private:
     bool _try_flush = true;
     uint16_t _peer_port = 0;
     uint16_t _local_port = 0;
-    string _peer_ip;
-    string _local_ip;
+    std::string _peer_ip;
+    std::string _local_ip;
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
     Socket::onCreateSocket _on_create_socket;

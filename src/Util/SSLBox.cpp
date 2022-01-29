@@ -13,6 +13,8 @@
 #include "onceToken.h"
 #include "SSLUtil.h"
 
+using namespace std;
+
 #if defined(ENABLE_OPENSSL)
 #include <openssl/ssl.h>
 #include <openssl/rand.h>

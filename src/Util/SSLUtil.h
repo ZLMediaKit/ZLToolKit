@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-using namespace std;
 
 typedef struct x509_st X509;
 typedef struct evp_pkey_st EVP_PKEY;
@@ -40,7 +39,7 @@ public:
      * @param isFile 是否为文件
      * @return 公钥证书列表
      */
-    static vector<shared_ptr<X509> > loadPublicKey(const string &file_path_or_data,const string &passwd = "",bool isFile = true);
+    static std::vector<std::shared_ptr<X509> > loadPublicKey(const std::string &file_path_or_data,const std::string &passwd = "",bool isFile = true);
 
     /**
      * 加载私钥证书，支持pem,p12后缀
@@ -49,7 +48,7 @@ public:
      * @param isFile 是否为文件
      * @return 私钥证书
      */
-    static shared_ptr<EVP_PKEY> loadPrivateKey(const string &file_path_or_data,const string &passwd = "",bool isFile = true);
+    static std::shared_ptr<EVP_PKEY> loadPrivateKey(const std::string &file_path_or_data,const std::string &passwd = "",bool isFile = true);
 
     /**
      * 创建SSL_CTX对象
@@ -58,14 +57,14 @@ public:
      * @param serverMode 是否为服务器模式或客户端模式
      * @return SSL_CTX对象
      */
-    static shared_ptr<SSL_CTX> makeSSLContext(const vector<shared_ptr<X509> > &cers, const shared_ptr<EVP_PKEY> &key, bool serverMode = true);
+    static std::shared_ptr<SSL_CTX> makeSSLContext(const std::vector<std::shared_ptr<X509> > &cers, const std::shared_ptr<EVP_PKEY> &key, bool serverMode = true);
 
     /**
      * 创建ssl对象
      * @param ctx SSL_CTX对象
      * @return
      */
-    static shared_ptr<SSL> makeSSL(SSL_CTX *ctx);
+    static std::shared_ptr<SSL> makeSSL(SSL_CTX *ctx);
 
 
     /**
@@ -103,7 +102,7 @@ public:
      * @param enc_or_dec true:加密,false:解密
      * @return 加密或解密后的数据
      */
-    static string cryptWithRsaPublicKey(X509 *cer , const string &in_str,bool enc_or_dec);
+    static std::string cryptWithRsaPublicKey(X509 *cer , const std::string &in_str,bool enc_or_dec);
 
     /**
      * 使用私钥加解密数据
@@ -112,14 +111,14 @@ public:
      * @param enc_or_dec true:加密,false:解密
      * @return 加密或解密后的数据
      */
-    static string cryptWithRsaPrivateKey(EVP_PKEY *private_key, const string &in_str, bool enc_or_dec);
+    static std::string cryptWithRsaPrivateKey(EVP_PKEY *private_key, const std::string &in_str, bool enc_or_dec);
 
     /**
      * 获取证书域名
      * @param cer 证书公钥
      * @return 证书域名
      */
-    static string getServerName(X509 *cer);
+    static std::string getServerName(X509 *cer);
 };
 
 }//namespace toolkit

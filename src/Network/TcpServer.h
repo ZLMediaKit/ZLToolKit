@@ -26,7 +26,6 @@
 #include "Util/util.h"
 #include "Util/uv_errno.h"
 
-using namespace std;
 
 namespace toolkit {
 
@@ -91,9 +90,9 @@ private:
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
     Socket::onCreateSocket _on_create_socket;
-    unordered_map<SessionHelper *, SessionHelper::Ptr> _session_map;
-    function<SessionHelper::Ptr(const TcpServer::Ptr &server, const Socket::Ptr &)> _session_alloc;
-    unordered_map<const EventPoller *, Ptr> _cloned_server;
+    std::unordered_map<SessionHelper *, SessionHelper::Ptr> _session_map;
+    std::function<SessionHelper::Ptr(const TcpServer::Ptr &server, const Socket::Ptr &)> _session_alloc;
+    std::unordered_map<const EventPoller *, Ptr> _cloned_server;
     //对象个数统计
     ObjectStatistic<TcpServer> _statistic;
 };

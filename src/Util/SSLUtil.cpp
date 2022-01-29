@@ -24,6 +24,7 @@
 #endif //defined(ENABLE_OPENSSL)
 
 using namespace toolkit;
+using namespace std;
 
 namespace toolkit{
 

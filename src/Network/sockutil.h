@@ -32,7 +32,6 @@
 #include <string>
 #include <string.h>
 #include <stdint.h>
-using namespace std;
 
 namespace toolkit {
 
@@ -269,18 +268,18 @@ public:
      * 获取网卡列表
      * @return vector<map<ip:name> >
      */
-    static vector<map<string,string> > getInterfaceList();
+    static std::vector<std::map<std::string, std::string>> getInterfaceList();
 
     /**
      * 获取本机默认网卡ip
      */
-    static string get_local_ip();
+    static std::string get_local_ip();
 
     /**
      * 获取该socket绑定的本地ip
      * @param sock socket fd号
      */
-    static string get_local_ip(int sock);
+    static std::string get_local_ip(int sock);
 
     /**
      * 获取该socket绑定的本地端口
@@ -292,7 +291,7 @@ public:
      * 获取该socket绑定的远端ip
      * @param sock socket fd号
      */
-    static string get_peer_ip(int sock);
+    static std::string get_peer_ip(int sock);
 
     /**
      * 获取该socket绑定的远端端口
@@ -303,31 +302,31 @@ public:
     /**
      * 线程安全的in_addr转ip字符串
      */
-    static string inet_ntoa(struct in_addr &addr);
+    static std::string inet_ntoa(struct in_addr &addr);
 
     /**
      * 获取网卡ip
      * @param ifrName 网卡名
      */
-    static string get_ifr_ip(const char *ifrName);
+    static std::string get_ifr_ip(const char *ifrName);
 
     /**
      * 获取网卡名
      * @param localIp 网卡ip
      */
-    static string get_ifr_name(const char *localIp);
+    static std::string get_ifr_name(const char *localIp);
 
     /**
      * 根据网卡名获取子网掩码
      * @param ifrName 网卡名
      */
-    static string get_ifr_mask(const char *ifrName);
+    static std::string get_ifr_mask(const char *ifrName);
 
     /**
      * 根据网卡名获取广播地址
      * @param ifrName 网卡名
      */
-    static string get_ifr_brdaddr(const char *ifrName);
+    static std::string get_ifr_brdaddr(const char *ifrName);
 
     /**
      * 判断两个ip是否为同一网段

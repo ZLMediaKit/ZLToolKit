@@ -10,6 +10,8 @@
 
 #include "Network/Server.h"
 
+using namespace std;
+
 namespace toolkit {
 
 Server::Server(EventPoller::Ptr poller) {

@@ -350,7 +350,7 @@ std::string MD5::hexdigest() const
 }
 
 std::string MD5::rawdigest() const{
-    return string((char *)digest, sizeof(digest));
+    return std::string((char *)digest, sizeof(digest));
 }
 
 

@@ -20,11 +20,11 @@ static size_t s_pool_size = 0;
 INSTANCE_IMP(WorkThreadPool);
 
 EventPoller::Ptr WorkThreadPool::getFirstPoller(){
-    return dynamic_pointer_cast<EventPoller>(_threads.front());
+    return std::dynamic_pointer_cast<EventPoller>(_threads.front());
 }
 
 EventPoller::Ptr WorkThreadPool::getPoller(){
-    return dynamic_pointer_cast<EventPoller>(getExecutor());
+    return std::dynamic_pointer_cast<EventPoller>(getExecutor());
 }
 
 WorkThreadPool::WorkThreadPool(){
