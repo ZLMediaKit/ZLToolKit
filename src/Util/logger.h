@@ -392,29 +392,29 @@ public:
 extern Logger *g_defaultLogger;
 
 //用法: DebugL << 1 << "+" << 2 << '=' << 3;
-#define WriteL(level) LogContextCapture(getLogger(), level, __FILE__, __FUNCTION__, __LINE__)
-#define TraceL WriteL(LTrace)
-#define DebugL WriteL(LDebug)
-#define InfoL WriteL(LInfo)
-#define WarnL WriteL(LWarn)
-#define ErrorL WriteL(LError)
+#define WriteL(level) toolkit::LogContextCapture(toolkit::getLogger(), level, __FILE__, __FUNCTION__, __LINE__)
+#define TraceL WriteL(toolkit::LTrace)
+#define DebugL WriteL(toolkit::LDebug)
+#define InfoL WriteL(toolkit::LInfo)
+#define WarnL WriteL(toolkit::LWarn)
+#define ErrorL WriteL(toolkit::LError)
 
 //用法: LogD("%d + %s = %c", 1 "2", 'c');
-#define PrintLog(level, ...) LoggerWrapper::printLog(getLogger(), level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define PrintT(...) PrintLog(LTrace, ##__VA_ARGS__)
-#define PrintD(...) PrintLog(LDebug, ##__VA_ARGS__)
-#define PrintI(...) PrintLog(LInfo, ##__VA_ARGS__)
-#define PrintW(...) PrintLog(LWarn, ##__VA_ARGS__)
-#define PrintE(...) PrintLog(LError, ##__VA_ARGS__)
+#define PrintLog(level, ...) toolkit::LoggerWrapper::printLog(toolkit::getLogger(), level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define PrintT(...) PrintLog(toolkit::LTrace, ##__VA_ARGS__)
+#define PrintD(...) PrintLog(toolkit::LDebug, ##__VA_ARGS__)
+#define PrintI(...) PrintLog(toolkit::LInfo, ##__VA_ARGS__)
+#define PrintW(...) PrintLog(toolkit::LWarn, ##__VA_ARGS__)
+#define PrintE(...) PrintLog(toolkit::LError, ##__VA_ARGS__)
 
 //用法: LogD(1, "+", "2", '=', 3);
 //用于模板实例化的原因，如果每次打印参数个数和类型不一致，可能会导致二进制代码膨胀
-#define LogL(level, ...) LoggerWrapper::printLogArray(getLogger(), (LogLevel)level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define LogT(...) LogL(LTrace, ##__VA_ARGS__)
-#define LogD(...) LogL(LDebug, ##__VA_ARGS__)
-#define LogI(...) LogL(LInfo, ##__VA_ARGS__)
-#define LogW(...) LogL(LWarn, ##__VA_ARGS__)
-#define LogE(...) LogL(LError, ##__VA_ARGS__)
+#define LogL(level, ...) toolkit::LoggerWrapper::printLogArray(toolkit::getLogger(), (LogLevel)level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define LogT(...) LogL(toolkit::LTrace, ##__VA_ARGS__)
+#define LogD(...) LogL(toolkit::LDebug, ##__VA_ARGS__)
+#define LogI(...) LogL(toolkit::LInfo, ##__VA_ARGS__)
+#define LogW(...) LogL(toolkit::LWarn, ##__VA_ARGS__)
+#define LogE(...) LogL(toolkit::LError, ##__VA_ARGS__)
 
 } /* namespace toolkit */
 #endif /* UTIL_LOGGER_H_ */
