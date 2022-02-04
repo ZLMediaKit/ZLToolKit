@@ -406,12 +406,21 @@ struct tm getLocalTime(time_t sec) {
 
 static thread_local string thread_name;
 
+static string limitString(const char *name, size_t max_size) {
+    string str = name;
+    if (str.size() + 1 > max_size) {
+        auto erased = str.size() + 1 - max_size + 3;
+        str.replace(5, erased, "...");
+    }
+    return str;
+}
+
 void setThreadName(const char *name) {
+    assert(name);
 #if defined(__linux) || defined(__linux__)
-    assert(strlen(name) < 16); // linux平台下线程名字长度需小于16
-    pthread_setname_np(pthread_self(), name);
+    pthread_setname_np(pthread_self(), limitString(name, 16).data());
 #elif defined(__MACH__) || defined(__APPLE__)
-    pthread_setname_np(name);
+    pthread_setname_np(limitString(name, 32).data());
 #elif defined(_MSC_VER)
     // SetThreadDescription was added in 1607 (aka RS1). Since we can't guarantee the user is running 1607 or later, we need to ask for the function from the kernel.
     using SetThreadDescriptionFunc = HRESULT(WINAPI * )(_In_ HANDLE hThread, _In_ PCWSTR lpThreadDescription);
