@@ -51,7 +51,7 @@ class_name &class_name::Instance() { \
 
 namespace toolkit {
 
-#define StrPrinter toolkit::_StrPrinter()
+#define StrPrinter ::toolkit::_StrPrinter()
 class _StrPrinter : public std::string {
 public:
     _StrPrinter() {}

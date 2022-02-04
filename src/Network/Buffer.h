@@ -90,13 +90,13 @@ private:
     }
 
     template<typename T>
-    static typename std::enable_if<toolkit::is_pointer<T>::value, const T &>::type
+    static typename std::enable_if<::toolkit::is_pointer<T>::value, const T &>::type
     getPointer(const T &data) {
         return data;
     }
 
     template<typename T>
-    static typename std::enable_if<!toolkit::is_pointer<T>::value, const T *>::type
+    static typename std::enable_if<!::toolkit::is_pointer<T>::value, const T *>::type
     getPointer(const T &data) {
         return &data;
     }
