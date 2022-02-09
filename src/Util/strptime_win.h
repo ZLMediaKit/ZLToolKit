@@ -42,7 +42,7 @@ static const char *am_pm[2] = {
 
 //window上自己实现strptime函数，linux已经提供strptime
 //strptime函数windows平台上实现
-char *
+static char *
 strptime(const char *buf, const char *fmt, struct tm *tm)
 {
     char c;
