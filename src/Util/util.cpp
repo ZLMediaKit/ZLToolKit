@@ -417,7 +417,7 @@ static string limitString(const char *name, size_t max_size) {
 
 void setThreadName(const char *name) {
     assert(name);
-#if defined(__linux) || defined(__linux__)
+#if defined(__linux) || defined(__linux__) || defined(__MINGW32__)
     pthread_setname_np(pthread_self(), limitString(name, 16).data());
 #elif defined(__MACH__) || defined(__APPLE__)
     pthread_setname_np(limitString(name, 32).data());
@@ -466,7 +466,7 @@ void setThreadName(const char *name) {
 }
 
 string getThreadName() {
-#if ((defined(__linux) || defined(__linux__)) && !defined(ANDROID)) || (defined(__MACH__) || defined(__APPLE__)) || (defined(ANDROID) && __ANDROID_API__ >= 26)
+#if ((defined(__linux) || defined(__linux__)) && !defined(ANDROID)) || (defined(__MACH__) || defined(__APPLE__)) || (defined(ANDROID) && __ANDROID_API__ >= 26) || defined(__MINGW32__)
     string ret;
     ret.resize(32);
     auto tid = pthread_self();
