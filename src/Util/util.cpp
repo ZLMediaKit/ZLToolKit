@@ -23,6 +23,9 @@
 #include "Network/sockutil.h"
 
 #if defined(_WIN32)
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
 extern "C" const IMAGE_DOS_HEADER __ImageBase;
@@ -284,9 +287,7 @@ const char *strcasestr(const char *big, const char *little){
     return big + (pos - big_str.data());
 }
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+
 int vasprintf(char **strp, const char *fmt, va_list ap) {
     // _vscprintf tells you how big the buffer needs to be
     int len = _vscprintf(fmt, ap);

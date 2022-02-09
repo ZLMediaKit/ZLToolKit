@@ -15,7 +15,12 @@
 #include "onceToken.h"
 #include "File.h"
 #include "NoticeCenter.h"
-
+#if defined(_WIN32)
+#include "strptime_win.h"
+#endif
+#ifdef ANDROID
+#include <android/log.h>
+#endif //ANDROID
 using namespace std;
 
 namespace toolkit {
@@ -265,10 +270,6 @@ void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 
 ///////////////////ConsoleChannel///////////////////
 
-#ifdef ANDROID
-#include <android/log.h>
-#endif //ANDROID
-
 ConsoleChannel::ConsoleChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
 
 void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
@@ -478,9 +479,7 @@ static string getLogFilePath(const string &dir, time_t second, int32_t index) {
     return dir + buf;
 }
 
-#if defined(_WIN32)
-#include "strptime_win.h"
-#endif
+
 
 //根据日志文件名返回GMT UNIX时间戳
 static time_t getLogFileTime(const string &full_path) {
