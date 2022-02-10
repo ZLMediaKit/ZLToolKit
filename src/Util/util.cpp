@@ -17,6 +17,7 @@
 #include <random>
 
 #include "util.h"
+#include "File.h"
 #include "onceToken.h"
 #include "logger.h"
 #include "uv_errno.h"
