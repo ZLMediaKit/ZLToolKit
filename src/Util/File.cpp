@@ -23,6 +23,7 @@
 #include "uv_errno.h"
 
 using namespace std;
+using namespace toolkit;
 
 #if !defined(_WIN32)
 #define    _unlink    unlink
