@@ -16,6 +16,17 @@
 #include "File.h"
 #include "NoticeCenter.h"
 
+#if defined(_WIN32)
+#include "strptime_win.h"
+#endif
+#ifdef ANDROID
+#include <android/log.h>
+#endif //ANDROID
+
+#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) && !defined(ANDROID))
+#include <sys/syslog.h>
+#endif
+
 using namespace std;
 
 namespace toolkit {
@@ -265,10 +276,6 @@ void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 
 ///////////////////ConsoleChannel///////////////////
 
-#ifdef ANDROID
-#include <android/log.h>
-#endif //ANDROID
-
 ConsoleChannel::ConsoleChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
 
 void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
@@ -296,8 +303,8 @@ void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 }
 
 ///////////////////SysLogChannel///////////////////
+
 #if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) && !defined(ANDROID))
-#include <sys/syslog.h>
 
 SysLogChannel::SysLogChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
 
@@ -477,10 +484,6 @@ static string getLogFilePath(const string &dir, time_t second, int32_t index) {
     snprintf(buf, sizeof(buf), "%d-%02d-%02d_%02d.log", 1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday, index);
     return dir + buf;
 }
-
-#if defined(_WIN32)
-#include "strptime_win.h"
-#endif
 
 //根据日志文件名返回GMT UNIX时间戳
 static time_t getLogFileTime(const string &full_path) {

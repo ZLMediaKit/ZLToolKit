@@ -15,8 +15,6 @@
 #include "Util/TimeTicker.h"
 #include "Network/sockutil.h"
 
-using namespace std;
-
 #if defined(HAS_EPOLL)
 #include <sys/epoll.h>
 
@@ -34,6 +32,8 @@ using namespace std;
                                 | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
                                 | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #endif //HAS_EPOLL
+
+using namespace std;
 
 namespace toolkit {
 
