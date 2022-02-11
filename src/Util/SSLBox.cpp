@@ -12,8 +12,6 @@
 #include "onceToken.h"
 #include "SSLUtil.h"
 
-using namespace std;
-
 #if defined(ENABLE_OPENSSL)
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
@@ -28,6 +26,8 @@ using namespace std;
 //openssl版本是否支持sni
 #define SSL_ENABLE_SNI
 #endif
+
+using namespace std;
 
 namespace toolkit {
 

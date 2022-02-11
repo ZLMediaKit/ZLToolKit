@@ -15,12 +15,18 @@
 #include "onceToken.h"
 #include "File.h"
 #include "NoticeCenter.h"
+
 #if defined(_WIN32)
 #include "strptime_win.h"
 #endif
 #ifdef ANDROID
 #include <android/log.h>
 #endif //ANDROID
+
+#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) && !defined(ANDROID))
+#include <sys/syslog.h>
+#endif
+
 using namespace std;
 
 namespace toolkit {
@@ -297,8 +303,8 @@ void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
 }
 
 ///////////////////SysLogChannel///////////////////
+
 #if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) && !defined(ANDROID))
-#include <sys/syslog.h>
 
 SysLogChannel::SysLogChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
 

@@ -16,8 +16,7 @@
 #define ALT_O     0x02
 #define LEGAL_ALT(x)    { if (alt_format & ~(x)) return (0); }
 
-
-static  int conv_num(const char **, int *, int, int);
+static int conv_num(const char **, int *, int, int);
 
 static const char *day[7] = {
         "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday",
@@ -361,8 +360,5 @@ static int conv_num(const char **buf, int *dest, int llim, int ulim)
     *dest = result;
     return (1);
 }
-
-
-
 
 #endif

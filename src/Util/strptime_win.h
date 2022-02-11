@@ -1,7 +1,7 @@
 ﻿#ifndef ZLMEDIAKIT_STRPTIME_WIN_H
 #define ZLMEDIAKIT_STRPTIME_WIN_H
 
-#include <time.h>
+#include <ctime>
 #ifdef _WIN32
 //window上自己实现strptime函数，linux已经提供strptime
 //strptime函数windows平台上实现
