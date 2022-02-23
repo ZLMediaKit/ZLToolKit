@@ -147,45 +147,22 @@ bool File::create_path(const char *file, unsigned int mod) {
 
 //判断是否为目录
 bool File::is_dir(const char *path) {
-    struct stat statbuf;
-    if (stat(path, &statbuf) == 0) {
-        //lstat返回文件的信息，文件信息存放在stat结构中
-        if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
-            return true;
-        }
-#if !defined(_WIN32)
-        if (S_ISLNK(statbuf.st_mode)) {
-            char realFile[256] = {0};
-            if (-1 == readlink(path, realFile, sizeof(realFile))) {
-                WarnL << "readlink failed:" << get_uv_errmsg();
-                return false;
-            }
-            return File::is_dir(realFile);
-        }
-#endif // !defined(_WIN32)
+    auto dir = opendir(path);
+    if (!dir) {
+        return false;
     }
-    return false;
+    closedir(dir);
+    return true;
 }
 
 //判断是否为常规文件
 bool File::is_file(const char *path) {
-    struct stat statbuf;
-    if (stat(path, &statbuf) == 0) {
-        if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
-            return true;
-        }
-#if !defined(_WIN32)
-        if (S_ISLNK(statbuf.st_mode)) {
-            char realFile[256] = {0};
-            if (-1 == readlink(path, realFile, sizeof(realFile))) {
-                WarnL << "readlink failed:" << get_uv_errmsg();
-                return false;
-            }
-            return File::is_file(realFile);
-        }
-#endif // !defined(_WIN32)
+    auto fp = fopen(path, "rb");
+    if (!fp) {
+        return false;
     }
-    return false;
+    fclose(fp);
+    return true;
 }
 
 //判断是否是特殊目录

@@ -405,7 +405,7 @@ struct tm getLocalTime(time_t sec) {
     return tm;
 }
 
-static thread_local string thread_name;
+//static thread_local string thread_name;
 
 static string limitString(const char *name, size_t max_size) {
     string str = name;
