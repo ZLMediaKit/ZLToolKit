@@ -11,36 +11,31 @@
 #include <stdexcept>
 
 
-Url::Url(){
-
-}
-
-
-Url::Url( const string& s ){
+Url::Url( const std::string& s ){
   this->fromString(s);
 }
 
 
 
-string Url::getScheme() const{
+const std::string& Url::getScheme() const{
   return this->scheme;
 }
 
 
 
-string Url::getUsername() const{
+const std::string&  Url::getUsername() const{
   return this->username;
 }
 
 
 
-string Url::getPassword() const{
+const std::string&  Url::getPassword() const{
   return this->password;
 }
 
 
 
-string Url::getHost() const{
+const std::string&  Url::getHost() const{
   return this->host;
 }
 
@@ -48,8 +43,8 @@ string Url::getHost() const{
 
 unsigned short Url::getPort() const{
 
-  if( this->port.size() > 0 ){
-    return std::atoi( this->port.c_str() );
+  if( !this->port.empty() ){
+    return std::stoi( this->port);
   }
 
   if( this->scheme == "https" ) return 443;
@@ -74,29 +69,36 @@ unsigned short Url::getPort() const{
 
 
 
-string Url::getPath() const{
-
-  std::string tmp_path;
-  unescape_path( this->path, tmp_path );
+const std::string& Url::getPath(){
+  if(tmp_path.empty()){
+    unescape_path( this->path, this->tmp_path);
+  }
   return tmp_path;
 
 }
 
 
 
-string Url::getQuery() const{
+const std::string& Url::getQuery() const{
   return this->query;
 }
 
 
 
-const multimap<string,string>& Url::getQueryParameters() const{
+const std::multimap<std::string,std::string>& Url::getQueryParameters() const{
   return this->query_parameters;
 }
 
+const std::string& Url::getParameter(const char* key) const{
+  static std::string default_value;
+  auto it = query_parameters.find(key);
+  if(it != query_parameters.end()){
+    return it->second;
+  }
+  return default_value;
+}
 
-
-string Url::getFragment() const{
+const std::string&  Url::getFragment() const{
   return this->fragment;
 }
 
@@ -116,26 +118,22 @@ bool Url::isSecure() const{
 
 
 
-
-
-
-
-string_view Url::captureUpTo( const string_view right_delimiter, const string& error_message ){
+std::string_view Url::captureUpTo( const std::string_view& right_delimiter, const std::string& error_message ){
 
   this->right_position = this->parse_target.find_first_of( right_delimiter, this->left_position );
 
-  if( right_position == std::string::npos && error_message.size() ){
+  if( right_position == std::string::npos && !error_message.empty() ){
     throw std::runtime_error(error_message);
   }
 
-  string_view captured = this->parse_target.substr( this->left_position, this->right_position - this->left_position );
+  std::string_view captured = this->parse_target.substr( this->left_position, this->right_position - this->left_position );
 
   return captured;
 
 }
 
 
-bool Url::moveBefore( const string_view right_delimiter ){
+bool Url::moveBefore( const std::string_view& right_delimiter ){
 
   size_t position = this->parse_target.find_first_of( right_delimiter, this->left_position );
 
@@ -148,7 +146,7 @@ bool Url::moveBefore( const string_view right_delimiter ){
 
 }
 
-bool Url::existsForward( const string_view right_delimiter ){
+bool Url::existsForward( const std::string_view& right_delimiter ){
 
   size_t position = this->parse_target.find_first_of( right_delimiter, this->left_position );
 
@@ -181,7 +179,7 @@ void Url::fromString( const std::string& source_string ){
   this->scheme = this->captureUpTo( ":", "Expected : in Url" );
   std::transform(
       this->scheme.begin(), this->scheme.end(),
-      this->scheme.begin(), []( string_view::value_type c){ return std::tolower(c); }
+      this->scheme.begin(), []( std::string_view::value_type c){ return std::tolower(c); }
   );
   this->left_position += scheme.size() + 1;
 
@@ -334,7 +332,7 @@ void Url::fromString( const std::string& source_string ){
 
 
 
-bool Url::unescape_path( const std::string& in, std::string& out ){
+bool Url::unescape_path(const std::string& in, std::string& out){
 
   out.clear();
   out.reserve( in.size() );
@@ -462,14 +460,14 @@ bool operator<( const Url& a, const Url& b ){
 
 
 
-string Url::toString() const{
+std::string Url::toString() const{
 
   return this->whole_url_storage;
 
 }
 
 
-Url::operator string() const{
+Url::operator std::string() const{
   return this->toString();
 }
 

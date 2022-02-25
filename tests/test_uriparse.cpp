@@ -20,7 +20,8 @@ int main(){
   std::cout << url.isSecure()    << std::endl;		// bool(true)
   std::cout << url.isIpv6()      << std::endl;		// bool(false)
 
-
+  string_view view{"data"};
+  std::cout << view;
 
   return 0;
 }

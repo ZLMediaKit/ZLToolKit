@@ -8,13 +8,8 @@
 #pragma once
 
 #include <string>
-using std::string;
-
 #include <string_view>
-using std::string_view;
-
 #include <map>
-using std::multimap;
 
 /*
     Url and UrlView are compliant with
@@ -31,18 +26,19 @@ class Url{
 
 public:
 
-  Url();
-  Url( const std::string& s );
+  Url() = default;
+  explicit Url( const std::string& s );
 
-  string getScheme() const;
-  string getUsername() const;
-  string getPassword() const;
-  string getHost() const;
+  const std::string& getScheme() const;
+  const std::string& getUsername() const;
+  const std::string& getPassword() const;
+  const std::string& getHost() const;
   unsigned short getPort() const;
-  string getPath() const;
-  string getQuery() const;
-  const multimap<string,string>& getQueryParameters() const;
-  string getFragment() const;
+  const std::string& getPath();
+  const std::string& getQuery() const;
+  const std::multimap<std::string,std::string>& getQueryParameters() const;
+  const std::string& getParameter(const char*) const;
+  const std::string& getFragment() const;
 
 
   void fromString( const std::string& s );
@@ -56,37 +52,36 @@ public:
   bool isIpv6() const;
   bool isSecure() const;
 
-  string toString() const;
-  explicit operator string() const;
-
+  std::string toString() const;
+  explicit operator std::string() const;
 
 protected:
 
   static bool unescape_path(const std::string& in, std::string& out);
 
-  string_view captureUpTo( const string_view right_delimiter, const string& error_message = "" );
-  bool moveBefore( const string_view right_delimiter );
-  bool existsForward( const string_view right_delimiter );
+  std::string_view captureUpTo( const std::string_view& right_delimiter, const std::string& error_message = "" );
+  bool moveBefore( const std::string_view& right_delimiter );
+  bool existsForward( const std::string_view& right_delimiter );
 
-  string scheme;
-  string authority;
-  string user_info;
-  string username;
-  string password;
-  string host;
-  string port;
-  string path;
-  string query;
-  multimap<string,string> query_parameters;
-  string fragment;
-
+  std::string scheme;
+  std::string authority;
+  std::string user_info;
+  std::string username;
+  std::string password;
+  std::string host;
+  std::string port;
+  std::string path;
+  std::string query;
+  std::multimap<std::string,std::string> query_parameters;
+  std::string fragment;
+  std::string tmp_path;
   bool secure = false;
   bool ipv6_host = false;
   bool authority_present = false;
 
-  string whole_url_storage;
+  std::string whole_url_storage;
   size_t left_position = 0;
   size_t right_position = 0;
-  string_view parse_target;
+  std::string_view parse_target;
 
 };
