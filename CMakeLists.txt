@@ -1,4 +1,4 @@
-﻿project(ZLToolKit)
+﻿project(ShToolKit)
 cmake_minimum_required(VERSION 3.1.3)
 #加载自定义模块
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -7,7 +7,10 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 #设置可执行程序路径
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 #设置子目录
-set(SUB_DIR_LIST "Network" "Poller" "Thread" "Util")
+set(SUB_DIR_LIST "Network" "Poller" "Thread" "Util" "Http")
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 if(WIN32)
     list(APPEND SUB_DIR_LIST "win32")
@@ -30,6 +33,7 @@ foreach(SUB_DIR ${SUB_DIR_LIST})
     aux_source_directory(src/${SUB_DIR} SRC_LIST)
     #安装头文件至系统目录
     install(DIRECTORY src/${SUB_DIR} DESTINATION ${INSTALL_PATH_INCLUDE} FILES_MATCHING PATTERN "*.h")
+    install(DIRECTORY src/${SUB_DIR} DESTINATION ${INSTALL_PATH_INCLUDE} FILES_MATCHING PATTERN "*.hpp")
 endforeach()
 
 #非苹果平台移除.mm类型的文件
