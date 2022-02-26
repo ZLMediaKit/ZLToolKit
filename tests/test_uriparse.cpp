@@ -21,11 +21,12 @@ int main(){
   std::cout << url.isSecure()    << std::endl;		// bool(true)
   std::cout << url.isIpv6()      << std::endl;		// bool(false)
 
-  toolkit::string_view view{"data"};
-  std::cout << view;
+  //toolkit::string_view view{"data"};
+  //std::cout << view;
 
   std::map<toolkit::string_view, toolkit::string_view> _map ={
-      {"shenhao","best"}
+      {"shenhao","best"},
+      {"sh","1"}
   };
   auto it = _map.find("shenhao");
   if( it != _map.end()){

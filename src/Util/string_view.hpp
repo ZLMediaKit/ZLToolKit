@@ -198,7 +198,14 @@ namespace std{
   //ÌØ»¯string_viewµÄhash
   template<> struct hash<toolkit::basic_string_view<char>>{
       size_t operator()(const toolkit::basic_string_view<char>& view){
-        return __murmur2_or_cityhash<size_t>()(view.data(), view.size());
+         constexpr size_t offset_basis = 14695981039346656037ULL;
+         constexpr size_t prime        = 1099511628211ULL;
+         size_t val = offset_basis;
+         for(size_t idx = 0; idx < view.size();++idx){
+           val ^= static_cast<size_t>(view[idx]);
+           val *= prime;
+         }
+         return val;
       }
   };
 }
