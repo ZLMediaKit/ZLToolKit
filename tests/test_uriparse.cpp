@@ -3,8 +3,8 @@
 //
 #include <Util/Url.hpp>
 #include <Util/logger.h>
+#include <Util/string_view.hpp>
 using namespace toolkit;
-using namespace std;
 int main(){
   Logger::Instance().add(std::make_shared<ConsoleChannel>());
   Url url{ "https://fred:password@www.wikipedia.org/what-me-worry/path?hello=there#wonder"};
@@ -20,7 +20,7 @@ int main(){
   std::cout << url.isSecure()    << std::endl;		// bool(true)
   std::cout << url.isIpv6()      << std::endl;		// bool(false)
 
-  string_view view{"data"};
+  toolkit::string_view view{"data"};
   std::cout << view;
 
   return 0;

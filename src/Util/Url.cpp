@@ -118,22 +118,22 @@ bool Url::isSecure() const{
 
 
 
-std::string_view Url::captureUpTo( const std::string_view& right_delimiter, const std::string& error_message ){
+string_view Url::captureUpTo( const string_view& right_delimiter, const std::string& error_message ){
 
-  this->right_position = this->parse_target.find_first_of( right_delimiter, this->left_position );
+  this->right_position = this->parse_target.find_first_of(right_delimiter, this->left_position );
 
   if( right_position == std::string::npos && !error_message.empty() ){
     throw std::runtime_error(error_message);
   }
-
-  std::string_view captured = this->parse_target.substr( this->left_position, this->right_position - this->left_position );
+  size_t length = right_position == std::string::npos ? std::string::npos : this->right_position - this -> left_position;
+  string_view captured = this->parse_target.substr( this->left_position, length);
 
   return captured;
 
 }
 
 
-bool Url::moveBefore( const std::string_view& right_delimiter ){
+bool Url::moveBefore( const string_view& right_delimiter ){
 
   size_t position = this->parse_target.find_first_of( right_delimiter, this->left_position );
 
@@ -146,7 +146,7 @@ bool Url::moveBefore( const std::string_view& right_delimiter ){
 
 }
 
-bool Url::existsForward( const std::string_view& right_delimiter ){
+bool Url::existsForward( const string_view& right_delimiter ){
 
   size_t position = this->parse_target.find_first_of( right_delimiter, this->left_position );
 
@@ -176,10 +176,11 @@ void Url::fromString( const std::string& source_string ){
 
 
   // scheme
-  this->scheme = this->captureUpTo( ":", "Expected : in Url" );
+  auto view = this->captureUpTo( ":", "Expected : in Url" );
+  this->scheme = std::string(view.data(), view.size());
   std::transform(
       this->scheme.begin(), this->scheme.end(),
-      this->scheme.begin(), []( std::string_view::value_type c){ return std::tolower(c); }
+      this->scheme.begin(), [](string_view::value_type c){ return std::tolower(c); }
   );
   this->left_position += scheme.size() + 1;
 
@@ -193,7 +194,8 @@ void Url::fromString( const std::string& source_string ){
 
   if( this->authority_present ){
 
-    this->authority = this->captureUpTo( "/" );
+    auto view = this->captureUpTo( "/" );
+    this->authority = std::string(view.data(), view.size());
 
     bool path_exists = false;
 
@@ -202,33 +204,39 @@ void Url::fromString( const std::string& source_string ){
     }
 
     if( this->existsForward("?") ){
-
-      this->path = this->captureUpTo( "?" );
+      auto view = this->captureUpTo("?");
+      this->path = std::string(view.data(), view.size());
       this->moveBefore("?");
       this->left_position++;
 
       if( this->existsForward("#") ){
-        this->query = this->captureUpTo( "#" );
+        auto view = this->captureUpTo("#");
+        this->query = std::string(view.data(), view.size());
         this->moveBefore("#");
         this->left_position++;
-        this->fragment = this->captureUpTo( "#" );
+        view = this->captureUpTo("#");
+        this->fragment = std::string(view.data(), view.size());
       }else{
         //no fragment
-        this->query = this->captureUpTo( "#" );
+        auto view = this->captureUpTo("#");
+        this->query = std::string(view.data(), view.size());
       }
 
     }else{
 
       //no query
       if( this->existsForward("#") ){
-        this->path = this->captureUpTo( "#" );
+        auto view = this->captureUpTo("#");
+        this->path = std::string(view.data(), view.size());
         this->moveBefore("#");
         this->left_position++;
-        this->fragment = this->captureUpTo( "#" );
+        view = this->captureUpTo("#");
+        this->fragment = std::string(view.data(), view.size());
       }else{
         //no fragment
         if( path_exists ){
-          this->path = this->captureUpTo( "#" );
+          auto view = this->captureUpTo( "#" );
+          this->path = std::string(view.data(), view.size());
         }
 
       }
@@ -237,7 +245,8 @@ void Url::fromString( const std::string& source_string ){
 
   }else{
 
-    this->path = this->captureUpTo( "#" );
+    auto view = this->captureUpTo( "#" );
+    this->path = std::string(view.data(), view.size());
 
   }
 
@@ -253,8 +262,8 @@ void Url::fromString( const std::string& source_string ){
 
 
   if( this->existsForward("@") ){
-
-    this->user_info = this->captureUpTo( "@" );
+    auto view = this->captureUpTo( "@" );
+    this->user_info = std::string(view.data(),view.size());
     this->moveBefore("@");
     this->left_position++;
 
@@ -266,19 +275,23 @@ void Url::fromString( const std::string& source_string ){
   //detect ipv6
   if( this->existsForward("[") ){
     this->left_position++;
-    this->host = this->captureUpTo( "]", "Malformed ipv6" );
+    auto view = this->captureUpTo( "]", "Malformed ipv6" );
+    this->host = std::string(view.data(), view.size());
     this->left_position++;
     this->ipv6_host = true;
   }else{
 
     if( this->existsForward(":") ){
-      this->host = this->captureUpTo( ":" );
+      auto view = this->captureUpTo( ":" );
+      this->host = std::string(view.data(), view.size());
       this->moveBefore(":");
       this->left_position++;
-      this->port = this->captureUpTo( "#" );
+      view = this->captureUpTo( "#" );
+      this->port = std::string(view.data(),view.size());
     }else{
       //no port
-      this->host = this->captureUpTo( ":" );
+      auto view = this->captureUpTo( ":" );
+      this->host = std::string(view.data(), view.size());
     }
 
   }
@@ -293,17 +306,17 @@ void Url::fromString( const std::string& source_string ){
 
 
   if( this->existsForward(":") ){
-
-    this->username = this->captureUpTo( ":" );
+    auto view = this->captureUpTo( ":" );
+    this->username = std::string(view.data(), view.size());
     this->moveBefore(":");
     this->left_position++;
-
-    this->password = this->captureUpTo( "#" );
+    view = this->captureUpTo( "#" );
+    this->password = std::string(view.data(), view.size());
 
   }else{
     //no password
-
-    this->username = this->captureUpTo( ":" );
+    auto view = this->captureUpTo( ":" );
+    this->username = std::string(view.data(), view.size());
 
   }
 

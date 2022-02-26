@@ -47,7 +47,7 @@ private:
     static std::map<std::string, http_callback> _invokes;
 };
 
-class HttpSession : public toolkit::TcpSession, public HttpSplitter, public HttpParser {
+class HttpSession : public toolkit::TcpSession, public HttpParser {
 public:
   using Buffer = toolkit::Buffer;
   using BufferLikeString = toolkit::BufferLikeString;
@@ -77,7 +77,7 @@ public:
   virtual void onError(const SockException &err) override;
   virtual void onManager() override {}
 private:
-  virtual void OnRecvHeaderBody(std::string& header, std::string& body) override;
+  //virtual void OnRecvHeaderBody(std::string& header, std::string& body) override;
 private:
   std::shared_ptr<http::http_request<http::any_body>> http_request;
   BufferLikeString input_buffer;

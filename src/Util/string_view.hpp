@@ -17,26 +17,35 @@
 #define OAHO_BASIC_STRING_VIEW_FROM_FMT
 #include <type_traits>
 #include <string>
+#include <iterator>
+#include <cstring>
+#include <iostream>
 
+#if defined(__clang__) || defined(__GNUC__)
+  #define CPP_STANDARD __cplusplus
+#elif defined(_MSC_VER)
+  #define CPP_STANDARD _MSVC_LANG
+#endif
 
-#ifdef _has_cpp_version_14
+#ifdef __cplusplus
+  #if CPP_STANDARD >= 201402L
     #define BASIC_STRING_VIEW_CONSTEXPR constexpr
-#else
+  #else
     #define BASIC_STRING_VIEW_CONSTEXPR
-#endif // _has_cpp_version_14
-
+  #endif
+#endif
 
 
 namespace toolkit{
-    template <typename Char> class basic_string_view {
-    private:
-        const Char* data_;
-        size_t size_;
-
+    template <typename Char>
+    class basic_string_view {
     public:
+        using size_type = typename std::basic_string<Char>::size_type;
         using value_type = Char;
         using iterator = const Char*;
-
+        using const_iterator = const iterator;
+        using this_type = basic_string_view<value_type>;
+        static constexpr const size_type npos = std::basic_string<Char>::npos;
         BASIC_STRING_VIEW_CONSTEXPR basic_string_view() noexcept : data_(nullptr), size_(0) {}
 
         /** Constructs a string reference object from a C string and a size. */
@@ -68,11 +77,19 @@ namespace toolkit{
         /** Returns the string size. */
         BASIC_STRING_VIEW_CONSTEXPR auto size() const -> size_t { return size_; }
         BASIC_STRING_VIEW_CONSTEXPR auto begin() const -> iterator { return data_; }
+        BASIC_STRING_VIEW_CONSTEXPR auto cbegin() const -> const_iterator { return data_;}
         BASIC_STRING_VIEW_CONSTEXPR auto end() const -> iterator { return data_ + size_; }
+        BASIC_STRING_VIEW_CONSTEXPR auto cend() const -> const_iterator { return data_ + size_;}
         BASIC_STRING_VIEW_CONSTEXPR auto operator[](size_t pos) const -> const Char& {
             return data_[pos];
         }
-        BASIC_STRING_VIEW_CONSTEXPR void remove_prefix(size_t n) {
+        BASIC_STRING_VIEW_CONSTEXPR auto operator = (const basic_string_view<Char>& other) -> this_type& {
+            this->data_ = other.data();
+            this->size_ = other.size();
+            return *this;
+        }
+
+        void remove_prefix(size_t n) {
             data_ += n;
             size_ -= n;
         }
@@ -83,6 +100,68 @@ namespace toolkit{
             if (result == 0)
                 result = size_ == other.size_ ? 0 : (size_ < other.size_ ? -1 : 1);
             return result;
+        }
+
+        BASIC_STRING_VIEW_CONSTEXPR auto substr(size_type pos = 0, size_type count = std::basic_string<Char>::npos) const -> this_type {
+            if( count == std::basic_string<Char>::npos )
+              count = size_ - pos;
+            if( pos >= size_ || pos + count > size_)
+              throw std::out_of_range("substr is out of range");
+            return this_type(data_ + pos, count);
+        }
+
+        size_type find(basic_string_view<Char> v, size_type pos = 0) const noexcept{
+          if( pos >= size_ || v.size() > size_ - pos) return npos;
+          const char* find_it = strstr(data_ + pos, v.data());
+          if(!find_it) return npos;
+          if(find_it < data_ || find_it >= (data_ + size_))return npos;
+          return find_it - data_;
+        }
+
+        size_type find(Char ch, size_type pos = 0) const {
+            if( pos >= size_ ) return npos;
+            const Char* find_it = strchr(data_ + pos, ch);
+            if(!find_it)return npos;
+            if( find_it < data_ || find_it >= data_ + size_)return npos;
+            return find_it - data_;
+        }
+
+        size_type find(const Char* s, size_type pos, size_type count) const{
+            return find(this_type(s, count), pos);
+        }
+
+        size_type find(const Char* s, size_type pos = 0) const{
+            return find(this_type(s, strlen(s)), pos);
+        }
+
+        size_type find_first_of(const basic_string_view& v, size_type pos = 0) const noexcept{
+            if(pos >= size_)
+              return npos;
+            const Char* find_it = strpbrk(data_ + pos, v.data());
+            if(!find_it)
+              return npos;
+            if(find_it < data_ || find_it >= data_ + size_)
+              return npos;
+            return find_it - data_;
+        }
+
+        size_type find_first_of(const Char* s, size_type pos, size_type count) const{
+            return find_first_of(this_type(s, count), pos);
+        }
+
+
+        size_type find_first_of(const Char* s, size_type pos = 0) const{
+            return find_first_of(this_type(s, strlen(s)), pos);
+        }
+
+
+        BASIC_STRING_VIEW_CONSTEXPR size_type find_first_of(Char c, size_type pos = 0) const noexcept{
+            return find(c,  pos);
+        }
+
+        friend std::ostream& operator << (std::ostream& os, const this_type& _this){
+            os.write(_this.data_, _this.size_);
+            return os;
         }
 
         BASIC_STRING_VIEW_CONSTEXPR friend auto operator == (basic_string_view<Char> lhs,
@@ -105,6 +184,10 @@ namespace toolkit{
         friend auto operator>=(basic_string_view<Char> lhs, basic_string_view<Char> rhs) -> bool {
             return lhs.compare(rhs) >= 0;
         }
+
+      private:
+        const Char* data_;
+        size_t size_;
     };
 
     using string_view = basic_string_view<char>;

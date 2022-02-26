@@ -56,7 +56,7 @@ namespace http {
     void HttpSession::onRecv(const Buffer::Ptr &buf) {
         try {
             //输入分包器
-            HttpSplitter::Input(buf->data(), buf->size());
+            //HttpSplitter::Input(buf->data(), buf->size());
             //auto* invoke_func = HttpRequestHandler::GetInvokes(http_request->uri().path().c_str());
             //if(!invoke_func){
                 //throw std::logic_error("忽略的http请求");
@@ -69,6 +69,7 @@ namespace http {
         }
     }
     void HttpSession::onError(const SockException &err) { ErrorL << err.what(); }
+    /*
     void HttpSession::OnRecvHeaderBody(std::string& header, std::string& body){
         static std::set<std::string> support_method{
             "GET", "POST"
@@ -89,4 +90,5 @@ namespace http {
             http_request->keep_alive(true);
         }
     }
+     */
 }

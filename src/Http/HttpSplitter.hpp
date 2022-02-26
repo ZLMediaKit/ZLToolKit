@@ -24,34 +24,31 @@
 */
 #ifndef FOLLOWVARY_HTTPSPLITTER_HPP
 #define FOLLOWVARY_HTTPSPLITTER_HPP
-#include "Http/Body/AnyBody.hpp"
-#include "HttpRequest.hpp"
-#include "Network/Buffer.h"
-#include <regex>
-namespace http{
+#include <string>
+
+namespace Http{
     class HttpSplitter{
     public:
-        HttpSplitter():data_bytes(0){}
-
-        virtual ~HttpSplitter(){}
-
-        void clear();
+        virtual ~HttpSplitter() = default;
+        void input(const void* data, size_t length);
+    public:
         /*
-         * return: 如果分包完毕，则返回整的一个包
-         * */
-        virtual void Input(const void* data, size_t len);
-        virtual void OnRecvHeaderBody(std::string& header, std::string& body) = 0;
-    private:
-        size_t set_body_size();
-        size_t getContentLength();
-    private:
-        //缓存的头
-        std::string header;
-        //缓存的数据区
-        std::string body;
-        //是否正在处于接收数据中，需要接收数据的字节数
-        size_t data_bytes;
+        * @description: 当收到整个http头时
+        * @date: 2022/2/26
+        * @param: 数据指针
+        * @param: 头部的整个长度
+        */
+        virtual void onRecvHeader(const char* data, size_t length) = 0;
+        /*
+        * @description: 收到整个消息体回调
+        * @date: 2022/2/26
+        * @param: 数据指针
+        * @return: 数据长度
+        */
+        virtual void onRecvBody(const char* body, size_t length) = 0;
     };
+
+
 }
 
 

@@ -6,9 +6,26 @@
 // https://github.com/chriskohlhoff/urdl/blob/master/include/urdl/url.hpp
 
 #pragma once
+#ifndef URI_HPP
+#define URI_HPP
+#if defined(__clang__) || defined(__GNUC__)
+  #define CPP_STANDARD __cplusplus
+#elif defined(_MSC_VER)
+  #define CPP_STANDARD _MSVC_LANG
+#endif
+
+#ifdef __cplusplus
+  #if CPP_STANDARD >= 201703L
+    #include <string_view>
+    using string_view = typename std::string_view;
+  #else
+    #include "string_view.hpp"
+    using string_view = toolkit::string_view;
+  #endif
+#endif
+
 
 #include <string>
-#include <string_view>
 #include <map>
 
 /*
@@ -59,9 +76,9 @@ protected:
 
   static bool unescape_path(const std::string& in, std::string& out);
 
-  std::string_view captureUpTo( const std::string_view& right_delimiter, const std::string& error_message = "" );
-  bool moveBefore( const std::string_view& right_delimiter );
-  bool existsForward( const std::string_view& right_delimiter );
+  string_view captureUpTo( const string_view& right_delimiter, const std::string& error_message = "" );
+  bool moveBefore( const string_view& right_delimiter );
+  bool existsForward( const string_view& right_delimiter );
 
   std::string scheme;
   std::string authority;
@@ -82,6 +99,7 @@ protected:
   std::string whole_url_storage;
   size_t left_position = 0;
   size_t right_position = 0;
-  std::string_view parse_target;
+  string_view parse_target;
 
 };
+#endif
