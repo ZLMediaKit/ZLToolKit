@@ -4,6 +4,7 @@
 #include <Util/Url.hpp>
 #include <Util/logger.h>
 #include <Util/string_view.hpp>
+#include <map>
 using namespace toolkit;
 int main(){
   Logger::Instance().add(std::make_shared<ConsoleChannel>());
@@ -23,5 +24,12 @@ int main(){
   toolkit::string_view view{"data"};
   std::cout << view;
 
+  std::map<toolkit::string_view, toolkit::string_view> _map ={
+      {"shenhao","best"}
+  };
+  auto it = _map.find("shenhao");
+  if( it != _map.end()){
+    std::cout << it->second;
+  }
   return 0;
 }

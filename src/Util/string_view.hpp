@@ -20,7 +20,7 @@
 #include <iterator>
 #include <cstring>
 #include <iostream>
-
+#include <utility>
 #if defined(__clang__) || defined(__GNUC__)
   #define CPP_STANDARD __cplusplus
 #elif defined(_MSC_VER)
@@ -191,6 +191,16 @@ namespace toolkit{
     };
 
     using string_view = basic_string_view<char>;
+}
+
+
+namespace std{
+  //ÌØ»¯string_viewµÄhash
+  template<> struct hash<toolkit::basic_string_view<char>>{
+      size_t operator()(const toolkit::basic_string_view<char>& view){
+        return __murmur2_or_cityhash<size_t>()(view.data(), view.size());
+      }
+  };
 }
 
 #endif
