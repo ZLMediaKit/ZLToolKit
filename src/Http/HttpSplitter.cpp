@@ -56,6 +56,8 @@ namespace Http{
      * 收到头部分了
      * */
     onRecvHeader(header);
+    //调用之后清除上下文
+    clear();
     /*
      * 这里分body和chunked body
      * */
@@ -75,14 +77,17 @@ namespace Http{
       auto end = view.find("\r\n", pos);
       if( end == toolkit::string_view::npos){
         WarnL << "HTTP Content-Length 解析失败";
-        throw std::logic_error(StrPrinter << toolkit::string_view(data + pos - 16, length - pos + 16));
+        onSplitterError();
+        clear();
+        return;
       }
 
       try{
         need_length = std::stol(std::string(data + pos, end - pos));
       }catch(const std::exception& e){
         WarnL << "HTTP Content-Length字段解析失败";
-        clear();
+        onSplitterError();
+        reset();
         return;
       }
       return _next_func(data + pos + 4, length - pos - 4);
@@ -157,6 +162,7 @@ namespace Http{
       return _next_func(data, length);
     }catch(const std::exception& e){
       WarnL << "HTTP Chunked头部长度解析失败： " << e.what();
+      onSplitterError();
       clear();
       return;
     }
@@ -190,7 +196,8 @@ namespace Http{
     //检查末尾是否为"\r\n"
     if(body.find("\r\n") != body.size() - 2){
       WarnL << "HTTP Chunked body 内容长度不正确";
-      clear();
+      onSplitterError();
+      reset();
       return;
     }
     //清除尾巴
@@ -225,10 +232,13 @@ namespace Http{
     header.clear();
     body.clear();
     need_length = 0;
+  }
+
+  void HttpSplitter::reset(){
+    clear();
     _next_func = [this](const char* data, size_t length){
       return this->onHeader(data, length);
     };
   }
-
 
 }

@@ -59,6 +59,8 @@ namespace Http{
          * 当收到chunked结束的消息
          * **/
         virtual void onRecvChunkedBodyTailer() = 0;
+        /* 当解析失败的时候 */
+        virtual void onSplitterError() = 0;
       private:
         /*
          * 收到头字段
@@ -85,6 +87,7 @@ namespace Http{
          * 清空上下文
          * */
         void clear();
+        void reset();
       private:
         /* 缓冲头部字段 */
         std::string header;
