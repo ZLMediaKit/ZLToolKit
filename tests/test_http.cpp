@@ -14,7 +14,8 @@ int main(){
   if(it != _map.end()){
     std::cout << it->second << std::endl;
   }
-
+  //constexpr const char* content_length = "Content-Length: ";
+  //constexpr size_t length = std::char_traits<char>::length(content_length);
 
   std::string str;
 
