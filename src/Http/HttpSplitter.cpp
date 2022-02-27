@@ -53,18 +53,10 @@ namespace Http{
     }
     header.append(data, pos + 2);
     /*
-     * 收到头部分了
-     * */
-    onRecvHeader(header);
-    //调用之后清除上下文
-    clear();
-    /*
      * 这里分body和chunked body
      * */
     pos = view.find(content_length);
     need_length = 0;
-
-
 
     /* 这里是收到了content-length */
     if( pos != toolkit::string_view::npos ){
@@ -90,6 +82,9 @@ namespace Http{
         reset();
         return;
       }
+      onRecvHeader(header, 1);
+      //调用之后清除上下文
+      clear();
       return _next_func(data + pos + 4, length - pos - 4);
     }
 
@@ -101,10 +96,15 @@ namespace Http{
       _next_func = [this](const char* data_, size_t length_){
         return this->onChunkedBody(data_, length_);
       };
+      onRecvHeader(header, 2);
+      //调用之后清除上下文
+      clear();
       return _next_func(data + pos + 4, length - pos - 4);
     }
 
-
+    onRecvHeader(header, 0);
+    //调用之后清除上下文
+    clear();
     /* 如果没有找到任何关于消息体的字段，那么继续接收头字段 */
     return _next_func(data + pos + 4, length - pos - 4);
   }

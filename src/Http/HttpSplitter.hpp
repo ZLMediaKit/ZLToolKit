@@ -1,6 +1,6 @@
 /*
 * @file_name: HttpSplitter.hpp
-* @date: 2021/12/06
+* @date: 2022/02/26
 * @author: oaho
 * Copyright @ hz oaho, All rights reserved.
 *
@@ -37,9 +37,10 @@ namespace Http{
         /*
         * @description: 当收到整个http头时
         * @date: 2022/2/26
-        * @param: 数据
+        * @param header: 数据
+        * @param body_type: 0 表示后面没有数据，1表示为后面有body数据(content-length),2表示chunked
         */
-        virtual void onRecvHeader(std::string& header) = 0;
+        virtual void onRecvHeader(std::string& header, int body_type) = 0;
         /*
         * @description: 收到整个消息体回调
         * @date: 2022/2/26
