@@ -183,6 +183,15 @@ public:
     }
 
     bool getDomainIP(const char *host, sockaddr &addr, int expireSec = 60) {
+        {
+            auto addr_ipv4 = inet_addr(host);
+            if (addr_ipv4 != INADDR_NONE) {
+                //host是ip，不需要dns解析
+                reinterpret_cast<struct sockaddr_in &>(addr).sin_addr.s_addr = addr_ipv4;
+                reinterpret_cast<struct sockaddr_in &>(addr).sin_family = AF_INET;
+                return true;
+            }
+        }
         DnsItem item;
         auto flag = getCacheDomainIP(host, item, expireSec);
         if (!flag) {
