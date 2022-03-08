@@ -159,7 +159,7 @@ public:
     }
 
     //设置有效数据大小
-    void setSize(size_t size) {
+    virtual void setSize(size_t size) {
         if (size > _capacity) {
             throw std::invalid_argument("Buffer::setSize out of range");
         }
