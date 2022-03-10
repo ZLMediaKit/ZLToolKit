@@ -16,6 +16,7 @@
 #include <limits.h>
 #endif // WIN32
 
+#include <sys/types.h>
 #include <sys/stat.h>
 #include "File.h"
 #include "util.h"
@@ -29,6 +30,7 @@ using namespace toolkit;
 #define    _unlink    unlink
 #define    _rmdir    rmdir
 #define    _access    access
+#define    _stat    stat
 #endif
 
 #if defined(_WIN32)
@@ -157,12 +159,11 @@ bool File::is_dir(const char *path) {
 
 //判断是否为常规文件
 bool File::is_file(const char *path) {
-    auto fp = fopen(path, "rb");
-    if (!fp) {
-        return false;
+    struct stat fi;
+    if(0 == _stat(path,&fi)){
+        return S_ISREG(fi.st_mode);
     }
-    fclose(fp);
-    return true;
+    return false;
 }
 
 //判断是否是特殊目录
