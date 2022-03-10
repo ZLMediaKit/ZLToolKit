@@ -35,6 +35,7 @@ using namespace toolkit;
 
 #if defined(_WIN32)
 
+#define S_ISREG(model) ((model) & _S_IFREG)
 int mkdir(const char *path, int mode) {
     return _mkdir(path);
 }
