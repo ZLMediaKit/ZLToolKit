@@ -160,7 +160,11 @@ bool File::is_dir(const char *path) {
 
 //判断是否为常规文件
 bool File::is_file(const char *path) {
+#if defined(_WIN32)
+    struct _stat fi;
+#else
     struct stat fi;
+#endif// _WIN32
     if(0 == _stat(path,&fi)){
         return S_ISREG(fi.st_mode);
     }
