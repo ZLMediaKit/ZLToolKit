@@ -123,6 +123,7 @@ void Logger::setLevel(LogLevel level) {
 }
 
 void Logger::writeChannels_l(const LogContextPtr &ctx) {
+    _last_str = _str;
     for (auto &chn : _channels) {
         chn.second->write(*this, ctx);
     }
@@ -136,7 +137,8 @@ static int64_t timevalDiff(struct timeval &a, struct timeval &b) {
 }
 
 void Logger::writeChannels(const LogContextPtr &ctx) {
-    if (ctx->_line == _last_log->_line && ctx->_file == _last_log->_file && ctx->str() == _last_log->str()) {
+    _str = ctx->str();
+    if (ctx->_line == _last_log->_line && ctx->_file == _last_log->_file && _str == _last_str) {
         //重复的日志每隔500ms打印一次，过滤频繁的重复日志
         ++_last_log->_repeat;
         if (timevalDiff(_last_log->_tv, ctx->_tv) > 500) {
@@ -182,15 +184,6 @@ LogContext::LogContext(LogLevel level, const char *file, const char *function, i
     _thread_name = getThreadName();
 }
 
-const string &LogContext::str() {
-    if (_got_content) {
-        return _content;
-    }
-    _content = ostringstream::str();
-    _got_content = true;
-    return _content;
-}
-
 ///////////////////AsyncLogWriter///////////////////
 
 static string s_module_name = exeName(false);
@@ -220,6 +213,7 @@ void LogContextCapture::clear() {
     _ctx.reset();
 }
 
+string LogContextCapturer::_moudle_name = exeName(false);
 ///////////////////AsyncLogWriter///////////////////
 
 AsyncLogWriter::AsyncLogWriter() : _exit_flag(false) {
@@ -295,7 +289,7 @@ void ConsoleChannel::write(const Logger &logger, const LogContextPtr &ctx) {
         LogPriorityArr[LWarn] = ANDROID_LOG_WARN;
         LogPriorityArr[LError] = ANDROID_LOG_ERROR;
     });
-    __android_log_print(LogPriorityArr[ctx->_level],"JNI","%s %s",ctx->_function.data(),ctx->str().data());
+    __android_log_print(LogPriorityArr[ctx->_level], "JNI", "%s %s", ctx->_function.data(), logger._str.data());
 #else
     //linux/windows日志启用颜色并显示日志详情
     format(logger, std::cout, ctx);
@@ -381,7 +375,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
         ost << "] " << ctx->_file << ":" << ctx->_line << " " << ctx->_function << " | ";
     }
 
-    ost << ctx->str();
+    ost << logger._str;
 
     if (enable_color) {
 #ifdef _WIN32
