@@ -73,14 +73,14 @@ public:
     //判断是否为目录
     static bool is_dir(const char *path);
 
-    //判断是否为常规文件
-    static bool is_file(const char *path);
-
     //判断是否是特殊目录（. or ..）
     static bool is_special_dir(const char *path);
 
     //删除目录或文件
     static int delete_file(const char *path);
+
+    //判断文件是否存在
+    static bool fileExist(const char *path);
 
     /**
      * 加载文件内容至string

@@ -156,7 +156,7 @@ bool File::is_dir(const char *path) {
 }
 
 //判断是否为常规文件
-bool File::is_file(const char *path) {
+bool File::fileExist(const char *path) {
     auto fp = fopen(path, "rb");
     if (!fp) {
         return false;
@@ -183,9 +183,6 @@ int File::delete_file(const char *path) {
     DIR *dir;
     dirent *dir_info;
     char file_path[PATH_MAX];
-    if (is_file(path)) {
-        return remove(path);
-    }
     if (is_dir(path)) {
         if ((dir = opendir(path)) == nullptr) {
             return _rmdir(path);
@@ -201,8 +198,7 @@ int File::delete_file(const char *path) {
         closedir(dir);
         return ret;
     }
-    _unlink(path);
-    return -1;
+    return remove(path) ? _unlink(path) : 0;
 }
 
 string File::loadFile(const char *path) {
