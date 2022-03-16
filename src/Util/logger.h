@@ -168,7 +168,6 @@ public:
 private:
     LogContextPtr _ctx;
     Logger &_logger;
-    static string _moudle_name; 
 };
 
 

@@ -213,7 +213,6 @@ void LogContextCapture::clear() {
     _ctx.reset();
 }
 
-string LogContextCapturer::_moudle_name = exeName(false);
 ///////////////////AsyncLogWriter///////////////////
 
 AsyncLogWriter::AsyncLogWriter() : _exit_flag(false) {
