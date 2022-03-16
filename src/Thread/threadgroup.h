@@ -13,6 +13,7 @@
 
 #include <thread>
 #include <unordered_map>
+#include <stdexcept>
 
 namespace toolkit {
 
