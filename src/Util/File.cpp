@@ -44,7 +44,7 @@ DIR *opendir(const char *name) {
     WIN32_FIND_DATAA FindData;
     auto hFind = FindFirstFileA(namebuf, &FindData);
     if (hFind == INVALID_HANDLE_VALUE) {
-        WarnL << "FindFirstFileA failed:" << get_uv_errmsg();
+        //WarnL << "FindFirstFileA failed:" << get_uv_errmsg();
         return nullptr;
     }
     DIR *dir = (DIR *)malloc(sizeof(DIR));
