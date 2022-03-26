@@ -462,6 +462,9 @@ string SockUtil::get_local_ip() {
     string address = "127.0.0.1";
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
         string ip = SockUtil::inet_ntoa(((struct sockaddr_in *) adapter->ifa_addr)->sin_addr);
+        if (strstr(adapter->ifa_name, "docker")) {
+            return false;
+        }
         return check_ip(address, ip);
     });
     return address;
@@ -471,6 +474,9 @@ string SockUtil::get_local_ip() {
         IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
         while (ipAddr) {
             string ip = ipAddr->IpAddress.String;
+            if (strstr(adapter->AdapterName, "docker")) {
+                return false;
+            }
             if(check_ip(address,ip)){
                 return true;
             }
@@ -483,6 +489,9 @@ string SockUtil::get_local_ip() {
     string address = "127.0.0.1";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
         string ip = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        if (strstr(adapter->ifr_name, "docker")) {
+            return false;
+        }
         return check_ip(address,ip);
     });
     return address;
