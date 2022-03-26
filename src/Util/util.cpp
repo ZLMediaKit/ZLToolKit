@@ -518,8 +518,12 @@ bool setThreadAffinity(int i) {
 #if (defined(__linux) || defined(__linux__)) && !defined(ANDROID)
     cpu_set_t mask;
     CPU_ZERO(&mask);
-    if(i >= 0){
+    if (i >= 0) {
         CPU_SET(i, &mask);
+    } else {
+        for (auto j = 0u; j < thread::hardware_concurrency(); ++j) {
+            CPU_SET(j, &mask);
+        }
     }
     if (!pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask)) {
         return true;
