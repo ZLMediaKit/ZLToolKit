@@ -19,7 +19,7 @@ namespace toolkit {
 class UdpServer : public Server {
 public:
     using Ptr = std::shared_ptr<UdpServer>;
-    using PeerIdType = uint64_t;
+    using PeerIdType = std::string;
     using onCreateSocket = std::function<Socket::Ptr(const EventPoller::Ptr &, const Buffer::Ptr &, struct sockaddr *, int)>;
 
     explicit UdpServer(const EventPoller::Ptr &poller = nullptr);

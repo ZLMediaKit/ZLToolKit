@@ -17,7 +17,24 @@ using namespace std;
 namespace toolkit {
 
 static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
-    return ((uint64_t) ((struct sockaddr_in *) addr)->sin_addr.s_addr) << 16 | ((struct sockaddr_in *) addr)->sin_port;
+    UdpServer::PeerIdType ret;
+    switch (addr->sa_family) {
+        case AF_INET : {
+            ret.resize(6);
+            ret[0] = ((struct sockaddr_in *) addr)->sin_port >> 8;
+            ret[1] = ((struct sockaddr_in *) addr)->sin_port & 0xFF;
+            memcpy(&ret[2], &(((struct sockaddr_in *) addr)->sin_addr.s_addr), 4);
+            return ret;
+        }
+        case AF_INET6 : {
+            ret.resize(18);
+            ret[0] = ((struct sockaddr_in6 *) addr)->sin6_port >> 8;
+            ret[1] = ((struct sockaddr_in6 *) addr)->sin6_port & 0xFF;
+            memcpy(&ret[2], &(((struct sockaddr_in6 *) addr)->sin6_addr), 16);
+            return ret;
+        }
+        default: assert(0); return "";
+    }
 }
 
 UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
