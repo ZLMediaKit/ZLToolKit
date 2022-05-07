@@ -103,7 +103,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
         }
     });
 
-    InfoL << "UDP Server bind to " << host << ":" << port;
+    InfoL << "UDP Server bind to [" << host << "]:" << port;
 }
 
 UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {

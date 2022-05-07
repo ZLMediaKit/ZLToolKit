@@ -292,7 +292,7 @@ public:
      * @param local_port 绑定本地网卡端口号
      */
     virtual void connect(const std::string &url, uint16_t port, onErrCB con_cb, float timeout_sec = 5,
-                         const std::string &local_ip = "0.0.0.0", uint16_t local_port = 0);
+                         const std::string &local_ip = "::", uint16_t local_port = 0);
 
     /**
      * 创建tcp监听服务器
@@ -301,7 +301,7 @@ public:
      * @param backlog tcp最大积压数
      * @return 是否成功
      */
-    virtual bool listen(uint16_t port, const std::string &local_ip = "0.0.0.0", int backlog = 1024);
+    virtual bool listen(uint16_t port, const std::string &local_ip = "::", int backlog = 1024);
 
     /**
      * 创建udp套接字,udp是无连接的，所以可以作为服务器和客户端
@@ -309,7 +309,7 @@ public:
      * @param local_ip 绑定的网卡ip
      * @return 是否成功
      */
-    virtual bool bindUdpSock(uint16_t port, const std::string &local_ip = "0.0.0.0", bool enable_reuse = true);
+    virtual bool bindUdpSock(uint16_t port, const std::string &local_ip = "::", bool enable_reuse = true);
 
     ////////////设置事件回调////////////
 
