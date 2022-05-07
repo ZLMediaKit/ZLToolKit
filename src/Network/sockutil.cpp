@@ -76,6 +76,14 @@ std::string SockUtil::inet_ntoa(struct sockaddr *addr) {
     }
 }
 
+uint8_t SockUtil::inet_port(struct sockaddr *addr) {
+    switch (addr->sa_family) {
+        case AF_INET: return ntohs(((struct sockaddr_in *)addr)->sin_port);
+        case AF_INET6: return ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
+        default: assert(false); return 0;
+    }
+}
+
 int SockUtil::setCloseWait(int fd, int second) {
     linger m_sLinger;
     //在调用closesocket()时还有数据未发送完，允许等待
@@ -396,17 +404,7 @@ static uint16_t get_socket_port(int fd, getsockname_type func) {
     if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
         return 0;
     }
-    switch (addr.ss_family) {
-        case AF_INET: {
-            auto addr_v4 = (sockaddr_in *) &addr;
-            return ntohs(addr_v4->sin_port);
-        }
-        case AF_INET6: {
-            auto addr_v6 = (sockaddr_in6 *) &addr;
-            return ntohs(addr_v6->sin6_port);
-        }
-        default: assert(0); return 0;
-    }
+    return SockUtil::inet_port((struct sockaddr *)&addr);
 }
 
 string SockUtil::get_local_ip(int fd) {
