@@ -678,15 +678,20 @@ int SockUtil::connectUdpSock(int sock, sockaddr *addr, int addr_len) {
     return 0;
 }
 
-int SockUtil::dissolveUdpSock(int sock) {
-    struct sockaddr_in unspec;
-    unspec.sin_family = AF_UNSPEC;
-    if (-1 == ::connect(sock, (struct sockaddr *) &unspec, sizeof(unspec)) && get_uv_error() != UV_EAFNOSUPPORT) {
-        //mac/ios时返回EAFNOSUPPORT错误
+int SockUtil::dissolveUdpSock(int fd) {
+    struct sockaddr_storage addr;
+    socklen_t addr_len = sizeof(addr);
+    memset(&addr, 0, sizeof(addr));
+    if (-1 == getsockname(fd, (struct sockaddr *)&addr, &addr_len)) {
+        return -1;
+    }
+    addr.ss_family = AF_UNSPEC;
+    if (-1 == ::connect(fd, (struct sockaddr *)&addr, addr_len) && get_uv_error() != UV_EAFNOSUPPORT) {
+        // mac/ios时返回EAFNOSUPPORT错误
         WarnL << "解除 UDP 套接字连接关系失败: " << get_uv_errmsg(true);
         return -1;
     }
-    return 0;
+   return 0;
 }
 
 string SockUtil::get_ifr_ip(const char *if_name) {

@@ -20,17 +20,24 @@ static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
     UdpServer::PeerIdType ret;
     switch (addr->sa_family) {
         case AF_INET : {
-            ret.resize(6);
+            ret.resize(18);
             ret[0] = ((struct sockaddr_in *) addr)->sin_port >> 8;
             ret[1] = ((struct sockaddr_in *) addr)->sin_port & 0xFF;
-            memcpy(&ret[2], &(((struct sockaddr_in *) addr)->sin_addr.s_addr), 4);
+            //ipv4地址统一转换为ipv6方式处理，ip前12个字节补0
+            memcpy(&ret[14], &(((struct sockaddr_in *) addr)->sin_addr), 4);
             return ret;
         }
         case AF_INET6 : {
             ret.resize(18);
             ret[0] = ((struct sockaddr_in6 *) addr)->sin6_port >> 8;
             ret[1] = ((struct sockaddr_in6 *) addr)->sin6_port & 0xFF;
-            memcpy(&ret[2], &(((struct sockaddr_in6 *) addr)->sin6_addr), 16);
+            if (0 == memcmp(&(((struct sockaddr_in6 *)addr)->sin6_addr), "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff",12)) {
+                //在IPv4向IPv6过度的过程中，IPv4的地址会内嵌到IPv6中去，
+                //因此在IPv6地址的第一部分使用IPv6的格式（十六进制表示），第二部分使用IPv4的格式（十进制表示）。
+                memcpy(&ret[14], 12 + (char *)&(((struct sockaddr_in6 *)addr)->sin6_addr), 4);
+            } else {
+                memcpy(&ret[2], &(((struct sockaddr_in6 *)addr)->sin6_addr), 16);
+            }
             return ret;
         }
         default: assert(0); return "";
