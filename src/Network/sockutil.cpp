@@ -61,6 +61,21 @@ std::string SockUtil::inet_ntoa(struct in6_addr &addr) {
     return my_inet_ntop(AF_INET6, &addr);
 }
 
+std::string SockUtil::inet_ntoa(struct sockaddr *addr) {
+    switch (addr->sa_family) {
+        case AF_INET: return SockUtil::inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
+        case AF_INET6: {
+            if (IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)addr)->sin6_addr)) {
+                struct in_addr addr4;
+                memcpy(&addr4, 12 + (char *)&(((struct sockaddr_in6 *)addr)->sin6_addr), 4);
+                return SockUtil::inet_ntoa(addr4);
+            }
+            return SockUtil::inet_ntoa(((struct sockaddr_in6 *)addr)->sin6_addr);
+        }
+        default: assert(false); return "";
+    }
+}
+
 int SockUtil::setCloseWait(int fd, int second) {
     linger m_sLinger;
     //在调用closesocket()时还有数据未发送完，允许等待
@@ -196,34 +211,23 @@ public:
     }
 
     bool getDomainIP(const char *host, sockaddr_storage &storage, int expireSec = 60) {
-        {
-            struct in_addr addr;
-            struct in6_addr addr6;
-            if (1 == inet_pton(AF_INET, host, &addr)) {
-                //host是ipv4，不需要dns解析
-                reinterpret_cast<struct sockaddr_in &>(storage).sin_addr = addr;
-                reinterpret_cast<struct sockaddr_in &>(storage).sin_family = AF_INET;
-                return true;
+        try {
+            storage = SockUtil::make_sockaddr(host, 0);
+            return true;
+        } catch (...) {
+            DnsItem item;
+            auto flag = getCacheDomainIP(host, item, expireSec);
+            if (!flag) {
+                flag = getSystemDomainIP(host, item._addr);
+                if (flag) {
+                    setCacheDomainIP(host, item);
+                }
             }
-            if (1 == inet_pton(AF_INET6, host, &addr6)) {
-                //host是ipv6，不需要dns解析
-                reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_addr = addr6;
-                reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_family = AF_INET6;
-                return true;
-            }
-        }
-        DnsItem item;
-        auto flag = getCacheDomainIP(host, item, expireSec);
-        if (!flag) {
-            flag = getSystemDomainIP(host, item._addr);
             if (flag) {
-                setCacheDomainIP(host, item);
+                storage = item._addr;
             }
+            return flag;
         }
-        if (flag) {
-            storage = item._addr;
-        }
-        return flag;
     }
 
 private:
@@ -382,17 +386,7 @@ static string get_socket_ip(int fd, getsockname_type func) {
     if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
         return "";
     }
-    switch (addr.ss_family) {
-        case AF_INET: {
-            auto addr_v4 = (sockaddr_in *) &addr;
-            return SockUtil::inet_ntoa(addr_v4->sin_addr);
-        }
-        case AF_INET6: {
-            auto addr_v6 = (sockaddr_in6 *) &addr;
-            return SockUtil::inet_ntoa(addr_v6->sin6_addr);
-        }
-        default: assert(0); return "";
-    }
+    return SockUtil::inet_ntoa((struct sockaddr *)&addr);
 }
 
 static uint16_t get_socket_port(int fd, getsockname_type func) {
@@ -533,7 +527,7 @@ string SockUtil::get_local_ip() {
 #if defined(__APPLE__)
     string address = "127.0.0.1";
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
-        string ip = SockUtil::inet_ntoa(((struct sockaddr_in *) adapter->ifa_addr)->sin_addr);
+        string ip = SockUtil::inet_ntoa(adapter->ifa_addr);
         if (strstr(adapter->ifa_name, "docker")) {
             return false;
         }
@@ -560,7 +554,7 @@ string SockUtil::get_local_ip() {
 #else
     string address = "127.0.0.1";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        string ip = SockUtil::inet_ntoa(&(adapter->ifr_addr));
         if (strstr(adapter->ifr_name, "docker")) {
             return false;
         }
@@ -575,7 +569,7 @@ vector<map<string, string> > SockUtil::getInterfaceList() {
 #if defined(__APPLE__)
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
         map<string, string> obj;
-        obj["ip"] = SockUtil::inet_ntoa(((struct sockaddr_in *) adapter->ifa_addr)->sin_addr);
+        obj["ip"] = SockUtil::inet_ntoa(adapter->ifa_addr);
         obj["name"] = adapter->ifa_name;
         ret.emplace_back(std::move(obj));
         return false;
@@ -595,7 +589,7 @@ vector<map<string, string> > SockUtil::getInterfaceList() {
 #else
     for_each_netAdapter_posix([&](struct ifreq *adapter){
         map<string,string> obj;
-        obj["ip"] = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        obj["ip"] = SockUtil::inet_ntoa(&(adapter->ifr_addr));
         obj["name"] = adapter->ifr_name;
         ret.emplace_back(std::move(obj));
         return false;
@@ -700,7 +694,7 @@ string SockUtil::get_ifr_ip(const char *if_name) {
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
         if (strcmp(adapter->ifa_name, if_name) == 0) {
-            ret = SockUtil::inet_ntoa(((struct sockaddr_in *) adapter->ifa_addr)->sin_addr);
+            ret = SockUtil::inet_ntoa(adapter->ifa_addr);
             return true;
         }
         return false;
@@ -725,7 +719,7 @@ string SockUtil::get_ifr_ip(const char *if_name) {
     string ret;
     for_each_netAdapter_posix([&](struct ifreq *adapter){
         if(strcmp(adapter->ifr_name,if_name) == 0) {
-            ret = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+            ret = SockUtil::inet_ntoa(&(adapter->ifr_addr));
             return true;
         }
         return false;
@@ -738,7 +732,7 @@ string SockUtil::get_ifr_name(const char *local_ip) {
 #if defined(__APPLE__)
     string ret = "en0";
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
-        string ip = SockUtil::inet_ntoa(((struct sockaddr_in *) adapter->ifa_addr)->sin_addr);
+        string ip = SockUtil::inet_ntoa(adapter->ifa_addr);
         if (ip == local_ip) {
             ret = adapter->ifa_name;
             return true;
@@ -764,7 +758,7 @@ string SockUtil::get_ifr_name(const char *local_ip) {
 #else
     string ret = "en0";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
-        string ip = SockUtil::inet_ntoa(((struct sockaddr_in*) &(adapter->ifr_addr))->sin_addr);
+        string ip = SockUtil::inet_ntoa(&(adapter->ifr_addr));
         if(ip == local_ip) {
             ret = adapter->ifr_name;
             return true;
@@ -780,7 +774,7 @@ string SockUtil::get_ifr_mask(const char *if_name) {
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
         if (strcmp(if_name, adapter->ifa_name) == 0) {
-            ret = SockUtil::inet_ntoa(((struct sockaddr_in *) adapter->ifa_netmask)->sin_addr);
+            ret = SockUtil::inet_ntoa(adapter->ifa_netmask);
             return true;
         }
         return false;
@@ -815,7 +809,7 @@ string SockUtil::get_ifr_mask(const char *if_name) {
         return "";
     }
     close(fd);
-    return SockUtil::inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_netmask))->sin_addr);
+    return SockUtil::inet_ntoa(&(ifr_mask.ifr_netmask));
 #endif // defined(_WIN32)
 }
 
@@ -824,7 +818,7 @@ string SockUtil::get_ifr_brdaddr(const char *if_name) {
     string ret;
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
         if (strcmp(if_name, adapter->ifa_name) == 0) {
-            ret = SockUtil::inet_ntoa(((struct sockaddr_in *) adapter->ifa_broadaddr)->sin_addr);
+            ret = SockUtil::inet_ntoa(adapter->ifa_broadaddr);
             return true;
         }
         return false;
@@ -860,7 +854,7 @@ string SockUtil::get_ifr_brdaddr(const char *if_name) {
         return "";
     }
     close(fd);
-    return SockUtil::inet_ntoa(((struct sockaddr_in *) &(ifr_mask.ifr_broadaddr))->sin_addr);
+    return SockUtil::inet_ntoa(&(ifr_mask.ifr_broadaddr));
 #endif
 }
 
@@ -1000,6 +994,27 @@ bool SockUtil::is_ipv4(const char *host) {
 bool SockUtil::is_ipv6(const char *host) {
     struct in6_addr addr;
     return 1 == inet_pton(AF_INET6, host, &addr);
+}
+
+struct sockaddr_storage SockUtil::make_sockaddr(const char *host, uint16_t port) {
+    struct sockaddr_storage storage;
+    struct in_addr addr;
+    struct in6_addr addr6;
+    if (1 == inet_pton(AF_INET, host, &addr)) {
+        // host是ipv4
+        reinterpret_cast<struct sockaddr_in &>(storage).sin_addr = addr;
+        reinterpret_cast<struct sockaddr_in &>(storage).sin_family = AF_INET;
+        reinterpret_cast<struct sockaddr_in &>(storage).sin_port = htons(port);
+        return storage;
+    }
+    if (1 == inet_pton(AF_INET6, host, &addr6)) {
+        // host是ipv6
+        reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_addr = addr6;
+        reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_family = AF_INET6;
+        reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_port = htons(port);
+        return storage;
+    }
+    throw std::invalid_argument(string("not ip address:") + host);
 }
 
 }  // namespace toolkit

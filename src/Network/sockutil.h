@@ -304,6 +304,8 @@ public:
      */
     static std::string inet_ntoa(struct in_addr &addr);
     static std::string inet_ntoa(struct in6_addr &addr);
+    static std::string inet_ntoa(struct sockaddr *addr);
+    static struct sockaddr_storage make_sockaddr(const char *ip, uint16_t port);
 
     /**
      * 获取网卡ip
