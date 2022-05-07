@@ -16,7 +16,8 @@ using namespace std;
 
 namespace toolkit {
 
-static const in6_addr s_in6_addr_maped = IN6ADDR_V4MAPPED_INIT;
+static const uint8_t s_in6_addr_maped[]
+    = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 };
 
 static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
     UdpServer::PeerIdType ret;
