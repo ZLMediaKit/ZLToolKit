@@ -605,7 +605,6 @@ vector<map<string, string> > SockUtil::getInterfaceList() {
 
 static int bindSockV6(int fd, const char *ifr_ip, uint16_t port) {
     struct sockaddr_in6 addr;
-    addr.sin6_len = sizeof addr;
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(port);
     if (1 != inet_pton(AF_INET6, ifr_ip, &(addr.sin6_addr))) {
@@ -621,7 +620,6 @@ static int bindSockV6(int fd, const char *ifr_ip, uint16_t port) {
 
 static int bindSockV4(int fd, const char *ifr_ip, uint16_t port) {
     struct sockaddr_in addr;
-    addr.sin_len = sizeof addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     if (1 != inet_pton(AF_INET, ifr_ip, &(addr.sin_addr))) {
