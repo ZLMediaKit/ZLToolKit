@@ -791,7 +791,11 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
         return false;
     }
     if (!addr_len) {
-        addr_len = sizeof(struct sockaddr_in);
+        switch (dst_addr->sa_family) {
+            case AF_INET: addr_len = sizeof(struct sockaddr_in); break;
+            case AF_INET6: addr_len = sizeof(struct sockaddr_in6); break;
+            default: assert(0); break;
+        }
     }
     return 0 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len);
 }
