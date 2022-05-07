@@ -8,6 +8,7 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 #include <fcntl.h>
+#include <assert.h>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
