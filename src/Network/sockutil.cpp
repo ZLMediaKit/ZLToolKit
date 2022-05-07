@@ -76,7 +76,7 @@ std::string SockUtil::inet_ntoa(struct sockaddr *addr) {
     }
 }
 
-uint8_t SockUtil::inet_port(struct sockaddr *addr) {
+uint16_t SockUtil::inet_port(struct sockaddr *addr) {
     switch (addr->sa_family) {
         case AF_INET: return ntohs(((struct sockaddr_in *)addr)->sin_port);
         case AF_INET6: return ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
