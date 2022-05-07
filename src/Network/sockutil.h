@@ -302,10 +302,10 @@ public:
     /**
      * 线程安全的in_addr转ip字符串
      */
-    static std::string inet_ntoa(struct in_addr &addr);
-    static std::string inet_ntoa(struct in6_addr &addr);
-    static std::string inet_ntoa(struct sockaddr *addr);
-    static uint16_t inet_port(struct sockaddr *addr);
+    static std::string inet_ntoa(const struct in_addr &addr);
+    static std::string inet_ntoa(const struct in6_addr &addr);
+    static std::string inet_ntoa(const struct sockaddr *addr);
+    static uint16_t inet_port(const struct sockaddr *addr);
     static struct sockaddr_storage make_sockaddr(const char *ip, uint16_t port);
 
     /**

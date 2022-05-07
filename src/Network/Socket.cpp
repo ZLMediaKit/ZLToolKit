@@ -797,7 +797,11 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
             default: assert(0); break;
         }
     }
-    return 0 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len);
+    if( -1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len)){
+        WarnL << "connect peer address failed:" << SockUtil::inet_ntoa(dst_addr);
+        return false;
+    }
+    return true;
 }
 
 void Socket::setSendFlags(int flags) {

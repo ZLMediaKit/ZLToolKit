@@ -53,15 +53,15 @@ static inline string my_inet_ntop(int af, const void *addr) {
     return ret;
 }
 
-string SockUtil::inet_ntoa(struct in_addr &addr) {
+string SockUtil::inet_ntoa(const struct in_addr &addr) {
     return my_inet_ntop(AF_INET, &addr);
 }
 
-std::string SockUtil::inet_ntoa(struct in6_addr &addr) {
+std::string SockUtil::inet_ntoa(const struct in6_addr &addr) {
     return my_inet_ntop(AF_INET6, &addr);
 }
 
-std::string SockUtil::inet_ntoa(struct sockaddr *addr) {
+std::string SockUtil::inet_ntoa(const struct sockaddr *addr) {
     switch (addr->sa_family) {
         case AF_INET: return SockUtil::inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
         case AF_INET6: {
@@ -76,7 +76,7 @@ std::string SockUtil::inet_ntoa(struct sockaddr *addr) {
     }
 }
 
-uint16_t SockUtil::inet_port(struct sockaddr *addr) {
+uint16_t SockUtil::inet_port(const struct sockaddr *addr) {
     switch (addr->sa_family) {
         case AF_INET: return ntohs(((struct sockaddr_in *)addr)->sin_port);
         case AF_INET6: return ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
