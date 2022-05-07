@@ -196,7 +196,7 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
         }
     });
 
-    InfoL << "TCP Server listening on " << host << ":" << port;
+    InfoL << "TCP Server listening on [" << host << "]:" << port;
 }
 
 void TcpServer::onManagerSession() {

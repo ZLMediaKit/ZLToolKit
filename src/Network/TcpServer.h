@@ -43,7 +43,7 @@ public:
     * @param backlog tcp listen backlog
     */
     template<typename SessionType>
-    void start(uint16_t port, const std::string &host = "0.0.0.0", uint32_t backlog = 1024) {
+    void start(uint16_t port, const std::string &host = "::", uint32_t backlog = 1024) {
         //TcpSession创建器，通过它创建不同类型的服务器
         _session_alloc = [](const TcpServer::Ptr &server, const Socket::Ptr &sock) {
             auto session = std::make_shared<SessionType>(sock);

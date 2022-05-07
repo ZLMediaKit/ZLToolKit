@@ -83,7 +83,7 @@ private:
     void onSockConnect(const SockException &ex);
 
 private:
-    std::string _net_adapter = "0.0.0.0";
+    std::string _net_adapter = "::";
     std::shared_ptr<Timer> _timer;
     //对象个数统计
     ObjectStatistic<TcpClient> _statistic;

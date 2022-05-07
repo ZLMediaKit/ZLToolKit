@@ -60,7 +60,7 @@ public:
      * @param local_port 绑定的本地端口号
      * @return -1代表失败，其他为socket fd号
      */
-    static int connect(const char *host, uint16_t port, bool async = true, const char *local_ip = "0.0.0.0", uint16_t local_port = 0);
+    static int connect(const char *host, uint16_t port, bool async = true, const char *local_ip = "::", uint16_t local_port = 0);
 
     /**
      * 创建tcp监听套接字
@@ -69,7 +69,7 @@ public:
      * @param back_log accept列队长度
      * @return -1代表失败，其他为socket fd号
      */
-    static int listen(const uint16_t port, const char *local_ip = "0.0.0.0", int back_log = 1024);
+    static int listen(const uint16_t port, const char *local_ip = "::", int back_log = 1024);
 
     /**
      * 创建udp套接字
@@ -78,7 +78,7 @@ public:
      * @param enable_reuse 是否允许重复bind端口
      * @return -1代表失败，其他为socket fd号
      */
-    static int bindUdpSock(const uint16_t port, const char *local_ip = "0.0.0.0", bool enable_reuse = true);
+    static int bindUdpSock(const uint16_t port, const char *local_ip = "::", bool enable_reuse = true);
 
     /**
      * @brief 初始化套接字 sock 连接关系
@@ -193,7 +193,7 @@ public:
      * @param addr sockaddr结构体
      * @return 是否成功
      */
-    static bool getDomainIP(const char *host, uint16_t port, struct sockaddr &addr);
+    static bool getDomainIP(const char *host, uint16_t port, struct sockaddr_storage &addr);
 
     /**
      * 设置组播ttl
@@ -303,6 +303,7 @@ public:
      * 线程安全的in_addr转ip字符串
      */
     static std::string inet_ntoa(struct in_addr &addr);
+    static std::string inet_ntoa(struct in6_addr &addr);
 
     /**
      * 获取网卡ip
@@ -334,6 +335,16 @@ public:
      * @param dts_ip 对方ip
      */
     static bool in_same_lan(const char *src_ip, const char *dts_ip);
+
+    /**
+     * 判断是否为ipv4地址
+     */
+    static bool is_ipv4(const char *str);
+
+    /**
+     * 判断是否为ipv6地址
+     */
+    static bool is_ipv6(const char *str);
 };
 
 }  // namespace toolkit
