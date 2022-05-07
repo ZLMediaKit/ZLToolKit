@@ -41,11 +41,23 @@ int close(int fd) {
 }
 #endif // defined(_WIN32)
 
+static inline string my_inet_ntop(int af, const void *addr) {
+    string ret;
+    ret.resize(128);
+    if (!inet_ntop(af, addr, (char *) ret.data(), ret.size())) {
+        ret.clear();
+    } else {
+        ret.resize(strlen(ret.data()));
+    }
+    return ret;
+}
+
 string SockUtil::inet_ntoa(struct in_addr &addr) {
-    char buf[20];
-    unsigned char *p = (unsigned char *) &(addr);
-    snprintf(buf, sizeof(buf), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
-    return buf;
+    return my_inet_ntop(AF_INET, &addr);
+}
+
+std::string SockUtil::inet_ntoa(struct in6_addr &addr) {
+    return my_inet_ntop(AF_INET6, &addr);
 }
 
 int SockUtil::setCloseWait(int fd, int second) {
@@ -182,13 +194,20 @@ public:
         return instance;
     }
 
-    bool getDomainIP(const char *host, sockaddr &addr, int expireSec = 60) {
+    bool getDomainIP(const char *host, sockaddr &storage, int expireSec = 60) {
         {
-            auto addr_ipv4 = inet_addr(host);
-            if (addr_ipv4 != INADDR_NONE) {
-                //host是ip，不需要dns解析
-                reinterpret_cast<struct sockaddr_in &>(addr).sin_addr.s_addr = addr_ipv4;
-                reinterpret_cast<struct sockaddr_in &>(addr).sin_family = AF_INET;
+            struct in_addr addr;
+            struct in6_addr addr6;
+            if (1 == inet_pton(AF_INET, host, &addr)) {
+                //host是ipv4，不需要dns解析
+                reinterpret_cast<struct sockaddr_in &>(storage).sin_addr = addr;
+                reinterpret_cast<struct sockaddr_in &>(storage).sin_family = AF_INET;
+                return true;
+            }
+            if (1 == inet_pton(AF_INET6, host, &addr6)) {
+                //host是ipv6，不需要dns解析
+                reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_addr = addr6;
+                reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_family = AF_INET6;
                 return true;
             }
         }
@@ -201,7 +220,7 @@ public:
             }
         }
         if (flag) {
-            addr = item._addr;
+            storage = item._addr;
         }
         return flag;
     }
@@ -272,7 +291,11 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
         return -1;
     }
     //设置端口号
-    ((sockaddr_in *) &addr)->sin_port = htons(port);
+    switch (addr.sa_family) {
+        case AF_INET : ((sockaddr_in *) &addr)->sin_port = htons(port); break;
+        case AF_INET6 : ((sockaddr_in6 *) &addr)->sin6_port = htons(port); break;
+        default: assert(0);
+    }
 
     int sockfd = (int) socket(addr.sa_family, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd < 0) {
@@ -309,7 +332,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
 
 int SockUtil::listen(const uint16_t port, const char *local_ip, int back_log) {
     int fd = -1;
-    if ((fd = (int) socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+    if ((fd = (int) socket(is_ipv4(local_ip) ? AF_INET : AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -344,19 +367,62 @@ int SockUtil::getSockError(int fd) {
     }
 }
 
-string SockUtil::get_local_ip(int fd) {
+using getsockname_type = decltype(getsockname);
+
+static string get_socket_ip(int fd, getsockname_type func) {
     struct sockaddr addr;
-    struct sockaddr_in *addr_v4;
     socklen_t addr_len = sizeof(addr);
-    //获取local ip and port
     memset(&addr, 0, sizeof(addr));
-    if (0 == getsockname(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in *) &addr;
+    if (-1 == func(fd, &addr, &addr_len)) {
+        return "";
+    }
+    switch (addr.sa_family) {
+        case AF_INET: {
+            auto addr_v4 = (sockaddr_in *) &addr;
             return SockUtil::inet_ntoa(addr_v4->sin_addr);
         }
+        case AF_INET6: {
+            auto addr_v6 = (sockaddr_in6 *) &addr;
+            return SockUtil::inet_ntoa(addr_v6->sin6_addr);
+        }
+        default: assert(0); return "";
     }
-    return "";
+}
+
+static uint16_t get_socket_port(int fd, getsockname_type func) {
+    struct sockaddr addr;
+    socklen_t addr_len = sizeof(addr);
+    memset(&addr, 0, sizeof(addr));
+    if (-1 == func(fd, &addr, &addr_len)) {
+        return 0;
+    }
+    switch (addr.sa_family) {
+        case AF_INET: {
+            auto addr_v4 = (sockaddr_in *) &addr;
+            return ntohs(addr_v4->sin_port);
+        }
+        case AF_INET6: {
+            auto addr_v6 = (sockaddr_in6 *) &addr;
+            return ntohs(addr_v6->sin6_port);
+        }
+        default: assert(0); return 0;
+    }
+}
+
+string SockUtil::get_local_ip(int fd) {
+    return get_socket_ip(fd, getsockname);
+}
+
+string SockUtil::get_peer_ip(int fd) {
+    return get_socket_ip(fd, getpeername);
+}
+
+uint16_t SockUtil::get_local_port(int fd) {
+    return get_socket_port(fd, getsockname);
+}
+
+uint16_t SockUtil::get_peer_port(int fd) {
+    return get_socket_port(fd, getpeername);
 }
 
 #if defined(__APPLE__)
@@ -532,41 +598,15 @@ vector<map<string, string> > SockUtil::getInterfaceList() {
     return ret;
 };
 
-uint16_t SockUtil::get_local_port(int fd) {
-    struct sockaddr addr;
-    struct sockaddr_in *addr_v4;
-    socklen_t addr_len = sizeof(addr);
-    //获取remote ip and port
-    if (0 == getsockname(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in *) &addr;
-            return ntohs(addr_v4->sin_port);
-        }
+static int bindSockV6(int fd, const char *ifr_ip, uint16_t port) {
+    struct sockaddr_in6 addr;
+    addr.sin6_len = sizeof addr;
+    addr.sin6_family = AF_INET6;
+    addr.sin6_port = htons(port);
+    if (1 != inet_pton(AF_INET6, ifr_ip, &(addr.sin6_addr))) {
+        WarnL << "inet_pton to ipv6 address failed:" << ifr_ip;
+        addr.sin6_addr = IN6ADDR_ANY_INIT;
     }
-    return 0;
-}
-
-string SockUtil::get_peer_ip(int fd) {
-    struct sockaddr addr;
-    struct sockaddr_in *addr_v4;
-    socklen_t addr_len = sizeof(addr);
-    //获取remote ip and port
-    if (0 == getpeername(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in *) &addr;
-            return SockUtil::inet_ntoa(addr_v4->sin_addr);
-        }
-    }
-    return "";
-}
-
-int SockUtil::bindSock(int fd, const char *ifr_ip, uint16_t port) {
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ifr_ip);
-    bzero(&(addr.sin_zero), sizeof addr.sin_zero);
-    //绑定监听
     if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
         return -1;
@@ -574,9 +614,39 @@ int SockUtil::bindSock(int fd, const char *ifr_ip, uint16_t port) {
     return 0;
 }
 
+static int bindSockV4(int fd, const char *ifr_ip, uint16_t port) {
+    struct sockaddr_in addr;
+    addr.sin_len = sizeof addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    if (1 != inet_pton(AF_INET, ifr_ip, &(addr.sin_addr))) {
+        WarnL << "inet_pton to ipv4 address failed:" << ifr_ip;
+        addr.sin_addr.s_addr = INADDR_ANY;
+    }
+    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+        return -1;
+    }
+    return 0;
+}
+
+int SockUtil::bindSock(int fd, const char *ifr_ip, uint16_t port) {
+    struct sockaddr addr;
+    socklen_t addr_len = sizeof(addr);
+    memset(&addr, 0, sizeof(addr));
+    if (-1 == getsockname(fd, &addr, &addr_len)) {
+        return -1;
+    }
+    switch (addr.sa_family) {
+        case AF_INET: return bindSockV4(fd, ifr_ip, port);
+        case AF_INET6: return bindSockV6(fd, ifr_ip, port);
+        default: assert(0); return -1;
+    }
+}
+
 int SockUtil::bindUdpSock(const uint16_t port, const char *local_ip, bool enable_reuse) {
     int fd = -1;
-    if ((fd = (int) socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+    if ((fd = (int) socket(is_ipv4(local_ip) ? AF_INET : AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -612,20 +682,6 @@ int SockUtil::dissolveUdpSock(int sock) {
         //mac/ios时返回EAFNOSUPPORT错误
         WarnL << "解除 UDP 套接字连接关系失败: " << get_uv_errmsg(true);
         return -1;
-    }
-    return 0;
-}
-
-uint16_t SockUtil::get_peer_port(int fd) {
-    struct sockaddr addr;
-    struct sockaddr_in *addr_v4;
-    socklen_t addr_len = sizeof(addr);
-    //获取remote ip and port
-    if (0 == getpeername(fd, &addr, &addr_len)) {
-        if (addr.sa_family == AF_INET) {
-            addr_v4 = (sockaddr_in *) &addr;
-            return ntohs(addr_v4->sin_port);
-        }
     }
     return 0;
 }
@@ -925,6 +981,16 @@ int SockUtil::leaveMultiAddrFilter(int fd, const char *addr, const char *src_ip,
 #endif
     clearMulticastAllSocketOption(fd);
     return ret;
+}
+
+bool SockUtil::is_ipv4(const char *host) {
+    struct in_addr addr;
+    return 1 == inet_pton(AF_INET, host, &addr);
+}
+
+bool SockUtil::is_ipv6(const char *host) {
+    struct in6_addr addr;
+    return 1 == inet_pton(AF_INET6, host, &addr);
 }
 
 }  // namespace toolkit

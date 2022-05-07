@@ -303,6 +303,7 @@ public:
      * 线程安全的in_addr转ip字符串
      */
     static std::string inet_ntoa(struct in_addr &addr);
+    static std::string inet_ntoa(struct in6_addr &addr);
 
     /**
      * 获取网卡ip
@@ -334,6 +335,16 @@ public:
      * @param dts_ip 对方ip
      */
     static bool in_same_lan(const char *src_ip, const char *dts_ip);
+
+    /**
+     * 判断是否为ipv4地址
+     */
+    static bool is_ipv4(const char *str);
+
+    /**
+     * 判断是否为ipv6地址
+     */
+    static bool is_ipv6(const char *str);
 };
 
 }  // namespace toolkit

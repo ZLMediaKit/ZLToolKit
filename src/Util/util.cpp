@@ -258,7 +258,7 @@ bool end_with(const string &str, const string &substr) {
 }
 
 bool isIP(const char *str) {
-    return INADDR_NONE != inet_addr(str);
+    return SockUtil::is_ipv4(str) || SockUtil::is_ipv6(str);
 }
 
 #if defined(_WIN32)
