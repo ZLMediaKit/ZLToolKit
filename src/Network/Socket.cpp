@@ -266,12 +266,12 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
     //最后一个字节设置为'\0'
     auto capacity = _read_buffer->getCapacity() - 1;
 
-    struct sockaddr addr;
-    socklen_t len = sizeof(struct sockaddr);
+    struct sockaddr_storage addr;
+    socklen_t len = sizeof(addr);
 
     while (_enable_recv) {
         do {
-            nread = recvfrom(sock_fd, data, capacity, 0, &addr, &len);
+            nread = recvfrom(sock_fd, data, capacity, 0, (struct sockaddr *)&addr, &len);
         } while (-1 == nread && UV_EINTR == get_uv_error(true));
 
         if (nread == 0) {
@@ -298,7 +298,7 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         LOCK_GUARD(_mtx_event);
         try {
             //此处捕获异常，目的是防止数据未读尽，epoll边沿触发失效的问题
-            _on_read(_read_buffer, &addr, len);
+            _on_read(_read_buffer, (struct sockaddr *)&addr, len);
         } catch (std::exception &ex) {
             ErrorL << "触发socket on_read事件时,捕获到异常:" << ex.what();
         }
@@ -791,7 +791,7 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
         return false;
     }
     if (!addr_len) {
-        addr_len = sizeof(struct sockaddr);
+        addr_len = sizeof(struct sockaddr_in);
     }
     return 0 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len);
 }

@@ -194,7 +194,7 @@ public:
         return instance;
     }
 
-    bool getDomainIP(const char *host, sockaddr &storage, int expireSec = 60) {
+    bool getDomainIP(const char *host, sockaddr_storage &storage, int expireSec = 60) {
         {
             struct in_addr addr;
             struct in6_addr addr6;
@@ -228,7 +228,7 @@ public:
 private:
     class DnsItem {
     public:
-        sockaddr _addr;
+        sockaddr_storage _addr;
         time_t _create_time;
     };
 
@@ -254,7 +254,7 @@ private:
         _dns_cache[host] = item;
     }
 
-    bool getSystemDomainIP(const char *host, sockaddr &item) {
+    bool getSystemDomainIP(const char *host, sockaddr_storage &item) {
         struct addrinfo *answer = nullptr;
         //阻塞式dns解析，可能被打断
         int ret = -1;
@@ -266,7 +266,7 @@ private:
             WarnL << "域名解析失败:" << host;
             return false;
         }
-        item = *(answer->ai_addr);
+        memcpy(&item, answer->ai_addr, answer->ai_addrlen);
         freeaddrinfo(answer);
         return true;
     }
@@ -276,28 +276,26 @@ private:
     unordered_map<string, DnsItem> _dns_cache;
 };
 
-bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr &addr) {
+bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_storage &addr) {
     bool flag = DnsCache::Instance().getDomainIP(host, addr);
     if (flag) {
-        ((sockaddr_in *) &addr)->sin_port = htons(port);
+        switch (addr.ss_family ) {
+            case AF_INET : ((sockaddr_in *) &addr)->sin_port = htons(port); break;
+            case AF_INET6 : ((sockaddr_in6 *) &addr)->sin6_port = htons(port); break;
+            default: assert(0); break;
+        }
     }
     return flag;
 }
 
 int SockUtil::connect(const char *host, uint16_t port, bool async, const char *local_ip, uint16_t local_port) {
-    sockaddr addr;
-    if (!DnsCache::Instance().getDomainIP(host, addr)) {
+    sockaddr_storage addr;
+    if (!getDomainIP(host, port, addr)) {
         //dns解析失败
         return -1;
     }
-    //设置端口号
-    switch (addr.sa_family) {
-        case AF_INET : ((sockaddr_in *) &addr)->sin_port = htons(port); break;
-        case AF_INET6 : ((sockaddr_in6 *) &addr)->sin6_port = htons(port); break;
-        default: assert(0);
-    }
 
-    int sockfd = (int) socket(addr.sa_family, SOCK_STREAM, IPPROTO_TCP);
+    int sockfd = (int) socket(addr.ss_family, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd < 0) {
         WarnL << "创建套接字失败:" << host;
         return -1;
@@ -317,7 +315,14 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
         return -1;
     }
 
-    if (::connect(sockfd, &addr, sizeof(struct sockaddr)) == 0) {
+    socklen_t len = 0;
+    switch (addr.ss_family ) {
+        case AF_INET : len = sizeof(sockaddr_in); break;
+        case AF_INET6 : len = sizeof(sockaddr_in6); break;
+        default: assert(0); break;
+    }
+
+    if (::connect(sockfd, (sockaddr *) &addr, len) == 0) {
         //同步连接成功
         return sockfd;
     }
@@ -370,13 +375,13 @@ int SockUtil::getSockError(int fd) {
 using getsockname_type = decltype(getsockname);
 
 static string get_socket_ip(int fd, getsockname_type func) {
-    struct sockaddr addr;
+    struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
     memset(&addr, 0, sizeof(addr));
-    if (-1 == func(fd, &addr, &addr_len)) {
+    if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
         return "";
     }
-    switch (addr.sa_family) {
+    switch (addr.ss_family) {
         case AF_INET: {
             auto addr_v4 = (sockaddr_in *) &addr;
             return SockUtil::inet_ntoa(addr_v4->sin_addr);
@@ -390,13 +395,13 @@ static string get_socket_ip(int fd, getsockname_type func) {
 }
 
 static uint16_t get_socket_port(int fd, getsockname_type func) {
-    struct sockaddr addr;
+    struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
     memset(&addr, 0, sizeof(addr));
-    if (-1 == func(fd, &addr, &addr_len)) {
+    if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
         return 0;
     }
-    switch (addr.sa_family) {
+    switch (addr.ss_family) {
         case AF_INET: {
             auto addr_v4 = (sockaddr_in *) &addr;
             return ntohs(addr_v4->sin_port);
@@ -631,13 +636,13 @@ static int bindSockV4(int fd, const char *ifr_ip, uint16_t port) {
 }
 
 int SockUtil::bindSock(int fd, const char *ifr_ip, uint16_t port) {
-    struct sockaddr addr;
+    struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
     memset(&addr, 0, sizeof(addr));
-    if (-1 == getsockname(fd, &addr, &addr_len)) {
+    if (-1 == getsockname(fd, (struct sockaddr *)&addr, &addr_len)) {
         return -1;
     }
-    switch (addr.sa_family) {
+    switch (addr.ss_family) {
         case AF_INET: return bindSockV4(fd, ifr_ip, port);
         case AF_INET6: return bindSockV6(fd, ifr_ip, port);
         default: assert(0); return -1;
