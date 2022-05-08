@@ -498,9 +498,15 @@ string getThreadName() {
                 ss << threadName;
                 return ss.str();
             } else {
+                if (data) {
+                    LocalFree(data);
+                }
                 return to_string((uint64_t) GetCurrentThreadId());
             }
         } else {
+            if (data) {
+                LocalFree(data);
+            }
             return to_string((uint64_t) GetCurrentThreadId());
         }
     }
