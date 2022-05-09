@@ -218,56 +218,58 @@ public:
         return instance;
     }
 
-    bool getDomainIP(const char *host, sockaddr_storage &storage, int expireSec = 60) {
+    bool getDomainIP(const char *host, sockaddr_storage &storage, int ai_family = AF_INET,
+                     int ai_socktype = SOCK_STREAM, int ai_protocol = IPPROTO_TCP, int expire_sec = 60) {
         try {
             storage = SockUtil::make_sockaddr(host, 0);
             return true;
         } catch (...) {
-            DnsItem item;
-            auto flag = getCacheDomainIP(host, item, expireSec);
-            if (!flag) {
-                flag = getSystemDomainIP(host, item._addr);
-                if (flag) {
+            auto item = getCacheDomainIP(host, expire_sec);
+            if (!item) {
+                item = getSystemDomainIP(host);
+                if (item) {
                     setCacheDomainIP(host, item);
                 }
             }
-            if (flag) {
-                storage = item._addr;
+            if (item) {
+                auto addr = getPerferredAddress(item.get(), ai_family, ai_socktype, ai_protocol);
+                memcpy(&storage, addr->ai_addr, addr->ai_addrlen);
             }
-            return flag;
+            return (bool)item;
         }
     }
 
 private:
     class DnsItem {
     public:
-        sockaddr_storage _addr;
-        time_t _create_time;
+        std::shared_ptr<struct addrinfo> addr_info;
+        time_t create_time;
     };
 
-    bool getCacheDomainIP(const char *host, DnsItem &item, int expireSec) {
+    std::shared_ptr<struct addrinfo> getCacheDomainIP(const char *host, int expireSec) {
         lock_guard<mutex> lck(_mtx);
         auto it = _dns_cache.find(host);
         if (it == _dns_cache.end()) {
             //没有记录
-            return false;
+            return nullptr;
         }
-        if (it->second._create_time + expireSec < time(nullptr)) {
+        if (it->second.create_time + expireSec < time(nullptr)) {
             //已过期
             _dns_cache.erase(it);
-            return false;
+            return nullptr;
         }
-        item = it->second;
-        return true;
+        return it->second.addr_info;
     }
 
-    void setCacheDomainIP(const char *host, DnsItem &item) {
+    void setCacheDomainIP(const char *host, std::shared_ptr<struct addrinfo> addr) {
         lock_guard<mutex> lck(_mtx);
-        item._create_time = time(nullptr);
-        _dns_cache[host] = item;
+        DnsItem item;
+        item.addr_info = std::move(addr);
+        item.create_time = time(nullptr);
+        _dns_cache[host] = std::move(item);
     }
 
-    bool getSystemDomainIP(const char *host, sockaddr_storage &item) {
+    std::shared_ptr<struct addrinfo> getSystemDomainIP(const char *host) {
         struct addrinfo *answer = nullptr;
         //阻塞式dns解析，可能被打断
         int ret = -1;
@@ -277,11 +279,20 @@ private:
 
         if (!answer) {
             WarnL << "域名解析失败:" << host;
-            return false;
+            return nullptr;
         }
-        memcpy(&item, answer->ai_addr, answer->ai_addrlen);
-        freeaddrinfo(answer);
-        return true;
+        return std::shared_ptr<struct addrinfo>(answer, freeaddrinfo);
+    }
+
+    struct addrinfo *getPerferredAddress(struct addrinfo *answer, int ai_family, int ai_socktype, int ai_protocol) {
+        auto ptr = answer;
+        while (ptr) {
+            if (ptr->ai_family == ai_family && ptr->ai_socktype == ai_socktype && ptr->ai_protocol == ai_protocol) {
+                return ptr;
+            }
+            ptr = ptr->ai_next;
+        }
+        return answer;
     }
 
 private:
@@ -289,8 +300,9 @@ private:
     unordered_map<string, DnsItem> _dns_cache;
 };
 
-bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_storage &addr) {
-    bool flag = DnsCache::Instance().getDomainIP(host, addr);
+bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_storage &addr,
+                           int ai_family, int ai_socktype, int ai_protocol, int expire_sec) {
+    bool flag = DnsCache::Instance().getDomainIP(host, addr, ai_family, ai_socktype, ai_protocol, expire_sec);
     if (flag) {
         switch (addr.ss_family ) {
             case AF_INET : ((sockaddr_in *) &addr)->sin_port = htons(port); break;
@@ -303,7 +315,8 @@ bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_stor
 
 int SockUtil::connect(const char *host, uint16_t port, bool async, const char *local_ip, uint16_t local_port) {
     sockaddr_storage addr;
-    if (!getDomainIP(host, port, addr)) {
+    //优先使用ipv4地址
+    if (!getDomainIP(host, port, addr, AF_INET, SOCK_STREAM, IPPROTO_TCP)) {
         //dns解析失败
         return -1;
     }
@@ -601,7 +614,9 @@ static int bindSockV6(int fd, const char *ifr_ip, uint16_t port) {
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(port);
     if (1 != inet_pton(AF_INET6, ifr_ip, &(addr.sin6_addr))) {
-        WarnL << "inet_pton to ipv6 address failed:" << ifr_ip;
+        if (strcmp(ifr_ip, "0.0.0.0")) {
+            WarnL << "inet_pton to ipv6 address failed:" << ifr_ip;
+        }
         addr.sin6_addr = IN6ADDR_ANY_INIT;
     }
     if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
@@ -616,7 +631,9 @@ static int bindSockV4(int fd, const char *ifr_ip, uint16_t port) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     if (1 != inet_pton(AF_INET, ifr_ip, &(addr.sin_addr))) {
-        WarnL << "inet_pton to ipv4 address failed:" << ifr_ip;
+        if (strcmp(ifr_ip, "::")) {
+            WarnL << "inet_pton to ipv4 address failed:" << ifr_ip;
+        }
         addr.sin_addr.s_addr = INADDR_ANY;
     }
     if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {

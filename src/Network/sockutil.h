@@ -193,7 +193,8 @@ public:
      * @param addr sockaddr结构体
      * @return 是否成功
      */
-    static bool getDomainIP(const char *host, uint16_t port, struct sockaddr_storage &addr);
+    static bool getDomainIP(const char *host, uint16_t port, struct sockaddr_storage &addr, int ai_family = AF_INET,
+                            int ai_socktype = SOCK_STREAM, int ai_protocol = IPPROTO_TCP, int expire_sec = 60);
 
     /**
      * 设置组播ttl
