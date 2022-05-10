@@ -29,7 +29,7 @@ public:
      * @brief 开始监听服务器
      */
     template<typename SessionType>
-    void start(uint16_t port, const std::string &host = "::") {
+    void start(uint16_t port, const std::string &host = "") {
         // Session 创建器, 通过它创建不同类型的服务器
         _session_alloc = [](const UdpServer::Ptr &server, const Socket::Ptr &sock) {
             auto session = std::make_shared<SessionType>(sock);
@@ -62,7 +62,7 @@ private:
      * @param port 本机端口，0则随机
      * @param host 监听网卡ip
      */
-    void start_l(uint16_t port, const std::string &host = "::");
+    void start_l(uint16_t port, const std::string &host);
 
     /**
      * @brief 定时管理 Session, UDP 会话需要根据需要处理超时

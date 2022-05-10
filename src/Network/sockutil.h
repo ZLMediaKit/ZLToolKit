@@ -60,7 +60,7 @@ public:
      * @param local_port 绑定的本地端口号
      * @return -1代表失败，其他为socket fd号
      */
-    static int connect(const char *host, uint16_t port, bool async = true, const char *local_ip = "::", uint16_t local_port = 0);
+    static int connect(const char *host, uint16_t port, bool async = true, const char *local_ip = nullptr, uint16_t local_port = 0);
 
     /**
      * 创建tcp监听套接字
@@ -69,7 +69,7 @@ public:
      * @param back_log accept列队长度
      * @return -1代表失败，其他为socket fd号
      */
-    static int listen(const uint16_t port, const char *local_ip = "::", int back_log = 1024);
+    static int listen(const uint16_t port, const char *local_ip = nullptr, int back_log = 1024);
 
     /**
      * 创建udp套接字
@@ -78,7 +78,7 @@ public:
      * @param enable_reuse 是否允许重复bind端口
      * @return -1代表失败，其他为socket fd号
      */
-    static int bindUdpSock(const uint16_t port, const char *local_ip = "::", bool enable_reuse = true);
+    static int bindUdpSock(const uint16_t port, const char *local_ip = nullptr, bool enable_reuse = true);
 
     /**
      * @brief 解除与 sock 相关的绑定关系
@@ -209,7 +209,7 @@ public:
      * @param local_ip 本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int joinMultiAddr(int fd, const char *addr, const char *local_ip = "0.0.0.0");
+    static int joinMultiAddr(int fd, const char *addr, const char *local_ip = nullptr);
 
     /**
      * 退出组播
@@ -218,7 +218,7 @@ public:
      * @param local_ip 本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int leaveMultiAddr(int fd, const char *addr, const char *local_ip = "0.0.0.0");
+    static int leaveMultiAddr(int fd, const char *addr, const char *local_ip = nullptr);
 
     /**
      * 加入组播并只接受该源端的组播数据
@@ -228,7 +228,7 @@ public:
      * @param local_ip  本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int joinMultiAddrFilter(int sock, const char *addr, const char *src_ip, const char *local_ip = "0.0.0.0");
+    static int joinMultiAddrFilter(int sock, const char *addr, const char *src_ip, const char *local_ip = nullptr);
 
     /**
      * 退出组播
@@ -238,7 +238,7 @@ public:
      * @param local_ip  本机网卡ip
      * @return 0代表成功，-1为失败
      */
-    static int leaveMultiAddrFilter(int fd, const char *addr, const char *src_ip, const char *local_ip = "0.0.0.0");
+    static int leaveMultiAddrFilter(int fd, const char *addr, const char *src_ip, const char *local_ip = nullptr);
 
     /**
      * 获取该socket当前发生的错误

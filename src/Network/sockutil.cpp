@@ -313,6 +313,16 @@ bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_stor
     return flag;
 }
 
+socklen_t get_addr_len(int family){
+    socklen_t len = 0;
+    switch (family) {
+        case AF_INET : len = sizeof(sockaddr_in); break;
+        case AF_INET6 : len = sizeof(sockaddr_in6); break;
+        default: assert(0); break;
+    }
+    return len;
+}
+
 static int set_ipv6_only(int fd, bool flag) {
     int opt = flag;
     int ret = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&opt, sizeof opt);
@@ -322,50 +332,31 @@ static int set_ipv6_only(int fd, bool flag) {
     return ret;
 }
 
-static int bind_sock6(int fd, const char *ifr_ip, uint16_t port) {
-    set_ipv6_only(fd, false);
-    struct sockaddr_in6 addr;
-    bzero(&addr, sizeof(addr));
-    addr.sin6_family = AF_INET6;
-    addr.sin6_port = htons(port);
-    if (1 != inet_pton(AF_INET6, ifr_ip, &(addr.sin6_addr))) {
-        if (strcmp(ifr_ip, "0.0.0.0")) {
-            WarnL << "inet_pton to ipv6 address failed:" << ifr_ip;
-        }
-        addr.sin6_addr = IN6ADDR_ANY_INIT;
-    }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
-        return -1;
-    }
-    return 0;
-}
-
-static int bind_sock4(int fd, const char *ifr_ip, uint16_t port) {
-    struct sockaddr_in addr;
-    bzero(&addr, sizeof(addr));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    if (1 != inet_pton(AF_INET, ifr_ip, &(addr.sin_addr))) {
-        if (strcmp(ifr_ip, "::")) {
-            WarnL << "inet_pton to ipv4 address failed:" << ifr_ip;
-        }
-        addr.sin_addr.s_addr = INADDR_ANY;
-    }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
-        return -1;
-    }
-    return 0;
-}
-
 static int bind_sock(int fd, const char *ifr_ip, uint16_t port, int family) {
-    switch (family) {
-        case AF_INET: return bind_sock4(fd, ifr_ip, port);
-        case AF_INET6: return bind_sock6(fd, ifr_ip, port);
-        default: assert(0); return -1;
+    sockaddr_storage addr = SockUtil::make_sockaddr(ifr_ip, port);
+    if (addr.ss_family != family) {
+        bzero(&addr, sizeof(addr));
+        addr.ss_family = family;
+        WarnL << "family dismatch, reset localaddr " << ifr_ip << " to any addr";
+        switch(family) {
+        case AF_INET:
+            if(auto ipv4 = (struct sockaddr_in*)&addr)
+                ipv4->sin_addr.s_addr = INADDR_ANY;
+            break;
+        case AF_INET6:
+            if(auto ipv6 = (struct sockaddr_in6*)&addr)
+                ipv6->sin6_addr = IN6ADDR_ANY_INIT;
+            break;
+        default: assert(0); break;
+        }
     }
+    if (family == AF_INET6)
+        set_ipv6_only(fd, false);
+    if (::bind(fd, (struct sockaddr *) &addr, get_addr_len(family)) == -1) {
+        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+        return -1;
+    }
+    return 0;
 }
 
 int SockUtil::connect(const char *host, uint16_t port, bool async, const char *local_ip, uint16_t local_port) {
@@ -396,14 +387,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
         return -1;
     }
 
-    socklen_t len = 0;
-    switch (addr.ss_family ) {
-        case AF_INET : len = sizeof(sockaddr_in); break;
-        case AF_INET6 : len = sizeof(sockaddr_in6); break;
-        default: assert(0); break;
-    }
-
-    if (::connect(sockfd, (sockaddr *) &addr, len) == 0) {
+    if (::connect(sockfd, (sockaddr *) &addr, get_addr_len(addr.ss_family)) == 0) {
         //同步连接成功
         return sockfd;
     }
@@ -589,8 +573,8 @@ bool check_ip(string &address, const string &ip) {
 }
 
 string SockUtil::get_local_ip() {
-#if defined(__APPLE__)
     string address = "127.0.0.1";
+#if defined(__APPLE__)
     for_each_netAdapter_apple([&](struct ifaddrs *adapter) {
         string ip = SockUtil::inet_ntoa(adapter->ifa_addr);
         if (strstr(adapter->ifa_name, "docker")) {
@@ -598,9 +582,7 @@ string SockUtil::get_local_ip() {
         }
         return check_ip(address, ip);
     });
-    return address;
 #elif defined(_WIN32)
-    string address = "127.0.0.1";
     for_each_netAdapter_win32([&](PIP_ADAPTER_INFO adapter) {
         IP_ADDR_STRING *ipAddr = &(adapter->IpAddressList);
         while (ipAddr) {
@@ -615,9 +597,7 @@ string SockUtil::get_local_ip() {
         }
         return false;
     });
-    return address;
 #else
-    string address = "127.0.0.1";
     for_each_netAdapter_posix([&](struct ifreq *adapter){
         string ip = SockUtil::inet_ntoa(&(adapter->ifr_addr));
         if (strstr(adapter->ifr_name, "docker")) {
@@ -625,8 +605,8 @@ string SockUtil::get_local_ip() {
         }
         return check_ip(address,ip);
     });
-    return address;
 #endif
+    return address;
 }
 
 vector<map<string, string> > SockUtil::getInterfaceList() {
@@ -931,9 +911,11 @@ int SockUtil::setMultiLOOP(int fd, bool accept) {
 int SockUtil::joinMultiAddr(int fd, const char *addr, const char *local_ip) {
     int ret = -1;
 #if defined(IP_ADD_MEMBERSHIP)
-    struct ip_mreq imr;
-    imr.imr_multiaddr.s_addr = inet_addr(addr);
-    imr.imr_interface.s_addr = inet_addr(local_ip);
+    struct ip_mreq imr = {0};
+    if(addr)
+        imr.imr_multiaddr.s_addr = inet_addr(addr);
+    if(local_ip)
+        imr.imr_interface.s_addr = inet_addr(local_ip);
     ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *) &imr, sizeof(struct ip_mreq));
     if (ret == -1) {
         TraceL << "设置 IP_ADD_MEMBERSHIP 失败:" << get_uv_errmsg(true);
@@ -946,9 +928,11 @@ int SockUtil::joinMultiAddr(int fd, const char *addr, const char *local_ip) {
 int SockUtil::leaveMultiAddr(int fd, const char *addr, const char *local_ip) {
     int ret = -1;
 #if defined(IP_DROP_MEMBERSHIP)
-    struct ip_mreq imr;
-    imr.imr_multiaddr.s_addr = inet_addr(addr);
-    imr.imr_interface.s_addr = inet_addr(local_ip);
+    struct ip_mreq imr = {0};
+    if(addr)
+        imr.imr_multiaddr.s_addr = inet_addr(addr);
+    if(local_ip)
+        imr.imr_interface.s_addr = inet_addr(local_ip);
     ret = setsockopt(fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char *) &imr, sizeof(struct ip_mreq));
     if (ret == -1) {
         TraceL << "设置 IP_DROP_MEMBERSHIP 失败:" << get_uv_errmsg(true);
@@ -966,11 +950,13 @@ static inline void write4Byte(A &&a, B &&b) {
 int SockUtil::joinMultiAddrFilter(int fd, const char *addr, const char *src_ip, const char *local_ip) {
     int ret = -1;
 #if defined(IP_ADD_SOURCE_MEMBERSHIP)
-    struct ip_mreq_source imr;
-
-    write4Byte(imr.imr_multiaddr, inet_addr(addr));
-    write4Byte(imr.imr_sourceaddr, inet_addr(src_ip));
-    write4Byte(imr.imr_interface, inet_addr(local_ip));
+    struct ip_mreq_source imr = {0};
+    if(addr)
+        write4Byte(imr.imr_multiaddr, inet_addr(addr));
+    if(src_ip)
+        write4Byte(imr.imr_sourceaddr, inet_addr(src_ip));
+    if(local_ip)
+        write4Byte(imr.imr_interface, inet_addr(local_ip));
 
     ret = setsockopt(fd, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, (char *) &imr, sizeof(struct ip_mreq_source));
     if (ret == -1) {
@@ -984,11 +970,13 @@ int SockUtil::joinMultiAddrFilter(int fd, const char *addr, const char *src_ip, 
 int SockUtil::leaveMultiAddrFilter(int fd, const char *addr, const char *src_ip, const char *local_ip) {
     int ret = -1;
 #if defined(IP_DROP_SOURCE_MEMBERSHIP)
-    struct ip_mreq_source imr;
-
-    write4Byte(imr.imr_multiaddr, inet_addr(addr));
-    write4Byte(imr.imr_sourceaddr, inet_addr(src_ip));
-    write4Byte(imr.imr_interface, inet_addr(local_ip));
+    struct ip_mreq_source imr = {0};
+    if(addr)
+        write4Byte(imr.imr_multiaddr, inet_addr(addr));
+    if(src_ip)
+        write4Byte(imr.imr_sourceaddr, inet_addr(src_ip));
+    if(local_ip)
+        write4Byte(imr.imr_interface, inet_addr(local_ip));
 
     ret = setsockopt(fd, IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP, (char *) &imr, sizeof(struct ip_mreq_source));
     if (ret == -1) {
@@ -1000,6 +988,7 @@ int SockUtil::leaveMultiAddrFilter(int fd, const char *addr, const char *src_ip,
 }
 
 bool SockUtil::is_ipv4(const char *host) {
+    if(!host || !host[0]) return true;
     struct in_addr addr;
     return 1 == inet_pton(AF_INET, host, &addr);
 }
@@ -1012,21 +1001,29 @@ bool SockUtil::is_ipv6(const char *host) {
 struct sockaddr_storage SockUtil::make_sockaddr(const char *host, uint16_t port) {
     struct sockaddr_storage storage;
     bzero(&storage, sizeof(storage));
-
+    if (!host || !host[0]) {
+        auto ipv4 = (struct sockaddr_in*)&storage;
+        ipv4->sin_addr.s_addr = INADDR_ANY;
+        ipv4->sin_family = AF_INET;
+        ipv4->sin_port = htons(port);
+        return storage;
+    }
     struct in_addr addr;
     struct in6_addr addr6;
     if (1 == inet_pton(AF_INET, host, &addr)) {
         // host是ipv4
-        reinterpret_cast<struct sockaddr_in &>(storage).sin_addr = addr;
-        reinterpret_cast<struct sockaddr_in &>(storage).sin_family = AF_INET;
-        reinterpret_cast<struct sockaddr_in &>(storage).sin_port = htons(port);
+        auto ipv4 = (struct sockaddr_in*)&storage;
+        ipv4->sin_addr = addr;
+        ipv4->sin_family = AF_INET;
+        ipv4->sin_port = htons(port);
         return storage;
     }
     if (1 == inet_pton(AF_INET6, host, &addr6)) {
         // host是ipv6
-        reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_addr = addr6;
-        reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_family = AF_INET6;
-        reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_port = htons(port);
+        auto ipv6 = (struct sockaddr_in6*)&storage;
+        ipv6->sin6_addr = addr6;
+        ipv6->sin6_family = AF_INET6;
+        ipv6->sin6_port = htons(port);
         return storage;
     }
     throw std::invalid_argument(string("not ip address:") + host);
