@@ -313,8 +313,19 @@ bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_stor
     return flag;
 }
 
+static int set_ipv6_only(int fd, bool flag) {
+    int opt = flag;
+    int ret = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&opt, sizeof opt);
+    if (ret == -1) {
+        TraceL << "设置 IPV6_V6ONLY 失败!";
+    }
+    return ret;
+}
+
 static int bind_sock6(int fd, const char *ifr_ip, uint16_t port) {
+    set_ipv6_only(fd, false);
     struct sockaddr_in6 addr;
+    bzero(&addr, sizeof(addr));
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(port);
     if (1 != inet_pton(AF_INET6, ifr_ip, &(addr.sin6_addr))) {
@@ -332,6 +343,8 @@ static int bind_sock6(int fd, const char *ifr_ip, uint16_t port) {
 
 static int bind_sock4(int fd, const char *ifr_ip, uint16_t port) {
     struct sockaddr_in addr;
+    bzero(&addr, sizeof(addr));
+
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     if (1 != inet_pton(AF_INET, ifr_ip, &(addr.sin_addr))) {
@@ -446,7 +459,6 @@ using getsockname_type = decltype(getsockname);
 static string get_socket_ip(int fd, getsockname_type func) {
     struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
-    memset(&addr, 0, sizeof(addr));
     if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
         return "";
     }
@@ -456,7 +468,6 @@ static string get_socket_ip(int fd, getsockname_type func) {
 static uint16_t get_socket_port(int fd, getsockname_type func) {
     struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
-    memset(&addr, 0, sizeof(addr));
     if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
         return 0;
     }
@@ -679,7 +690,6 @@ int SockUtil::bindUdpSock(const uint16_t port, const char *local_ip, bool enable
 int SockUtil::dissolveUdpSock(int fd) {
     struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
-    memset(&addr, 0, sizeof(addr));
     if (-1 == getsockname(fd, (struct sockaddr *)&addr, &addr_len)) {
         return -1;
     }
@@ -1001,6 +1011,8 @@ bool SockUtil::is_ipv6(const char *host) {
 
 struct sockaddr_storage SockUtil::make_sockaddr(const char *host, uint16_t port) {
     struct sockaddr_storage storage;
+    bzero(&storage, sizeof(storage));
+
     struct in_addr addr;
     struct in6_addr addr6;
     if (1 == inet_pton(AF_INET, host, &addr)) {
