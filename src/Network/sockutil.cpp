@@ -313,6 +313,48 @@ bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_stor
     return flag;
 }
 
+static int bind_sock6(int fd, const char *ifr_ip, uint16_t port) {
+    struct sockaddr_in6 addr;
+    addr.sin6_family = AF_INET6;
+    addr.sin6_port = htons(port);
+    if (1 != inet_pton(AF_INET6, ifr_ip, &(addr.sin6_addr))) {
+        if (strcmp(ifr_ip, "0.0.0.0")) {
+            WarnL << "inet_pton to ipv6 address failed:" << ifr_ip;
+        }
+        addr.sin6_addr = IN6ADDR_ANY_INIT;
+    }
+    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+        return -1;
+    }
+    return 0;
+}
+
+static int bind_sock4(int fd, const char *ifr_ip, uint16_t port) {
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    if (1 != inet_pton(AF_INET, ifr_ip, &(addr.sin_addr))) {
+        if (strcmp(ifr_ip, "::")) {
+            WarnL << "inet_pton to ipv4 address failed:" << ifr_ip;
+        }
+        addr.sin_addr.s_addr = INADDR_ANY;
+    }
+    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
+        return -1;
+    }
+    return 0;
+}
+
+static int bind_sock(int fd, const char *ifr_ip, uint16_t port, int family) {
+    switch (family) {
+        case AF_INET: return bind_sock4(fd, ifr_ip, port);
+        case AF_INET6: return bind_sock6(fd, ifr_ip, port);
+        default: assert(0); return -1;
+    }
+}
+
 int SockUtil::connect(const char *host, uint16_t port, bool async, const char *local_ip, uint16_t local_port) {
     sockaddr_storage addr;
     //优先使用ipv4地址
@@ -336,7 +378,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
     setCloseWait(sockfd);
     setCloExec(sockfd);
 
-    if (bindSock(sockfd, local_ip, local_port) == -1) {
+    if (bind_sock(sockfd, local_ip, local_port, addr.ss_family) == -1) {
         close(sockfd);
         return -1;
     }
@@ -363,7 +405,8 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
 
 int SockUtil::listen(const uint16_t port, const char *local_ip, int back_log) {
     int fd = -1;
-    if ((fd = (int) socket(is_ipv4(local_ip) ? AF_INET : AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+    int family = is_ipv4(local_ip) ? AF_INET : AF_INET6;
+    if ((fd = (int)socket(family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -372,7 +415,7 @@ int SockUtil::listen(const uint16_t port, const char *local_ip, int back_log) {
     setNoBlocked(fd);
     setCloExec(fd);
 
-    if (bindSock(fd, local_ip, port) == -1) {
+    if (bind_sock(fd, local_ip, port, family) == -1) {
         close(fd);
         return -1;
     }
@@ -607,59 +650,12 @@ vector<map<string, string> > SockUtil::getInterfaceList() {
     });
 #endif
     return ret;
-};
-
-static int bindSockV6(int fd, const char *ifr_ip, uint16_t port) {
-    struct sockaddr_in6 addr;
-    addr.sin6_family = AF_INET6;
-    addr.sin6_port = htons(port);
-    if (1 != inet_pton(AF_INET6, ifr_ip, &(addr.sin6_addr))) {
-        if (strcmp(ifr_ip, "0.0.0.0")) {
-            WarnL << "inet_pton to ipv6 address failed:" << ifr_ip;
-        }
-        addr.sin6_addr = IN6ADDR_ANY_INIT;
-    }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
-        return -1;
-    }
-    return 0;
-}
-
-static int bindSockV4(int fd, const char *ifr_ip, uint16_t port) {
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    if (1 != inet_pton(AF_INET, ifr_ip, &(addr.sin_addr))) {
-        if (strcmp(ifr_ip, "::")) {
-            WarnL << "inet_pton to ipv4 address failed:" << ifr_ip;
-        }
-        addr.sin_addr.s_addr = INADDR_ANY;
-    }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
-        return -1;
-    }
-    return 0;
-}
-
-int SockUtil::bindSock(int fd, const char *ifr_ip, uint16_t port) {
-    struct sockaddr_storage addr;
-    socklen_t addr_len = sizeof(addr);
-    memset(&addr, 0, sizeof(addr));
-    if (-1 == getsockname(fd, (struct sockaddr *)&addr, &addr_len)) {
-        return -1;
-    }
-    switch (addr.ss_family) {
-        case AF_INET: return bindSockV4(fd, ifr_ip, port);
-        case AF_INET6: return bindSockV6(fd, ifr_ip, port);
-        default: assert(0); return -1;
-    }
 }
 
 int SockUtil::bindUdpSock(const uint16_t port, const char *local_ip, bool enable_reuse) {
     int fd = -1;
-    if ((fd = (int) socket(is_ipv4(local_ip) ? AF_INET : AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+    int family = is_ipv4(local_ip) ? AF_INET : AF_INET6;
+    if ((fd = (int)socket(family, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -673,19 +669,11 @@ int SockUtil::bindUdpSock(const uint16_t port, const char *local_ip, bool enable
     setCloseWait(fd);
     setCloExec(fd);
 
-    if (bindSock(fd, local_ip, port) == -1) {
+    if (bind_sock(fd, local_ip, port, family) == -1) {
         close(fd);
         return -1;
     }
     return fd;
-}
-
-int SockUtil::connectUdpSock(int sock, sockaddr *addr, int addr_len) {
-    if (-1 == ::connect(sock, addr, addr_len)) {
-        WarnL << "初始化 UDP 套接字连接关系失败: " << get_uv_errmsg(true);
-        return -1;
-    }
-    return 0;
 }
 
 int SockUtil::dissolveUdpSock(int fd) {

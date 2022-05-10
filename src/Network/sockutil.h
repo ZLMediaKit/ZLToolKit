@@ -81,29 +81,11 @@ public:
     static int bindUdpSock(const uint16_t port, const char *local_ip = "::", bool enable_reuse = true);
 
     /**
-     * @brief 初始化套接字 sock 连接关系
-     * @param sock, socket fd 号
-     * @param addr, 对端地址
-     * @param addr_len
-     * @return 0 成功, -1 失败
-     */
-    static int connectUdpSock(int sock, struct sockaddr *addr, int addr_len);
-
-    /**
      * @brief 解除与 sock 相关的绑定关系
      * @param sock, socket fd 号
      * @return 0 成功, -1 失败
      */
     static int dissolveUdpSock(int sock);
-
-    /**
-     * 绑定socket fd至某个网卡和端口
-     * @param fd socket fd号
-     * @param local_op 绑定的本地网卡ip
-     * @param port 绑定的本地端口
-     * @return 0代表成功，-1为失败
-     */
-    static int bindSock(int fd, const char *local_op, uint16_t port);
 
     /**
      * 开启TCP_NODELAY，降低TCP交互延时
