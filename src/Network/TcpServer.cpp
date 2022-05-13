@@ -37,7 +37,7 @@ TcpServer::TcpServer(const EventPoller::Ptr &poller) : Server(poller) {
 
 TcpServer::~TcpServer() {
     if (!_parent && _socket->rawFD() != -1) {
-        InfoL << "close tcp server " << _socket->get_local_ip() << ":" << _socket->get_local_port();
+        InfoL << "close tcp server [" << _socket->get_local_ip() << "]:" << _socket->get_local_port();
     }
     _timer.reset();
     //先关闭socket监听，防止收到新的连接

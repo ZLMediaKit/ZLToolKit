@@ -52,7 +52,7 @@ UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
 
 UdpServer::~UdpServer() {
     if (!_cloned && _socket->rawFD() != -1) {
-        InfoL << "close udp server " << _socket->get_local_ip() << ":" << _socket->get_local_port();
+        InfoL << "close udp server [" << _socket->get_local_ip() << "]:" << _socket->get_local_port();
     }
     _timer.reset();
     _socket.reset();
