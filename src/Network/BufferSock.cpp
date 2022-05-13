@@ -16,6 +16,41 @@ namespace toolkit {
 
 StatisticImp(BufferList)
 
+/////////////////////////////////////// BufferSock ///////////////////////////////////////
+
+BufferSock::BufferSock(Buffer::Ptr buffer, struct sockaddr *addr, int addr_len) {
+    if (addr && addr_len) {
+        _addr = (struct sockaddr *) malloc(addr_len);
+        memcpy(_addr, addr, addr_len);
+        _addr_len = addr_len;
+    }
+    assert(buffer);
+    _buffer = std::move(buffer);
+}
+
+BufferSock::~BufferSock() {
+    if (_addr) {
+        free(_addr);
+        _addr = nullptr;
+    }
+}
+
+char *BufferSock::data() const {
+    return _buffer->data();
+}
+
+size_t BufferSock::size() const {
+    return _buffer->size();
+}
+
+const struct sockaddr *BufferSock::sockaddr() const {
+    return _addr;
+}
+
+socklen_t BufferSock::socklen() const {
+    return _addr_len;
+}
+
 /////////////////////////////////////// BufferSendMsg ///////////////////////////////////////
 
 #if !defined(_WIN32)
@@ -160,39 +195,6 @@ BufferSendMsg::~BufferSendMsg() {
     }
 }
 
-BufferSock::BufferSock(Buffer::Ptr buffer, struct sockaddr *addr, int addr_len) {
-    if (addr && addr_len) {
-        _addr = (struct sockaddr *) malloc(addr_len);
-        memcpy(_addr, addr, addr_len);
-        _addr_len = addr_len;
-    }
-    assert(buffer);
-    _buffer = std::move(buffer);
-}
-
-BufferSock::~BufferSock() {
-    if (_addr) {
-        free(_addr);
-        _addr = nullptr;
-    }
-}
-
-char *BufferSock::data() const {
-    return _buffer->data();
-}
-
-size_t BufferSock::size() const {
-    return _buffer->size();
-}
-
-const struct sockaddr *BufferSock::sockaddr() const {
-    return _addr;
-}
-
-socklen_t BufferSock::socklen() const {
-    return _addr_len;
-}
-
 #endif //!_WIN32
 
 /////////////////////////////////////// BufferSendTo ///////////////////////////////////////
@@ -286,7 +288,7 @@ ssize_t BufferSendTo::send(int fd, int flags) {
 
 BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp) {
 #if defined(_WIN32)
-    //wind32目前未做网络发送性能优化
+    //win32目前未做网络发送性能优化
     return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
 #elif defined(__linux__) || defined(__linux)
     if (is_udp) {
