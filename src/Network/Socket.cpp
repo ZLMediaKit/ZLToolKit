@@ -625,7 +625,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
                 if (!_send_buf_waiting.empty()) {
                     //把一级缓中数数据放置到二级缓存中并清空
                     LOCK_GUARD(_mtx_event);
-                    send_buf_sending_tmp.emplace_back(std::make_shared<BufferList>(_send_buf_waiting, _send_result));
+                    send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), _send_result, sock->type() == SockNum::Sock_UDP));
                     break;
                 }
             }
@@ -641,10 +641,9 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
     }
 
     int fd = sock->rawFd();
-    bool is_udp = sock->type() == SockNum::Sock_UDP;
     while (!send_buf_sending_tmp.empty()) {
         auto &packet = send_buf_sending_tmp.front();
-        auto n = packet->send(fd, _sock_flags, is_udp);
+        auto n = packet->send(fd, _sock_flags);
         if (n > 0) {
             //全部或部分发送成功
             if (packet->empty()) {

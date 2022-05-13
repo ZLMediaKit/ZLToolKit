@@ -18,9 +18,7 @@
 #include <type_traits>
 #include <functional>
 #include "Util/util.h"
-#include "Util/List.h"
 #include "Util/ResourcePool.h"
-#include "sockutil.h"
 
 namespace toolkit {
 
@@ -445,73 +443,6 @@ private:
     std::string _str;
     //对象个数统计
     ObjectStatistic<BufferLikeString> _statistic;
-};
-
-#if defined(_WIN32)
-struct iovec {
-    void *   iov_base;	/* [XSI] Base address of I/O memory region */
-    size_t	 iov_len;	/* [XSI] Size of region iov_base points to */
-};
-struct msghdr {
-    void		*msg_name;	/* [XSI] optional address */
-    size_t  	msg_namelen;	/* [XSI] size of address */
-    struct		iovec *msg_iov;	/* [XSI] scatter/gather array */
-    size_t 		msg_iovlen;	/* [XSI] # elements in msg_iov */
-    void		*msg_control;	/* [XSI] ancillary data, see below */
-    int			msg_controllen;	/* [XSI] ancillary data buffer len */
-    int			msg_flags;	/* [XSI] flags on received message */
-};
-#else
-#include <sys/uio.h>
-#include <limits.h>
-#endif
-
-#if !defined(IOV_MAX)
-#define IOV_MAX 1024
-#endif
-
-class BufferList;
-
-class BufferSock : public Buffer {
-public:
-    using Ptr = std::shared_ptr<BufferSock>;
-    friend class BufferList;
-
-    BufferSock(Buffer::Ptr ptr, struct sockaddr *addr = nullptr, int addr_len = 0);
-    ~BufferSock();
-
-    char *data() const override;
-    size_t size() const override;
-
-private:
-    int _addr_len = 0;
-    struct sockaddr *_addr = nullptr;
-    Buffer::Ptr _buffer;
-};
-
-class BufferList : public noncopyable {
-public:
-    using Ptr = std::shared_ptr<BufferList>;
-    using SendResult = std::function<void(const Buffer::Ptr &buffer, bool send_success)>;
-    BufferList(List<std::pair<Buffer::Ptr, bool> > &list, SendResult cb = nullptr);
-    ~BufferList();
-
-    bool empty();
-    size_t count();
-    ssize_t send(int fd, int flags, bool udp);
-
-private:
-    void reOffset(size_t n);
-    ssize_t send_l(int fd, int flags, bool udp);
-
-private:
-    size_t _iovec_off = 0;
-    size_t _remain_size = 0;
-    std::vector<struct iovec> _iovec;
-    List<std::pair<Buffer::Ptr, bool> > _pkt_list;
-    SendResult _cb;
-    //对象个数统计
-    ObjectStatistic<BufferList> _statistic;
 };
 
 }//namespace toolkit

@@ -21,7 +21,7 @@
 #include "sockutil.h"
 #include "Poller/Timer.h"
 #include "Poller/EventPoller.h"
-#include "Buffer.h"
+#include "BufferSock.h"
 
 namespace toolkit {
 
