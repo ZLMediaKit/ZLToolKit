@@ -91,8 +91,10 @@ private:
         if (!_use_cache) {
             return;
         }
-        _storage->getCache().for_each([&](const std::pair<bool, T> &pr) {
-            onRead(pr.second, pr.first);
+        _storage->getCache().for_each([&](const List<std::pair<bool, T> > &gop) {
+            gop.for_each([&](const std::pair<bool, T> &pr){
+                onRead(pr.second, pr.first);
+            });
         });
     }
 
@@ -107,7 +109,7 @@ template<typename T>
 class _RingStorage {
 public:
     using Ptr = std::shared_ptr<_RingStorage>;
-
+    using GopType = List<List<std::pair<bool, T> > >;
     _RingStorage(int max_size, int max_gop_size) {
         //gop缓存个数不能小于32
         if(max_size < RING_MIN_SIZE){
@@ -128,18 +130,22 @@ public:
      */
     void write(T in, bool is_key = true) {
         if (is_key) {
-            if (++_gop_size >= _max_gop_size) {
-                //遇到I帧，那么移除老数据
-                clearCache();
-            }
             _have_idr = true;
+            if (!_data_cache.front().empty()) {
+                _data_cache.emplace_back();
+            }
+            if (_data_cache.size() > _max_gop_size) {
+                //遇到I帧，那么移除老GOP
+                _size -= _data_cache.front().size();
+                _data_cache.pop_front();
+            }
         }
 
         if (!_have_idr) {
             //缓存中没有关键帧，那么gop缓存无效
             return;
         }
-        _data_cache.emplace_back(std::make_pair(is_key, std::move(in)));
+        _data_cache.back().emplace_back(std::make_pair(is_key, std::move(in)));
         if (++_size > _max_size) {
             // GOP缓存溢出，清空关老数据
             clearCache();
@@ -150,22 +156,21 @@ public:
         Ptr ret(new _RingStorage());
         ret->_size = _size;
         ret->_have_idr = _have_idr;
-        ret->_gop_size = _gop_size;
         ret->_max_size = _max_size;
-        ret->_data_cache = _data_cache;
         ret->_max_gop_size = _max_gop_size;
+        ret->_data_cache = _data_cache;
         return ret;
     }
 
-    const List<std::pair<bool, T> > &getCache() const {
+    const GopType &getCache() const {
         return _data_cache;
     }
 
     void clearCache(){
         _size = 0;
-        _gop_size = 0;
         _have_idr = false;
         _data_cache.clear();
+        _data_cache.emplace_back();
     }
 
 private:
@@ -174,10 +179,9 @@ private:
 private:
     bool _have_idr;
     int _size;
-    int _gop_size;
     int _max_size;
     int _max_gop_size;
-    List<std::pair<bool, T> > _data_cache;
+    GopType _data_cache;
 };
 
 template<typename T>
