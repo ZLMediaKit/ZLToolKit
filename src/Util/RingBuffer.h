@@ -108,15 +108,17 @@ class _RingStorage {
 public:
     using Ptr = std::shared_ptr<_RingStorage>;
 
-    _RingStorage(int max_size) {
+    _RingStorage(int max_size, int max_gop_size) {
         //gop缓存个数不能小于32
         if(max_size < RING_MIN_SIZE){
             max_size = RING_MIN_SIZE;
         }
         _max_size = max_size;
+        _max_gop_size = max_gop_size;
+        clearCache();
     }
 
-    ~_RingStorage() {}
+    ~_RingStorage() = default;
 
     /**
      * 写入环形缓存数据
@@ -124,12 +126,13 @@ public:
      * @param is_key 是否为关键帧
      * @return 是否触发重置环形缓存大小
      */
-     void write(T in, bool is_key = true) {
+    void write(T in, bool is_key = true) {
         if (is_key) {
-            //遇到I帧，那么移除老数据
-            _size = 0;
+            if (++_gop_size >= _max_gop_size) {
+                //遇到I帧，那么移除老数据
+                clearCache();
+            }
             _have_idr = true;
-            _data_cache.clear();
         }
 
         if (!_have_idr) {
@@ -138,10 +141,8 @@ public:
         }
         _data_cache.emplace_back(std::make_pair(is_key, std::move(in)));
         if (++_size > _max_size) {
-            //GOP缓存溢出，清空关老数据
-            _size = 0;
-            _have_idr = false;
-            _data_cache.clear();
+            // GOP缓存溢出，清空关老数据
+            clearCache();
         }
     }
 
@@ -149,8 +150,10 @@ public:
         Ptr ret(new _RingStorage());
         ret->_size = _size;
         ret->_have_idr = _have_idr;
+        ret->_gop_size = _gop_size;
         ret->_max_size = _max_size;
         ret->_data_cache = _data_cache;
+        ret->_max_gop_size = _max_gop_size;
         return ret;
     }
 
@@ -160,6 +163,8 @@ public:
 
     void clearCache(){
         _size = 0;
+        _gop_size = 0;
+        _have_idr = false;
         _data_cache.clear();
     }
 
@@ -167,9 +172,11 @@ private:
     _RingStorage() = default;
 
 private:
-    bool _have_idr = false;
-    int _size = 0;
+    bool _have_idr;
+    int _size;
+    int _gop_size;
     int _max_size;
+    int _max_gop_size;
     List<std::pair<bool, T> > _data_cache;
 };
 
@@ -272,9 +279,9 @@ public:
     using RingReaderDispatcher = _RingReaderDispatcher<T>;
     using onReaderChanged = std::function<void(int size)>;
 
-    RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr) {
+    RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr, int max_gop_size = 1) {
         _on_reader_changed = cb;
-        _storage = std::make_shared<RingStorage>(max_size);
+        _storage = std::make_shared<RingStorage>(max_size, max_gop_size);
     }
 
     ~RingBuffer() {}
