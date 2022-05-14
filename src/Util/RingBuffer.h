@@ -290,7 +290,7 @@ public:
     using RingReaderDispatcher = _RingReaderDispatcher<T>;
     using onReaderChanged = std::function<void(int size)>;
 
-    RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr, int max_gop_size = 5) {
+    RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr, int max_gop_size = 1) {
         _on_reader_changed = cb;
         _storage = std::make_shared<RingStorage>(max_size, max_gop_size);
     }
