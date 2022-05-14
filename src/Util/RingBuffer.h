@@ -132,12 +132,12 @@ public:
         if (is_key) {
             _have_idr = true;
             if (!_data_cache.front().empty()) {
+                //暂未获取到任意GOP
                 _data_cache.emplace_back();
             }
             if (_data_cache.size() > _max_gop_size) {
-                //遇到I帧，那么移除老GOP
-                _size -= _data_cache.front().size();
-                _data_cache.pop_front();
+                //遇到I帧，且GOP个数超过限制，那么移除老GOP
+                popFrontGop();
             }
         }
 
@@ -147,8 +147,8 @@ public:
         }
         _data_cache.back().emplace_back(std::make_pair(is_key, std::move(in)));
         if (++_size > _max_size) {
-            // GOP缓存溢出，清空关老数据
-            clearCache();
+            // GOP缓存溢出，清空关老GOP
+            popFrontGop();
         }
     }
 
@@ -175,6 +175,13 @@ public:
 
 private:
     _RingStorage() = default;
+
+    void popFrontGop() {
+        if (!_data_cache.empty()) {
+            _size -= _data_cache.front().size();
+            _data_cache.pop_front();
+        }
+    }
 
 private:
     bool _have_idr;
@@ -283,7 +290,7 @@ public:
     using RingReaderDispatcher = _RingReaderDispatcher<T>;
     using onReaderChanged = std::function<void(int size)>;
 
-    RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr, int max_gop_size = 1) {
+    RingBuffer(int max_size = 1024, const onReaderChanged &cb = nullptr, int max_gop_size = 5) {
         _on_reader_changed = cb;
         _storage = std::make_shared<RingStorage>(max_size, max_gop_size);
     }
