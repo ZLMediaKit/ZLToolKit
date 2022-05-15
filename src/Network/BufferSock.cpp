@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
  * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
@@ -8,6 +8,7 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <assert.h>
 #include "BufferSock.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
@@ -51,14 +52,51 @@ socklen_t BufferSock::socklen() const {
     return _addr_len;
 }
 
+/////////////////////////////////////// BufferCallBack ///////////////////////////////////////
+
+class BufferCallBack {
+public:
+    BufferCallBack(List<std::pair<Buffer::Ptr, bool> > list, BufferList::SendResult cb)
+        : _cb(std::move(cb))
+        , _pkt_list(std::move(list)) {}
+
+    ~BufferCallBack() {
+        sendCompleted(false);
+    }
+
+    void sendCompleted(bool flag) {
+        if (_cb) {
+            //全部发送成功或失败回调
+            while (!_pkt_list.empty()) {
+                _cb(_pkt_list.front().first, flag);
+                _pkt_list.pop_front();
+            }
+        } else {
+            _pkt_list.clear();
+        }
+    }
+
+    void sendFrontSuccess() {
+        if (_cb) {
+            //发送成功回调
+            _cb(_pkt_list.front().first, true);
+        }
+        _pkt_list.pop_front();
+    }
+
+protected:
+    BufferList::SendResult _cb;
+    List<std::pair<Buffer::Ptr, bool> > _pkt_list;
+};
+
 /////////////////////////////////////// BufferSendMsg ///////////////////////////////////////
 
 #if !defined(_WIN32)
 
-class BufferSendMsg : public BufferList {
+class BufferSendMsg : public BufferList, public BufferCallBack {
 public:
-    BufferSendMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb = nullptr);
-    ~BufferSendMsg() override;
+    BufferSendMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb);
+    ~BufferSendMsg() override = default;
 
     bool empty() override;
     size_t count() override;
@@ -71,13 +109,11 @@ private:
 private:
     size_t _iovec_off = 0;
     size_t _remain_size = 0;
-    SendResult _cb;
     std::vector<struct iovec> _iovec;
-    List<std::pair<Buffer::Ptr, bool> > _pkt_list;
 };
 
 bool BufferSendMsg::empty() {
-    return _iovec_off == _iovec.size();
+    return _remain_size == 0;
 }
 
 size_t BufferSendMsg::count() {
@@ -91,7 +127,7 @@ ssize_t BufferSendMsg::send_l(int fd, int flags) {
         msg.msg_name = nullptr;
         msg.msg_namelen = 0;
         msg.msg_iov = &(_iovec[_iovec_off]);
-        msg.msg_iovlen = (decltype(msg.msg_iovlen)) (_iovec.size() - _iovec_off);
+        msg.msg_iovlen = _iovec.size() - _iovec_off;
         if (msg.msg_iovlen > IOV_MAX) {
             msg.msg_iovlen = IOV_MAX;
         }
@@ -101,20 +137,10 @@ ssize_t BufferSendMsg::send_l(int fd, int flags) {
         n = sendmsg(fd, &msg, flags);
     } while (-1 == n && UV_EINTR == get_uv_error(true));
 
-    if (n >= (ssize_t) _remain_size) {
+    if (n >= (ssize_t)_remain_size) {
         //全部写完了
-        _iovec_off = _iovec.size();
         _remain_size = 0;
-        if (!_cb) {
-            _pkt_list.clear();
-            return n;
-        }
-
-        //全部发送成功回调
-        while (!_pkt_list.empty()) {
-            _cb(_pkt_list.front().first, true);
-            _pkt_list.pop_front();
-        }
+        sendCompleted(true);
         return n;
     }
 
@@ -144,65 +170,49 @@ ssize_t BufferSendMsg::send(int fd, int flags) {
 void BufferSendMsg::reOffset(size_t n) {
     _remain_size -= n;
     size_t offset = 0;
-    auto last_off = _iovec_off;
     for (auto i = _iovec_off; i != _iovec.size(); ++i) {
         auto &ref = _iovec[i];
         offset += ref.iov_len;
         if (offset < n) {
+            //此包发送完毕
+            sendFrontSuccess();
             continue;
         }
-        ssize_t remain = offset - n;
-        ref.iov_base = (char *) ref.iov_base + ref.iov_len - remain;
-        ref.iov_len = (decltype(ref.iov_len)) remain;
         _iovec_off = i;
-        if (remain == 0) {
-            _iovec_off += 1;
+        if (offset == n) {
+            //这是末尾发送完毕的一个包
+            ++_iovec_off;
+            sendFrontSuccess();
+            break;
         }
+        //这是末尾发送部分成功的一个包
+        size_t remain = offset - n;
+        ref.iov_base = (char *)ref.iov_base + ref.iov_len - remain;
+        ref.iov_len = remain;
         break;
-    }
-
-    //删除已经发送的数据，节省内存
-    for (auto i = last_off; i < _iovec_off; ++i) {
-        if (_cb) {
-            //发送成功回调
-            _cb(_pkt_list.front().first, true);
-        }
-        _pkt_list.pop_front();
     }
 }
 
 BufferSendMsg::BufferSendMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResult cb)
-    : _cb(std::move(cb))
-    , _iovec(list.size())
-    , _pkt_list(std::move(list)) {
+    : BufferCallBack(std::move(list), std::move(cb))
+    , _iovec(_pkt_list.size()) {
     auto it = _iovec.begin();
     _pkt_list.for_each([&](std::pair<Buffer::Ptr, bool> &pr) {
         it->iov_base = pr.first->data();
-        it->iov_len = (decltype(it->iov_len)) pr.first->size();
+        it->iov_len = pr.first->size();
         _remain_size += it->iov_len;
         ++it;
     });
-}
-
-BufferSendMsg::~BufferSendMsg() {
-    if (!_cb) {
-        return;
-    }
-    //未发送成功的buffer
-    while (!_pkt_list.empty()) {
-        _cb(_pkt_list.front().first, false);
-        _pkt_list.pop_front();
-    }
 }
 
 #endif //!_WIN32
 
 /////////////////////////////////////// BufferSendTo ///////////////////////////////////////
 
-class BufferSendTo : public BufferList {
+class BufferSendTo : public BufferList, public BufferCallBack {
 public:
     BufferSendTo(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp);
-    ~BufferSendTo() override;
+    ~BufferSendTo() override = default;
 
     bool empty() override;
     size_t count() override;
@@ -210,26 +220,12 @@ public:
 
 private:
     bool _is_udp;
-    SendResult _cb;
     size_t _offset = 0;
-    List<std::pair<Buffer::Ptr, bool> > _pkt_list;
 };
 
 BufferSendTo::BufferSendTo(List<std::pair<Buffer::Ptr, bool>> list, BufferList::SendResult cb, bool is_udp)
-    : _is_udp(is_udp)
-    , _cb(std::move(cb))
-    , _pkt_list(std::move(list)) {}
-
-BufferSendTo::~BufferSendTo() {
-    if (!_cb) {
-        return;
-    }
-    //未发送成功的buffer
-    while (!_pkt_list.empty()) {
-        _cb(_pkt_list.front().first, false);
-        _pkt_list.pop_front();
-    }
-}
+    : BufferCallBack(std::move(list), std::move(cb))
+    , _is_udp(is_udp) {}
 
 bool BufferSendTo::empty() {
     return _pkt_list.empty();
@@ -263,10 +259,7 @@ ssize_t BufferSendTo::send(int fd, int flags) {
             assert(n);
             _offset += n;
             if (_offset == buffer->size()) {
-                if (_cb) {
-                    _cb(buffer, true);
-                }
-                _pkt_list.pop_front();
+                sendFrontSuccess();
                 _offset = 0;
             }
             sent += n;
@@ -284,7 +277,111 @@ ssize_t BufferSendTo::send(int fd, int flags) {
     return sent ? sent : -1;
 }
 
-//////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////// BufferSendMmsg ///////////////////////////////////////
+
+#if defined(__linux__) || defined(__linux)
+
+class BufferSendMMsg : public BufferList, public BufferCallBack {
+public:
+    BufferSendMMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb);
+    ~BufferSendMMsg() override = default;
+
+    bool empty() override;
+    size_t count() override;
+    ssize_t send(int fd, int flags) override;
+
+private:
+    void reOffset(size_t n);
+    ssize_t send_l(int fd, int flags);
+
+private:
+    size_t _remain_size = 0;
+    std::vector<struct iovec> _iovec;
+    std::vector<struct mmsghdr> _hdrvec;
+};
+
+bool BufferSendMMsg::empty() {
+    return _remain_size == 0;
+}
+
+size_t BufferSendMMsg::count() {
+    return _hdrvec.size();
+}
+
+ssize_t BufferSendMMsg::send_l(int fd, int flags) {
+    ssize_t n;
+    do {
+        n = sendmmsg(fd, &_hdrvec[0], _hdrvec.size(), flags);
+    } while (-1 == n && UV_EINTR == get_uv_error(true));
+
+    if (n > 0) {
+        //部分或全部发送成功
+        reOffset(n);
+        return n;
+    }
+
+    //一个字节都未发送
+    return n;
+}
+
+ssize_t BufferSendMMsg::send(int fd, int flags) {
+    auto remain_size = _remain_size;
+    while (_remain_size && send_l(fd, flags) != -1);
+    ssize_t sent = remain_size - _remain_size;
+    if (sent > 0) {
+        //部分或全部发送成功
+        return sent;
+    }
+    //一个字节都未发送成功
+    return -1;
+}
+
+void BufferSendMMsg::reOffset(size_t n) {
+    for (auto it = _hdrvec.begin(); it != _hdrvec.end();) {
+        auto &hdr = *it;
+        auto &io = *(hdr.msg_hdr.msg_iov);
+        assert(hdr.msg_len <= io.iov_len);
+        _remain_size -= hdr.msg_len;
+        if (hdr.msg_len == io.iov_len) {
+            //这个udp包全部发送成功
+            it = _hdrvec.erase(it);
+            sendFrontSuccess();
+            continue;
+        }
+        //部分发送成功
+        io.iov_base = (char *)io.iov_base + hdr.msg_len;
+        io.iov_len -= hdr.msg_len;
+        break;
+    }
+}
+
+BufferSendMMsg::BufferSendMMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResult cb)
+    : BufferCallBack(std::move(list), std::move(cb))
+    , _iovec(_pkt_list.size())
+    , _hdrvec(_pkt_list.size()) {
+    auto i = 0U;
+    _pkt_list.for_each([&](std::pair<Buffer::Ptr, bool> &pr) {
+        auto &io = _iovec[i];
+        io.iov_base = pr.first->data();
+        io.iov_len = pr.first->size();
+        _remain_size += io.iov_len;
+
+        auto ptr = getBufferSockPtr(pr);
+        auto &mmsg = _hdrvec[i];
+        auto &msg = mmsg.msg_hdr;
+        mmsg.msg_len = 0;
+        msg.msg_name = ptr ? (void *)ptr->sockaddr() : nullptr;
+        msg.msg_namelen = ptr ? ptr->socklen() : 0;
+        msg.msg_iov = &io;
+        msg.msg_iovlen = 1;
+        msg.msg_control = nullptr;
+        msg.msg_controllen = 0;
+        msg.msg_flags = 0;
+        ++i;
+    });
+}
+
+#endif //defined(__linux__) || defined(__linux)
 
 BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp) {
 #if defined(_WIN32)
@@ -292,8 +389,7 @@ BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, Sen
     return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
 #elif defined(__linux__) || defined(__linux)
     if (is_udp) {
-        //linux后续可以使用sendmmsg优化发送性能
-        return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
+        return std::make_shared<BufferSendMMsg>(std::move(list), std::move(cb));
     }
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #else
