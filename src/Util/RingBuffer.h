@@ -135,7 +135,7 @@ public:
                 //暂未获取到任意GOP
                 _data_cache.emplace_back();
             }
-            if (_data_cache.size() > _max_gop_size) {
+            if (_data_cache.size() > (size_t)_max_gop_size) {
                 //遇到I帧，且GOP个数超过限制，那么移除老GOP
                 popFrontGop();
             }
