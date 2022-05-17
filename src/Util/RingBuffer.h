@@ -131,12 +131,11 @@ public:
     void write(T in, bool is_key = true) {
         if (is_key) {
             _have_idr = true;
-            if (!_data_cache.front().empty()) {
-                //暂未获取到任意GOP
+            if (!_data_cache.back().empty()) {
+                //当前gop列队还没收到任意缓存
                 _data_cache.emplace_back();
-            }
-            if (_data_cache.size() > (size_t)_max_gop_size) {
-                //遇到I帧，且GOP个数超过限制，那么移除老GOP
+            } else if (_data_cache.size() > (size_t)_max_gop_size) {
+                //GOP个数超过限制，那么移除最早的GOP
                 popFrontGop();
             }
         }
@@ -180,6 +179,9 @@ private:
         if (!_data_cache.empty()) {
             _size -= _data_cache.front().size();
             _data_cache.pop_front();
+            if (_data_cache.empty()) {
+                _data_cache.emplace_back();
+            }
         }
     }
 
