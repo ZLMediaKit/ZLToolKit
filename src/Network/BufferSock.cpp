@@ -13,6 +13,42 @@
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
 
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#ifndef MSG_WAITFORONE
+#define MSG_WAITFORONE  0x10000
+#endif
+
+#ifndef HAVE_MMSG_HDR
+struct mmsghdr {
+        struct msghdr   msg_hdr;
+        unsigned        msg_len;
+};
+#endif
+
+#ifndef HAVE_SENDMMSG_API
+#include <unistd.h>
+#include <sys/syscall.h>
+static inline int sendmmsg(int fd, struct mmsghdr *mmsg,
+                unsigned vlen, unsigned flags)
+{
+        return syscall(__NR_sendmmsg, fd, mmsg, vlen, flags);
+}
+#endif
+
+#ifndef HAVE_RECVMMSG_API
+#include <unistd.h>
+#include <sys/syscall.h>
+static inline int recvmmsg(int fd, struct mmsghdr *mmsg,
+                unsigned vlen, unsigned flags, struct timespec *timeout)
+{
+        return syscall(__NR_recvmmsg, fd, mmsg, vlen, flags, timeout);
+}
+#endif
+
 namespace toolkit {
 
 StatisticImp(BufferList)
