@@ -13,6 +13,7 @@
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
 
+#if defined(__linux__) || defined(__linux)
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -48,6 +49,8 @@ static inline int recvmmsg(int fd, struct mmsghdr *mmsg,
         return syscall(__NR_recvmmsg, fd, mmsg, vlen, flags, timeout);
 }
 #endif
+
+#endif// defined(__linux__) || defined(__linux)
 
 namespace toolkit {
 
