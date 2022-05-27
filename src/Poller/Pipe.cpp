@@ -10,6 +10,7 @@
 
 #include <fcntl.h>
 #include "Pipe.h"
+#include "Network/sockutil.h"
 
 using namespace std;
 

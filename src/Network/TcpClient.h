@@ -32,7 +32,17 @@ public:
      * @param local_port 本地端口
      */
     virtual void startConnect(const std::string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0);
-
+    
+    /**
+     * 通过代理开始连接tcp服务器
+     * @param url 服务器ip或域名
+     * @proxy_host 代理ip
+     * @proxy_port 代理端口
+     * @param timeout_sec 超时时间,单位秒
+     * @param local_port 本地端口
+     */
+    virtual void startConnectWithProxy(const std::string &url, const std::string &proxy_host, uint16_t proxy_port, float timeout_sec = 5, uint16_t local_port = 0){};
+    
     /**
      * 主动断开连接
      * @param ex 触发onErr事件时的参数
@@ -83,7 +93,7 @@ private:
     void onSockConnect(const SockException &ex);
 
 private:
-    std::string _net_adapter = "0.0.0.0";
+    std::string _net_adapter = "::";
     std::shared_ptr<Timer> _timer;
     //对象个数统计
     ObjectStatistic<TcpClient> _statistic;
@@ -134,7 +144,10 @@ public:
         _host = url;
         TcpClientType::startConnect(url, port, timeout_sec, local_port);
     }
-
+    void startConnectWithProxy(const std::string &url, const std::string &proxy_host, uint16_t proxy_port, float timeout_sec = 5, uint16_t local_port = 0) override {
+        _host = url;
+        TcpClientType::startConnect(proxy_host, proxy_port, timeout_sec, local_port);
+    }
 protected:
     void onConnect(const SockException &ex) override {
         if (!ex) {
@@ -153,7 +166,12 @@ protected:
         }
         TcpClientType::onConnect(ex);
     }
-
+    /**
+     * 重置ssl, 主要为了解决一些302跳转时http与https的转换
+     */
+    void setDoNotUseSSL() {
+        _ssl_box.reset();
+    }
 private:
     std::string _host;
     std::shared_ptr<SSL_Box> _ssl_box;

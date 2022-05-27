@@ -8,6 +8,7 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <atomic>
 #include "Session.h"
 
 using namespace std;
@@ -17,9 +18,11 @@ namespace toolkit {
 Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {}
 Session::~Session() = default;
 
+static atomic<uint64_t> s_session_index{0};
+
 string Session::getIdentifier() const {
     if (_id.empty()) {
-        _id = to_string(getSock()->rawFD());
+        _id = to_string(++s_session_index) + '-' + to_string(getSock()->rawFD());
     }
     return _id;
 }

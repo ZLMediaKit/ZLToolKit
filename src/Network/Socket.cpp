@@ -266,12 +266,12 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
     //最后一个字节设置为'\0'
     auto capacity = _read_buffer->getCapacity() - 1;
 
-    struct sockaddr addr;
-    socklen_t len = sizeof(struct sockaddr);
+    struct sockaddr_storage addr;
+    socklen_t len = sizeof(addr);
 
     while (_enable_recv) {
         do {
-            nread = recvfrom(sock_fd, data, capacity, 0, &addr, &len);
+            nread = recvfrom(sock_fd, data, capacity, 0, (struct sockaddr *)&addr, &len);
         } while (-1 == nread && UV_EINTR == get_uv_error(true));
 
         if (nread == 0) {
@@ -298,7 +298,7 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         LOCK_GUARD(_mtx_event);
         try {
             //此处捕获异常，目的是防止数据未读尽，epoll边沿触发失效的问题
-            _on_read(_read_buffer, &addr, len);
+            _on_read(_read_buffer, (struct sockaddr *)&addr, len);
         } catch (std::exception &ex) {
             ErrorL << "触发socket on_read事件时,捕获到异常:" << ex.what();
         }
@@ -625,7 +625,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
                 if (!_send_buf_waiting.empty()) {
                     //把一级缓中数数据放置到二级缓存中并清空
                     LOCK_GUARD(_mtx_event);
-                    send_buf_sending_tmp.emplace_back(std::make_shared<BufferList>(_send_buf_waiting, _send_result));
+                    send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), _send_result, sock->type() == SockNum::Sock_UDP));
                     break;
                 }
             }
@@ -641,10 +641,9 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
     }
 
     int fd = sock->rawFd();
-    bool is_udp = sock->type() == SockNum::Sock_UDP;
     while (!send_buf_sending_tmp.empty()) {
         auto &packet = send_buf_sending_tmp.front();
-        auto n = packet->send(fd, _sock_flags, is_udp);
+        auto n = packet->send(fd, _sock_flags);
         if (n > 0) {
             //全部或部分发送成功
             if (packet->empty()) {
@@ -791,9 +790,17 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
         return false;
     }
     if (!addr_len) {
-        addr_len = sizeof(struct sockaddr);
+        switch (dst_addr->sa_family) {
+            case AF_INET: addr_len = sizeof(struct sockaddr_in); break;
+            case AF_INET6: addr_len = sizeof(struct sockaddr_in6); break;
+            default: assert(0); break;
+        }
     }
-    return 0 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len);
+    if( -1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len)){
+        WarnL << "connect peer address failed:" << SockUtil::inet_ntoa(dst_addr);
+        return false;
+    }
+    return true;
 }
 
 void Socket::setSendFlags(int flags) {

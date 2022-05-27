@@ -16,8 +16,30 @@ using namespace std;
 
 namespace toolkit {
 
+static const uint8_t s_in6_addr_maped[]
+    = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 };
+
 static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
-    return ((uint64_t) ((struct sockaddr_in *) addr)->sin_addr.s_addr) << 16 | ((struct sockaddr_in *) addr)->sin_port;
+    UdpServer::PeerIdType ret;
+    switch (addr->sa_family) {
+        case AF_INET : {
+            ret.resize(18);
+            ret[0] = ((struct sockaddr_in *) addr)->sin_port >> 8;
+            ret[1] = ((struct sockaddr_in *) addr)->sin_port & 0xFF;
+            //ipv4地址统一转换为ipv6方式处理
+            memcpy(&ret[2], &s_in6_addr_maped, 12);
+            memcpy(&ret[14], &(((struct sockaddr_in *) addr)->sin_addr), 4);
+            return ret;
+        }
+        case AF_INET6 : {
+            ret.resize(18);
+            ret[0] = ((struct sockaddr_in6 *) addr)->sin6_port >> 8;
+            ret[1] = ((struct sockaddr_in6 *) addr)->sin6_port & 0xFF;
+            memcpy(&ret[2], &(((struct sockaddr_in6 *)addr)->sin6_addr), 16);
+            return ret;
+        }
+        default: assert(0); return "";
+    }
 }
 
 UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
@@ -30,7 +52,7 @@ UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
 
 UdpServer::~UdpServer() {
     if (!_cloned && _socket->rawFD() != -1) {
-        InfoL << "close udp server " << _socket->get_local_ip() << ":" << _socket->get_local_port();
+        InfoL << "close udp server [" << _socket->get_local_ip() << "]:" << _socket->get_local_port();
     }
     _timer.reset();
     _socket.reset();
@@ -79,7 +101,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
         }
     });
 
-    InfoL << "UDP Server bind to " << host << ":" << port;
+    InfoL << "UDP Server bind to [" << host << "]:" << port;
 }
 
 UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {

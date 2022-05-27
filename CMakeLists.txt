@@ -1,5 +1,25 @@
 ﻿project(ZLToolKit)
 cmake_minimum_required(VERSION 3.1.3)
+
+include(CheckStructHasMember)
+include(CheckSymbolExists)
+
+list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
+check_struct_has_member("struct mmsghdr" msg_hdr sys/socket.h HAVE_MMSG_HDR)
+check_symbol_exists(sendmmsg sys/socket.h HAVE_SENDMMSG_API)
+check_symbol_exists(recvmmsg sys/socket.h HAVE_RECVMMSG_API)
+
+if(HAVE_MMSG_HDR)
+    add_definitions(-DHAVE_MMSG_HDR)
+endif()
+if(HAVE_SENDMMSG_API)
+    add_definitions(-DHAVE_SENDMMSG_API)
+endif()
+if(HAVE_RECVMMSG_API)
+    add_definitions(-DHAVE_RECVMMSG_API)
+endif()
+
+
 #加载自定义模块
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #设置库文件路径
@@ -46,6 +66,7 @@ endif()
 
 set(ENABLE_OPENSSL ON CACHE BOOL "enable openssl")
 set(ENABLE_MYSQL ON CACHE BOOL "enable mysql")
+
 
 #查找openssl是否安装
 find_package(OpenSSL QUIET)

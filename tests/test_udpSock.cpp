@@ -21,18 +21,15 @@ using namespace toolkit;
 bool exitProgram = false;
 
 //赋值struct sockaddr
-void makeAddr(struct sockaddr *out,const char *ip,uint16_t port){
-    struct sockaddr_in &servaddr = *((struct sockaddr_in *)out);
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(port);
-    servaddr.sin_addr.s_addr = inet_addr(ip);
-    bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
+void makeAddr(struct sockaddr_storage *out,const char *ip,uint16_t port){
+    *out = SockUtil::make_sockaddr(ip, port);
 }
 
 //获取struct sockaddr的IP字符串
 string getIP(struct sockaddr *addr){
-    return SockUtil::inet_ntoa(((struct sockaddr_in *)addr)->sin_addr);
+    return SockUtil::inet_ntoa(addr);
 }
+
 int main() {
     //设置程序退出信号处理函数
     signal(SIGINT, [](int){exitProgram = true;});
@@ -50,13 +47,13 @@ int main() {
         DebugL << "recv data form " << getIP(addr) << ":" << buf->data();
     });
 
-    struct sockaddr addrDst;
+    struct sockaddr_storage addrDst;
     makeAddr(&addrDst,"127.0.0.1",9001);//UDP数据发送地址
 //	sockSend->bindPeerAddr(&addrDst);
     int i = 0;
     while(!exitProgram){
         //每隔一秒往对方发送数据
-        sockSend->send(to_string(i++),&addrDst, sizeof(struct sockaddr_in));
+        sockSend->send(to_string(i++),(struct sockaddr *)&addrDst, sizeof(addrDst));
         sleep(1);
     }
     return 0;

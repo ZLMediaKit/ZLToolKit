@@ -258,7 +258,7 @@ bool end_with(const string &str, const string &substr) {
 }
 
 bool isIP(const char *str) {
-    return INADDR_NONE != inet_addr(str);
+    return SockUtil::is_ipv4(str) || SockUtil::is_ipv6(str);
 }
 
 #if defined(_WIN32)
@@ -405,7 +405,7 @@ struct tm getLocalTime(time_t sec) {
     return tm;
 }
 
-//static thread_local string thread_name;
+static thread_local string thread_name;
 
 static string limitString(const char *name, size_t max_size) {
     string str = name;
@@ -498,9 +498,15 @@ string getThreadName() {
                 ss << threadName;
                 return ss.str();
             } else {
+                if (data) {
+                    LocalFree(data);
+                }
                 return to_string((uint64_t) GetCurrentThreadId());
             }
         } else {
+            if (data) {
+                LocalFree(data);
+            }
             return to_string((uint64_t) GetCurrentThreadId());
         }
     }
@@ -518,8 +524,12 @@ bool setThreadAffinity(int i) {
 #if (defined(__linux) || defined(__linux__)) && !defined(ANDROID)
     cpu_set_t mask;
     CPU_ZERO(&mask);
-    if(i >= 0){
+    if (i >= 0) {
         CPU_SET(i, &mask);
+    } else {
+        for (auto j = 0u; j < thread::hardware_concurrency(); ++j) {
+            CPU_SET(j, &mask);
+        }
     }
     if (!pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask)) {
         return true;
