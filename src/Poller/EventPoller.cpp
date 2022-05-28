@@ -32,8 +32,7 @@
 #define toEpoll(event)        (((event) & Event_Read)  ? EPOLLIN : 0) \
                             | (((event) & Event_Write) ? EPOLLOUT : 0) \
                             | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
-                            | (((event) & Event_LT)    ? 0 : EPOLLET)    \
-                            | EPOLLEXCLUSIVE
+                            | (((event) & Event_LT)    ? 0 : EPOLLET)
 
 #define toPoller(epoll_event)     (((epoll_event) & EPOLLIN) ? Event_Read   : 0) \
                                 | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
