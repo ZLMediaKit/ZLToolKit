@@ -53,6 +53,20 @@ static inline string my_inet_ntop(int af, const void *addr) {
     return ret;
 }
 
+static inline bool support_ipv6_l() {
+    auto fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    if (fd == -1) {
+        return false;
+    }
+    close(fd);
+    return true;
+}
+
+static inline bool support_ipv6() {
+    static auto flag = support_ipv6_l();
+    return flag;
+}
+
 string SockUtil::inet_ntoa(const struct in_addr &addr) {
     return my_inet_ntop(AF_INET, &addr);
 }
@@ -418,7 +432,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
 
 int SockUtil::listen(const uint16_t port, const char *local_ip, int back_log) {
     int fd = -1;
-    int family = is_ipv4(local_ip) ? AF_INET : AF_INET6;
+    int family = support_ipv6() ? (is_ipv4(local_ip) ? AF_INET : AF_INET6) : AF_INET;
     if ((fd = (int)socket(family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
@@ -665,7 +679,7 @@ vector<map<string, string> > SockUtil::getInterfaceList() {
 
 int SockUtil::bindUdpSock(const uint16_t port, const char *local_ip, bool enable_reuse) {
     int fd = -1;
-    int family = is_ipv4(local_ip) ? AF_INET : AF_INET6;
+    int family = support_ipv6() ? (is_ipv4(local_ip) ? AF_INET : AF_INET6) : AF_INET;
     if ((fd = (int)socket(family, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         WarnL << "创建套接字失败:" << get_uv_errmsg(true);
         return -1;
