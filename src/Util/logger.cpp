@@ -79,7 +79,7 @@ INSTANCE_IMP(Logger, exeName())
 Logger::Logger(const string &loggerName) {
     _logger_name = loggerName;
     _last_log = std::make_shared<LogContext>();
-    local_time_init();
+    local_time_init(getTimeZone());
 }
 
 Logger::~Logger() {

@@ -72,19 +72,6 @@ static int is_leap_year(time_t year) {
         return 1; /* If div by 100 and 400 is leap. */
 }
 
-long getTimeZone(void) {
-#if defined(__linux__) || defined(__sun)
-    return timezone;
-#else
-    struct timeval tv;
-    struct timezone tz;
-
-    gettimeofday(&tv, &tz);
-
-    return tz.tz_minuteswest * 60L;
-#endif
-}
-
 void no_locks_localtime(struct tm *tmp, time_t t) {
     const time_t secs_min = 60;
     const time_t secs_hour = 3600;
@@ -133,12 +120,12 @@ void no_locks_localtime(struct tm *tmp, time_t t) {
     tmp->tm_year -= 1900; /* Surprisingly tm_year is year-1900. */
 }
 
-void local_time_init(long i) {
+void local_time_init(long tz) {
     /* Obtain timezone and daylight info. */
     tzset(); /* Now 'timezome' global is populated. */
     time_t t = time(NULL);
     struct tm *aux = localtime(&t);
     _daylight_active = aux->tm_isdst;
-    _timezone = getTimeZone();
+    _timezone = tz;
 }
 } // namespace toolkit
