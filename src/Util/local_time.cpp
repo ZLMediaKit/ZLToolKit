@@ -55,7 +55,7 @@
  * logging of the dates, it's not really a complete implementation. */
 namespace toolkit {
 static int _daylight_active;
-static long _timezone;
+static long _current_timezone;
 
 int get_daylight_active() {
     return _daylight_active;
@@ -77,7 +77,7 @@ void no_locks_localtime(struct tm *tmp, time_t t) {
     const time_t secs_hour = 3600;
     const time_t secs_day = 3600 * 24;
 
-    t -= _timezone; /* Adjust for timezone. */
+    t -= _current_timezone; /* Adjust for timezone. */
     t += 3600 * get_daylight_active(); /* Adjust for daylight time. */
     time_t days = t / secs_day; /* Days passed since epoch. */
     time_t seconds = t % secs_day; /* Remaining seconds. */
@@ -126,6 +126,6 @@ void local_time_init(long tz) {
     time_t t = time(NULL);
     struct tm *aux = localtime(&t);
     _daylight_active = aux->tm_isdst;
-    _timezone = tz;
+    _current_timezone = tz;
 }
 } // namespace toolkit
