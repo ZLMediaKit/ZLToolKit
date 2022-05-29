@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <time.h>
+#include <ctime>
 
 /* This is a safe version of localtime() which contains no locks and is
  * fork() friendly. Even the _r version of localtime() cannot be used safely
@@ -55,6 +55,7 @@
  * logging of the dates, it's not really a complete implementation. */
 namespace toolkit {
 static int _daylight_active;
+static long _timezone;
 
 int get_daylight_active() {
     return _daylight_active;
@@ -71,12 +72,25 @@ static int is_leap_year(time_t year) {
         return 1; /* If div by 100 and 400 is leap. */
 }
 
+long getTimeZone(void) {
+#if defined(__linux__) || defined(__sun)
+    return timezone;
+#else
+    struct timeval tv;
+    struct timezone tz;
+
+    gettimeofday(&tv, &tz);
+
+    return tz.tz_minuteswest * 60L;
+#endif
+}
+
 void no_locks_localtime(struct tm *tmp, time_t t) {
     const time_t secs_min = 60;
     const time_t secs_hour = 3600;
     const time_t secs_day = 3600 * 24;
 
-    t -= timezone; /* Adjust for timezone. */
+    t -= _timezone; /* Adjust for timezone. */
     t += 3600 * get_daylight_active(); /* Adjust for daylight time. */
     time_t days = t / secs_day; /* Days passed since epoch. */
     time_t seconds = t % secs_day; /* Remaining seconds. */
@@ -125,5 +139,6 @@ void local_time_init() {
     time_t t = time(NULL);
     struct tm *aux = localtime(&t);
     _daylight_active = aux->tm_isdst;
+    _timezone = getTimeZone();
 }
 } // namespace toolkit
