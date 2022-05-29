@@ -23,11 +23,18 @@
 #endif
 
 #define EPOLL_SIZE 1024
-#define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
-                                | (((event) & Event_Write) ? EPOLLOUT : 0) \
-                                | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
-                                | (((event) & Event_LT) ?  0 : EPOLLET)
-#define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
+
+//防止epoll惊群
+#ifndef EPOLLEXCLUSIVE
+#define EPOLLEXCLUSIVE 0
+#endif
+
+#define toEpoll(event)        (((event) & Event_Read)  ? EPOLLIN : 0) \
+                            | (((event) & Event_Write) ? EPOLLOUT : 0) \
+                            | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
+                            | (((event) & Event_LT)    ? 0 : EPOLLET)
+
+#define toPoller(epoll_event)     (((epoll_event) & EPOLLIN) ? Event_Read   : 0) \
                                 | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
                                 | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
                                 | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
