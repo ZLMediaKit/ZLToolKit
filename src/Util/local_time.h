@@ -8,7 +8,7 @@
 
 namespace toolkit {
 void no_locks_localtime(struct tm *tmp, time_t t);
-void local_time_init();
+void local_time_init(long i);
 int get_daylight_active();
 
 } // namespace toolkit

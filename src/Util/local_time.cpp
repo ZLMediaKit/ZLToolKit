@@ -133,7 +133,7 @@ void no_locks_localtime(struct tm *tmp, time_t t) {
     tmp->tm_year -= 1900; /* Surprisingly tm_year is year-1900. */
 }
 
-void local_time_init() {
+void local_time_init(long i) {
     /* Obtain timezone and daylight info. */
     tzset(); /* Now 'timezome' global is populated. */
     time_t t = time(NULL);
