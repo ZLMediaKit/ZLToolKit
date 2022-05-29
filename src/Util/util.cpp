@@ -17,6 +17,7 @@
 #include <random>
 
 #include "util.h"
+#include "local_time.h"
 #include "File.h"
 #include "onceToken.h"
 #include "logger.h"
@@ -400,7 +401,7 @@ struct tm getLocalTime(time_t sec) {
 #ifdef _WIN32
     localtime_s(&tm, &sec);
 #else
-    localtime_r(&sec, &tm);
+    no_locks_localtime(&tm, sec);
 #endif //_WIN32
     return tm;
 }
