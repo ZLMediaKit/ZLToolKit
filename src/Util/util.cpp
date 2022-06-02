@@ -397,18 +397,6 @@ string getTimeStr(const char *fmt, time_t time) {
 }
 
 
-long getTimeZone(void) {
-#if defined(__linux__) || defined(__sun)
-    return timezone;
-#else
-
-    struct timeval tv;
-    struct timezone tz;
-    gettimeofday(&tv, &tz);
-    return tz.tz_minuteswest * 60L;
-#endif
-}
-
 struct tm getLocalTime(time_t sec) {
     struct tm tm;
 #ifdef _WIN32

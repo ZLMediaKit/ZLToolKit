@@ -120,12 +120,19 @@ void no_locks_localtime(struct tm *tmp, time_t t) {
     tmp->tm_year -= 1900; /* Surprisingly tm_year is year-1900. */
 }
 
-void local_time_init(long tz) {
+void local_time_init() {
     /* Obtain timezone and daylight info. */
     tzset(); /* Now 'timezome' global is populated. */
+#if defined(__linux__) || defined(__sun)
+    _current_timezone  = timezone;
+#else
+    struct timeval tv;
+    struct timezone tz;
+    gettimeofday(&tv, &tz);
+    _current_timezone = tz.tz_minuteswest * 60L;
+#endif
     time_t t = time(NULL);
     struct tm *aux = localtime(&t);
     _daylight_active = aux->tm_isdst;
-    _current_timezone = tz;
 }
 } // namespace toolkit
