@@ -275,5 +275,10 @@ std::string getThreadName();
  */
 bool setThreadAffinity(int i);
 
+/**
+ * 根据typeid(class).name()获取类名
+ */
+std::string demangle(const char *mangled);
+
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */
