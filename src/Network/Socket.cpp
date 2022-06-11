@@ -641,6 +641,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
     }
 
     int fd = sock->rawFd();
+    bool is_udp = sock->type() == SockNum::Sock_UDP;
     while (!send_buf_sending_tmp.empty()) {
         auto &packet = send_buf_sending_tmp.front();
         auto n = packet->send(fd, _sock_flags);
@@ -669,7 +670,15 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
             }
             break;
         }
+
         //其他错误代码，发生异常
+        if (is_udp) {
+            // udp发送异常，把数据丢弃
+            send_buf_sending_tmp.pop_front();
+            WarnL << "send udp packet failed, data ignored:" << toSockException(err).what();
+            continue;
+        }
+        // tcp发送失败时，触发异常
         emitErr(toSockException(err));
         return false;
     }
