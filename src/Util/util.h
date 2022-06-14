@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
  * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
@@ -231,6 +231,9 @@ const char *strcasestr(const char *big, const char *little);
     #endif
 #endif
 #endif //WIN32
+
+//时间差
+extern long s_gmtoff;
 
 /**
  * 获取1970年至今的毫秒数
