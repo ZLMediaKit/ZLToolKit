@@ -479,7 +479,7 @@ static time_t getLogFileTime(const string &full_path) {
 
 //获取1970年以来的第几天
 static uint64_t getDay(time_t second) {
-    return (second + s_gmtoff) / s_second_per_day;
+    return (second + getGMTOff()) / s_second_per_day;
 }
 
 FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {

@@ -319,25 +319,28 @@ int vasprintf(char **strp, const char *fmt, va_list ap) {
 
 #endif //WIN32
 
-long s_gmtoff = 0; //时间差
-static onceToken s_token([]() {
+long getGMTOff() {
+    static long s_gmtoff = 0; //时间差
+    static onceToken s_token([]() {
 #ifdef _WIN32
-    TIME_ZONE_INFORMATION tzinfo;
-    DWORD dwStandardDaylight;
-    long bias;
-    dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
-    bias = tzinfo.Bias;
-    if (dwStandardDaylight == TIME_ZONE_ID_STANDARD) {
-        bias += tzinfo.StandardBias;
-    }
-    if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT) {
-        bias += tzinfo.DaylightBias;
-    }
-    s_gmtoff = -bias * 60; //时间差(分钟)
+        TIME_ZONE_INFORMATION tzinfo;
+        DWORD dwStandardDaylight;
+        long bias;
+        dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
+        bias = tzinfo.Bias;
+        if (dwStandardDaylight == TIME_ZONE_ID_STANDARD) {
+            bias += tzinfo.StandardBias;
+        }
+        if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT) {
+            bias += tzinfo.DaylightBias;
+        }
+        s_gmtoff = -bias * 60; //时间差(分钟)
 #else
-    s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
+        s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
 #endif // _WIN32
-});
+    });
+    return s_gmtoff;
+}
 
 static inline uint64_t getCurrentMicrosecondOrigin() {
 #if !defined(_WIN32)

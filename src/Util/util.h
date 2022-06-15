@@ -232,8 +232,10 @@ const char *strcasestr(const char *big, const char *little);
 #endif
 #endif //WIN32
 
-//时间差
-extern long s_gmtoff;
+/**
+ * 获取时间差, 返回值单位为秒
+ */
+long getGMTOff();
 
 /**
  * 获取1970年至今的毫秒数
