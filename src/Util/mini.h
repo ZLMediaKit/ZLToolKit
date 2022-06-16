@@ -21,6 +21,7 @@
 #ifndef UTIL_MINI_H
 #define UTIL_MINI_H
 
+#include <cctype>
 #include <map>
 #include <string>
 #include <vector>
@@ -131,11 +132,9 @@ struct variant : public std::string {
             std::string(other) {
     }
 
-    template<typename T>
+    template <typename T>
     operator T() const {
-        T t;
-        std::stringstream ss;
-        return ss << *this && ss >> t ? t : T();
+        return as<T>();
     }
 
     template<typename T>
@@ -147,9 +146,33 @@ struct variant : public std::string {
         return this->compare(t) == 0;
     }
 
-    template<typename T>
+    template <typename T>
     T as() const {
-        return (T) (*this);
+        return as_default<T>();
+    }
+
+    template <>
+    bool as<bool>() const {
+        if (empty() || isdigit(front())) {
+            //数字开头
+            return as_default<bool>();
+        }
+        if (strToLower(std::string(*this)) == "true") {
+            return true;
+        }
+        if (strToLower(std::string(*this)) == "false") {
+            return false;
+        }
+        //未识别字符串
+        return as_default<bool>();
+    }
+
+private:
+    template <typename T>
+    T as_default() const {
+        T t;
+        std::stringstream ss;
+        return ss << *this && ss >> t ? t : T();
     }
 };
 
