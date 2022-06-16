@@ -457,25 +457,6 @@ size_t FileChannelBase::size() {
 ///////////////////FileChannel///////////////////
 
 static const auto s_second_per_day = 24 * 60 * 60;
-static long s_gmtoff = 0;//时间差
-static onceToken s_token([]() {
-#ifdef _WIN32
-    TIME_ZONE_INFORMATION tzinfo;
-    DWORD dwStandardDaylight;
-    long bias;
-    dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
-    bias = tzinfo.Bias;
-    if (dwStandardDaylight == TIME_ZONE_ID_STANDARD) {
-        bias += tzinfo.StandardBias;
-    }
-    if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT) {
-        bias += tzinfo.DaylightBias;
-    }
-    s_gmtoff = -bias * 60;//时间差(分钟)
-#else
-    s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
-#endif // _WIN32
-});
 
 //根据GMT UNIX时间戳生产日志文件名
 static string getLogFilePath(const string &dir, time_t second, int32_t index) {
@@ -498,7 +479,7 @@ static time_t getLogFileTime(const string &full_path) {
 
 //获取1970年以来的第几天
 static uint64_t getDay(time_t second) {
-    return (second + s_gmtoff) / s_second_per_day;
+    return (second + getGMTOff()) / s_second_per_day;
 }
 
 FileChannel::FileChannel(const string &name, const string &dir, LogLevel level) : FileChannelBase(name, "", level) {
