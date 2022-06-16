@@ -151,9 +151,6 @@ struct variant : public std::string {
         return as_default<T>();
     }
 
-    template <bool>
-    bool as() const;
-
 private:
     template <typename T>
     T as_default() const {
@@ -162,6 +159,12 @@ private:
         return ss << *this && ss >> t ? t : T();
     }
 };
+
+template <>
+bool variant::as<bool>() const;
+
+template <>
+uint8_t variant::as<uint8_t>() const;
 
 using mINI = mINI_basic<std::string, variant>;
 

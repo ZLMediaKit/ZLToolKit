@@ -47,6 +47,11 @@ bool variant::as<bool>() const {
     return as_default<bool>();
 }
 
+template<>
+uint8_t variant::as<uint8_t>() const {
+    return 0xFF & as_default<int>();
+}
+
 }  // namespace toolkit
 
 
