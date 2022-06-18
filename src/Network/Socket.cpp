@@ -277,6 +277,8 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         if (nread == 0) {
             if (!is_udp) {
                 emitErr(SockException(Err_eof, "end of file"));
+            } else {
+                WarnL << "recv eof on udp socket[" << sock_fd << "]";
             }
             return ret;
         }
@@ -284,7 +286,11 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         if (nread == -1) {
             auto err = get_uv_error(true);
             if (err != UV_EAGAIN) {
-                emitErr(toSockException(err));
+                if (!is_udp) {
+                    emitErr(toSockException(err));
+                } else {
+                    WarnL << "recv err on udp socket[" << sock_fd << "]:" << uv_strerror(err);
+                }
             }
             return ret;
         }
@@ -675,7 +681,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
         if (is_udp) {
             // udp发送异常，把数据丢弃
             send_buf_sending_tmp.pop_front();
-            WarnL << "send udp packet failed, data ignored:" << toSockException(err).what();
+            WarnL << "send udp socket[" << fd << "] failed, data ignored:" << uv_strerror(err);
             continue;
         }
         // tcp发送失败时，触发异常
