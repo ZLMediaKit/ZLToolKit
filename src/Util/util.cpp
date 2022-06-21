@@ -319,6 +319,29 @@ int vasprintf(char **strp, const char *fmt, va_list ap) {
 
 #endif //WIN32
 
+static long s_gmtoff = 0; //时间差
+static onceToken s_token([]() {
+#ifdef _WIN32
+    TIME_ZONE_INFORMATION tzinfo;
+    DWORD dwStandardDaylight;
+    long bias;
+    dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
+    bias = tzinfo.Bias;
+    if (dwStandardDaylight == TIME_ZONE_ID_STANDARD) {
+        bias += tzinfo.StandardBias;
+    }
+    if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT) {
+        bias += tzinfo.DaylightBias;
+    }
+    s_gmtoff = -bias * 60; //时间差(分钟)
+#else
+    s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
+#endif // _WIN32
+});
+
+long getGMTOff() {
+    return s_gmtoff;
+}
 
 static inline uint64_t getCurrentMicrosecondOrigin() {
 #if !defined(_WIN32)
@@ -357,7 +380,7 @@ static inline bool initMillisecondThread() {
                 s_currentMicrosecond.store(microsecond, memory_order_release);
                 s_currentMillisecond.store(microsecond / 1000, memory_order_release);
             } else if (expired != 0) {
-                WarnL << "Stamp expired is not abnormal:" << expired;
+                WarnL << "Stamp expired is abnormal:" << expired;
             }
             //休眠0.5 ms
             usleep(500);
@@ -537,6 +560,63 @@ bool setThreadAffinity(int i) {
     WarnL << "pthread_setaffinity_np failed:" << get_uv_errmsg();
 #endif
     return false;
+}
+
+#ifndef HAS_CXA_DEMANGLE
+// We only support some compilers that support __cxa_demangle.
+// TODO: Checks if Android NDK has fixed this issue or not.
+#if defined(__ANDROID__) && (defined(__i386__) || defined(__x86_64__))
+#define HAS_CXA_DEMANGLE 0
+#elif (__GNUC__ >= 4 || (__GNUC__ >= 3 && __GNUC_MINOR__ >= 4)) && \
+    !defined(__mips__)
+#define HAS_CXA_DEMANGLE 1
+#elif defined(__clang__) && !defined(_MSC_VER)
+#define HAS_CXA_DEMANGLE 1
+#else
+#define HAS_CXA_DEMANGLE 0
+#endif
+#endif
+#if HAS_CXA_DEMANGLE
+#include <cxxabi.h>
+#endif
+
+// Demangle a mangled symbol name and return the demangled name.
+// If 'mangled' isn't mangled in the first place, this function
+// simply returns 'mangled' as is.
+//
+// This function is used for demangling mangled symbol names such as
+// '_Z3bazifdPv'.  It uses abi::__cxa_demangle() if your compiler has
+// the API.  Otherwise, this function simply returns 'mangled' as is.
+//
+// Currently, we support only GCC 3.4.x or later for the following
+// reasons.
+//
+// - GCC 2.95.3 doesn't have cxxabi.h
+// - GCC 3.3.5 and ICC 9.0 have a bug.  Their abi::__cxa_demangle()
+//   returns junk values for non-mangled symbol names (ex. function
+//   names in C linkage).  For example,
+//     abi::__cxa_demangle("main", 0,  0, &status)
+//   returns "unsigned long" and the status code is 0 (successful).
+//
+// Also,
+//
+//  - MIPS is not supported because abi::__cxa_demangle() is not defined.
+//  - Android x86 is not supported because STLs don't define __cxa_demangle
+//
+string demangle(const char *mangled) {
+    int status = 0;
+    char *demangled = nullptr;
+#if HAS_CXA_DEMANGLE
+    demangled = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
+#endif
+    string out;
+    if (status == 0 && demangled) { // Demangling succeeeded.
+        out.append(demangled);
+        free(demangled);
+    } else {
+        out.append(mangled);
+    }
+    return out;
 }
 
 }  // namespace toolkit

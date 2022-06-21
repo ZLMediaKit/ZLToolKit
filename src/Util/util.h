@@ -233,6 +233,11 @@ const char *strcasestr(const char *big, const char *little);
 #endif //WIN32
 
 /**
+ * 获取时间差, 返回值单位为秒
+ */
+long getGMTOff();
+
+/**
  * 获取1970年至今的毫秒数
  * @param system_time 是否为系统时间(系统时间可以回退),否则为程序启动时间(不可回退)
  */
@@ -274,6 +279,11 @@ std::string getThreadName();
  * @return 是否成功，目前只支持linux
  */
 bool setThreadAffinity(int i);
+
+/**
+ * 根据typeid(class).name()获取类名
+ */
+std::string demangle(const char *mangled);
 
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */
