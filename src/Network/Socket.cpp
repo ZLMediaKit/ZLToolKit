@@ -131,7 +131,18 @@ void Socket::setOnSendResult(onSendResult cb) {
 
 #define CLOSE_SOCK(fd) if(fd != -1) {close(fd);}
 
-void Socket::connect(const string &url, uint16_t port, onErrCB con_cb_in, float timeout_sec, const string &local_ip, uint16_t local_port) {
+void Socket::connect(const string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const string &local_ip, uint16_t local_port) {
+    weak_ptr<Socket> weak_self = shared_from_this();
+    _poller->async([=] {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+        strong_self->connect_l(url, port, con_cb_in, timeout_sec, local_ip, local_port);
+     });
+}
+
+void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const string &local_ip, uint16_t local_port) {
     //重置当前socket
     closeSock();
 
