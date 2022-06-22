@@ -44,14 +44,14 @@ public:
     }
 
     /**
-     * 获取创建时间，单位毫秒
+     * 获取上次resetTime后至今的时间，单位毫秒
      */
     uint64_t elapsedTime() const {
         return getCurrentMillisecond() - _begin;
     }
 
     /**
-     * 获取上次resetTime后至今的时间，单位毫秒
+     * 获取从创建至今的时间，单位毫秒
      */
     uint64_t createdTime() const {
         return getCurrentMillisecond() - _created;
