@@ -1,12 +1,15 @@
 # 一个基于C++11简单易用的轻量级网络编程框架
-[![Build Status](https://travis-ci.org/xiongziliang/ZLToolKit.svg?branch=master)](https://travis-ci.org/xiongziliang/ZLToolKit)
+
+![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/cmake.yml/badge.svg)
+![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/macos.yml/badge.svg)
+![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/msvc-ci.yml/badge.svg)
 
 ## 项目特点
 - 基于C++11开发，避免使用裸指针，代码稳定可靠；同时跨平台移植简单方便，代码清晰简洁。
 - 使用epoll+线程池+异步网络IO模式开发，并发性能优越。
 - 代码经过大量的稳定性、性能测试，可满足商用服务器项目。
 - 支持linux、macos、ios、android、windows平台
-- 了解更多:[ZLMediaKit](https://github.com/xia-chu/ZLMediaKit)
+- 了解更多:[ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)
 
 ## 特性
 - 网络库
@@ -109,7 +112,7 @@
 ## QA
  - 该库性能怎么样？
 
-基于ZLToolKit，我实现了一个流媒体服务器[ZLMediaKit](https://github.com/xia-chu/ZLMediaKit);作者已经对其进行了性能测试，可以查看[benchmark.md](https://github.com/xia-chu/ZLMediaKit/blob/master/benchmark.md)了解详情。
+基于ZLToolKit，我实现了一个流媒体服务器[ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit);作者已经对其进行了性能测试，可以查看[benchmark.md](https://github.com/ZLMediaKit/ZLMediaKit/blob/master/benchmark.md)了解详情。
 
  - 该库稳定性怎么样？
 

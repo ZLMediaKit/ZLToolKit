@@ -131,7 +131,18 @@ void Socket::setOnSendResult(onSendResult cb) {
 
 #define CLOSE_SOCK(fd) if(fd != -1) {close(fd);}
 
-void Socket::connect(const string &url, uint16_t port, onErrCB con_cb_in, float timeout_sec, const string &local_ip, uint16_t local_port) {
+void Socket::connect(const string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const string &local_ip, uint16_t local_port) {
+    weak_ptr<Socket> weak_self = shared_from_this();
+    _poller->async([=] {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+        strong_self->connect_l(url, port, con_cb_in, timeout_sec, local_ip, local_port);
+     });
+}
+
+void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const string &local_ip, uint16_t local_port) {
     //重置当前socket
     closeSock();
 
@@ -277,6 +288,8 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         if (nread == 0) {
             if (!is_udp) {
                 emitErr(SockException(Err_eof, "end of file"));
+            } else {
+                WarnL << "recv eof on udp socket[" << sock_fd << "]";
             }
             return ret;
         }
@@ -284,7 +297,11 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         if (nread == -1) {
             auto err = get_uv_error(true);
             if (err != UV_EAGAIN) {
-                emitErr(toSockException(err));
+                if (!is_udp) {
+                    emitErr(toSockException(err));
+                } else {
+                    WarnL << "recv err on udp socket[" << sock_fd << "]:" << uv_strerror(err);
+                }
             }
             return ret;
         }
@@ -675,7 +692,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
         if (is_udp) {
             // udp发送异常，把数据丢弃
             send_buf_sending_tmp.pop_front();
-            WarnL << "send udp packet failed, data ignored:" << toSockException(err).what();
+            WarnL << "send udp socket[" << fd << "] failed, data ignored:" << uv_strerror(err);
             continue;
         }
         // tcp发送失败时，触发异常

@@ -31,6 +31,27 @@ mINI_basic<string, variant> &mINI_basic<string, variant>::Instance(){
     return instance;
 }
 
+template <>
+bool variant::as<bool>() const {
+    if (empty() || isdigit(front())) {
+        //数字开头
+        return as_default<bool>();
+    }
+    if (strToLower(std::string(*this)) == "true") {
+        return true;
+    }
+    if (strToLower(std::string(*this)) == "false") {
+        return false;
+    }
+    //未识别字符串
+    return as_default<bool>();
+}
+
+template<>
+uint8_t variant::as<uint8_t>() const {
+    return 0xFF & as_default<int>();
+}
+
 }  // namespace toolkit
 
 

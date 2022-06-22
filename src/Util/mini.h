@@ -151,22 +151,6 @@ struct variant : public std::string {
         return as_default<T>();
     }
 
-    template <>
-    bool as<bool>() const {
-        if (empty() || isdigit(front())) {
-            //数字开头
-            return as_default<bool>();
-        }
-        if (strToLower(std::string(*this)) == "true") {
-            return true;
-        }
-        if (strToLower(std::string(*this)) == "false") {
-            return false;
-        }
-        //未识别字符串
-        return as_default<bool>();
-    }
-
 private:
     template <typename T>
     T as_default() const {
@@ -175,6 +159,12 @@ private:
         return ss << *this && ss >> t ? t : T();
     }
 };
+
+template <>
+bool variant::as<bool>() const;
+
+template <>
+uint8_t variant::as<uint8_t>() const;
 
 using mINI = mINI_basic<std::string, variant>;
 

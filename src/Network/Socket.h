@@ -291,7 +291,7 @@ public:
      * @param local_ip 绑定本地网卡ip
      * @param local_port 绑定本地网卡端口号
      */
-    virtual void connect(const std::string &url, uint16_t port, onErrCB con_cb, float timeout_sec = 5,
+    virtual void connect(const std::string &url, uint16_t port, const onErrCB &con_cb, float timeout_sec = 5,
                          const std::string &local_ip = "::", uint16_t local_port = 0);
 
     /**
@@ -474,6 +474,7 @@ private:
     bool flushData(const SockFD::Ptr &sock, bool poller_thread);
     bool attachEvent(const SockFD::Ptr &sock, bool is_udp = false);
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
+    void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
 
 private:
     //send socket时的flag
