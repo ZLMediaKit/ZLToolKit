@@ -1,4 +1,4 @@
-//
+﻿//
 // Created by alex on 2022/5/29.
 //
 
@@ -32,7 +32,9 @@
  */
 
 #include <ctime>
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 
 /* This is a safe version of localtime() which contains no locks and is
  * fork() friendly. Even the _r version of localtime() cannot be used safely
@@ -126,6 +128,37 @@ void local_time_init() {
     tzset(); /* Now 'timezome' global is populated. */
 #if defined(__linux__) || defined(__sun)
     _current_timezone  = timezone;
+#elif defined(_WIN32)
+	time_t time_utc;
+	struct tm tm_local;
+
+	// Get the UTC time
+	time(&time_utc);
+
+	// Get the local time
+	// Use localtime_r for threads safe for linux
+	//localtime_r(&time_utc, &tm_local);
+	localtime_s(&tm_local, &time_utc);
+
+	time_t time_local;
+	struct tm tm_gmt;
+
+	// Change tm to time_t
+	time_local = mktime(&tm_local);
+
+	// Change it to GMT tm
+	//gmtime_r(&time_utc, &tm_gmt);//linux
+	gmtime_s(&tm_gmt, &time_utc);
+
+	int time_zone = tm_local.tm_hour - tm_gmt.tm_hour;
+	if (time_zone < -12) {
+		time_zone += 24;
+	}
+	else if (time_zone > 12) {
+		time_zone -= 24;
+	}
+
+    _current_timezone = time_zone;
 #else
     struct timeval tv;
     struct timezone tz;
