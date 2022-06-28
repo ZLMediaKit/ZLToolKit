@@ -15,6 +15,7 @@
 #include "onceToken.h"
 #include "File.h"
 #include "NoticeCenter.h"
+#include "local_time.h"
 
 #if defined(_WIN32)
 #include "strptime_win.h"
@@ -78,6 +79,7 @@ INSTANCE_IMP(Logger, exeName())
 Logger::Logger(const string &loggerName) {
     _logger_name = loggerName;
     _last_log = std::make_shared<LogContext>();
+    local_time_init();
 }
 
 Logger::~Logger() {

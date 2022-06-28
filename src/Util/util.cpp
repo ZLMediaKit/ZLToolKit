@@ -17,6 +17,7 @@
 #include <random>
 
 #include "util.h"
+#include "local_time.h"
 #include "File.h"
 #include "onceToken.h"
 #include "logger.h"
@@ -418,12 +419,13 @@ string getTimeStr(const char *fmt, time_t time) {
     return 0 == success ? string(fmt) : buffer;
 }
 
+
 struct tm getLocalTime(time_t sec) {
     struct tm tm;
 #ifdef _WIN32
     localtime_s(&tm, &sec);
 #else
-    localtime_r(&sec, &tm);
+    no_locks_localtime(&tm, sec);
 #endif //_WIN32
     return tm;
 }
