@@ -371,7 +371,7 @@ protected:
     }
     void setLogFlag(const char *flag) { _log_flag = flag; }
 private:
-    const char *_log_flag;
+    const char *_log_flag = "";
 };
 
 class LoggerWrapper {
