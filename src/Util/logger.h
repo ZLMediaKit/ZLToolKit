@@ -121,7 +121,7 @@ public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
     LogContext() = default;
-    LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name);
+    LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name, const char *flag);
     ~LogContext() = default;
 
     LogLevel _level;
@@ -131,6 +131,7 @@ public:
     std::string _function;
     std::string _thread_name;
     std::string _module_name;
+    std::string _flag;
     struct timeval _tv;
 
     const std::string &str();
@@ -147,7 +148,7 @@ class LogContextCapture {
 public:
     using Ptr = std::shared_ptr<LogContextCapture>;
 
-    LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line);
+    LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line, const char *flag = "");
     LogContextCapture(const LogContextCapture &that);
     ~LogContextCapture();
 
@@ -361,6 +362,18 @@ public:
 
 #endif//#if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 
+class BaseLogFlagInterface {
+protected:
+    virtual ~BaseLogFlagInterface() {}
+    // 获得日志标记Flag
+    const char* getLogFlag(){
+        return _log_flag;
+    }
+    void setLogFlag(const char *flag) { _log_flag = flag; }
+private:
+    const char *_log_flag;
+};
+
 class LoggerWrapper {
 public:
     template<typename First, typename ...ARGS>
@@ -398,6 +411,14 @@ extern Logger *g_defaultLogger;
 #define InfoL WriteL(::toolkit::LInfo)
 #define WarnL WriteL(::toolkit::LWarn)
 #define ErrorL WriteL(::toolkit::LError)
+
+//只能在虚继承BaseLogFlagInterface的类中使用
+#define WriteF(level) ::toolkit::LogContextCapture(::toolkit::getLogger(), level, __FILE__, __FUNCTION__, __LINE__, getLogFlag())
+#define TraceF WriteF(::toolkit::LTrace)
+#define DebugF WriteF(::toolkit::LDebug)
+#define InfoF WriteF(::toolkit::LInfo)
+#define WarnF WriteF(::toolkit::LWarn)
+#define ErrorF WriteF(::toolkit::LError)
 
 //用法: LogD("%d + %s = %c", 1 "2", 'c');
 #define PrintLog(level, ...) ::toolkit::LoggerWrapper::printLog(::toolkit::getLogger(), level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
