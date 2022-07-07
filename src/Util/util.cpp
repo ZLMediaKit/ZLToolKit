@@ -621,7 +621,7 @@ string demangle(const char *mangled) {
     return out;
 }
 
-std::string getEnv(const std::string &key) {
+string getEnv(const string &key) {
     auto ekey = key;
     if (start_with(key, "$")) {
         ekey = key.substr(1);
@@ -629,7 +629,7 @@ std::string getEnv(const std::string &key) {
     if (ekey.empty()) {
         return "";
     }
-    char *value = std::getenv(ekey.c_str());
+    char *value = getenv(ekey.c_str());
     if (value) {
         return value;
     }
