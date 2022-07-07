@@ -285,5 +285,10 @@ bool setThreadAffinity(int i);
  */
 std::string demangle(const char *mangled);
 
+/**
+ * 获取环境变量内容，以'$'开头
+ */
+std::string getEnv(const std::string &key);
+
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */

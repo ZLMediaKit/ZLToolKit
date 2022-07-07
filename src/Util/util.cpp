@@ -621,5 +621,20 @@ string demangle(const char *mangled) {
     return out;
 }
 
+std::string getEnv(const std::string &key) {
+    auto ekey = key;
+    if (start_with(key, "$")) {
+        ekey = key.substr(1);
+    }
+    if (ekey.empty()) {
+        return "";
+    }
+    char *value = std::getenv(ekey.c_str());
+    if (value) {
+        return value;
+    }
+    return "";
+}
+
 }  // namespace toolkit
 
