@@ -623,7 +623,7 @@ string demangle(const char *mangled) {
 
 string getEnv(const string &key) {
     const char* ekey = key.c_str();
-    if (*ekey = '$') {
+    if (*ekey == '$') {
         ++ekey;
     }
     char* value = *ekey ? getenv(*ekey) : nullptr;
