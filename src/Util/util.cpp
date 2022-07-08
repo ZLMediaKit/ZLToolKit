@@ -622,14 +622,14 @@ string demangle(const char *mangled) {
 }
 
 string getEnv(const string &key) {
-    auto ekey = key;
+    const char* ekey = key.c_str();
     if (start_with(key, "$")) {
-        ekey = key.substr(1);
+        ++ekey;
     }
-    if (ekey.empty()) {
+    if (strlen(ekey) == 0) {
         return "";
     }
-    char *value = getenv(ekey.c_str());
+    char* value = getenv(ekey);
     if (value) {
         return value;
     }
