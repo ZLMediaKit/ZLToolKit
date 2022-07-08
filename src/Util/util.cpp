@@ -626,7 +626,7 @@ string getEnv(const string &key) {
     if (*ekey == '$') {
         ++ekey;
     }
-    char* value = *ekey ? getenv(*ekey) : nullptr;
+    char* value = *ekey ? getenv(ekey) : nullptr;
     if (value) {
         return value;
     }
