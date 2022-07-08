@@ -622,15 +622,12 @@ string demangle(const char *mangled) {
 }
 
 string getEnv(const string &key) {
-    const char* ekey = key.c_str();
+    auto ekey = key.c_str();
     if (*ekey == '$') {
         ++ekey;
     }
-    char* value = *ekey ? getenv(ekey) : nullptr;
-    if (value) {
-        return value;
-    }
-    return "";
+    auto value = *ekey ? getenv(ekey) : nullptr;
+    return value ? value : "";
 }
 
 }  // namespace toolkit
