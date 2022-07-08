@@ -621,5 +621,14 @@ string demangle(const char *mangled) {
     return out;
 }
 
+string getEnv(const string &key) {
+    auto ekey = key.c_str();
+    if (*ekey == '$') {
+        ++ekey;
+    }
+    auto value = *ekey ? getenv(ekey) : nullptr;
+    return value ? value : "";
+}
+
 }  // namespace toolkit
 
