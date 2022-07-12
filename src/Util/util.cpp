@@ -336,6 +336,7 @@ static onceToken s_token([]() {
     }
     s_gmtoff = -bias * 60; //时间差(分钟)
 #else
+    local_time_init();
     s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
 #endif // _WIN32
 });
