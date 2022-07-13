@@ -89,7 +89,9 @@ void no_locks_localtime(struct tm *tmp, time_t t) {
     tmp->tm_hour = seconds / secs_hour;
     tmp->tm_min = (seconds % secs_hour) / secs_min;
     tmp->tm_sec = (seconds % secs_hour) % secs_min;
-
+#ifndef _WIN32
+    tmp->tm_gmtoff = -_current_timezone;
+#endif
     /* 1/1/1970 was a Thursday, that is, day 4 from the POV of the tm structure
      * where sunday = 0, so to calculate the day of the week we have to add 4
      * and take the modulo by 7. */
