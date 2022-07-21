@@ -187,16 +187,18 @@ size_t TaskExecutorGetterImp::getExecutorSize() const {
     return _threads.size();
 }
 
-size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread) {
+size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread, bool enable_cpu_affinity) {
     auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;
     for (size_t i = 0; i < size; ++i) {
         EventPoller::Ptr poller(new EventPoller((ThreadPool::Priority) priority));
         poller->runLoop(false, register_thread);
         auto full_name = name + " " + to_string(i);
-        poller->async([i, cpus, full_name]() {
+        poller->async([i, cpus, full_name, enable_cpu_affinity]() {
             setThreadName(full_name.data());
-            setThreadAffinity(i % cpus);
+            if (enable_cpu_affinity) {
+                setThreadAffinity(i % cpus);
+            }
         });
         _threads.emplace_back(std::move(poller));
     }
