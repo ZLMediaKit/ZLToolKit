@@ -1,8 +1,8 @@
 # 一个基于C++11简单易用的轻量级网络编程框架
 
-![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/cmake.yml/badge.svg)
+![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/linux.yml/badge.svg)
 ![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/macos.yml/badge.svg)
-![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/msvc-ci.yml/badge.svg)
+![](https://github.com/ZLMediaKit/ZLToolKit/actions/workflows/windows.yml/badge.svg)
 
 ## 项目特点
 - 基于C++11开发，避免使用裸指针，代码稳定可靠；同时跨平台移植简单方便，代码清晰简洁。

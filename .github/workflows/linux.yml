@@ -1,4 +1,4 @@
-name: CMake
+name: Linux
 
 on: [push, pull_request]
 
@@ -36,7 +36,7 @@ jobs:
       working-directory: ${{github.workspace}}/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE
+      run: cmake --build . --config $BUILD_TYPE -j $(nproc)
 
     - name: Test
       working-directory: ${{github.workspace}}/build
