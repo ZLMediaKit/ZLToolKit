@@ -126,6 +126,7 @@ public:
     void write(T in, bool is_key = true) {
         if (is_key) {
             _have_idr = true;
+            _started = true;
             if (!_data_cache.back().empty()) {
                 //当前gop列队还没收到任意缓存
                 _data_cache.emplace_back();
@@ -136,7 +137,7 @@ public:
             }
         }
 
-        if (!_have_idr) {
+        if (!_have_idr && _started) {
             //缓存中没有关键帧，那么gop缓存无效
             return;
         }
@@ -158,6 +159,7 @@ public:
         Ptr ret(new _RingStorage());
         ret->_size = _size;
         ret->_have_idr = _have_idr;
+        ret->_started = _started;
         ret->_max_size = _max_size;
         ret->_max_gop_size = _max_gop_size;
         ret->_data_cache = _data_cache;
@@ -187,6 +189,7 @@ private:
     }
 
 private:
+    bool _started = false;
     bool _have_idr;
     size_t _size;
     size_t _max_size;
