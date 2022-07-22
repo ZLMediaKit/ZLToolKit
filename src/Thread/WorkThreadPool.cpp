@@ -34,7 +34,7 @@ void WorkThreadPool::setPoolSize(size_t size) {
     s_pool_size = size;
 }
 
-void enableCpuAffinity(bool enable) {
+void WorkThreadPool::enableCpuAffinity(bool enable) {
     s_enable_cpu_affinity = enable;
 }
 
