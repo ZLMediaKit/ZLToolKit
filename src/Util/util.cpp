@@ -17,6 +17,7 @@
 #include <random>
 
 #include "util.h"
+#include "local_time.h"
 #include "File.h"
 #include "onceToken.h"
 #include "logger.h"
@@ -335,6 +336,7 @@ static onceToken s_token([]() {
     }
     s_gmtoff = -bias * 60; //时间差(分钟)
 #else
+    local_time_init();
     s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
 #endif // _WIN32
 });
@@ -418,12 +420,13 @@ string getTimeStr(const char *fmt, time_t time) {
     return 0 == success ? string(fmt) : buffer;
 }
 
+
 struct tm getLocalTime(time_t sec) {
     struct tm tm;
 #ifdef _WIN32
     localtime_s(&tm, &sec);
 #else
-    localtime_r(&sec, &tm);
+    no_locks_localtime(&tm, sec);
 #endif //_WIN32
     return tm;
 }
@@ -617,6 +620,15 @@ string demangle(const char *mangled) {
         out.append(mangled);
     }
     return out;
+}
+
+string getEnv(const string &key) {
+    auto ekey = key.c_str();
+    if (*ekey == '$') {
+        ++ekey;
+    }
+    auto value = *ekey ? getenv(ekey) : nullptr;
+    return value ? value : "";
 }
 
 }  // namespace toolkit
