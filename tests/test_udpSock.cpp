@@ -40,7 +40,7 @@ int main() {
     Socket::Ptr sockRecv = Socket::createSocket();//创建一个UDP数据接收端口
     Socket::Ptr sockSend = Socket::createSocket();//创建一个UDP数据发送端口
     sockRecv->bindUdpSock(9001);//接收UDP绑定9001端口
-    sockSend->bindUdpSock(0);//发送UDP随机端口
+    sockSend->bindUdpSock(0, "0.0.0.0");//发送UDP随机端口
 
     sockRecv->setOnRead([](const Buffer::Ptr &buf, struct sockaddr *addr , int){
         //接收到数据回调
@@ -53,7 +53,7 @@ int main() {
     int i = 0;
     while(!exitProgram){
         //每隔一秒往对方发送数据
-        sockSend->send(to_string(i++),(struct sockaddr *)&addrDst, sizeof(addrDst));
+        sockSend->send(to_string(i++), (struct sockaddr *)&addrDst);
         sleep(1);
     }
     return 0;
