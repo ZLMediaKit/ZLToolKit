@@ -60,19 +60,11 @@ StatisticImp(BufferList)
 
 BufferSock::BufferSock(Buffer::Ptr buffer, struct sockaddr *addr, int addr_len) {
     if (addr && addr_len) {
-        _addr = (struct sockaddr *) malloc(addr_len);
-        memcpy(_addr, addr, addr_len);
+        memcpy(&_addr, addr, addr_len);
         _addr_len = addr_len;
     }
     assert(buffer);
     _buffer = std::move(buffer);
-}
-
-BufferSock::~BufferSock() {
-    if (_addr) {
-        free(_addr);
-        _addr = nullptr;
-    }
 }
 
 char *BufferSock::data() const {
@@ -84,7 +76,7 @@ size_t BufferSock::size() const {
 }
 
 const struct sockaddr *BufferSock::sockaddr() const {
-    return _addr;
+    return (struct sockaddr *)&_addr;
 }
 
 socklen_t BufferSock::socklen() const {
