@@ -368,7 +368,7 @@ ssize_t Socket::send(string buf, struct sockaddr *addr, socklen_t addr_len, bool
 }
 
 ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
-    if (!addr || !addr_len) {
+    if (!addr) {
         return send_l(std::move(buf), false, try_flush);
     }
     return send_l(std::make_shared<BufferSock>(std::move(buf), addr, addr_len), true, try_flush);
@@ -815,14 +815,7 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
     if (_sock_fd->type() != SockNum::Sock_UDP) {
         return false;
     }
-    if (!addr_len) {
-        switch (dst_addr->sa_family) {
-            case AF_INET: addr_len = sizeof(struct sockaddr_in); break;
-            case AF_INET6: addr_len = sizeof(struct sockaddr_in6); break;
-            default: assert(0); break;
-        }
-    }
-    if( -1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len)){
+    if (-1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len ? addr_len : SockUtil::get_sock_len(dst_addr))) {
         WarnL << "connect peer address failed:" << SockUtil::inet_ntoa(dst_addr);
         return false;
     }

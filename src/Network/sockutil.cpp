@@ -454,14 +454,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
         return -1;
     }
 
-    socklen_t len = 0;
-    switch (addr.ss_family ) {
-        case AF_INET : len = sizeof(sockaddr_in); break;
-        case AF_INET6 : len = sizeof(sockaddr_in6); break;
-        default: assert(0); break;
-    }
-
-    if (::connect(sockfd, (sockaddr *) &addr, len) == 0) {
+    if (::connect(sockfd, (sockaddr *) &addr, get_sock_len((sockaddr *)&addr)) == 0) {
         //同步连接成功
         return sockfd;
     }
@@ -1065,6 +1058,14 @@ bool SockUtil::is_ipv4(const char *host) {
 bool SockUtil::is_ipv6(const char *host) {
     struct in6_addr addr;
     return 1 == inet_pton(AF_INET6, host, &addr);
+}
+
+socklen_t SockUtil::get_sock_len(const struct sockaddr *addr) {
+    switch (addr->sa_family) {
+        case AF_INET : return sizeof(sockaddr_in);
+        case AF_INET6 : return sizeof(sockaddr_in6);
+        default: assert(0); return 0;
+    }
 }
 
 struct sockaddr_storage SockUtil::make_sockaddr(const char *host, uint16_t port) {

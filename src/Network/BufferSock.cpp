@@ -59,9 +59,9 @@ StatisticImp(BufferList)
 /////////////////////////////////////// BufferSock ///////////////////////////////////////
 
 BufferSock::BufferSock(Buffer::Ptr buffer, struct sockaddr *addr, int addr_len) {
-    if (addr && addr_len) {
-        memcpy(&_addr, addr, addr_len);
-        _addr_len = addr_len;
+    if (addr) {
+        _addr_len = addr_len ? addr_len : SockUtil::get_sock_len(addr);
+        memcpy(&_addr, addr, _addr_len);
     }
     assert(buffer);
     _buffer = std::move(buffer);
