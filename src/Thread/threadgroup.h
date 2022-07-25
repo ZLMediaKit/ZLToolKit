@@ -11,6 +11,7 @@
 #ifndef THREADGROUP_H_
 #define THREADGROUP_H_
 
+#include <stdexcept>
 #include <thread>
 #include <unordered_map>
 

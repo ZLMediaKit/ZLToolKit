@@ -436,6 +436,7 @@ EventPoller::DelayTask::Ptr EventPoller::doDelayTask(uint64_t delay_ms, function
 ///////////////////////////////////////////////
 
 static size_t s_pool_size = 0;
+static bool s_enable_cpu_affinity = true;
 
 INSTANCE_IMP(EventPollerPool)
 
@@ -456,12 +457,16 @@ void EventPollerPool::preferCurrentThread(bool flag) {
 }
 
 EventPollerPool::EventPollerPool() {
-    auto size = addPoller("event poller", s_pool_size, ThreadPool::PRIORITY_HIGHEST, true);
+    auto size = addPoller("event poller", s_pool_size, ThreadPool::PRIORITY_HIGHEST, true, s_enable_cpu_affinity);
     InfoL << "创建EventPoller个数:" << size;
 }
 
 void EventPollerPool::setPoolSize(size_t size) {
     s_pool_size = size;
+}
+
+void EventPollerPool::enableCpuAffinity(bool enable) {
+    s_enable_cpu_affinity = enable;
 }
 
 }  // namespace toolkit
