@@ -35,6 +35,11 @@ public:
     static void setPoolSize(size_t size = 0);
 
     /**
+     * 内部创建线程是否设置cpu亲和性，默认设置cpu亲和性
+     */
+    static void enableCpuAffinity(bool enable);
+
+    /**
      * 获取第一个实例
      * @return
      */

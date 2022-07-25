@@ -13,6 +13,7 @@
 namespace toolkit {
 
 static size_t s_pool_size = 0;
+static bool s_enable_cpu_affinity = true;
 
 INSTANCE_IMP(WorkThreadPool)
 
@@ -26,11 +27,15 @@ EventPoller::Ptr WorkThreadPool::getPoller() {
 
 WorkThreadPool::WorkThreadPool() {
     //最低优先级
-    addPoller("work poller", s_pool_size, ThreadPool::PRIORITY_LOWEST, false);
+    addPoller("work poller", s_pool_size, ThreadPool::PRIORITY_LOWEST, false, s_enable_cpu_affinity);
 }
 
 void WorkThreadPool::setPoolSize(size_t size) {
     s_pool_size = size;
+}
+
+void WorkThreadPool::enableCpuAffinity(bool enable) {
+    s_enable_cpu_affinity = enable;
 }
 
 } /* namespace toolkit */
