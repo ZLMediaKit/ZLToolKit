@@ -89,7 +89,7 @@ int inet_pton(int af, const char *src, void *dst) {
 static inline string my_inet_ntop(int af, const void *addr) {
     string ret;
     ret.resize(128);
-    if (!inet_ntop(af, addr, (char *) ret.data(), ret.size())) {
+    if (!inet_ntop(af, const_cast<void*>(addr), (char *) ret.data(), ret.size())) {
         ret.clear();
     } else {
         ret.resize(strlen(ret.data()));
