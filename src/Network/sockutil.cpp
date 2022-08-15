@@ -392,7 +392,7 @@ static int bind_sock6(int fd, const char *ifr_ip, uint16_t port) {
         }
         addr.sin6_addr = IN6ADDR_ANY_INIT;
     }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+    if (::bind(fd, (struct sockaddr *) &addr, SockUtil::get_sock_len((struct sockaddr *) &addr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -411,7 +411,7 @@ static int bind_sock4(int fd, const char *ifr_ip, uint16_t port) {
         }
         addr.sin_addr.s_addr = INADDR_ANY;
     }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+    if (::bind(fd, (struct sockaddr *) &addr, SockUtil::get_sock_len((struct sockaddr *) &addr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
