@@ -65,6 +65,7 @@ Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex) :
     setOnAccept(nullptr);
     setOnFlush(nullptr);
     setOnBeforeAccept(nullptr);
+    setOnSendResult(nullptr);
 }
 
 Socket::~Socket() {
@@ -126,7 +127,11 @@ void Socket::setOnBeforeAccept(onCreateSocket cb){
 
 void Socket::setOnSendResult(onSendResult cb) {
     LOCK_GUARD(_mtx_event);
-    _send_result = std::move(cb);
+    if (cb) {
+        _send_result = std::move(cb);
+    } else {
+        _send_result = [](const Buffer::Ptr &buffer, bool send_success) {};
+    }
 }
 
 #define CLOSE_SOCK(fd) if(fd != -1) {close(fd);}
@@ -656,6 +661,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
                         std::move(_send_buf_waiting),
                         [this](const Buffer::Ptr &buffer, bool send_success) {
                             if (send_success) {
+                                //更新发送速率
                                 _send_speed += buffer->size();
                             }
                             _send_result(buffer, send_success);
