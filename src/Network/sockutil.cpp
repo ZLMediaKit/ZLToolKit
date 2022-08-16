@@ -89,7 +89,7 @@ int inet_pton(int af, const char *src, void *dst) {
 static inline string my_inet_ntop(int af, const void *addr) {
     string ret;
     ret.resize(128);
-    if (!inet_ntop(af, addr, (char *) ret.data(), ret.size())) {
+    if (!inet_ntop(af, const_cast<void*>(addr), (char *) ret.data(), ret.size())) {
         ret.clear();
     } else {
         ret.resize(strlen(ret.data()));
@@ -392,7 +392,7 @@ static int bind_sock6(int fd, const char *ifr_ip, uint16_t port) {
         }
         addr.sin6_addr = IN6ADDR_ANY_INIT;
     }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+    if (::bind(fd, (struct sockaddr *) &addr, SockUtil::get_sock_len((struct sockaddr *) &addr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -411,7 +411,7 @@ static int bind_sock4(int fd, const char *ifr_ip, uint16_t port) {
         }
         addr.sin_addr.s_addr = INADDR_ANY;
     }
-    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+    if (::bind(fd, (struct sockaddr *) &addr, SockUtil::get_sock_len((struct sockaddr *) &addr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -454,14 +454,7 @@ int SockUtil::connect(const char *host, uint16_t port, bool async, const char *l
         return -1;
     }
 
-    socklen_t len = 0;
-    switch (addr.ss_family ) {
-        case AF_INET : len = sizeof(sockaddr_in); break;
-        case AF_INET6 : len = sizeof(sockaddr_in6); break;
-        default: assert(0); break;
-    }
-
-    if (::connect(sockfd, (sockaddr *) &addr, len) == 0) {
+    if (::connect(sockfd, (sockaddr *) &addr, get_sock_len((sockaddr *)&addr)) == 0) {
         //同步连接成功
         return sockfd;
     }
@@ -1065,6 +1058,14 @@ bool SockUtil::is_ipv4(const char *host) {
 bool SockUtil::is_ipv6(const char *host) {
     struct in6_addr addr;
     return 1 == inet_pton(AF_INET6, host, &addr);
+}
+
+socklen_t SockUtil::get_sock_len(const struct sockaddr *addr) {
+    switch (addr->sa_family) {
+        case AF_INET : return sizeof(sockaddr_in);
+        case AF_INET6 : return sizeof(sockaddr_in6);
+        default: assert(0); return 0;
+    }
 }
 
 struct sockaddr_storage SockUtil::make_sockaddr(const char *host, uint16_t port) {

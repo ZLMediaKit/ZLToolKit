@@ -37,7 +37,7 @@ class BufferSock : public Buffer {
 public:
     using Ptr = std::shared_ptr<BufferSock>;
     BufferSock(Buffer::Ptr ptr, struct sockaddr *addr = nullptr, int addr_len = 0);
-    ~BufferSock();
+    ~BufferSock() override = default;
 
     char *data() const override;
     size_t size() const override;
@@ -46,7 +46,7 @@ public:
 
 private:
     int _addr_len = 0;
-    struct sockaddr *_addr = nullptr;
+    struct sockaddr_storage _addr;
     Buffer::Ptr _buffer;
 };
 
