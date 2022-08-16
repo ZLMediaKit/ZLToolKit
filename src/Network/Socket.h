@@ -586,6 +586,11 @@ public:
     bool isSocketBusy() const;
 
     /**
+     * 获取发送速率，单位bytes/s
+     */
+    int getSendSpeed();
+
+    /**
      * 设置Socket创建器，自定义Socket创建方式
      * @param cb 创建器
      */
@@ -601,11 +606,6 @@ public:
     uint16_t get_local_port() override;
     std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
-
-    /**
-     * 获取发送速率，单位bytes/s
-     */
-    int getSendSpeed();
 
     ///////////////////// TaskExecutorInterface override /////////////////////
     /**
