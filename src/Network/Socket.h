@@ -602,6 +602,11 @@ public:
     std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
 
+    /**
+     * 获取发送速率，单位bytes/s
+     */
+    int getSendSpeed();
+
     ///////////////////// TaskExecutorInterface override /////////////////////
     /**
      * 任务切换到所属poller线程执行
@@ -636,6 +641,9 @@ private:
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
     Socket::onCreateSocket _on_create_socket;
+
+    //发送速率统计
+    BytesSpeed _send_speed;
 };
 
 }  // namespace toolkit

@@ -873,6 +873,11 @@ void SocketHelper::setSock(const Socket::Ptr &sock) {
     _local_ip.clear();
     _sock = sock;
     if (_sock) {
+        _sock->setOnSendResult([this](const Buffer::Ptr &buffer, bool send_success) {
+            if (send_success) {
+                _send_speed += buffer->size();
+            }
+        });
         _poller = _sock->getPoller();
     }
 }
@@ -932,6 +937,14 @@ bool SocketHelper::isSocketBusy() const {
         return true;
     }
     return _sock->isSocketBusy();
+}
+
+int SocketHelper::getSendSpeed() {
+    if (_sock) {
+        assert(_poller->isCurrentThread());
+        return _send_speed.getSpeed();
+    }
+    return 0;
 }
 
 Task::Ptr SocketHelper::async(TaskIn task, bool may_sync) {
