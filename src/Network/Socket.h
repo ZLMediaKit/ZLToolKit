@@ -17,7 +17,7 @@
 #include <atomic>
 #include <sstream>
 #include <functional>
-#include "Util/TimeTicker.h"
+#include "Util/SpeedStatistic.h"
 #include "sockutil.h"
 #include "Poller/Timer.h"
 #include "Poller/EventPoller.h"
