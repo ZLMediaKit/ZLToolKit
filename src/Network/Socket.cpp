@@ -310,6 +310,8 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         data[nread] = '\0';
         //设置buffer有效数据大小
         _read_buffer->setSize(nread);
+        //更新接收速率
+        _recv_speed += nread;
 
         //触发回调
         LOCK_GUARD(_mtx_event);
@@ -450,6 +452,14 @@ size_t Socket::getSendBufferCount(){
 
 uint64_t Socket::elapsedTimeAfterFlushed(){
     return _send_flush_ticker.elapsedTime();
+}
+
+int Socket::getRecvSpeed() {
+    return _recv_speed.getSpeed();
+}
+
+int Socket::getSendSpeed() {
+    return _send_speed.getSpeed();
 }
 
 bool Socket::listen(const SockFD::Ptr &sock){
@@ -642,7 +652,15 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
                 if (!_send_buf_waiting.empty()) {
                     //把一级缓中数数据放置到二级缓存中并清空
                     LOCK_GUARD(_mtx_event);
-                    send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), _send_result, sock->type() == SockNum::Sock_UDP));
+                    send_buf_sending_tmp.emplace_back(BufferList::create(
+                        std::move(_send_buf_waiting),
+                        [this](const Buffer::Ptr &buffer, bool send_success) {
+                            if (send_success) {
+                                _send_speed += buffer->size();
+                            }
+                            _send_result(buffer, send_success);
+                        },
+                        sock->type() == SockNum::Sock_UDP));
                     break;
                 }
             }
@@ -873,11 +891,6 @@ void SocketHelper::setSock(const Socket::Ptr &sock) {
     _local_ip.clear();
     _sock = sock;
     if (_sock) {
-        _sock->setOnSendResult([this](const Buffer::Ptr &buffer, bool send_success) {
-            if (send_success) {
-                _send_speed += buffer->size();
-            }
-        });
         _poller = _sock->getPoller();
     }
 }
@@ -937,14 +950,6 @@ bool SocketHelper::isSocketBusy() const {
         return true;
     }
     return _sock->isSocketBusy();
-}
-
-int SocketHelper::getSendSpeed() {
-    if (_sock) {
-        assert(_poller->isCurrentThread());
-        return _send_speed.getSpeed();
-    }
-    return 0;
 }
 
 Task::Ptr SocketHelper::async(TaskIn task, bool may_sync) {

@@ -453,6 +453,16 @@ public:
      */
     virtual uint64_t elapsedTimeAfterFlushed();
 
+    /**
+     * 获取接收速率，单位bytes/s
+     */
+    int getRecvSpeed();
+
+    /**
+     * 获取发送速率，单位bytes/s
+     */
+    int getSendSpeed();
+
     ////////////SockInfo override////////////
     std::string get_local_ip() override;
     uint16_t get_local_port() override;
@@ -527,6 +537,11 @@ private:
     BufferList::SendResult _send_result;
     //对象个数统计
     ObjectStatistic<Socket> _statistic;
+
+    //接收速率统计
+    BytesSpeed _recv_speed;
+    //发送速率统计
+    BytesSpeed _send_speed;
 };
 
 class SockSender {
@@ -586,11 +601,6 @@ public:
     bool isSocketBusy() const;
 
     /**
-     * 获取发送速率，单位bytes/s
-     */
-    int getSendSpeed();
-
-    /**
      * 设置Socket创建器，自定义Socket创建方式
      * @param cb 创建器
      */
@@ -641,9 +651,6 @@ private:
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
     Socket::onCreateSocket _on_create_socket;
-
-    //发送速率统计
-    BytesSpeed _send_speed;
 };
 
 }  // namespace toolkit
