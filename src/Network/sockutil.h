@@ -291,6 +291,8 @@ public:
     static uint16_t inet_port(const struct sockaddr *addr);
     static struct sockaddr_storage make_sockaddr(const char *ip, uint16_t port);
     static socklen_t get_sock_len(const struct sockaddr *addr);
+    static bool get_sock_local_addr(int fd, struct sockaddr_storage &addr);
+    static bool get_sock_peer_addr(int fd, struct sockaddr_storage &addr);
 
     /**
      * 获取网卡ip
