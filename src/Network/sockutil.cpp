@@ -392,7 +392,7 @@ static int bind_sock6(int fd, const char *ifr_ip, uint16_t port) {
         }
         addr.sin6_addr = IN6ADDR_ANY_INIT;
     }
-    if (::bind(fd, (struct sockaddr *) &addr, SockUtil::get_sock_len((struct sockaddr *) &addr)) == -1) {
+    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -411,7 +411,7 @@ static int bind_sock4(int fd, const char *ifr_ip, uint16_t port) {
         }
         addr.sin_addr.s_addr = INADDR_ANY;
     }
-    if (::bind(fd, (struct sockaddr *) &addr, SockUtil::get_sock_len((struct sockaddr *) &addr)) == -1) {
+    if (::bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);
         return -1;
     }
@@ -507,10 +507,25 @@ int SockUtil::getSockError(int fd) {
 
 using getsockname_type = decltype(getsockname);
 
-static string get_socket_ip(int fd, getsockname_type func) {
-    struct sockaddr_storage addr;
+static bool get_socket_addr(int fd, struct sockaddr_storage &addr, getsockname_type func) {
     socklen_t addr_len = sizeof(addr);
     if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
+        return false;
+    }
+    return true;
+}
+
+bool SockUtil::get_sock_local_addr(int fd, struct sockaddr_storage &addr) {
+    return get_socket_addr(fd, addr, getsockname);
+}
+
+bool SockUtil::get_sock_peer_addr(int fd, struct sockaddr_storage &addr) {
+    return get_socket_addr(fd, addr, getpeername);
+}
+
+static string get_socket_ip(int fd, getsockname_type func) {
+    struct sockaddr_storage addr;
+    if (!get_socket_addr(fd, addr, func)) {
         return "";
     }
     return SockUtil::inet_ntoa((struct sockaddr *)&addr);
@@ -518,8 +533,7 @@ static string get_socket_ip(int fd, getsockname_type func) {
 
 static uint16_t get_socket_port(int fd, getsockname_type func) {
     struct sockaddr_storage addr;
-    socklen_t addr_len = sizeof(addr);
-    if (-1 == func(fd, (struct sockaddr *)&addr, &addr_len)) {
+    if (!get_socket_addr(fd, addr, func)) {
         return 0;
     }
     return SockUtil::inet_port((struct sockaddr *)&addr);
