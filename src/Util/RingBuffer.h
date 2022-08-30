@@ -20,13 +20,15 @@
 #include "List.h"
 #include "Poller/EventPoller.h"
 
-//GOP缓存最大长度下限值
+// GOP缓存最大长度下限值
 #define RING_MIN_SIZE 32
 #define LOCK_GUARD(mtx) std::lock_guard<decltype(mtx)> lck(mtx)
 
 namespace toolkit {
 
-template<typename T>
+using ReaderInfo = std::shared_ptr<void>;
+
+template <typename T>
 class RingDelegate {
 public:
     using Ptr = std::shared_ptr<RingDelegate>;
@@ -35,76 +37,73 @@ public:
     virtual void onWrite(T in, bool is_key = true) = 0;
 };
 
-template<typename T>
+template <typename T>
 class _RingStorage;
 
-template<typename T>
+template <typename T>
 class _RingReaderDispatcher;
 
 /**
-* 环形缓存读取器
-* 该对象的事件触发都会在绑定的poller线程中执行
-* 所以把锁去掉了
-* 对该对象的一切操作都应该在poller线程中执行
-*/
-template<typename T>
+ * 环形缓存读取器
+ * 该对象的事件触发都会在绑定的poller线程中执行
+ * 所以把锁去掉了
+ * 对该对象的一切操作都应该在poller线程中执行
+ */
+template <typename T>
 class _RingReader {
 public:
     using Ptr = std::shared_ptr<_RingReader>;
     friend class _RingReaderDispatcher<T>;
 
-    _RingReader(std::shared_ptr<_RingStorage<T> > storage) {
-        _storage = std::move(storage);
-    }
+    _RingReader(std::shared_ptr<_RingStorage<T>> storage) { _storage = std::move(storage); }
 
     ~_RingReader() = default;
 
-    void setReadCB(const std::function<void(const T &)> &cb) {
+    void setReadCB(std::function<void(const T &)> cb) {
         if (!cb) {
             _read_cb = [](const T &) {};
         } else {
-            _read_cb = cb;
+            _read_cb = std::move(cb);
             flushGop();
         }
     }
 
-    void setDetachCB(const std::function<void()> &cb) {
-        if (!cb) {
-            _detach_cb = []() {};
-        } else {
-            _detach_cb = cb;
-        }
+    void setDetachCB(std::function<void()> cb) {
+        _detach_cb = cb ? std::move(cb) : []() {};
+    }
+
+    void setGetInfoCB(std::function<ReaderInfo()> cb) {
+        _get_info = cb ? std::move(cb) : []() { return ReaderInfo(); };
     }
 
 private:
-    void onRead(const T &data, bool /*is_key*/) {
-        _read_cb(data);
-    }
+    void onRead(const T &data, bool /*is_key*/) { _read_cb(data); }
 
-    void onDetach() const {
-        _detach_cb();
-    }
+    void onDetach() const { _detach_cb(); }
 
     void flushGop() {
         if (!_storage) {
             return;
         }
-        _storage->getCache().for_each([this](const List<std::pair<bool, T > > &lst) {
+        _storage->getCache().for_each([this](const List<std::pair<bool, T>> &lst) {
             lst.for_each([this](const std::pair<bool, T> &pr) { onRead(pr.second, pr.first); });
         });
     }
 
+    ReaderInfo getInfo() { return _get_info(); }
+
 private:
-    std::shared_ptr<_RingStorage<T> > _storage;
+    std::shared_ptr<_RingStorage<T>> _storage;
     std::function<void(void)> _detach_cb = []() {};
     std::function<void(const T &)> _read_cb = [](const T &) {};
+    std::function<ReaderInfo()> _get_info = []() { return ReaderInfo(); };
 };
 
-template<typename T>
+template <typename T>
 class _RingStorage {
 public:
     using Ptr = std::shared_ptr<_RingStorage>;
-    using GopType = List<List<std::pair<bool, T> > >;
+    using GopType = List<List<std::pair<bool, T>>>;
     _RingStorage(size_t max_size, size_t max_gop_size) {
         // gop缓存个数不能小于32
         if (max_size < RING_MIN_SIZE) {
@@ -143,7 +142,7 @@ public:
         }
         _data_cache.back().emplace_back(std::make_pair(is_key, std::move(in)));
         if (++_size > _max_size) {
-            //GOP缓存溢出
+            // GOP缓存溢出
             while (_data_cache.size() > 1) {
                 //先尝试清除老的GOP缓存
                 popFrontGop();
@@ -197,19 +196,20 @@ private:
     GopType _data_cache;
 };
 
-template<typename T>
+template <typename T>
 class RingBuffer;
 
 /**
-* 环形缓存事件派发器，只能一个poller线程操作它
-* @tparam T
-*/
-template<typename T>
-class _RingReaderDispatcher : public std::enable_shared_from_this<_RingReaderDispatcher<T> > {
+ * 环形缓存事件派发器，只能一个poller线程操作它
+ * @tparam T
+ */
+template <typename T>
+class _RingReaderDispatcher : public std::enable_shared_from_this<_RingReaderDispatcher<T>> {
 public:
     using Ptr = std::shared_ptr<_RingReaderDispatcher>;
     using RingReader = _RingReader<T>;
     using RingStorage = _RingStorage<T>;
+    using onChangeInfoCB = std::function<ReaderInfo(ReaderInfo &&info)>;
 
     friend class RingBuffer<T>;
 
@@ -225,7 +225,8 @@ public:
     }
 
 private:
-    _RingReaderDispatcher(const typename RingStorage::Ptr &storage, const std::function<void(int, bool)> &onSizeChanged) {
+    _RingReaderDispatcher(
+        const typename RingStorage::Ptr &storage, const std::function<void(int, bool)> &onSizeChanged) {
         _storage = storage;
         _reader_size = 0;
         _on_size_changed = onSizeChanged;
@@ -278,21 +279,38 @@ private:
         }
     }
 
+    std::list<ReaderInfo> getInfoList(const onChangeInfoCB &on_change) {
+        std::list<ReaderInfo> ret;
+        for (auto &pr : _reader_map) {
+            auto reader = pr.second.lock();
+            if (!reader) {
+                continue;
+            }
+            auto info = reader->getInfo();
+            if (!info) {
+                continue;
+            }
+            ret.emplace_back(on_change(std::move(info)));
+        }
+        return ret;
+    }
+
 private:
     std::atomic_int _reader_size;
     std::function<void(int, bool)> _on_size_changed;
     typename RingStorage::Ptr _storage;
-    std::unordered_map<void *, std::weak_ptr<RingReader> > _reader_map;
+    std::unordered_map<void *, std::weak_ptr<RingReader>> _reader_map;
 };
 
-template<typename T>
-class RingBuffer : public std::enable_shared_from_this<RingBuffer<T> > {
+template <typename T>
+class RingBuffer : public std::enable_shared_from_this<RingBuffer<T>> {
 public:
     using Ptr = std::shared_ptr<RingBuffer>;
     using RingReader = _RingReader<T>;
     using RingStorage = _RingStorage<T>;
     using RingReaderDispatcher = _RingReaderDispatcher<T>;
     using onReaderChanged = std::function<void(int size)>;
+    using onGetInfoCB = std::function<void(std::list<ReaderInfo> &info_list)>;
 
     RingBuffer(size_t max_size = 1024, const onReaderChanged &cb = nullptr, size_t max_gop_size = 1) {
         _on_reader_changed = cb;
@@ -350,6 +368,38 @@ public:
             auto &second = pr.second;
             //切换线程后清空缓存
             pr.first->async([second]() { second->clearCache(); }, false);
+        }
+    }
+
+    void getInfoList(const onGetInfoCB &cb, typename RingReaderDispatcher::onChangeInfoCB on_change = nullptr) {
+        if (!cb) {
+            return;
+        }
+        if (!on_change) {
+            on_change = [](ReaderInfo &&info) { return std::move(info); };
+        }
+
+        LOCK_GUARD(_mtx_map);
+
+        auto info_vec = std::make_shared<std::vector<std::list<ReaderInfo>>>();
+        // 1、最新确保一个元素
+        info_vec->resize(_dispatcher_map.empty() ? 1 : _dispatcher_map.size());
+        std::shared_ptr<void> on_finished(nullptr, [cb, info_vec](void *) mutable {
+            // 2、防止这里为空
+            auto &lst = *info_vec->begin();
+            for (auto &item : *info_vec) {
+                if (&lst != &item) {
+                    lst.insert(lst.end(), item.begin(), item.end());
+                }
+            }
+            cb(lst);
+        });
+
+        auto i = 0U;
+        for (auto &pr : _dispatcher_map) {
+            auto &second = pr.second;
+            pr.first->async([second, info_vec, on_finished, i, on_change]() { (*info_vec)[i] = second->getInfoList(on_change); });
+            ++i;
         }
     }
 
