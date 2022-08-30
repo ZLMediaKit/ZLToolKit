@@ -65,6 +65,7 @@ Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex) :
     setOnAccept(nullptr);
     setOnFlush(nullptr);
     setOnBeforeAccept(nullptr);
+    setOnSendResult(nullptr);
 }
 
 Socket::~Socket() {
@@ -126,7 +127,11 @@ void Socket::setOnBeforeAccept(onCreateSocket cb){
 
 void Socket::setOnSendResult(onSendResult cb) {
     LOCK_GUARD(_mtx_event);
-    _send_result = std::move(cb);
+    if (cb) {
+        _send_result = std::move(cb);
+    } else {
+        _send_result = [](const Buffer::Ptr &buffer, bool send_success) {};
+    }
 }
 
 #define CLOSE_SOCK(fd) if(fd != -1) {close(fd);}
@@ -310,6 +315,8 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
         data[nread] = '\0';
         //设置buffer有效数据大小
         _read_buffer->setSize(nread);
+        //更新接收速率
+        _recv_speed += nread;
 
         //触发回调
         LOCK_GUARD(_mtx_event);
@@ -450,6 +457,14 @@ size_t Socket::getSendBufferCount(){
 
 uint64_t Socket::elapsedTimeAfterFlushed(){
     return _send_flush_ticker.elapsedTime();
+}
+
+int Socket::getRecvSpeed() {
+    return _recv_speed.getSpeed();
+}
+
+int Socket::getSendSpeed() {
+    return _send_speed.getSpeed();
 }
 
 bool Socket::listen(const SockFD::Ptr &sock){
@@ -642,7 +657,16 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
                 if (!_send_buf_waiting.empty()) {
                     //把一级缓中数数据放置到二级缓存中并清空
                     LOCK_GUARD(_mtx_event);
-                    send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), _send_result, sock->type() == SockNum::Sock_UDP));
+                    send_buf_sending_tmp.emplace_back(BufferList::create(
+                        std::move(_send_buf_waiting),
+                        [this](const Buffer::Ptr &buffer, bool send_success) {
+                            if (send_success) {
+                                //更新发送速率
+                                _send_speed += buffer->size();
+                            }
+                            _send_result(buffer, send_success);
+                        },
+                        sock->type() == SockNum::Sock_UDP));
                     break;
                 }
             }
