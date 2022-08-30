@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
  * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
@@ -371,12 +371,13 @@ public:
         }
     }
 
-    void getInfoList(const onGetInfoCB &cb, typename RingReaderDispatcher::onChangeInfoCB on_change = nullptr) {
+    void getInfoList(const onGetInfoCB &cb, const typename RingReaderDispatcher::onChangeInfoCB &on_change = nullptr) {
         if (!cb) {
             return;
         }
         if (!on_change) {
-            on_change = [](ReaderInfo &&info) { return std::move(info); };
+            const_cast<RingReaderDispatcher::onChangeInfoCB &>(on_change)
+                = [](ReaderInfo &&info) { return std::move(info); };
         }
 
         LOCK_GUARD(_mtx_map);
