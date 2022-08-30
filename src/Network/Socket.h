@@ -611,6 +611,11 @@ public:
      */
     Socket::Ptr createSocket();
 
+    /**
+     * 获取socket对象
+     */
+    const Socket::Ptr &getSock() const;
+
     ///////////////////// SockInfo override /////////////////////
     std::string get_local_ip() override;
     uint16_t get_local_port() override;
@@ -640,7 +645,6 @@ public:
 protected:
     void setPoller(const EventPoller::Ptr &poller);
     void setSock(const Socket::Ptr &sock);
-    const Socket::Ptr& getSock() const;
 
 private:
     bool _try_flush = true;
