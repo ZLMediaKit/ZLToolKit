@@ -376,7 +376,7 @@ public:
             return;
         }
         if (!on_change) {
-            const_cast<RingReaderDispatcher::onChangeInfoCB &>(on_change)
+            const_cast<typename RingReaderDispatcher::onChangeInfoCB &>(on_change)
                 = [](ReaderInfo &&info) { return std::move(info); };
         }
 
