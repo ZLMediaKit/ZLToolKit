@@ -70,6 +70,8 @@ Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex) :
 
 Socket::~Socket() {
     closeSock();
+    //未发送完毕的数据主动触发onSendResult回调，防止_send_result可能先析构再触发回调时崩溃
+    _send_buf_sending.clear();
 }
 
 void Socket::setOnRead(onReadCB cb) {
