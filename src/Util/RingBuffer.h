@@ -11,6 +11,7 @@
 #ifndef UTIL_RINGBUFFER_H_
 #define UTIL_RINGBUFFER_H_
 
+#include <assert.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -226,10 +227,11 @@ public:
 
 private:
     _RingReaderDispatcher(
-        const typename RingStorage::Ptr &storage, const std::function<void(int, bool)> &onSizeChanged) {
-        _storage = storage;
+        const typename RingStorage::Ptr &storage, std::function<void(int, bool)> onSizeChanged) {
         _reader_size = 0;
-        _on_size_changed = onSizeChanged;
+        _storage = storage;
+        _on_size_changed = std::move(onSizeChanged);
+        assert(_on_size_changed);
     }
 
     void write(T in, bool is_key = true) {
@@ -252,13 +254,13 @@ private:
             throw std::runtime_error("必须在绑定的poller线程中执行attach操作");
         }
 
-        std::weak_ptr<_RingReaderDispatcher> weakSelf = this->shared_from_this();
-        auto on_dealloc = [weakSelf, poller](RingReader *ptr) {
-            poller->async([weakSelf, ptr]() {
-                auto strongSelf = weakSelf.lock();
-                if (strongSelf && strongSelf->_reader_map.erase(ptr)) {
-                    --strongSelf->_reader_size;
-                    strongSelf->onSizeChanged(false);
+        std::weak_ptr<_RingReaderDispatcher> weak_self = this->shared_from_this();
+        auto on_dealloc = [weak_self, poller](RingReader *ptr) {
+            poller->async([weak_self, ptr]() {
+                auto strong_self = weak_self.lock();
+                if (strong_self && strong_self->_reader_map.erase(ptr)) {
+                    --strong_self->_reader_size;
+                    strong_self->onSizeChanged(false);
                 }
                 delete ptr;
             });
@@ -312,9 +314,11 @@ public:
     using onReaderChanged = std::function<void(int size)>;
     using onGetInfoCB = std::function<void(std::list<ReaderInfo> &info_list)>;
 
-    RingBuffer(size_t max_size = 1024, const onReaderChanged &cb = nullptr, size_t max_gop_size = 1) {
-        _on_reader_changed = cb;
+    RingBuffer(size_t max_size = 1024, onReaderChanged cb = nullptr, size_t max_gop_size = 1) {
         _storage = std::make_shared<RingStorage>(max_size, max_gop_size);
+        _on_reader_changed = cb ? std::move(cb) : [](int size) {};
+        //先触发无人观看
+        _on_reader_changed(0);
     }
 
     ~RingBuffer() = default;
@@ -342,13 +346,11 @@ public:
             LOCK_GUARD(_mtx_map);
             auto &ref = _dispatcher_map[poller];
             if (!ref) {
-                std::weak_ptr<RingBuffer> weakSelf = this->shared_from_this();
-                auto onSizeChanged = [weakSelf, poller](int size, bool add_flag) {
-                    auto strongSelf = weakSelf.lock();
-                    if (!strongSelf) {
-                        return;
+                std::weak_ptr<RingBuffer> weak_self = this->shared_from_this();
+                auto onSizeChanged = [weak_self, poller](int size, bool add_flag) {
+                    if (auto strong_self = weak_self.lock()) {
+                        strong_self->onSizeChanged(poller, size, add_flag);
                     }
-                    strongSelf->onSizeChanged(poller, size, add_flag);
                 };
                 auto onDealloc = [poller](RingReaderDispatcher *ptr) { poller->async([ptr]() { delete ptr; }); };
                 ref.reset(new RingReaderDispatcher(_storage->clone(), std::move(onSizeChanged)), std::move(onDealloc));
@@ -376,14 +378,13 @@ public:
             return;
         }
         if (!on_change) {
-            const_cast<typename RingReaderDispatcher::onChangeInfoCB &>(on_change)
-                = [](ReaderInfo &&info) { return std::move(info); };
+            const_cast<typename RingReaderDispatcher::onChangeInfoCB &>(on_change) = [](ReaderInfo &&info) { return std::move(info); };
         }
 
         LOCK_GUARD(_mtx_map);
 
         auto info_vec = std::make_shared<std::vector<std::list<ReaderInfo>>>();
-        // 1、最新确保一个元素
+        // 1、最少确保一个元素
         info_vec->resize(_dispatcher_map.empty() ? 1 : _dispatcher_map.size());
         std::shared_ptr<void> on_finished(nullptr, [cb, info_vec](void *) mutable {
             // 2、防止这里为空
@@ -416,10 +417,7 @@ private:
         } else {
             --_total_count;
         }
-
-        if (_on_reader_changed) {
-            _on_reader_changed(_total_count);
-        }
+        _on_reader_changed(_total_count);
     }
 
 private:
