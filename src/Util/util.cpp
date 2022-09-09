@@ -415,9 +415,17 @@ string getTimeStr(const char *fmt, time_t time) {
         time = ::time(nullptr);
     }
     auto tm = getLocalTime(time);
-    char buffer[64];
-    auto success = std::strftime(buffer, sizeof(buffer), fmt, &tm);
-    return 0 == success ? string(fmt) : buffer;
+    size_t size = strlen(fmt) + 64;
+    string ret;
+    ret.resize(size);
+    size = std::strftime(&ret[0], size, fmt, &tm);
+    if (size > 0) {
+        ret.resize(size);
+    }
+    else{
+        ret = fmt;
+    }
+    return ret;
 }
 
 
