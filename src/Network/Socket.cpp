@@ -389,37 +389,39 @@ ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
         return 0;
     }
 
-    SockFD::Ptr sock;
-    {
-        LOCK_GUARD(_mtx_sock_fd);
-        sock = _sock_fd;
-    }
-
-    if (!sock) {
-        //如果已断开连接或者发送超时
-        return -1;
-    }
-
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
         _send_buf_waiting.emplace_back(std::move(buf), is_buf_sock);
     }
 
-    if(try_flush){
-        if (_sendable) {
-            //该socket可写
-            return flushData(sock, false) ? size : -1;
-        }
-
-        //该socket不可写,判断发送超时
-        if (_send_flush_ticker.elapsedTime() > _max_send_buffer_ms) {
-            //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
-            emitErr(SockException(Err_other, "socket send timeout"));
+    if (try_flush) {
+        if (flushAll()) {
             return -1;
         }
     }
 
     return size;
+}
+
+int Socket::flushAll() {
+    LOCK_GUARD(_mtx_sock_fd);
+
+    if (!_sock_fd) {
+        //如果已断开连接或者发送超时
+        return -1;
+    }
+    if (_sendable) {
+        //该socket可写
+        return flushData(_sock_fd, false) ? 0 : -1;
+    }
+
+    //该socket不可写,判断发送超时
+    if (_send_flush_ticker.elapsedTime() > _max_send_buffer_ms) {
+        //如果发送列队中最老的数据距今超过超时时间限制，那么就断开socket连接
+        emitErr(SockException(Err_other, "socket send timeout"));
+        return -1;
+    }
+    return 0;
 }
 
 void Socket::onFlushed(const SockFD::Ptr &pSock) {
@@ -910,6 +912,13 @@ const EventPoller::Ptr& SocketHelper::getPoller() const {
 
 const Socket::Ptr& SocketHelper::getSock() const{
     return _sock;
+}
+
+int SocketHelper::flushAll() {
+    if (!_sock) {
+        return -1;
+    }
+    return _sock->flushAll();
 }
 
 ssize_t SocketHelper::send(Buffer::Ptr buf) {
