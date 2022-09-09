@@ -375,6 +375,12 @@ public:
     virtual ssize_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
+     * 尝试将所有数据写socket
+     * @return -1代表失败(socket无效或者发送超时)，0代表成功?
+     */
+    int flushAll();
+
+    /**
      * 关闭socket且触发onErr回调，onErr回调将在poller线程中进行
      * @param err 错误原因
      * @return 是否成功触发onErr回调
@@ -615,6 +621,12 @@ public:
      * 获取socket对象
      */
     const Socket::Ptr &getSock() const;
+
+    /**
+     * 尝试将所有数据写socket
+     * @return -1代表失败(socket无效或者发送超时)，0代表成功?
+     */
+    int flushAll();
 
     ///////////////////// SockInfo override /////////////////////
     std::string get_local_ip() override;
