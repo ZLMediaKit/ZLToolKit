@@ -260,13 +260,17 @@ std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtxWildcards(const string &vhost, boo
 }
 
 std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx_l(const string &vhost_in, bool server_mode) {
-    if (!server_mode) {
-        return _ctx_empty[server_mode];
-    }
     auto vhost = vhost_in;
     if (vhost.empty()) {
-        //没指定主机，选择默认主机
-        vhost = _default_vhost[server_mode];
+        if (!_default_vhost[server_mode].empty()) {
+            vhost = _default_vhost[server_mode];
+        } else {
+            //没默认主机，选择空主机
+            if (server_mode) {
+                WarnL << "server with ssl must have certification and key!";
+            }
+            return _ctx_empty[server_mode];
+        }
     }
     //根据主机名查找证书
     auto it = _ctxs[server_mode].find(vhost);
@@ -296,7 +300,7 @@ SSL_Box::SSL_Box(bool server_mode, bool enable, int buff_size) {
         SSL_set_bio(_ssl.get(), _read_bio, _write_bio);
         _server_mode ? SSL_set_accept_state(_ssl.get()) : SSL_set_connect_state(_ssl.get());
     } else {
-        WarnL << "ssl disabled!";
+        WarnL << "makeSSL failed!";
     }
     _send_handshake = false;
     _buff_size = buff_size;
