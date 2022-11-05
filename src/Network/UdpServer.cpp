@@ -236,8 +236,6 @@ const Session::Ptr &UdpServer::createSession(const PeerIdType &id, const Buffer:
 
         socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
         socket->bindPeerAddr((struct sockaddr *) addr_str.data(), addr_str.size());
-        //在connect peer后再取消绑定关系, 避免在 server 的 socket 或其他cloned server中收到后续数据包.
-        SockUtil::dissolveUdpSock(_socket->rawFD());
 
         auto helper = _session_alloc(server, socket);
         auto session = helper->session();
