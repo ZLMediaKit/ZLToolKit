@@ -96,12 +96,8 @@ bool SSL_Initor::loadCertificate(const string &pem_or_p12, bool server_mode, con
                                  bool is_default) {
     auto cers = SSLUtil::loadPublicKey(pem_or_p12, password, is_file);
     auto key = SSLUtil::loadPrivateKey(pem_or_p12, password, is_file);
-    auto ssl_ctx = SSLUtil::makeSSLContext(cers, key, server_mode);
+    auto ssl_ctx = SSLUtil::makeSSLContext(cers, key, server_mode, true);
     if (!ssl_ctx) {
-        return false;
-    }
-    if (SSL_CTX_check_private_key(ssl_ctx.get()) != 1) {
-        WarnL << "SSL_CTX_check_private_key failed: " << pem_or_p12;
         return false;
     }
     for (auto &cer : cers) {

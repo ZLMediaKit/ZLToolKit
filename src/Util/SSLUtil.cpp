@@ -168,7 +168,7 @@ shared_ptr<EVP_PKEY> SSLUtil::loadPrivateKey(const string &file_path_or_data, co
 #endif //defined(ENABLE_OPENSSL)
 }
 
-shared_ptr<SSL_CTX> SSLUtil::makeSSLContext(const vector<shared_ptr<X509> > &cers, const shared_ptr<EVP_PKEY> &key, bool serverMode) {
+shared_ptr<SSL_CTX> SSLUtil::makeSSLContext(const vector<shared_ptr<X509> > &cers, const shared_ptr<EVP_PKEY> &key, bool serverMode, bool checkKey) {
 #if defined(ENABLE_OPENSSL)
     SSL_CTX *ctx = SSL_CTX_new(serverMode ? SSLv23_server_method() : SSLv23_client_method());
     if (!ctx) {
@@ -194,6 +194,9 @@ shared_ptr<SSL_CTX> SSLUtil::makeSSLContext(const vector<shared_ptr<X509> > &cer
             SSL_CTX_free(ctx);
             return nullptr;
         }
+    }
+
+    if (key || checkKey) {
         //加载私钥成功
         if (SSL_CTX_check_private_key(ctx) != 1) {
             WarnL << "SSL_CTX_check_private_key failed: " << getLastError();

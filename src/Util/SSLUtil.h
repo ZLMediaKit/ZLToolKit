@@ -57,7 +57,7 @@ public:
      * @param serverMode 是否为服务器模式或客户端模式
      * @return SSL_CTX对象
      */
-    static std::shared_ptr<SSL_CTX> makeSSLContext(const std::vector<std::shared_ptr<X509> > &cers, const std::shared_ptr<EVP_PKEY> &key, bool serverMode = true);
+    static std::shared_ptr<SSL_CTX> makeSSLContext(const std::vector<std::shared_ptr<X509> > &cers, const std::shared_ptr<EVP_PKEY> &key, bool serverMode = true, bool checkKey = false);
 
     /**
      * 创建ssl对象
