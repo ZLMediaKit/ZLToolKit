@@ -251,7 +251,7 @@ private:
 
     std::shared_ptr<RingReader> attach(const EventPoller::Ptr &poller, bool use_cache) {
         if (!poller->isCurrentThread()) {
-            throw std::runtime_error("必须在绑定的poller线程中执行attach操作");
+            throw std::runtime_error("You can attach RingBuffer only in it's poller thread");
         }
 
         std::weak_ptr<_RingReaderDispatcher> weak_self = this->shared_from_this();

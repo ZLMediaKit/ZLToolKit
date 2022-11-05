@@ -37,7 +37,7 @@ TcpServer::TcpServer(const EventPoller::Ptr &poller) : Server(poller) {
 
 TcpServer::~TcpServer() {
     if (!_parent && _socket->rawFD() != -1) {
-        InfoL << "close tcp server [" << _socket->get_local_ip() << "]:" << _socket->get_local_port();
+        InfoL << "Close tcp server [" << _socket->get_local_ip() << "]: " << _socket->get_local_port();
     }
     _timer.reset();
     //先关闭socket监听，防止收到新的连接
@@ -78,7 +78,7 @@ Socket::Ptr TcpServer::onBeforeAcceptConnection(const EventPoller::Ptr &poller) 
 
 void TcpServer::cloneFrom(const TcpServer &that) {
     if (!that._socket) {
-        throw std::invalid_argument("TcpServer::cloneFrom other with null socket!");
+        throw std::invalid_argument("TcpServer::cloneFrom other with null socket");
     }
     _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
@@ -167,7 +167,7 @@ void TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
 void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog) {
     if (!_socket->listen(port, host.c_str(), backlog)) {
         //创建tcp监听失败，可能是由于端口占用或权限问题
-        string err = (StrPrinter << "listen on " << host << ":" << port << " failed:" << get_uv_errmsg(true));
+        string err = (StrPrinter << "Listen on " << host << " " << port << " failed: " << get_uv_errmsg(true));
         throw std::runtime_error(err);
     }
 
@@ -196,7 +196,7 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
         }
     });
 
-    InfoL << "TCP Server listening on [" << host << "]:" << port;
+    InfoL << "TCP server listening on [" << host << "]: " << port;
 }
 
 void TcpServer::onManagerSession() {

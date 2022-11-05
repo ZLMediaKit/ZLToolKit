@@ -428,7 +428,7 @@ const string &FileChannelBase::path() const {
 bool FileChannelBase::open() {
     // Ensure a path was set
     if (_path.empty()) {
-        throw runtime_error("Log file path must be set.");
+        throw runtime_error("Log file path must be set");
     }
     // Open the file stream
     _fstream.close();

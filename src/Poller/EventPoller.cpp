@@ -56,7 +56,7 @@ EventPoller::EventPoller(ThreadPool::Priority priority) {
 #if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
-        throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg());
+        throw runtime_error(StrPrinter << "Create epoll fd failed: " << get_uv_errmsg());
     }
     SockUtil::setCloExec(_epoll_fd);
 #endif //HAS_EPOLL
@@ -65,7 +65,7 @@ EventPoller::EventPoller(ThreadPool::Priority priority) {
 
     //添加内部管道事件
     if (addEvent(_pipe.readFD(), Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
-        throw std::runtime_error("epoll添加管道失败");
+        throw std::runtime_error("Add pipe fd to poller failed");
     }
 }
 
@@ -100,7 +100,7 @@ EventPoller::~EventPoller() {
 int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
     TimeTicker();
     if (!cb) {
-        WarnL << "PollEventCB 为空!";
+        WarnL << "PollEventCB is empty";
         return -1;
     }
 
@@ -118,7 +118,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
 #ifndef _WIN32
         //win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
         if (fd >= FD_SETSIZE || _event_map.size() >= FD_SETSIZE) {
-            WarnL << "select最多监听" << FD_SETSIZE << "个文件描述符";
+            WarnL << "select() can not watch fd bigger than " << FD_SETSIZE;
             return -1;
         }
 #endif
@@ -238,7 +238,7 @@ inline void EventPoller::onPipeEvent() {
         } catch (ExitException &) {
             _exit_flag = true;
         } catch (std::exception &ex) {
-            ErrorL << "EventPoller执行异步任务捕获到异常:" << ex.what();
+            ErrorL << "Exception occurred when do async task: " << ex.what();
         }
     });
 }
@@ -303,7 +303,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 try {
                     (*cb)(toPoller(ev.events));
                 } catch (std::exception &ex) {
-                    ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
+                    ErrorL << "Exception occurred when do event task: " << ex.what();
                 }
             }
         }
@@ -367,7 +367,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 try {
                     record->call_back(record->attach);
                 } catch (std::exception &ex) {
-                    ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
+                    ErrorL << "Exception occurred when do event task: " << ex.what();
                 }
             });
             callback_list.clear();
@@ -392,7 +392,7 @@ uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
                 _delay_task_map.emplace(next_delay + now_time, std::move(it->second));
             }
         } catch (std::exception &ex) {
-            ErrorL << "EventPoller执行延时任务捕获到异常:" << ex.what();
+            ErrorL << "Exception occurred when do delay task: " << ex.what();
         }
     }
 
@@ -458,7 +458,7 @@ void EventPollerPool::preferCurrentThread(bool flag) {
 
 EventPollerPool::EventPollerPool() {
     auto size = addPoller("event poller", s_pool_size, ThreadPool::PRIORITY_HIGHEST, true, s_enable_cpu_affinity);
-    InfoL << "创建EventPoller个数:" << size;
+    InfoL << "EventPoller created size: " << size;
 }
 
 void EventPollerPool::setPoolSize(size_t size) {

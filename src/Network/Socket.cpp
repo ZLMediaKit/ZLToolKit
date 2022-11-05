@@ -80,7 +80,7 @@ void Socket::setOnRead(onReadCB cb) {
         _on_read = std::move(cb);
     } else {
         _on_read = [](const Buffer::Ptr &buf, struct sockaddr *, int) {
-            WarnL << "Socket not set read callback, data ignored:" << buf->size();
+            WarnL << "Socket not set read callback, data ignored: " << buf->size();
         };
     }
 }
@@ -91,7 +91,7 @@ void Socket::setOnErr(onErrCB cb) {
         _on_err = std::move(cb);
     } else {
         _on_err = [](const SockException &err) {
-            WarnL << "Socket not set err callback, err:" << err.what();
+            WarnL << "Socket not set err callback, err: " << err.what();
         };
     }
 }
@@ -102,7 +102,7 @@ void Socket::setOnAccept(onAcceptCB cb) {
         _on_accept = std::move(cb);
     } else {
         _on_accept = [](Socket::Ptr &sock, shared_ptr<void> &complete) {
-            WarnL << "Socket not set accept callback, peer fd:" << sock->rawFD();
+            WarnL << "Socket not set accept callback, peer fd: " << sock->rawFD();
         };
     }
 }
@@ -296,7 +296,7 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
             if (!is_udp) {
                 emitErr(SockException(Err_eof, "end of file"));
             } else {
-                WarnL << "recv eof on udp socket[" << sock_fd << "]";
+                WarnL << "Recv eof on udp socket[" << sock_fd << "]";
             }
             return ret;
         }
@@ -307,7 +307,7 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
                 if (!is_udp) {
                     emitErr(toSockException(err));
                 } else {
-                    WarnL << "recv err on udp socket[" << sock_fd << "]:" << uv_strerror(err);
+                    WarnL << "Recv err on udp socket[" << sock_fd << "]: " << uv_strerror(err);
                 }
             }
             return ret;
@@ -326,7 +326,7 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
             //此处捕获异常，目的是防止数据未读尽，epoll边沿触发失效的问题
             _on_read(_read_buffer, (struct sockaddr *)&addr, len);
         } catch (std::exception &ex) {
-            ErrorL << "触发socket on_read事件时,捕获到异常:" << ex.what();
+            ErrorL << "Exception occurred when emit on_read: " << ex.what();
         }
     }
     return 0;
@@ -353,7 +353,7 @@ bool Socket::emitErr(const SockException& err) noexcept{
         try {
             strong_self->_on_err(err);
         } catch (std::exception &ex) {
-            ErrorL << "触发socket on_err事件时,捕获到异常:" << ex.what();
+            ErrorL << "Exception occurred when emit on_err: " << ex.what();
         }
     });
 
@@ -533,7 +533,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
                 }
                 auto ex = toSockException(err);
                 emitErr(ex);
-                ErrorL << "tcp服务器监听异常:" << ex.what();
+                ErrorL << "Accept socket failed: " << ex.what();
                 return -1;
             }
 
@@ -552,7 +552,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
                 //拦截Socket对象的构造
                 peer_sock = _on_before_accept(_poller);
             } catch (std::exception &ex) {
-                ErrorL << "触发socket before accept事件时,捕获到异常:" << ex.what();
+                ErrorL << "Exception occurred when emit on_before_accept: " << ex.what();
                 close(fd);
                 continue;
             }
@@ -573,7 +573,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
                         peer_sock->emitErr(SockException(Err_eof, "add event to poller failed when accept a socket"));
                     }
                 } catch (std::exception &ex) {
-                    ErrorL << ex.what();
+                    ErrorL << "Exception occurred: "<< ex.what();
                 }
             });
 
@@ -583,7 +583,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
                 //先触发onAccept事件，此时应该监听该Socket的onRead等事件
                 _on_accept(peer_sock, completed);
             } catch (std::exception &ex) {
-                ErrorL << "触发socket accept事件时,捕获到异常:" << ex.what();
+                ErrorL << "Exception occurred when emit on_accept: " << ex.what();
                 continue;
             }
         }
@@ -591,7 +591,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
         if (event & EventPoller::Event_Error) {
             auto ex = getSockErr(sock);
             emitErr(ex);
-            ErrorL << "tcp服务器监听异常:" << ex.what();
+            ErrorL << "TCP listener occurred a err: " << ex.what();
             return -1;
         }
     }
@@ -638,7 +638,7 @@ uint16_t Socket::get_peer_port() {
 }
 
 string Socket::getIdentifier() const{
-    static string class_name = "Socket:";
+    static string class_name = "Socket: ";
     return class_name + to_string(reinterpret_cast<uint64_t>(this));
 }
 
@@ -720,7 +720,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
         if (is_udp) {
             // udp发送异常，把数据丢弃
             send_buf_sending_tmp.pop_front();
-            WarnL << "send udp socket[" << fd << "] failed, data ignored:" << uv_strerror(err);
+            WarnL << "Send udp socket[" << fd << "] failed, data ignored: " << uv_strerror(err);
             continue;
         }
         // tcp发送失败时，触发异常
@@ -827,7 +827,7 @@ bool Socket::cloneFromListenSocket(const Socket &other){
     {
         LOCK_GUARD(other._mtx_sock_fd);
         if (!other._sock_fd) {
-            WarnL << "sockfd of src socket is null!";
+            WarnL << "sockfd of src socket is null";
             return false;
         }
         sock = std::make_shared<SockFD>(*(other._sock_fd), _poller);
@@ -844,7 +844,7 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
         return false;
     }
     if (-1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len ? addr_len : SockUtil::get_sock_len(dst_addr))) {
-        WarnL << "connect peer address failed:" << SockUtil::inet_ntoa(dst_addr);
+        WarnL << "Connect socket to peer address failed: " << SockUtil::inet_ntoa(dst_addr);
         return false;
     }
     return true;

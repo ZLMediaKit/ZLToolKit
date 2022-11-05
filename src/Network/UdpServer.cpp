@@ -52,7 +52,7 @@ UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
 
 UdpServer::~UdpServer() {
     if (!_cloned && _socket->rawFD() != -1) {
-        InfoL << "close udp server [" << _socket->get_local_ip() << "]:" << _socket->get_local_port();
+        InfoL << "Close udp server [" << _socket->get_local_ip() << "]: " << _socket->get_local_port();
     }
     _timer.reset();
     _socket.reset();
@@ -70,7 +70,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
 
     if (!_socket->bindUdpSock(port, host.c_str())) {
         // udp 绑定端口失败, 可能是由于端口占用或权限问题
-        std::string err = (StrPrinter << "bind " << host << ":" << port << " failed:" << get_uv_errmsg(true));
+        std::string err = (StrPrinter << "Bind udp socket on " << host << " " << port << " failed: " << get_uv_errmsg(true));
         throw std::runtime_error(err);
     }
 
@@ -101,7 +101,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
         }
     });
 
-    InfoL << "UDP Server bind to [" << host << "]:" << port;
+    InfoL << "UDP server bind to [" << host << "]: " << port;
 }
 
 UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {
@@ -110,7 +110,7 @@ UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {
 
 void UdpServer::cloneFrom(const UdpServer &that) {
     if (!that._socket) {
-        throw std::invalid_argument("UdpServer::cloneFrom other with null socket!");
+        throw std::invalid_argument("UdpServer::cloneFrom other with null socket");
     }
     // clone callbacks
     _on_create_socket = that._on_create_socket;
@@ -148,7 +148,7 @@ void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, con
             emitSessionRecv(session, buf);
         } else {
             //数据漂移到其他线程，需要先切换线程
-            WarnL << "udp packet incoming from other thread";
+            WarnL << "UDP packet incoming from other thread";
             std::weak_ptr<Session> weak_session = session;
             //由于socket读buffer是该线程上所有socket共享复用的，所以不能跨线程使用，必须先拷贝一下
             auto cacheable_buf = std::make_shared<BufferString>(buf->toString());
@@ -161,7 +161,7 @@ void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, con
 
 #if !defined(NDEBUG)
         if (!is_new) {
-            TraceL << "udp packet incoming from " << (is_server_fd ? "server fd" : "other peer fd");
+            TraceL << "UDP packet incoming from " << (is_server_fd ? "server fd" : "other peer fd");
         }
 #endif
     }
@@ -190,7 +190,7 @@ void UdpServer::onManagerSession() {
                     // UDP 会话需要处理超时
                     session->onManager();
                 } catch (exception &ex) {
-                    WarnL << ex.what();
+                    WarnL << "Exception occurred when emit onManager: " << ex.what();
                 }
             }
         });

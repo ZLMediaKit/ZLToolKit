@@ -420,7 +420,7 @@ extern Logger *g_defaultLogger;
 #define WarnF WriteF(::toolkit::LWarn)
 #define ErrorF WriteF(::toolkit::LError)
 
-//用法: LogD("%d + %s = %c", 1 "2", 'c');
+//用法: PrintD("%d + %s = %c", 1 "2", 'c');
 #define PrintLog(level, ...) ::toolkit::LoggerWrapper::printLog(::toolkit::getLogger(), level, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #define PrintT(...) PrintLog(::toolkit::LTrace, ##__VA_ARGS__)
 #define PrintD(...) PrintLog(::toolkit::LDebug, ##__VA_ARGS__)

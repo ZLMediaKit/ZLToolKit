@@ -181,7 +181,7 @@ public:
         _num = that._num;
         _poller = poller;
         if (_poller == that._poller) {
-            throw std::invalid_argument("copy a SockFD with same poller!");
+            throw std::invalid_argument("Copy a SockFD with same poller");
         }
     }
 

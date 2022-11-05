@@ -26,7 +26,7 @@ Timer::Timer(float second, const std::function<bool()> &cb, const EventPoller::P
             //该任务不再重复
             return (uint64_t) 0;
         } catch (std::exception &ex) {
-            ErrorL << "执行定时器任务捕获到异常:" << ex.what();
+            ErrorL << "Exception occurred when do timer task: " << ex.what();
             return (uint64_t) (1000 * second);
         }
     });

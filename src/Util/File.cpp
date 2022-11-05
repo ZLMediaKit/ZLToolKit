@@ -44,7 +44,6 @@ DIR *opendir(const char *name) {
     WIN32_FIND_DATAA FindData;
     auto hFind = FindFirstFileA(namebuf, &FindData);
     if (hFind == INVALID_HANDLE_VALUE) {
-        //WarnL << "FindFirstFileA failed:" << get_uv_errmsg();
         return nullptr;
     }
     DIR *dir = (DIR *)malloc(sizeof(DIR));
@@ -114,7 +113,7 @@ FILE *File::create_file(const char *file, const char *mode) {
         }
         if (_access(dir.c_str(), 0) == -1) { //access函数是查看是不是存在
             if (mkdir(dir.c_str(), 0777) == -1) {  //如果不存在就用mkdir函数来创建
-                WarnL << dir << ":" << get_uv_errmsg();
+                WarnL << "mkdir " << dir << " failed: " << get_uv_errmsg();
                 return nullptr;
             }
         }
@@ -137,7 +136,7 @@ bool File::create_path(const char *file, unsigned int mod) {
         }
         if (_access(dir.c_str(), 0) == -1) { //access函数是查看是不是存在
             if (mkdir(dir.c_str(), mod) == -1) {  //如果不存在就用mkdir函数来创建
-                WarnL << dir << ":" << get_uv_errmsg();
+                WarnL << "mkdir " << dir << " failed: " << get_uv_errmsg();
                 return false;
             }
         }
@@ -211,7 +210,7 @@ string File::loadFile(const char *path) {
     fseek(fp, 0, SEEK_SET);
     string str(len, '\0');
     if (len != fread((char *)str.data(), 1, str.size(), fp)) {
-        WarnL << "fread " << path << " failed:" << get_uv_errmsg();
+        WarnL << "fread " << path << " failed: " << get_uv_errmsg();
     }
     fclose(fp);
     return str;

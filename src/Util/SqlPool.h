@@ -131,7 +131,7 @@ private:
                     sqlQuery query(sql, cnt);
                     _error_query.push_back(query);
                 } else {
-                    WarnL << ex.what();
+                    WarnL << "SqlPool::syncQuery failed: " << ex.what();
                 }
             }
         };
@@ -157,7 +157,7 @@ private:
      */
     void checkInited() {
         if (!_pool) {
-            throw SqlException("SqlPool::checkInited", "数据库连接池未初始化");
+            throw SqlException("SqlPool::checkInited", "Mysql connection pool not initialized");
         }
     }
 
@@ -242,7 +242,7 @@ public:
         } catch (std::exception &ex) {
             //在转义sql时可能抛异常
             if (!_throwAble) {
-                WarnL << ex.what();
+                WarnL << "Commit sql failed: " << ex.what();
             } else {
                 throw;
             }
@@ -272,7 +272,7 @@ public:
             _affectedRows = SqlPool::Instance().syncQuery(_rowId, ret, (std::string) _sqlstream);
         } catch (std::exception &ex) {
             if (!_throwAble) {
-                WarnL << ex.what();
+                WarnL << "SqlPool::syncQuery failed: " << ex.what();
             } else {
                 throw;
             }

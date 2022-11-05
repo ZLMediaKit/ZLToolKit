@@ -58,9 +58,7 @@ public:
     void parseFile(const std::string &fileName = exePath() + ".ini") {
         std::ifstream in(fileName, std::ios::in | std::ios::binary | std::ios::ate);
         if (!in.good()) {
-            std::stringstream ss;
-            ss << "invalid ini file:" << fileName;
-            throw std::invalid_argument(ss.str());
+            throw std::invalid_argument("Invalid ini file: " + fileName);
         }
         auto size = in.tellg();
         in.seekg(0, std::ios::beg);

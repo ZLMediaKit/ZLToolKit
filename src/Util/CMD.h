@@ -241,7 +241,7 @@ public:
         std::lock_guard<std::recursive_mutex> lck(_mtx);
         auto it = _cmd_map.find(name);
         if (it == _cmd_map.end()) {
-            throw std::invalid_argument(std::string("命令不存在:") + name);
+            throw std::invalid_argument(std::string("CMD not existed: ") + name);
         }
         return it->second;
     }
@@ -249,7 +249,7 @@ public:
     void operator()(const char *name, int argc, char *argv[], const std::shared_ptr<std::ostream> &stream = nullptr) {
         auto cmd = (*this)[name];
         if (!cmd) {
-            throw std::invalid_argument(std::string("命令不存在:") + name);
+            throw std::invalid_argument(std::string("CMD not existed: ") + name);
         }
         (*cmd)(argc, argv, stream);
     }

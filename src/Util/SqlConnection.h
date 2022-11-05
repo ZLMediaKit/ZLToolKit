@@ -228,7 +228,7 @@ private:
 
     inline void check() {
         if (mysql_ping(&_sql) != 0) {
-            throw SqlException("mysql_ping", "MYSQL连接异常!");
+            throw SqlException("mysql_ping", "Mysql connection ping failed");
         }
     }
 

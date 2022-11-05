@@ -37,7 +37,7 @@ public:
     ~Ticker() {
         uint64_t tm = createdTime();
         if (tm > _min_ms) {
-            _ctx << "take time:" << tm << "ms" << ", thread may be overloaded";
+            _ctx << "take time: " << tm << "ms" << ", thread may be overloaded";
         } else {
             _ctx.clear();
         }
