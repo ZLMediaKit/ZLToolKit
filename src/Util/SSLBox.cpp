@@ -100,6 +100,10 @@ bool SSL_Initor::loadCertificate(const string &pem_or_p12, bool server_mode, con
     if (!ssl_ctx) {
         return false;
     }
+    if (SSL_CTX_check_private_key(ssl_ctx.get()) != 1) {
+        WarnL << "SSL_CTX_check_private_key failed: " << pem_or_p12;
+        return false;
+    }
     for (auto &cer : cers) {
         auto server_name = SSLUtil::getServerName(cer.get());
         setContext(server_name, ssl_ctx, server_mode, is_default);
