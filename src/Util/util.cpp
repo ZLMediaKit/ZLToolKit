@@ -70,6 +70,10 @@ int uv_exepath(char *buffer, int *size) {
 
 #endif //defined(__MACH__) || defined(__APPLE__)
 
+#if defined(__linux__)
+#include <sys/prctl.h>
+#endif
+
 using namespace std;
 
 namespace toolkit {
@@ -505,11 +509,15 @@ string getThreadName() {
     string ret;
     ret.resize(32);
     auto tid = pthread_self();
+#ifndef pthread_getname_np
+    prctl(PR_GET_NAME, (char *) ret.data());
+#else
     pthread_getname_np(tid, (char *) ret.data(), ret.size());
     if (ret[0]) {
         ret.resize(strlen(ret.data()));
         return ret;
     }
+#endif
     return to_string((uint64_t) tid);
 #elif defined(_MSC_VER)
     using GetThreadDescriptionFunc = HRESULT(WINAPI * )(_In_ HANDLE hThread, _In_ PWSTR * ppszThreadDescription);
