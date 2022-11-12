@@ -544,6 +544,8 @@ private:
     //对象个数统计
     ObjectStatistic<Socket> _statistic;
 
+    //是否启用网速统计
+    bool _enable_speed = false;
     //接收速率统计
     BytesSpeed _recv_speed;
     //发送速率统计

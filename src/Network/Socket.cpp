@@ -129,11 +129,7 @@ void Socket::setOnBeforeAccept(onCreateSocket cb){
 
 void Socket::setOnSendResult(onSendResult cb) {
     LOCK_GUARD(_mtx_event);
-    if (cb) {
-        _send_result = std::move(cb);
-    } else {
-        _send_result = [](const Buffer::Ptr &buffer, bool send_success) {};
-    }
+    _send_result = std::move(cb);
 }
 
 #define CLOSE_SOCK(fd) if(fd != -1) {close(fd);}
@@ -464,10 +460,12 @@ uint64_t Socket::elapsedTimeAfterFlushed(){
 }
 
 int Socket::getRecvSpeed() {
+    _enable_speed = true;
     return _recv_speed.getSpeed();
 }
 
 int Socket::getSendSpeed() {
+    _enable_speed = true;
     return _send_speed.getSpeed();
 }
 
@@ -661,16 +659,17 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
                 if (!_send_buf_waiting.empty()) {
                     //把一级缓中数数据放置到二级缓存中并清空
                     LOCK_GUARD(_mtx_event);
-                    send_buf_sending_tmp.emplace_back(BufferList::create(
-                        std::move(_send_buf_waiting),
-                        [this](const Buffer::Ptr &buffer, bool send_success) {
-                            if (send_success) {
-                                //更新发送速率
-                                _send_speed += buffer->size();
-                            }
+                    auto send_result = _enable_speed ? [this](const Buffer::Ptr &buffer, bool send_success) {
+                        if (send_success) {
+                            //更新发送速率
+                            _send_speed += buffer->size();
+                        }
+                        LOCK_GUARD(_mtx_event);
+                        if (_send_result) {
                             _send_result(buffer, send_success);
-                        },
-                        sock->type() == SockNum::Sock_UDP));
+                        }
+                    } : _send_result;
+                    send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), send_result, sock->type() == SockNum::Sock_UDP));
                     break;
                 }
             }
