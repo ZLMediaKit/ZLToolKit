@@ -887,8 +887,6 @@ SocketHelper::SocketHelper(const Socket::Ptr &sock) {
     setOnCreateSocket(nullptr);
 }
 
-SocketHelper::~SocketHelper() {}
-
 void SocketHelper::setPoller(const EventPoller::Ptr &poller){
     _poller = poller;
 }

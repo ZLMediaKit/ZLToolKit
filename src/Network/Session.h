@@ -25,7 +25,7 @@ public:
     using Ptr = std::shared_ptr<Session>;
 
     Session(const Socket::Ptr &sock);
-    ~Session() override;
+    ~Session() override = default;
 
     /**
      * 接收数据入口

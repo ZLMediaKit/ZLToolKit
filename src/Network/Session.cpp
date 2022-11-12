@@ -16,7 +16,6 @@ using namespace std;
 namespace toolkit {
 
 Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {}
-Session::~Session() = default;
 
 static atomic<uint64_t> s_session_index{0};
 

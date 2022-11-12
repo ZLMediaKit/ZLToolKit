@@ -583,7 +583,7 @@ public:
 class SocketHelper : public SockSender, public SockInfo, public TaskExecutorInterface {
 public:
     SocketHelper(const Socket::Ptr &sock);
-    ~SocketHelper() override;
+    ~SocketHelper() override = default;
 
     ///////////////////// Socket util std::functions /////////////////////
     /**
