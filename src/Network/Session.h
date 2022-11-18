@@ -19,6 +19,8 @@ namespace toolkit {
 
 // 会话, 用于存储一对客户端与服务端间的关系
 class Server;
+class TcpSession;
+class UdpSession;
 
 class Session : public std::enable_shared_from_this<Session>, public SocketHelper {
 public:
@@ -65,8 +67,8 @@ public:
 
 private:
     mutable std::string _id;
-    // 对象个数统计
-    ObjectStatistic<Session> _statistic;
+    std::unique_ptr<toolkit::ObjectStatistic<toolkit::TcpSession> > _statistic_tcp;
+    std::unique_ptr<toolkit::ObjectStatistic<toolkit::UdpSession> > _statistic_udp;
 };
 
 //TCP服务器连接对象，一个tcp连接对应一个TcpSession对象
@@ -80,10 +82,6 @@ public:
     Ptr shared_from_this() {
         return std::static_pointer_cast<TcpSession>(Session::shared_from_this());
     }
-
-private:
-    // 对象个数统计
-    ObjectStatistic<TcpSession> _statistic;
 };
 
 //UDP服务器连接对象，一个udp peer对应一个UdpSession对象
@@ -97,10 +95,6 @@ public:
     Ptr shared_from_this() {
         return std::static_pointer_cast<UdpSession>(Session::shared_from_this());
     }
-
-private:
-    // 对象个数统计
-    ObjectStatistic<UdpSession> _statistic;
 };
 
 } // namespace toolkit
