@@ -48,7 +48,8 @@ EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
 
-EventPoller::EventPoller(ThreadPool::Priority priority) {
+EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
+    _name = std::move(name);
     _priority = priority;
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
@@ -258,8 +259,12 @@ BufferRaw::Ptr EventPoller::getSharedBuffer() {
     return ret;
 }
 
-const thread::id &EventPoller::getThreadId() const {
+const thread::id& EventPoller::getThreadId() const {
     return _loop_thread_id;
+}
+
+const std::string& EventPoller::getThreadName() const {
+    return _name;
 }
 
 static thread_local std::weak_ptr<EventPoller> s_current_poller;

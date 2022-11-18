@@ -123,13 +123,18 @@ public:
     /**
      * 获取poller线程id
      */
-    const std::thread::id &getThreadId() const;
+    const std::thread::id& getThreadId() const;
+
+    /**
+     * 获取线程名
+     */
+    const std::string& getThreadName() const;
 
 private:
     /**
      * 本对象只允许在EventPollerPool中构造
      */
-    EventPoller(ThreadPool::Priority priority = ThreadPool::PRIORITY_HIGHEST);
+    EventPoller(std::string name, ThreadPool::Priority priority = ThreadPool::PRIORITY_HIGHEST);
 
     /**
      * 执行事件轮询
@@ -180,6 +185,8 @@ private:
 private:
     //标记loop线程是否退出
     bool _exit_flag;
+    //线程名
+    std::string _name;
     //当前线程下，所有socket共享的读缓存
     std::weak_ptr<BufferRaw> _shared_buffer;
     //线程优先级

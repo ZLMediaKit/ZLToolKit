@@ -191,9 +191,9 @@ size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int pri
     auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;
     for (size_t i = 0; i < size; ++i) {
-        EventPoller::Ptr poller(new EventPoller((ThreadPool::Priority) priority));
-        poller->runLoop(false, register_thread);
         auto full_name = name + " " + to_string(i);
+        EventPoller::Ptr poller(new EventPoller(full_name, (ThreadPool::Priority) priority));
+        poller->runLoop(false, register_thread);
         poller->async([i, cpus, full_name, enable_cpu_affinity]() {
             setThreadName(full_name.data());
             if (enable_cpu_affinity) {
