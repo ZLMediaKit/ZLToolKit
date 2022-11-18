@@ -97,7 +97,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
 }
 
 // 接收到客户端连接请求
-void TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
+Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
     assert(_poller->isCurrentThread());
     weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
     //创建一个TcpSession;这里实现创建不同的服务会话实例
@@ -162,6 +162,7 @@ void TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
             strong_session->onError(err);
         }
     });
+    return session;
 }
 
 void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog) {
@@ -234,6 +235,9 @@ TcpServer::Ptr TcpServer::getServer(const EventPoller *poller) const {
                                           const_cast<TcpServer *>(this)->shared_from_this());
 }
 
+Session::Ptr TcpServer::createSession(const Socket::Ptr &sock) {
+    return getServer(sock->getPoller().get())->onAcceptConnection(sock);
+}
 
 } /* namespace toolkit */
 

@@ -195,7 +195,7 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
 
         //保存fd
         LOCK_GUARD(strong_self->_mtx_sock_fd);
-        strong_self->_sock_fd = sock_fd;
+        strong_self->_sock_fd = std::move(sock_fd);
     });
 
     if (isIP(url.data())) {
@@ -235,7 +235,7 @@ void Socket::onConnected(const SockFD::Ptr &sock, const onErrCB &cb) {
 
     //先删除之前的可写事件监听
     _poller->delEvent(sock->rawFd());
-    if (!attachEvent(sock, false)) {
+    if (!attachEvent(sock)) {
         //连接失败
         cb(SockException(Err_other, "add event to poller failed when connected"));
         return;
@@ -246,12 +246,13 @@ void Socket::onConnected(const SockFD::Ptr &sock, const onErrCB &cb) {
     cb(err);
 }
 
-bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
+bool Socket::attachEvent(const SockFD::Ptr &sock) {
     weak_ptr<Socket> weak_self = shared_from_this();
     weak_ptr<SockFD> weak_sock = sock;
     _enable_recv = true;
     _read_buffer = _poller->getSharedBuffer();
-    int result = _poller->addEvent(sock->rawFd(), EventPoller::Event_Read | EventPoller::Event_Error | EventPoller::Event_Write, [weak_self,weak_sock,is_udp](int event) {
+    auto is_udp = sock->type() == SockNum::Sock_UDP;
+    int result = _poller->addEvent(sock->rawFd(), EventPoller::Event_Read | EventPoller::Event_Error | EventPoller::Event_Write, [weak_self, weak_sock, is_udp](int event) {
         auto strong_self = weak_self.lock();
         auto strong_sock = weak_sock.lock();
         if (!strong_self || !strong_sock) {
@@ -340,8 +341,6 @@ bool Socket::emitErr(const SockException& err) noexcept{
         }
     }
 
-    closeSock();
-
     weak_ptr<Socket> weak_self = shared_from_this();
     _poller->async([weak_self, err]() {
         auto strong_self = weak_self.lock();
@@ -356,6 +355,7 @@ bool Socket::emitErr(const SockException& err) noexcept{
         }
     });
 
+    closeSock();
     return true;
 }
 
@@ -510,11 +510,11 @@ bool Socket::bindUdpSock(uint16_t port, const string &local_ip, bool enable_reus
         return false;
     }
     auto sock = makeSock(fd, SockNum::Sock_UDP);
-    if (!attachEvent(sock, true)) {
+    if (!attachEvent(sock)) {
         return false;
     }
     LOCK_GUARD(_mtx_sock_fd);
-    _sock_fd = sock;
+    _sock_fd = std::move(sock);
     return true;
 }
 
@@ -569,7 +569,7 @@ int Socket::onAccept(const SockFD::Ptr &sock, int event) noexcept {
             shared_ptr<void> completed(nullptr, [peer_sock, peer_sock_fd](void *) {
                 try {
                     //然后把该fd加入poll监听(确保先触发onAccept事件然后再触发onRead等事件)
-                    if (!peer_sock->attachEvent(peer_sock_fd, false)) {
+                    if (!peer_sock->attachEvent(peer_sock_fd)) {
                         //加入poll监听失败，触发onErr事件，通知该Socket无效
                         peer_sock->emitErr(SockException(Err_eof, "add event to poller failed when accept a socket"));
                     }
@@ -824,17 +824,38 @@ const EventPoller::Ptr &Socket::getPoller() const{
     return _poller;
 }
 
-bool Socket::cloneFromListenSocket(const Socket &other){
+SockFD::Ptr Socket::cloneSockFD(const Socket &other) {
     SockFD::Ptr sock;
     {
         LOCK_GUARD(other._mtx_sock_fd);
         if (!other._sock_fd) {
             WarnL << "sockfd of src socket is null";
-            return false;
+            return nullptr;
         }
         sock = std::make_shared<SockFD>(*(other._sock_fd), _poller);
     }
+    return sock;
+}
+
+bool Socket::cloneFromListenSocket(const Socket &other) {
+    auto sock = cloneSockFD(other);
+    if (!sock) {
+        return false;
+    }
     return listen(sock);
+}
+
+bool Socket::cloneFromPeerSocket(const Socket &other) {
+    auto sock = cloneSockFD(other);
+    if (!sock) {
+        return false;
+    }
+    if (!attachEvent(sock)) {
+        return false;
+    }
+    LOCK_GUARD(_mtx_sock_fd);
+    _sock_fd = std::move(sock);
+    return true;
 }
 
 bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {

@@ -63,11 +63,17 @@ public:
      */
     void setOnCreateSocket(Socket::onCreateSocket cb);
 
+    /**
+     * 根据socket对象创建Session对象
+     * 需要确保在socket归属poller线程执行本函数
+     */
+    Session::Ptr createSession(const Socket::Ptr &socket);
+
 protected:
     virtual void cloneFrom(const TcpServer &that);
     virtual TcpServer::Ptr onCreatServer(const EventPoller::Ptr &poller);
 
-    virtual void onAcceptConnection(const Socket::Ptr &sock);
+    virtual Session::Ptr onAcceptConnection(const Socket::Ptr &sock);
     virtual Socket::Ptr onBeforeAcceptConnection(const EventPoller::Ptr &poller);
 
 private:
