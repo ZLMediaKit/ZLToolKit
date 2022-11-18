@@ -309,12 +309,15 @@ ssize_t Socket::onRead(const SockFD::Ptr &sock, bool is_udp) noexcept{
             return ret;
         }
 
+        if (_enable_speed) {
+            // 更新接收速率
+            _recv_speed += nread;
+        }
+
         ret += nread;
         data[nread] = '\0';
         //设置buffer有效数据大小
         _read_buffer->setSize(nread);
-        //更新接收速率
-        _recv_speed += nread;
 
         //触发回调
         LOCK_GUARD(_mtx_event);
