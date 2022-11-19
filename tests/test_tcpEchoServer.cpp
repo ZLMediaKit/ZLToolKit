@@ -18,15 +18,15 @@
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Network/TcpServer.h"
-#include "Network/TcpSession.h"
+#include "Network/Session.h"
 
 using namespace std;
 using namespace toolkit;
 
-class EchoSession: public TcpSession {
+class EchoSession: public Session {
 public:
     EchoSession(const Socket::Ptr &sock) :
-            TcpSession(sock) {
+            Session(sock) {
         DebugL;
     }
     ~EchoSession() {
@@ -65,7 +65,7 @@ int main() {
     server->start<EchoSession>(9000);//监听9000端口
 
     TcpServer::Ptr serverSSL(new TcpServer());
-    serverSSL->start<TcpSessionWithSSL<EchoSession> >(9001);//监听9001端口
+    serverSSL->start<SessionWithSSL<EchoSession> >(9001);//监听9001端口
 
     //退出程序事件处理
     static semaphore sem;

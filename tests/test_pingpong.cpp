@@ -13,7 +13,7 @@
 #include "Util/CMD.h"
 #include "Util/logger.h"
 #include "Util/util.h"
-#include "Network/TcpSession.h"
+#include "Network/Session.h"
 #include "Network/TcpServer.h"
 
 using namespace std;
@@ -22,9 +22,9 @@ using namespace toolkit;
 /**
 * 回显会话
 */
-class EchoSession : public TcpSession {
+class EchoSession : public Session {
 public:
-    EchoSession(const Socket::Ptr &pSock) : TcpSession(pSock){
+    EchoSession(const Socket::Ptr &pSock) : Session(pSock){
         DebugL;
     }
     virtual ~EchoSession(){

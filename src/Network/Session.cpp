@@ -15,6 +15,12 @@ using namespace std;
 
 namespace toolkit {
 
+class TcpSession : public Session {};
+class UdpSession : public Session {};
+
+StatisticImp(UdpSession)
+StatisticImp(TcpSession)
+
 Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {
     if (sock->sockType() == SockNum::Sock_TCP) {
         _statistic_tcp.reset(new ObjectStatistic<TcpSession>);
@@ -41,8 +47,5 @@ void Session::safeShutdown(const SockException &ex) {
         }
     });
 }
-
-StatisticImp(UdpSession)
-StatisticImp(TcpSession)
 
 } // namespace toolkit

@@ -15,13 +15,13 @@
 #include <functional>
 #include <unordered_map>
 #include "Server.h"
-#include "TcpSession.h"
+#include "Session.h"
 #include "Poller/Timer.h"
 #include "Util/util.h"
 
 namespace toolkit {
 
-//TCP服务器，可配置的；配置通过TcpSession::attachServer方法传递给会话对象
+//TCP服务器，可配置的；配置通过Session::attachServer方法传递给会话对象
 class TcpServer : public Server {
 public:
     using Ptr = std::shared_ptr<TcpServer>;
@@ -44,7 +44,7 @@ public:
     */
     template<typename SessionType>
     void start(uint16_t port, const std::string &host = "::", uint32_t backlog = 1024) {
-        //TcpSession创建器，通过它创建不同类型的服务器
+        //Session创建器，通过它创建不同类型的服务器
         _session_alloc = [](const TcpServer::Ptr &server, const Socket::Ptr &sock) {
             auto session = std::make_shared<SessionType>(sock);
             session->setOnCreateSocket(server->_on_create_socket);

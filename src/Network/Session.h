@@ -12,8 +12,9 @@
 #define ZLTOOLKIT_SESSION_H
 
 #include <memory>
-#include "Util/util.h"
 #include "Socket.h"
+#include "Util/util.h"
+#include "Util/SSLBox.h"
 
 namespace toolkit {
 
@@ -71,30 +72,34 @@ private:
     std::unique_ptr<toolkit::ObjectStatistic<toolkit::UdpSession> > _statistic_udp;
 };
 
-//TCP服务器连接对象，一个tcp连接对应一个TcpSession对象
-class TcpSession : public Session {
+// 通过该模板可以让TCP服务器快速支持TLS
+template <typename SessionType>
+class SessionWithSSL : public SessionType {
 public:
-    using Ptr = std::shared_ptr<TcpSession>;
-
-    TcpSession(const Socket::Ptr &sock) : Session(sock) {}
-    ~TcpSession() override = default;
-
-    Ptr shared_from_this() {
-        return std::static_pointer_cast<TcpSession>(Session::shared_from_this());
+    template <typename... ArgsType>
+    SessionWithSSL(ArgsType &&...args)
+        : SessionType(std::forward<ArgsType>(args)...) {
+        _ssl_box.setOnEncData([&](const Buffer::Ptr &buf) { public_send(buf); });
+        _ssl_box.setOnDecData([&](const Buffer::Ptr &buf) { public_onRecv(buf); });
     }
-};
 
-//UDP服务器连接对象，一个udp peer对应一个UdpSession对象
-class UdpSession : public Session {
-public:
-    using Ptr = std::shared_ptr<UdpSession>;
+    ~SessionWithSSL() override { _ssl_box.flush(); }
 
-    UdpSession(const Socket::Ptr &sock) : Session(sock) {}
-    ~UdpSession() override = default;
+    void onRecv(const Buffer::Ptr &buf) override { _ssl_box.onRecv(buf); }
 
-    Ptr shared_from_this() {
-        return std::static_pointer_cast<UdpSession>(Session::shared_from_this());
+    // 添加public_onRecv和public_send函数是解决较低版本gcc一个lambad中不能访问protected或private方法的bug
+    inline void public_onRecv(const Buffer::Ptr &buf) { SessionType::onRecv(buf); }
+    inline void public_send(const Buffer::Ptr &buf) { SessionType::send(std::move(const_cast<Buffer::Ptr &>(buf))); }
+
+protected:
+    ssize_t send(Buffer::Ptr buf) override {
+        auto size = buf->size();
+        _ssl_box.onSend(std::move(buf));
+        return size;
     }
+
+private:
+    SSL_Box _ssl_box;
 };
 
 } // namespace toolkit

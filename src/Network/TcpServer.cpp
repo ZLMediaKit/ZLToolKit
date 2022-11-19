@@ -100,10 +100,10 @@ void TcpServer::cloneFrom(const TcpServer &that) {
 Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
     assert(_poller->isCurrentThread());
     weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
-    //创建一个TcpSession;这里实现创建不同的服务会话实例
+    //创建一个Session;这里实现创建不同的服务会话实例
     auto helper = _session_alloc(std::dynamic_pointer_cast<TcpServer>(shared_from_this()), sock);
     auto session = helper->session();
-    //把本服务器的配置传递给TcpSession
+    //把本服务器的配置传递给Session
     session->attachServer(*this);
 
     //_session_map::emplace肯定能成功

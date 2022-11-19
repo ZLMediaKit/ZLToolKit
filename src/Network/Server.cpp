@@ -31,7 +31,7 @@ SessionHelper::SessionHelper(const std::weak_ptr<Server> &server, Session::Ptr s
 
 SessionHelper::~SessionHelper() {
     if (!_server.lock()) {
-        //务必通知TcpSession已从TcpServer脱离
+        //务必通知Session已从TcpServer脱离
         _session->onError(SockException(Err_other, "Server shutdown"));
     }
     //从全局map移除相关记录
