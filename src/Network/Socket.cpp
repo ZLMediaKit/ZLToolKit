@@ -672,7 +672,7 @@ bool Socket::flushData(const SockFD::Ptr &sock, bool poller_thread) {
                             _send_result(buffer, send_success);
                         }
                     } : _send_result;
-                    send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), send_result, sock->type() == SockNum::Sock_UDP));
+                    send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), std::move(send_result), sock->type() == SockNum::Sock_UDP));
                     break;
                 }
             }
