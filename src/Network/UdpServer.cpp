@@ -118,7 +118,7 @@ void UdpServer::cloneFrom(const UdpServer &that) {
     _session_mutex = that._session_mutex;
     _session_map = that._session_map;
     // clone udp socket
-    _socket->bindUdpSock(that._socket->get_local_port(), that._socket->get_local_ip());
+    _socket->cloneFromPeerSocket(*(that._socket));
     // clone properties
     this->mINI::operator=(that);
     _cloned = true;
