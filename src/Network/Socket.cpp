@@ -341,6 +341,8 @@ bool Socket::emitErr(const SockException& err) noexcept{
         }
     }
 
+    //先关闭socket，再触发on_err事件，防止死循环：https://github.com/ZLMediaKit/ZLMediaKit/issues/2121
+    closeSock();
     weak_ptr<Socket> weak_self = shared_from_this();
     _poller->async([weak_self, err]() {
         auto strong_self = weak_self.lock();
@@ -354,8 +356,6 @@ bool Socket::emitErr(const SockException& err) noexcept{
             ErrorL << "Exception occurred when emit on_err: " << ex.what();
         }
     });
-
-    closeSock();
     return true;
 }
 
