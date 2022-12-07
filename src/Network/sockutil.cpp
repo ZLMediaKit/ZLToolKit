@@ -21,6 +21,7 @@
 #include "Util/onceToken.h"
 #if defined (__APPLE__)
 #include <ifaddrs.h>
+#include <netinet/tcp.h>
 #endif
 using namespace std;
 
