@@ -202,6 +202,12 @@ int SockUtil::setKeepAlive(int fd, bool on, int interval, int idle, int times) {
         TraceL << "setsockopt SO_KEEPALIVE failed";
     }
 #if !defined(_WIN32)
+#if !defined(SOL_TCP) && defined(IPPROTO_TCP)
+  #define SOL_TCP IPPROTO_TCP
+#endif
+#if !defined(TCP_KEEPIDLE) && defined(TCP_KEEPALIVE)
+  #define TCP_KEEPIDLE TCP_KEEPALIVE
+#endif
     // Set the keep-alive parameters
     if (on && interval > 0 && ret != -1) {
         ret = setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (char *) &idle, static_cast<socklen_t>(sizeof(idle)));
