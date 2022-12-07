@@ -197,6 +197,9 @@ bool isIP(const char *str);
 bool start_with(const std::string &str, const std::string &substr);
 //字符串是否以xx结尾
 bool end_with(const std::string &str, const std::string &substr);
+//拼接格式字符串
+template<typename... Args>
+std::string str_format(const std::string &format, Args... args);
 
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));

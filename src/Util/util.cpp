@@ -639,5 +639,27 @@ string getEnv(const string &key) {
     return value ? value : "";
 }
 
+template <typename... Args>
+std::string str_format(const string &format, Args... args) {
+  // Calculate the buffer size
+  auto size_buf = snprintf(nullptr, 0, format.c_str(), args ...) + 1;
+  // Allocate the buffer
+#if __cplusplus >= 201703L
+  // C++17
+  auto buf = std::make_unique<char[]>(size_buf);
+#else
+  // C++11
+  std::unique_ptr<char[]> buf(new(std::nothrow) char[size_buf]);
+#endif
+  // Check if the allocation is successful
+  if (buf == nullptr) {
+    return {};
+  }
+  // Fill the buffer with formatted string
+  auto result = snprintf(buf.get(), size_buf, format.c_str(), args ...);
+  // Return the formatted string
+  return std::string(buf.get(), buf.get() + result);
+}
+
 }  // namespace toolkit
 
