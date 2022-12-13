@@ -21,6 +21,7 @@
 #include "Util/onceToken.h"
 #if defined (__APPLE__)
 #include <ifaddrs.h>
+#include <netinet/tcp.h>
 #endif
 using namespace std;
 
@@ -193,12 +194,36 @@ int SockUtil::setBroadcast(int fd, bool on) {
     return ret;
 }
 
-int SockUtil::setKeepAlive(int fd, bool on) {
+int SockUtil::setKeepAlive(int fd, bool on, int interval, int idle, int times) {
+    // Enable/disable the keep-alive option
     int opt = on ? 1 : 0;
     int ret = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt, static_cast<socklen_t>(sizeof(opt)));
     if (ret == -1) {
         TraceL << "setsockopt SO_KEEPALIVE failed";
     }
+#if !defined(_WIN32)
+#if !defined(SOL_TCP) && defined(IPPROTO_TCP)
+  #define SOL_TCP IPPROTO_TCP
+#endif
+#if !defined(TCP_KEEPIDLE) && defined(TCP_KEEPALIVE)
+  #define TCP_KEEPIDLE TCP_KEEPALIVE
+#endif
+    // Set the keep-alive parameters
+    if (on && interval > 0 && ret != -1) {
+        ret = setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (char *) &idle, static_cast<socklen_t>(sizeof(idle)));
+        if (ret == -1) {
+            TraceL << "setsockopt TCP_KEEPIDLE failed";
+        }
+        ret = setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (char *) &interval, static_cast<socklen_t>(sizeof(interval)));
+        if (ret == -1) {
+            TraceL << "setsockopt TCP_KEEPINTVL failed";
+        }
+        ret = setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (char *) &times, static_cast<socklen_t>(sizeof(times)));
+        if (ret == -1) {
+            TraceL << "setsockopt TCP_KEEPCNT failed";
+        }
+    }
+#endif
     return ret;
 }
 
