@@ -118,7 +118,12 @@ void UdpServer::cloneFrom(const UdpServer &that) {
     _session_mutex = that._session_mutex;
     _session_map = that._session_map;
     // clone udp socket
-    _socket->cloneFromPeerSocket(*(that._socket));
+#if 0
+     _socket->cloneFromPeerSocket(*(that._socket));
+#else
+    // 实验发现cloneFromPeerSocket方式虽然可以节省fd资源，但是在某些系统上线程漂移问题更严重
+    _socket->bindUdpSock(that._socket->get_local_port(), that._socket->get_local_ip());
+#endif
     // clone properties
     this->mINI::operator=(that);
     _cloned = true;
