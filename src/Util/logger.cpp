@@ -351,14 +351,20 @@ std::string LogChannel::printTime(const timeval &tv) {
     return buf;
 }
 
-void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr &ctx, bool enable_color,
-                        bool enable_detail) {
+#ifdef _WIN32
+#define printf_pid() GetCurrentProcessId()
+#else
+#define printf_pid() getpid()
+#endif
+
+void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr &ctx, bool enable_color, bool enable_detail) {
     if (!enable_detail && ctx->str().empty()) {
-        //没有任何信息打印
+        // 没有任何信息打印
         return;
     }
 
     if (enable_color) {
+        // color console start
 #ifdef _WIN32
         SetConsoleColor(LOG_CONST_TABLE[ctx->_level][1]);
 #else
@@ -366,6 +372,7 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 #endif
     }
 
+    // print log time and level
 #ifdef _WIN32
     ost << printTime(ctx->_tv) << " " << (char)LOG_CONST_TABLE[ctx->_level][2] << " ";
 #else
@@ -373,17 +380,19 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 #endif
 
     if (enable_detail) {
-#if defined(_WIN32)
-    ost << "[" << GetCurrentProcessId() << "-" << ctx->_thread_name << "] [" << (!ctx->_flag.empty()? ctx->_flag: ctx->_module_name);
-#else
-    ost << "[" << getpid() << "-" << ctx->_thread_name << "] [" << (!ctx->_flag.empty()? ctx->_flag: logger.getName());
-#endif
-    ost << "] " << ctx->_file << ":" << ctx->_line << " " << ctx->_function << " | ";
+        // tag or process name
+        ost << "[" << (!ctx->_flag.empty() ? ctx->_flag : logger.getName()) << "] ";
+        // pid and thread_name
+        ost << "[" << printf_pid() << "-" << ctx->_thread_name << "] ";
+        // source file location
+        ost << ctx->_file << ":" << ctx->_line << " " << ctx->_function << " | ";
     }
 
+    // log content
     ost << ctx->str();
 
     if (enable_color) {
+        // color console end
 #ifdef _WIN32
         SetConsoleColor(CLEAR_COLOR);
 #else
@@ -392,8 +401,11 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
     }
 
     if (ctx->_repeat > 1) {
+        // log repeated
         ost << "\r\n    Last message repeated " << ctx->_repeat << " times";
     }
+
+    // flush log and new line
     ost << endl;
 }
 
