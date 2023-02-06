@@ -190,7 +190,7 @@ std::string strToLower(std::string &&str);
 std::string &strToUpper(std::string &str);
 std::string strToUpper(std::string &&str);
 //替换子字符串
-void replace(std::string &str, const std::string &old_str, const std::string &new_str) ;
+void replace(std::string &str, const std::string &old_str, const std::string &new_str, std::string::size_type b_pos = 0) ;
 //判断是否为ip
 bool isIP(const char *str);
 //字符串是否以xx开头

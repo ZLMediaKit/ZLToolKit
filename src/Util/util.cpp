@@ -237,16 +237,16 @@ std::string trim(std::string &&s, const string &chars) {
     return std::move(s);
 }
 
-void replace(string &str, const string &old_str, const string &new_str) {
+void replace(string &str, const string &old_str, const string &new_str,std::string::size_type b_pos) {
     if (old_str.empty() || old_str == new_str) {
         return;
     }
-    auto pos = str.find(old_str);
+    auto pos = str.find(old_str,b_pos);
     if (pos == string::npos) {
         return;
     }
     str.replace(pos, old_str.size(), new_str);
-    replace(str, old_str, new_str);
+    replace(str, old_str, new_str,pos + new_str.length());
 }
 
 bool start_with(const string &str, const string &substr) {
