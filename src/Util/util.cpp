@@ -661,5 +661,9 @@ string str_format(const string &format, Args... args) {
   return string(buf.get(), buf.get() + result);
 }
 
+void Creator::onDestoryException(const type_info &info, const exception &ex) {
+    ErrorL << "Invoke " << demangle(info.name()) << "::onDestory throw a exception: " << ex.what();
+}
+
 }  // namespace toolkit
 
