@@ -21,22 +21,31 @@ StatisticImp(TcpServer)
 
 TcpServer::TcpServer(const EventPoller::Ptr &poller) : Server(poller) {
     setOnCreateSocket(nullptr);
+}
+
+void TcpServer::setupEvent() {
     _socket = createSocket(_poller);
-    _socket->setOnBeforeAccept([this](const EventPoller::Ptr &poller) {
-        return onBeforeAcceptConnection(poller);
+    weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
+    _socket->setOnBeforeAccept([weak_self](const EventPoller::Ptr &poller) -> Socket::Ptr {
+        if (auto strong_self = weak_self.lock()) {
+            return strong_self->onBeforeAcceptConnection(poller);
+        }
+        return nullptr;
     });
-    _socket->setOnAccept([this](Socket::Ptr &sock, shared_ptr<void> &complete) {
-        auto ptr = sock->getPoller().get();
-        auto server = getServer(ptr);
-        ptr->async([server, sock, complete]() {
-            //该tcp客户端派发给对应线程的TcpServer服务器
-            server->onAcceptConnection(sock);
-        });
+    _socket->setOnAccept([weak_self](Socket::Ptr &sock, shared_ptr<void> &complete) {
+        if (auto strong_self = weak_self.lock()) {
+            auto ptr = sock->getPoller().get();
+            auto server = strong_self->getServer(ptr);
+            ptr->async([server, sock, complete]() {
+                //该tcp客户端派发给对应线程的TcpServer服务器
+                server->onAcceptConnection(sock);
+            });
+        }
     });
 }
 
 TcpServer::~TcpServer() {
-    if (!_parent && _socket->rawFD() != -1) {
+    if (!_parent && _socket && _socket->rawFD() != -1) {
         InfoL << "Close tcp server [" << _socket->get_local_ip() << "]: " << _socket->get_local_port();
     }
     _timer.reset();
@@ -80,6 +89,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
     if (!that._socket) {
         throw std::invalid_argument("TcpServer::cloneFrom other with null socket");
     }
+    setupEvent();
     _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
     _socket->cloneFromListenSocket(*(that._socket));
@@ -166,6 +176,7 @@ Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
 }
 
 void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog) {
+    setupEvent();
     if (!_socket->listen(port, host.c_str(), backlog)) {
         //创建tcp监听失败，可能是由于端口占用或权限问题
         string err = (StrPrinter << "Listen on " << host << " " << port << " failed: " << get_uv_errmsg(true));

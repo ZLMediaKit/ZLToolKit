@@ -81,6 +81,7 @@ private:
     Socket::Ptr createSocket(const EventPoller::Ptr &poller);
     void start_l(uint16_t port, const std::string &host, uint32_t backlog);
     Ptr getServer(const EventPoller *) const;
+    void setupEvent();
 
 private:
     bool _is_on_manager = false;

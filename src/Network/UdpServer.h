@@ -96,6 +96,8 @@ private:
      */
     Socket::Ptr createSocket(const EventPoller::Ptr &poller, const Buffer::Ptr &buf = nullptr, struct sockaddr *addr = nullptr, int addr_len = 0);
 
+    void setupEvent();
+
 private:
     bool _cloned = false;
     Socket::Ptr _socket;
