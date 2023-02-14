@@ -263,7 +263,30 @@ bool start_with(const std::string &str, const std::string &substr);
 bool end_with(const std::string &str, const std::string &substr);
 //拼接格式字符串
 template<typename... Args>
-std::string str_format(const std::string &format, Args... args);
+std::string str_format(const std::string &format, Args... args) {
+#if __cplusplus > 202002L
+    return std::format(format, args...);
+#else
+    // Calculate the buffer size
+    auto size_buf = snprintf(nullptr, 0, format.c_str(), args ...) + 1;
+    // Allocate the buffer
+#if __cplusplus >= 201703L
+    // C++17
+    auto buf = std::make_unique<char[]>(size_buf);
+#else
+    // C++11
+    std:: unique_ptr<char[]> buf(new(std::nothrow) char[size_buf]);
+#endif
+    // Check if the allocation is successful
+    if (buf == nullptr) {
+        return {};
+    }
+    // Fill the buffer with formatted string
+    auto result = snprintf(buf.get(), size_buf, format.c_str(), args ...);
+    // Return the formatted string
+    return std::string(buf.get(), buf.get() + result);
+#endif
+}
 
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));
