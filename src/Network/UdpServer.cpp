@@ -209,7 +209,7 @@ void UdpServer::onManagerSession() {
     });
 }
 
-const Session::Ptr &UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len, bool &is_new) {
+Session::Ptr UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len, bool &is_new) {
     {
         //减小临界区
         std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
@@ -224,7 +224,7 @@ const Session::Ptr &UdpServer::getOrCreateSession(const UdpServer::PeerIdType &i
 
 static Session::Ptr s_null_session;
 
-const Session::Ptr &UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
     auto socket = createSocket(_poller, buf, addr, addr_len);
     if (!socket) {
         //创建socket失败，本次onRead事件收到的数据直接丢弃
@@ -233,7 +233,7 @@ const Session::Ptr &UdpServer::createSession(const PeerIdType &id, const Buffer:
 
     auto addr_str = string((char *) addr, addr_len);
     std::weak_ptr<UdpServer> weak_self = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
-    auto session_creator = [this, weak_self, socket, addr_str, id]() -> const Session::Ptr & {
+    auto session_creator = [this, weak_self, socket, addr_str, id]() -> Session::Ptr {
         auto server = weak_self.lock();
         if (!server) {
             return s_null_session;
