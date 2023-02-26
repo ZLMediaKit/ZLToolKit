@@ -103,12 +103,15 @@ public:
         }
         size_t total = _thread_num - _thread_group.size();
         for (size_t i = 0; i < total; ++i) {
-            _thread_group.create_thread(std::bind(&ThreadPool::run, this));
+            _thread_group.create_thread([this, i]() {run(i);});
         }
     }
 
 private:
-    void run() {
+    void run(size_t index) {
+        std::string name = "thread pool " + std::to_string(index);
+        setThreadName(name.data());
+        setThreadAffinity(index % std::thread::hardware_concurrency());
         ThreadPool::setPriority(_priority);
         Task::Ptr task;
         while (true) {
