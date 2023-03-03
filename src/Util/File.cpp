@@ -269,8 +269,8 @@ string File::absolutePath(const string &path, const string &current_path, bool c
         if (dir == "..") {
             //访问上级目录
             if (!can_access_parent && currentPath.size() <= rootPath.size()) {
-                //不能访问根目录之外的目录
-                return "";
+                //不能访问根目录之外的目录, 返回根目录
+                return rootPath;
             }
             currentPath = parentDir(currentPath);
             continue;
