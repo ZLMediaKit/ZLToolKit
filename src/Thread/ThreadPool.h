@@ -29,13 +29,20 @@ public:
         PRIORITY_HIGHEST
     };
 
-    ThreadPool(int num = 1, Priority priority = PRIORITY_HIGHEST, bool auto_run = true) {
+    ThreadPool(int num = 1, Priority priority = PRIORITY_HIGHEST, bool auto_run = true, bool set_affinity = true) {
         _thread_num = num;
-        _priority = priority;
+        _on_setup = [priority, set_affinity](int index) {
+            std::string name = "thread pool " + std::to_string(index);
+            setPriority(priority);
+            setThreadName(name.data());
+            if (set_affinity) {
+                setThreadAffinity(index % std::thread::hardware_concurrency());
+            }
+        };
+        _logger = Logger::Instance().shared_from_this();
         if (auto_run) {
             start();
         }
-        _logger = Logger::Instance().shared_from_this();
     }
 
     ~ThreadPool() {
@@ -109,10 +116,7 @@ public:
 
 private:
     void run(size_t index) {
-        std::string name = "thread pool " + std::to_string(index);
-        setThreadName(name.data());
-        setThreadAffinity(index % std::thread::hardware_concurrency());
-        ThreadPool::setPriority(_priority);
+        _on_setup(index);
         Task::Ptr task;
         while (true) {
             startSleep();
@@ -140,10 +144,10 @@ private:
 
 private:
     size_t _thread_num;
-    TaskQueue<Task::Ptr> _queue;
-    thread_group _thread_group;
-    Priority _priority;
     Logger::Ptr _logger;
+    thread_group _thread_group;
+    TaskQueue<Task::Ptr> _queue;
+    std::function<void(int)> _on_setup;
 };
 
 } /* namespace toolkit */
