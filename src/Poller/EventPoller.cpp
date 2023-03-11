@@ -13,6 +13,7 @@
 #include "Util/util.h"
 #include "Util/uv_errno.h"
 #include "Util/TimeTicker.h"
+#include "Util/NoticeCenter.h"
 #include "Network/sockutil.h"
 
 #if defined(HAS_EPOLL)
@@ -461,8 +462,11 @@ void EventPollerPool::preferCurrentThread(bool flag) {
     _prefer_current_thread = flag;
 }
 
+const std::string EventPollerPool::kOnStarted = "kBroadcastEventPollerPoolStarted";
+
 EventPollerPool::EventPollerPool() {
     auto size = addPoller("event poller", s_pool_size, ThreadPool::PRIORITY_HIGHEST, true, s_enable_cpu_affinity);
+    NoticeCenter::Instance().emitEvent(kOnStarted, *this, size);
     InfoL << "EventPoller created size: " << size;
 }
 
