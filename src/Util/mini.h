@@ -145,8 +145,13 @@ struct variant : public std::string {
     }
 
     template <typename T>
-    T as() const {
+    typename std::enable_if<!std::is_class<T>::value, T>::type as() const {
         return as_default<T>();
+    }
+
+    template <typename T>
+    typename std::enable_if<std::is_class<T>::value, T>::type as() const {
+        return T((const std::string &)*this);
     }
 
 private:
