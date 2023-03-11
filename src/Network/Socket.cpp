@@ -198,6 +198,12 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
         strong_self->_sock_fd = std::move(sock_fd);
     });
 
+    // 连接超时定时器
+    _con_timer = std::make_shared<Timer>(timeout_sec,[weak_self, con_cb]() {
+        con_cb(SockException(Err_timeout, uv_strerror(UV_ETIMEDOUT)));
+        return false;
+    }, _poller);
+
     if (isIP(url.data())) {
         (*async_con_cb)(SockUtil::connect(url.data(), port, true, local_ip.data(), local_port));
     } else {
@@ -207,8 +213,7 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
             //阻塞式dns解析放在后台线程执行
             int sock = SockUtil::connect(url.data(), port, true, local_ip.data(), local_port);
             poller->async([sock, weak_task]() {
-                auto strong_task = weak_task.lock();
-                if (strong_task) {
+                if (auto strong_task = weak_task.lock()) {
                     (*strong_task)(sock);
                 } else {
                     CLOSE_SOCK(sock);
@@ -217,12 +222,6 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
         });
         _async_con_cb = async_con_cb;
     }
-
-    //连接超时定时器
-    _con_timer = std::make_shared<Timer>(timeout_sec, [weak_self, con_cb]() {
-        con_cb(SockException(Err_timeout, uv_strerror(UV_ETIMEDOUT)));
-        return false;
-    }, _poller);
 }
 
 void Socket::onConnected(const SockFD::Ptr &sock, const onErrCB &cb) {
