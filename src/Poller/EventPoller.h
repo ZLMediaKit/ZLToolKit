@@ -231,6 +231,7 @@ private:
 class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, public TaskExecutorGetterImp {
 public:
     using Ptr = std::shared_ptr<EventPollerPool>;
+    static const std::string kOnStarted;
     ~EventPollerPool() = default;
 
     /**
