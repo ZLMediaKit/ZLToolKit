@@ -351,7 +351,7 @@ static inline uint64_t getCurrentMicrosecondOrigin() {
     gettimeofday(&tv, nullptr);
     return tv.tv_sec * 1000000LL + tv.tv_usec;
 #else
-    return  std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    return  std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 #endif
 }
 

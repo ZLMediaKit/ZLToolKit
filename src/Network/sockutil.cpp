@@ -107,7 +107,7 @@ static inline bool support_ipv6_l() {
     return true;
 }
 
-static inline bool support_ipv6() {
+bool SockUtil::support_ipv6() {
     static auto flag = support_ipv6_l();
     return flag;
 }
