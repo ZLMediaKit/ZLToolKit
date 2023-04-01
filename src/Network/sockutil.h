@@ -288,6 +288,7 @@ public:
      */
     static uint16_t get_peer_port(int sock);
 
+    static bool support_ipv6();
     /**
      * 线程安全的in_addr转ip字符串
      */
