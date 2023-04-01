@@ -32,15 +32,12 @@ namespace toolkit {
 
 PipeWrap::PipeWrap() {
 #if defined(_WIN32)
-    string localip("127.0.0.1");
-    if (SockUtil::support_ipv6()) {
-        localip = "::1";
-    }
-    auto listener_fd = SockUtil::listen(0, (const char *)localip.c_str());
+    const char *localip = SockUtil::support_ipv6() ? "::1" : "127.0.0.1";
+    auto listener_fd = SockUtil::listen(0, localip);
     checkFD(listener_fd)
     SockUtil::setNoBlocked(listener_fd,false);
     auto localPort = SockUtil::get_local_port(listener_fd);
-    _pipe_fd[1] = SockUtil::connect((const char *)localip.c_str(), localPort,false);
+    _pipe_fd[1] = SockUtil::connect(localip, localPort,false);
     checkFD(_pipe_fd[1])
     _pipe_fd[0] = (int)accept(listener_fd, nullptr, nullptr);
     checkFD(_pipe_fd[0])
