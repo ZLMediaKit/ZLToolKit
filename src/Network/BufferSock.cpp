@@ -121,10 +121,14 @@ protected:
 };
 
 /////////////////////////////////////// BufferSendMsg ///////////////////////////////////////
+#if defined(_WIN32)
+typedef WSABUF SocketBuf;
+#elif defined(__linux__) || defined(__linux)
+typedef iovec SocketBuf;
+#endif
+typedef std::vector<SocketBuf> SocketBufVec;
 
-#if !defined(_WIN32)
-
-class BufferSendMsg : public BufferList, public BufferCallBack {
+class BufferSendMsg final : public BufferList, public BufferCallBack {
 public:
     BufferSendMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb);
     ~BufferSendMsg() override = default;
@@ -140,7 +144,11 @@ private:
 private:
     size_t _iovec_off = 0;
     size_t _remain_size = 0;
-    std::vector<struct iovec> _iovec;
+#if defined(_WIN32)
+    SocketBufVec _iovec;
+#elif defined(__linux__) || defined(__linux)
+    SocketBufVec _iovec;
+#endif
 };
 
 bool BufferSendMsg::empty() {
@@ -151,8 +159,10 @@ size_t BufferSendMsg::count() {
     return _iovec.size() - _iovec_off;
 }
 
+
 ssize_t BufferSendMsg::send_l(int fd, int flags) {
-    ssize_t n;
+    ssize_t n;  
+ #if defined(__linux__) || defined(__linux)
     do {
         struct msghdr msg;
         msg.msg_name = nullptr;
@@ -167,6 +177,15 @@ ssize_t BufferSendMsg::send_l(int fd, int flags) {
         msg.msg_flags = flags;
         n = sendmsg(fd, &msg, flags);
     } while (-1 == n && UV_EINTR == get_uv_error(true));
+#elif defined(_WIN32)
+    do {
+        DWORD sent = 0;
+        const SocketBufVec &buffers = _iovec;
+        n = WSASend(fd, const_cast<LPWSABUF>(&buffers[0]), static_cast<DWORD>(buffers.size()), &sent, static_cast<DWORD>(flags), 0, 0);
+        if (n == SOCKET_ERROR) {return -1;}
+        n = sent;
+    } while (n < 0 && UV_ECANCELED == get_uv_error(true));
+#endif
 
     if (n >= (ssize_t)_remain_size) {
         //全部写完了
@@ -203,7 +222,11 @@ void BufferSendMsg::reOffset(size_t n) {
     size_t offset = 0;
     for (auto i = _iovec_off; i != _iovec.size(); ++i) {
         auto &ref = _iovec[i];
+#if defined(__linux__) || defined(__linux)
         offset += ref.iov_len;
+#elif defined(_WIN32)
+        offset += ref.len;
+#endif
         if (offset < n) {
             //此包发送完毕
             sendFrontSuccess();
@@ -218,8 +241,13 @@ void BufferSendMsg::reOffset(size_t n) {
         }
         //这是末尾发送部分成功的一个包
         size_t remain = offset - n;
+#if defined(__linux__) || defined(__linux)
         ref.iov_base = (char *)ref.iov_base + ref.iov_len - remain;
         ref.iov_len = remain;
+#elif defined(_WIN32)
+        ref.buf = (char *)ref.buf + ref.len - remain;
+        ref.len = remain;
+#endif
         break;
     }
 }
@@ -229,18 +257,21 @@ BufferSendMsg::BufferSendMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResult
     , _iovec(_pkt_list.size()) {
     auto it = _iovec.begin();
     _pkt_list.for_each([&](std::pair<Buffer::Ptr, bool> &pr) {
+#if defined(__linux__) || defined(__linux) 
         it->iov_base = pr.first->data();
         it->iov_len = pr.first->size();
         _remain_size += it->iov_len;
+#elif defined(_WIN32)
+        it->buf = pr.first->data();
+        it->len = pr.first->size();
+        _remain_size += it->len;
+#endif
         ++it;
     });
 }
 
-#endif //!_WIN32
-
 /////////////////////////////////////// BufferSendTo ///////////////////////////////////////
-
-class BufferSendTo : public BufferList, public BufferCallBack {
+class BufferSendTo final: public BufferList, public BufferCallBack {
 public:
     BufferSendTo(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp);
     ~BufferSendTo() override = default;
@@ -414,10 +445,14 @@ BufferSendMMsg::BufferSendMMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResu
 
 #endif //defined(__linux__) || defined(__linux)
 
+
 BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp) {
 #if defined(_WIN32)
-    //win32目前未做网络发送性能优化
-    return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
+    if (is_udp) {
+        // win32目前未做网络发送性能优化
+        return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
+    }
+    return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #elif defined(__linux__) || defined(__linux)
     if (is_udp) {
         return std::make_shared<BufferSendMMsg>(std::move(list), std::move(cb));
