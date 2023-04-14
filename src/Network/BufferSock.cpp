@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
  *
  * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
@@ -123,7 +123,7 @@ protected:
 /////////////////////////////////////// BufferSendMsg ///////////////////////////////////////
 #if defined(_WIN32)
 typedef WSABUF SocketBuf;
-#elif defined(__linux__) || defined(__linux)
+#else
 typedef iovec SocketBuf;
 #endif
 typedef std::vector<SocketBuf> SocketBufVec;
@@ -144,11 +144,7 @@ private:
 private:
     size_t _iovec_off = 0;
     size_t _remain_size = 0;
-#if defined(_WIN32)
     SocketBufVec _iovec;
-#elif defined(__linux__) || defined(__linux)
-    SocketBufVec _iovec;
-#endif
 };
 
 bool BufferSendMsg::empty() {
@@ -162,7 +158,7 @@ size_t BufferSendMsg::count() {
 
 ssize_t BufferSendMsg::send_l(int fd, int flags) {
     ssize_t n;  
- #if defined(__linux__) || defined(__linux)
+#if !defined(_WIN32)
     do {
         struct msghdr msg;
         msg.msg_name = nullptr;
@@ -177,7 +173,7 @@ ssize_t BufferSendMsg::send_l(int fd, int flags) {
         msg.msg_flags = flags;
         n = sendmsg(fd, &msg, flags);
     } while (-1 == n && UV_EINTR == get_uv_error(true));
-#elif defined(_WIN32)
+#else
     do {
         DWORD sent = 0;
         const SocketBufVec &buffers = _iovec;
@@ -222,9 +218,9 @@ void BufferSendMsg::reOffset(size_t n) {
     size_t offset = 0;
     for (auto i = _iovec_off; i != _iovec.size(); ++i) {
         auto &ref = _iovec[i];
-#if defined(__linux__) || defined(__linux)
+#if !defined(_WIN32)
         offset += ref.iov_len;
-#elif defined(_WIN32)
+#else
         offset += ref.len;
 #endif
         if (offset < n) {
@@ -241,11 +237,11 @@ void BufferSendMsg::reOffset(size_t n) {
         }
         //这是末尾发送部分成功的一个包
         size_t remain = offset - n;
-#if defined(__linux__) || defined(__linux)
+#if !defined(_WIN32)
         ref.iov_base = (char *)ref.iov_base + ref.iov_len - remain;
         ref.iov_len = remain;
-#elif defined(_WIN32)
-        ref.buf = (char *)ref.buf + ref.len - remain;
+#else
+        ref.buf = (CHAR *)ref.buf + ref.len - remain;
         ref.len = remain;
 #endif
         break;
@@ -257,11 +253,11 @@ BufferSendMsg::BufferSendMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResult
     , _iovec(_pkt_list.size()) {
     auto it = _iovec.begin();
     _pkt_list.for_each([&](std::pair<Buffer::Ptr, bool> &pr) {
-#if defined(__linux__) || defined(__linux) 
+#if !defined(_WIN32)
         it->iov_base = pr.first->data();
         it->iov_len = pr.first->size();
         _remain_size += it->iov_len;
-#elif defined(_WIN32)
+#else
         it->buf = pr.first->data();
         it->len = pr.first->size();
         _remain_size += it->len;
