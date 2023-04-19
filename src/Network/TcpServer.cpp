@@ -92,7 +92,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
     setupEvent();
     _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
-    _socket->cloneFromListenSocket(*(that._socket));
+    _socket->cloneSocket(*(that._socket));
     weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
         auto strong_self = weak_self.lock();

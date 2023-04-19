@@ -112,7 +112,8 @@ public:
     typedef enum {
         Sock_Invalid = -1,
         Sock_TCP = 0,
-        Sock_UDP = 1
+        Sock_UDP = 1,
+        Sock_TCP_Server = 2
     } SockType;
 
     SockNum(int fd, SockType type) {
@@ -137,9 +138,13 @@ public:
     }
 
     void setConnected() {
-#if defined (OS_IPHONE)
+        setConnected(_fd);
+    }
+
+    static void setConnected(int fd) {
+#if defined(OS_IPHONE)
         setSocketOfIOS(_fd);
-#endif //OS_IPHONE
+#endif // OS_IPHONE
     }
 
 #if defined (OS_IPHONE)
@@ -291,8 +296,7 @@ public:
      * @param local_ip 绑定本地网卡ip
      * @param local_port 绑定本地网卡端口号
      */
-    virtual void connect(const std::string &url, uint16_t port, const onErrCB &con_cb, float timeout_sec = 5,
-                         const std::string &local_ip = "::", uint16_t local_port = 0);
+    void connect(const std::string &url, uint16_t port, const onErrCB &con_cb, float timeout_sec = 5, const std::string &local_ip = "::", uint16_t local_port = 0);
 
     /**
      * 创建tcp监听服务器
@@ -301,7 +305,7 @@ public:
      * @param backlog tcp最大积压数
      * @return 是否成功
      */
-    virtual bool listen(uint16_t port, const std::string &local_ip = "::", int backlog = 1024);
+    bool listen(uint16_t port, const std::string &local_ip = "::", int backlog = 1024);
 
     /**
      * 创建udp套接字,udp是无连接的，所以可以作为服务器和客户端
@@ -309,7 +313,22 @@ public:
      * @param local_ip 绑定的网卡ip
      * @return 是否成功
      */
-    virtual bool bindUdpSock(uint16_t port, const std::string &local_ip = "::", bool enable_reuse = true);
+    bool bindUdpSock(uint16_t port, const std::string &local_ip = "::", bool enable_reuse = true);
+
+    /**
+     * 包装外部fd，本对象负责close fd
+     * 内部会设置fd为NoBlocked,NoSigpipe,CloExec
+     * 其他设置需要自行使用SockUtil进行设置
+     */
+    bool fromSock(int fd, SockNum::SockType type);
+
+    /**
+     * 从另外一个Socket克隆
+     * 目的是一个socket可以被多个poller对象监听，提高性能或实现Socket归属线程的迁移
+     * @param other 原始的socket对象
+     * @return 是否成功
+     */
+    bool cloneSocket(const Socket &other);
 
     ////////////设置事件回调////////////
 
@@ -317,38 +336,38 @@ public:
      * 设置数据接收回调,tcp或udp客户端有效
      * @param cb 回调对象
      */
-    virtual void setOnRead(onReadCB cb);
+    void setOnRead(onReadCB cb);
 
     /**
      * 设置异常事件(包括eof等)回调
      * @param cb 回调对象
      */
-    virtual void setOnErr(onErrCB cb);
+    void setOnErr(onErrCB cb);
 
     /**
      * 设置tcp监听接收到连接回调
      * @param cb 回调对象
      */
-    virtual void setOnAccept(onAcceptCB cb);
+    void setOnAccept(onAcceptCB cb);
 
     /**
      * 设置socket写缓存清空事件回调
      * 通过该回调可以实现发送流控
      * @param cb 回调对象
      */
-    virtual void setOnFlush(onFlush cb);
+    void setOnFlush(onFlush cb);
 
     /**
      * 设置accept时，socket构造事件回调
      * @param cb 回调
      */
-    virtual void setOnBeforeAccept(onCreateSocket cb);
+    void setOnBeforeAccept(onCreateSocket cb);
 
     /**
      * 设置发送buffer结果回调
      * @param cb 回调
      */
-    virtual void setOnSendResult(onSendResult cb);
+    void setOnSendResult(onSendResult cb);
 
     ////////////发送数据相关接口////////////
 
@@ -372,7 +391,7 @@ public:
      * 发送Buffer对象，Socket对象发送数据的统一出口
      * socket对象发送数据的统一出口
      */
-    virtual ssize_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
+    ssize_t send(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0, bool try_flush = true);
 
     /**
      * 尝试将所有数据写socket
@@ -385,56 +404,42 @@ public:
      * @param err 错误原因
      * @return 是否成功触发onErr回调
      */
-    virtual bool emitErr(const SockException &err) noexcept;
+    bool emitErr(const SockException &err) noexcept;
 
     /**
      * 关闭或开启数据接收
      * @param enabled 是否开启
      */
-    virtual void enableRecv(bool enabled);
+    void enableRecv(bool enabled);
 
     /**
      * 获取裸文件描述符，请勿进行close操作(因为Socket对象会管理其生命周期)
      * @return 文件描述符
      */
-    virtual int rawFD() const;
+    int rawFD() const;
 
     /**
      * 返回socket类型
      */
-    virtual SockNum::SockType sockType() const;
+    SockNum::SockType sockType() const;
 
     /**
      * 设置发送超时主动断开时间;默认10秒
      * @param second 发送超时数据，单位秒
      */
-    virtual void setSendTimeOutSecond(uint32_t second);
+    void setSendTimeOutSecond(uint32_t second);
 
     /**
      * 套接字是否忙，如果套接字写缓存已满则返回true
      * @return 套接字是否忙
      */
-    virtual bool isSocketBusy() const;
+    bool isSocketBusy() const;
 
     /**
      * 获取poller线程对象
      * @return poller线程对象
      */
-    virtual const EventPoller::Ptr &getPoller() const;
-
-    /**
-     * 从另外一个Socket克隆
-     * 目的是一个socket可以被多个poller对象监听，提高性能
-     * @param other 原始的socket对象
-     * @return 是否成功
-     */
-    virtual bool cloneFromListenSocket(const Socket &other);
-
-    /**
-     * 从源tcp peer socket或udp socket克隆
-     * 目的是为了实现socket切换poller线程
-     */
-    virtual bool cloneFromPeerSocket(const Socket &other);
+    const EventPoller::Ptr &getPoller() const;
 
     /**
      * 绑定udp 目标地址，后续发送时就不用再单独指定了
@@ -442,28 +447,28 @@ public:
      * @param addr_len 目标地址长度
      * @return 是否成功
      */
-    virtual bool bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len = 0);
+    bool bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len = 0);
 
     /**
      * 设置发送flags
      * @param flags 发送的flag
      */
-    virtual void setSendFlags(int flags = SOCKET_DEFAULE_FLAGS);
+    void setSendFlags(int flags = SOCKET_DEFAULE_FLAGS);
 
     /**
      * 关闭套接字
      */
-    virtual void closeSock();
+    void closeSock();
 
     /**
      * 获取发送缓存包个数(不是字节数)
      */
-    virtual size_t getSendBufferCount();
+    size_t getSendBufferCount();
 
     /**
      * 获取上次socket发送缓存清空至今的毫秒数,单位毫秒
      */
-    virtual uint64_t elapsedTimeAfterFlushed();
+    uint64_t elapsedTimeAfterFlushed();
 
     /**
      * 获取接收速率，单位bytes/s
@@ -484,20 +489,21 @@ public:
 
 private:
     SockFD::Ptr cloneSockFD(const Socket &other);
-    SockFD::Ptr setPeerSock(int fd);
     SockFD::Ptr makeSock(int sock, SockNum::SockType type);
-    int onAccept(const SockFD::Ptr &sock, int event) noexcept;
-    ssize_t onRead(const SockFD::Ptr &sock, bool is_udp = false) noexcept;
-    void onWriteAble(const SockFD::Ptr &sock);
-    void onConnected(const SockFD::Ptr &sock, const onErrCB &cb);
-    void onFlushed(const SockFD::Ptr &pSock);
-    void startWriteAbleEvent(const SockFD::Ptr &sock);
-    void stopWriteAbleEvent(const SockFD::Ptr &sock);
+    void setPeerSock(int fd, SockNum::SockType type);
+    int onAccept(int sock, int event) noexcept;
+    ssize_t onRead(int sock, SockNum::SockType type, const BufferRaw::Ptr &buffer) noexcept;
+    void onWriteAble(int sock, SockNum::SockType type);
+    void onConnected(int sock, const onErrCB &cb);
+    void onFlushed();
+    void startWriteAbleEvent(int sock);
+    void stopWriteAbleEvent(int sock);
     bool listen(const SockFD::Ptr &sock);
-    bool flushData(const SockFD::Ptr &sock, bool poller_thread);
-    bool attachEvent(const SockFD::Ptr &sock);
+    bool flushData(int sock, SockNum::SockType type, bool poller_thread);
+    bool attachEvent(int sock, SockNum::SockType type);
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
+    bool fromSock_l(int fd, SockNum::SockType type);
 
 private:
     //send socket时的flag
@@ -508,6 +514,14 @@ private:
     std::atomic<bool> _enable_recv {true};
     //标记该socket是否可写，socket写缓存满了就不可写
     std::atomic<bool> _sendable {true};
+    //是否已经触发err回调了
+    bool _err_emit = false;
+    //是否启用网速统计
+    bool _enable_speed = false;
+    //接收速率统计
+    BytesSpeed _recv_speed;
+    //发送速率统计
+    BytesSpeed _send_speed;
 
     //tcp连接超时定时器
     Timer::Ptr _con_timer;
@@ -516,8 +530,6 @@ private:
 
     //记录上次发送缓存(包括socket写缓存、应用层缓存)清空的计时器
     Ticker _send_flush_ticker;
-    //复用的socket读缓存，每次read socket后，数据存放在此
-    BufferRaw::Ptr _read_buffer;
     //socket fd的抽象类
     SockFD::Ptr _sock_fd;
     //本socket绑定的poller线程，事件触发于此线程
@@ -550,13 +562,6 @@ private:
     BufferList::SendResult _send_result;
     //对象个数统计
     ObjectStatistic<Socket> _statistic;
-
-    //是否启用网速统计
-    bool _enable_speed = false;
-    //接收速率统计
-    BytesSpeed _recv_speed;
-    //发送速率统计
-    BytesSpeed _send_speed;
 };
 
 class SockSender {
@@ -669,10 +674,6 @@ protected:
 
 private:
     bool _try_flush = true;
-    uint16_t _peer_port = 0;
-    uint16_t _local_port = 0;
-    std::string _peer_ip;
-    std::string _local_ip;
     Socket::Ptr _sock;
     EventPoller::Ptr _poller;
     Socket::onCreateSocket _on_create_socket;
