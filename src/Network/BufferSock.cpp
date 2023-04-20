@@ -121,11 +121,16 @@ protected:
 };
 
 /////////////////////////////////////// BufferSendMsg ///////////////////////////////////////
+#if defined(_WIN32)
+using SocketBuf = WSABUF;
+#else
+using SocketBuf = iovec;
+#endif
 
-#if !defined(_WIN32)
-
-class BufferSendMsg : public BufferList, public BufferCallBack {
+class BufferSendMsg final : public BufferList, public BufferCallBack {
 public:
+    using SocketBufVec = std::vector<SocketBuf>;
+
     BufferSendMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb);
     ~BufferSendMsg() override = default;
 
@@ -140,7 +145,7 @@ private:
 private:
     size_t _iovec_off = 0;
     size_t _remain_size = 0;
-    std::vector<struct iovec> _iovec;
+    SocketBufVec _iovec;
 };
 
 bool BufferSendMsg::empty() {
@@ -152,7 +157,8 @@ size_t BufferSendMsg::count() {
 }
 
 ssize_t BufferSendMsg::send_l(int fd, int flags) {
-    ssize_t n;
+    ssize_t n;  
+#if !defined(_WIN32)
     do {
         struct msghdr msg;
         msg.msg_name = nullptr;
@@ -167,6 +173,14 @@ ssize_t BufferSendMsg::send_l(int fd, int flags) {
         msg.msg_flags = flags;
         n = sendmsg(fd, &msg, flags);
     } while (-1 == n && UV_EINTR == get_uv_error(true));
+#else
+    do {
+        DWORD sent = 0;
+        n = WSASend(fd, const_cast<LPWSABUF>(&_iovec[0]), static_cast<DWORD>(_iovec.size()), &sent, static_cast<DWORD>(flags), 0, 0);
+        if (n == SOCKET_ERROR) {return -1;}
+        n = sent;
+    } while (n < 0 && UV_ECANCELED == get_uv_error(true));
+#endif
 
     if (n >= (ssize_t)_remain_size) {
         //全部写完了
@@ -203,7 +217,11 @@ void BufferSendMsg::reOffset(size_t n) {
     size_t offset = 0;
     for (auto i = _iovec_off; i != _iovec.size(); ++i) {
         auto &ref = _iovec[i];
+#if !defined(_WIN32)
         offset += ref.iov_len;
+#else
+        offset += ref.len;
+#endif
         if (offset < n) {
             //此包发送完毕
             sendFrontSuccess();
@@ -218,8 +236,13 @@ void BufferSendMsg::reOffset(size_t n) {
         }
         //这是末尾发送部分成功的一个包
         size_t remain = offset - n;
+#if !defined(_WIN32)
         ref.iov_base = (char *)ref.iov_base + ref.iov_len - remain;
         ref.iov_len = remain;
+#else
+        ref.buf = (CHAR *)ref.buf + ref.len - remain;
+        ref.len = remain;
+#endif
         break;
     }
 }
@@ -229,18 +252,21 @@ BufferSendMsg::BufferSendMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResult
     , _iovec(_pkt_list.size()) {
     auto it = _iovec.begin();
     _pkt_list.for_each([&](std::pair<Buffer::Ptr, bool> &pr) {
+#if !defined(_WIN32)
         it->iov_base = pr.first->data();
         it->iov_len = pr.first->size();
         _remain_size += it->iov_len;
+#else
+        it->buf = pr.first->data();
+        it->len = pr.first->size();
+        _remain_size += it->len;
+#endif
         ++it;
     });
 }
 
-#endif //!_WIN32
-
 /////////////////////////////////////// BufferSendTo ///////////////////////////////////////
-
-class BufferSendTo : public BufferList, public BufferCallBack {
+class BufferSendTo final: public BufferList, public BufferCallBack {
 public:
     BufferSendTo(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp);
     ~BufferSendTo() override = default;
@@ -414,19 +440,28 @@ BufferSendMMsg::BufferSendMMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResu
 
 #endif //defined(__linux__) || defined(__linux)
 
+
 BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp) {
 #if defined(_WIN32)
-    //win32目前未做网络发送性能优化
-    return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
+    if (is_udp) {
+        // sendto/send 方案，待优化
+        return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
+    }
+    // WSASend方案
+    return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #elif defined(__linux__) || defined(__linux)
     if (is_udp) {
+        // sendmmsg方案
         return std::make_shared<BufferSendMMsg>(std::move(list), std::move(cb));
     }
+    // sendmsg方案
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #else
     if (is_udp) {
+        // sendto/send 方案, 可优化？
         return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
     }
+    // sendmsg方案
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #endif
 }
