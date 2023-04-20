@@ -127,10 +127,10 @@ using SocketBuf = WSABUF;
 using SocketBuf = iovec;
 #endif
 
-using SocketBufVec = std::vector<SocketBuf>;
-
 class BufferSendMsg final : public BufferList, public BufferCallBack {
 public:
+    using SocketBufVec = std::vector<SocketBuf>;
+
     BufferSendMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb);
     ~BufferSendMsg() override = default;
 
@@ -176,8 +176,7 @@ ssize_t BufferSendMsg::send_l(int fd, int flags) {
 #else
     do {
         DWORD sent = 0;
-        const SocketBufVec &buffers = _iovec;
-        n = WSASend(fd, const_cast<LPWSABUF>(&buffers[0]), static_cast<DWORD>(buffers.size()), &sent, static_cast<DWORD>(flags), 0, 0);
+        n = WSASend(fd, const_cast<LPWSABUF>(&_iovec[0]), static_cast<DWORD>(_iovec.size()), &sent, static_cast<DWORD>(flags), 0, 0);
         if (n == SOCKET_ERROR) {return -1;}
         n = sent;
     } while (n < 0 && UV_ECANCELED == get_uv_error(true));
