@@ -122,11 +122,12 @@ protected:
 
 /////////////////////////////////////// BufferSendMsg ///////////////////////////////////////
 #if defined(_WIN32)
-typedef WSABUF SocketBuf;
+using SocketBuf = WSABUF;
 #else
-typedef iovec SocketBuf;
+using SocketBuf = iovec;
 #endif
-typedef std::vector<SocketBuf> SocketBufVec;
+
+using SocketBufVec = std::vector<SocketBuf>;
 
 class BufferSendMsg final : public BufferList, public BufferCallBack {
 public:
@@ -154,7 +155,6 @@ bool BufferSendMsg::empty() {
 size_t BufferSendMsg::count() {
     return _iovec.size() - _iovec_off;
 }
-
 
 ssize_t BufferSendMsg::send_l(int fd, int flags) {
     ssize_t n;  
@@ -445,19 +445,24 @@ BufferSendMMsg::BufferSendMMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResu
 BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp) {
 #if defined(_WIN32)
     if (is_udp) {
-        // win32目前未做网络发送性能优化
+        // sendto/send 方案，待优化
         return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
     }
+    // WSASend方案
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #elif defined(__linux__) || defined(__linux)
     if (is_udp) {
+        // sendmmsg方案
         return std::make_shared<BufferSendMMsg>(std::move(list), std::move(cb));
     }
+    // sendmsg方案
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #else
     if (is_udp) {
+        // sendto/send 方案, 可优化？
         return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
     }
+    // sendmsg方案
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #endif
 }
