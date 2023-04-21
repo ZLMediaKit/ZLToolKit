@@ -125,6 +125,8 @@ public:
 #if defined (OS_IPHONE)
         unsetSocketOfIOS(_fd);
 #endif //OS_IPHONE
+        // 停止socket收发能力
+        ::shutdown(_fd, SHUT_RDWR);
         close(_fd);
     }
 
@@ -194,11 +196,8 @@ public:
     void delEvent() {
         if (_poller) {
             auto num = _num;
-            auto fd = num->rawFd();
-            // 停止socket收发能力
-            ::shutdown(fd, SHUT_RDWR);
             // 移除io事件成功后再close fd
-            _poller->delEvent(fd, [num](bool) {});
+            _poller->delEvent(num->rawFd(), [num](bool) {});
             _poller = nullptr;
         }
     }
