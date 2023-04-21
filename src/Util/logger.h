@@ -11,6 +11,7 @@
 #ifndef UTIL_LOGGER_H_
 #define UTIL_LOGGER_H_
 
+#include <cstdarg>
 #include <set>
 #include <map>
 #include <fstream>
