@@ -125,6 +125,7 @@ public:
 #if defined (OS_IPHONE)
         unsetSocketOfIOS(_fd);
 #endif //OS_IPHONE
+        // 停止socket收发能力
         ::shutdown(_fd, SHUT_RDWR);
         close(_fd);
     }
@@ -190,9 +191,15 @@ public:
         }
     }
 
-    ~SockFD() {
-        auto num = _num;
-        _poller->delEvent(_num->rawFd(), [num](bool) {});
+     ~SockFD() { delEvent(); }
+
+    void delEvent() {
+        if (_poller) {
+            auto num = _num;
+            // 移除io事件成功后再close fd
+            _poller->delEvent(num->rawFd(), [num](bool) {});
+            _poller = nullptr;
+        }
     }
 
     void setConnected() {
@@ -457,8 +464,9 @@ public:
 
     /**
      * 关闭套接字
+     * @param close_fd 是否关闭fd还是只移除io事件监听
      */
-    void closeSock();
+    void closeSock(bool close_fd = true);
 
     /**
      * 获取发送缓存包个数(不是字节数)

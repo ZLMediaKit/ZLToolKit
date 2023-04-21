@@ -48,7 +48,7 @@ public:
         _session_alloc = [](const TcpServer::Ptr &server, const Socket::Ptr &sock) {
             auto session = std::make_shared<SessionType>(sock);
             session->setOnCreateSocket(server->_on_create_socket);
-            return std::make_shared<SessionHelper>(server, session);
+            return std::make_shared<SessionHelper>(server, std::move(session));
         };
         start_l(port, host, backlog);
     }

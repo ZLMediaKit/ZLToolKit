@@ -37,7 +37,7 @@ public:
             session->setOnCreateSocket([sock_creator](const EventPoller::Ptr &poller) {
                 return sock_creator(poller, nullptr, nullptr, 0);
             });
-            return std::make_shared<SessionHelper>(server, session);
+            return std::make_shared<SessionHelper>(server, std::move(session));
         };
         start_l(port, host);
     }
