@@ -324,7 +324,8 @@ bool Socket::emitErr(const SockException &err) noexcept {
         } catch (std::exception &ex) {
             ErrorL << "Exception occurred when emit on_err: " << ex.what();
         }
-        strong_self->closeSock();
+        // 延后关闭socket，只移除其io事件，防止Session对象析构时获取fd相关信息失败
+        strong_self->closeSock(false);
     });
     return true;
 }
@@ -404,7 +405,7 @@ void Socket::onFlushed() {
     }
 }
 
-void Socket::closeSock() {
+void Socket::closeSock(bool close_fd) {
     _err_emit = false;
     _sendable = true;
     _enable_recv = true;
@@ -425,7 +426,11 @@ void Socket::closeSock() {
 
     {
         LOCK_GUARD(_mtx_sock_fd);
-        _sock_fd = nullptr;
+        if (close_fd) {
+            _sock_fd = nullptr;
+        } else if (_sock_fd) {
+            _sock_fd->delEvent();
+        }
     }
 }
 
