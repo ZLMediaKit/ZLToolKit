@@ -88,7 +88,7 @@ void Socket::setOnErr(onErrCB cb) {
     if (cb) {
         _on_err = std::move(cb);
     } else {
-        _on_err = [](const SockException &err) { WarnL << "Socket not set err callback, err: " << err.what(); };
+        _on_err = [](const SockException &err) { WarnL << "Socket not set err callback, err: " << err; };
     }
 }
 

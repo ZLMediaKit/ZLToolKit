@@ -61,7 +61,7 @@ protected:
     }
     virtual void onErr(const SockException &ex) override{
         //断开连接事件，一般是EOF
-        WarnL << ex.what();
+        WarnL << ex;
     }
 };
 

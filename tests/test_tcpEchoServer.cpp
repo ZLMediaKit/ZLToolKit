@@ -39,7 +39,7 @@ public:
     }
     virtual void onError(const SockException &err) override{
         //客户端断开连接或其他原因导致该对象脱离TCPServer管理
-        WarnL << err.what();
+        WarnL << err;
     }
     virtual void onManager() override{
         //定时管理该对象，譬如会话超时检查
