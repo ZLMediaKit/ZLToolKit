@@ -44,11 +44,16 @@ public:
     */
     template<typename SessionType>
     void start(uint16_t port, const std::string &host = "::", uint32_t backlog = 1024) {
+        static std::string cls_name = toolkit::demangle(typeid(SessionType).name());
         //Session创建器，通过它创建不同类型的服务器
         _session_alloc = [](const TcpServer::Ptr &server, const Socket::Ptr &sock) {
-            auto session = std::make_shared<SessionType>(sock);
+            auto session = std::shared_ptr<SessionType>(new SessionType(sock), [](SessionType * ptr) {
+                TraceP(static_cast<Session *>(ptr)) << "~" << cls_name;
+                delete ptr;
+            });
+            TraceP(static_cast<Session *>(session.get())) << cls_name;
             session->setOnCreateSocket(server->_on_create_socket);
-            return std::make_shared<SessionHelper>(server, std::move(session));
+            return std::make_shared<SessionHelper>(server, std::move(session), cls_name);
         };
         start_l(port, host, backlog);
     }

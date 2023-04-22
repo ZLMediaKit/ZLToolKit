@@ -30,14 +30,19 @@ public:
      */
     template<typename SessionType>
     void start(uint16_t port, const std::string &host = "::") {
+        static std::string cls_name = toolkit::demangle(typeid(SessionType).name());
         // Session 创建器, 通过它创建不同类型的服务器
         _session_alloc = [](const UdpServer::Ptr &server, const Socket::Ptr &sock) {
-            auto session = std::make_shared<SessionType>(sock);
+            auto session = std::shared_ptr<SessionType>(new SessionType(sock), [](SessionType * ptr) {
+                TraceP(static_cast<Session *>(ptr)) << "~" << cls_name;
+                delete ptr;
+            });
+            TraceP(static_cast<Session *>(session.get())) << cls_name;
             auto sock_creator = server->_on_create_socket;
             session->setOnCreateSocket([sock_creator](const EventPoller::Ptr &poller) {
                 return sock_creator(poller, nullptr, nullptr, 0);
             });
-            return std::make_shared<SessionHelper>(server, std::move(session));
+            return std::make_shared<SessionHelper>(server, std::move(session), cls_name);
         };
         start_l(port, host);
     }

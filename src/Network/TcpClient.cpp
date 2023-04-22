@@ -24,7 +24,9 @@ TcpClient::TcpClient(const EventPoller::Ptr &poller) : SocketHelper(nullptr) {
     });
 }
 
-TcpClient::~TcpClient() {}
+TcpClient::~TcpClient() {
+    TraceL << "~" << TcpClient::getIdentifier();
+}
 
 void TcpClient::shutdown(const SockException &ex) {
     _timer.reset();
@@ -71,9 +73,11 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
             return;
         }
         strong_self->_timer.reset();
+        TraceL << strong_self->getIdentifier() << " on err: " << ex;
         strong_self->onErr(ex);
     });
 
+    TraceL << getIdentifier() << " start connect " << url << ":" << port;
     sock_ptr->connect(url, port, [weak_self](const SockException &err) {
         auto strong_self = weak_self.lock();
         if (strong_self) {
@@ -83,6 +87,7 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
 }
 
 void TcpClient::onSockConnect(const SockException &ex) {
+    TraceL << getIdentifier() << " connect result: " << ex;
     if (ex) {
         //连接失败
         _timer.reset();
@@ -123,6 +128,14 @@ void TcpClient::onSockConnect(const SockException &ex) {
     });
 
     onConnect(ex);
+}
+
+std::string TcpClient::getIdentifier() const {
+    if (_id.empty()) {
+        static atomic<uint64_t> s_index { 0 };
+        _id = toolkit::demangle(typeid(*this).name()) + "-" + to_string(++s_index);
+    }
+    return _id;
 }
 
 } /* namespace toolkit */

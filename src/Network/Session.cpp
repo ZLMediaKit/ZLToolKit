@@ -29,10 +29,9 @@ Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {
     }
 }
 
-static atomic<uint64_t> s_session_index{0};
-
 string Session::getIdentifier() const {
     if (_id.empty()) {
+        static atomic<uint64_t> s_session_index{0};
         _id = to_string(++s_session_index) + '-' + to_string(getSock()->rawFD());
     }
     return _id;

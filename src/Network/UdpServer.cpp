@@ -256,6 +256,7 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &b
         session->attachServer(*this);
 
         std::weak_ptr<Session> weak_session = session;
+        auto cls = helper->className();
         socket->setOnRead([weak_self, weak_session, id](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
@@ -273,7 +274,7 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &b
             //收到非本peer fd的数据，让server去派发此数据到合适的session对象
             strong_self->onRead_l(false, id, buf, addr, addr_len);
         });
-        socket->setOnErr([weak_self, weak_session, id](const SockException &err) {
+        socket->setOnErr([weak_self, weak_session, id, cls](const SockException &err) {
             // 在本函数作用域结束时移除会话对象
             // 目的是确保移除会话前执行其 onError 函数
             // 同时避免其 onError 函数抛异常时没有移除会话对象
@@ -291,6 +292,7 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &b
             // 获取会话强应用
             if (auto strong_session = weak_session.lock()) {
                 // 触发 onError 事件回调
+                TraceP(strong_session) << cls << " on err: " << err;
                 strong_session->onError(err);
             }
         });

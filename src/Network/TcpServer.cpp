@@ -138,8 +138,9 @@ Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
     });
 
     SessionHelper *ptr = helper.get();
+    auto cls = ptr->className();
     //会话接收到错误事件
-    sock->setOnErr([weak_self, weak_session, ptr](const SockException &err) {
+    sock->setOnErr([weak_self, weak_session, ptr, cls](const SockException &err) {
         //在本函数作用域结束时移除会话对象
         //目的是确保移除会话前执行其onError函数
         //同时避免其onError函数抛异常时没有移除会话对象
@@ -169,6 +170,7 @@ Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
         auto strong_session = weak_session.lock();
         if (strong_session) {
             //触发onError事件回调
+            TraceP(strong_session) << cls << " on err: " << err;
             strong_session->onError(err);
         }
     });

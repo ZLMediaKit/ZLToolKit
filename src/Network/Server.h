@@ -51,12 +51,14 @@ class SessionHelper {
 public:
     using Ptr = std::shared_ptr<SessionHelper>;
 
-    SessionHelper(const std::weak_ptr<Server> &server, Session::Ptr session);
+    SessionHelper(const std::weak_ptr<Server> &server, Session::Ptr session, std::string cls);
     ~SessionHelper();
 
     const Session::Ptr &session() const;
+    const std::string &className() const;
 
 private:
+    std::string _cls;
     std::string _identifier;
     Session::Ptr _session;
     SessionMap::Ptr _session_map;

@@ -60,6 +60,11 @@ public:
      */
     virtual void setNetAdapter(const std::string &local_ip);
 
+    /**
+     * 唯一标识
+     */
+    std::string getIdentifier() const override;
+
 protected:
     /**
      * 连接服务器结果回调
@@ -93,6 +98,7 @@ private:
     void onSockConnect(const SockException &ex);
 
 private:
+    mutable std::string _id;
     std::string _net_adapter = "::";
     std::shared_ptr<Timer> _timer;
     //对象个数统计

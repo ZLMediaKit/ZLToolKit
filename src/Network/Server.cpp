@@ -20,9 +20,10 @@ Server::Server(EventPoller::Ptr poller) {
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-SessionHelper::SessionHelper(const std::weak_ptr<Server> &server, Session::Ptr session) {
+SessionHelper::SessionHelper(const std::weak_ptr<Server> &server, Session::Ptr session, std::string cls) {
     _server = server;
     _session = std::move(session);
+    _cls = std::move(cls);
     //记录session至全局的map，方便后面管理
     _session_map = SessionMap::Instance().shared_from_this();
     _identifier = _session->getIdentifier();
@@ -40,6 +41,10 @@ SessionHelper::~SessionHelper() {
 
 const Session::Ptr &SessionHelper::session() const {
     return _session;
+}
+
+const std::string &SessionHelper::className() const {
+    return _cls;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
