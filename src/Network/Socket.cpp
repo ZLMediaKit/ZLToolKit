@@ -406,7 +406,6 @@ void Socket::onFlushed() {
 }
 
 void Socket::closeSock(bool close_fd) {
-    _err_emit = false;
     _sendable = true;
     _enable_recv = true;
     _enable_speed = false;
@@ -427,6 +426,7 @@ void Socket::closeSock(bool close_fd) {
     {
         LOCK_GUARD(_mtx_sock_fd);
         if (close_fd) {
+            _err_emit = false;
             _sock_fd = nullptr;
         } else if (_sock_fd) {
             _sock_fd->delEvent();
