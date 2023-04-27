@@ -126,10 +126,11 @@ using SocketBuf = WSABUF;
 #else
 using SocketBuf = iovec;
 #endif
+using SocketBufVec = std::vector<SocketBuf>;
 
 class BufferSendMsg final : public BufferList, public BufferCallBack {
 public:
-    using SocketBufVec = std::vector<SocketBuf>;
+    //using SocketBufVec = std::vector<SocketBuf>;
 
     BufferSendMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb);
     ~BufferSendMsg() override = default;
@@ -440,12 +441,143 @@ BufferSendMMsg::BufferSendMMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResu
 
 #endif //defined(__linux__) || defined(__linux)
 
+//Wsasendmsg 开关， _send_buf_sending有部分 包没传到 wsasendmsg()批量发送结构上(04-27)，还有ipv6 考虑
+#define ENABLE_MMW (0)
+
+//win32 BufferSendMMsgW 类
+#if (_WIN32) && (ENABLE_MMW)
+#include <mstcpip.h>
+#include <mswsock.h>
+#include <winsock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
+
+//参考BufferSendMMsg 的 sendmmg 写法
+class BufferSendMMsgW final : public BufferList, public BufferCallBack {
+public:
+    using SocketBufVecUDP = std::vector<SocketBuf>;
+
+    BufferSendMMsgW(List<std::pair<Buffer::Ptr, bool>> list, SendResult cb);
+    ~BufferSendMMsgW() override = default;
+
+    bool empty() override;
+    size_t count() override;
+    ssize_t send(int fd, int flags) override;
+
+private:
+    void reOffset(DWORD bn, DWORD Numberofbytestransmitted);
+    ssize_t send_l(int fd, int flags);
+
+private:
+    size_t _remain_size = 0;
+    SocketBufVecUDP _iovec; // std::vector<struct iovec> _iovec;
+    std::vector<WSAMSG> _hdrvec; // std::vector<struct mmsghdr> _hdrvec;
+};
+
+bool BufferSendMMsgW::empty() {
+    return _remain_size == 0;
+}
+
+size_t BufferSendMMsgW::count() {
+    return _hdrvec.size();
+}
+
+ssize_t BufferSendMMsgW::send_l(int fd, int flags) {
+    int ret = -1;
+    DWORD bytesSent = 0;
+
+   // do {
+    ret = WSASendMsg(fd, &_hdrvec[0], 0, &bytesSent, nullptr, nullptr);
+   // } while (-1 == ret && UV_EINTR == get_uv_error(true));
+
+       if (ret == SOCKET_ERROR) {
+           int nErrorNo = WSAGetLastError();
+           ErrorL << "nErrorNo = " << nErrorNo;
+           return -1;
+       } else if (ret > 0) {
+           //部分或全部发送成功
+           reOffset(ret ,bytesSent);
+           return bytesSent;
+       }
+}
+
+ssize_t BufferSendMMsgW::send(int fd, int flags) {
+    return send_l(fd, flags);
+
+    //auto remain_size = _remain_size;
+    //while (_remain_size && send_l(fd, flags) != -1)
+    //    ;
+    //ssize_t sent = remain_size - _remain_size;
+    //if (sent > 0) {
+    //    //部分或全部发送成功
+    //    return sent;
+    //}
+    ////一个字节都未发送成功
+    //return -1;
+}
+
+void BufferSendMMsgW::reOffset(DWORD bn, DWORD Numberofbytestransmitted) {
+    
+    for (auto it = _hdrvec.begin(); it != _hdrvec.end();) {
+        auto &hdr = *it;
+        auto &io = *(hdr.lpBuffers);
+       // assert(hdr.msg_len <= io.len);
+        _remain_size -= Numberofbytestransmitted; // hdr.msg_len; // Number of bytes transmitted
+        if (bn == Numberofbytestransmitted) {
+           // 这个udp包全部发送成功
+            it = _hdrvec.erase(it);
+            sendFrontSuccess();
+            continue;
+        }
+        // 部分发送成功
+        io.buf = (char *)io.buf + Numberofbytestransmitted;
+        io.len -= Numberofbytestransmitted;
+        break;
+    }
+}
+/// <summary>
+/// 
+/// </summary>
+/// <param name="list"></param>
+/// <param name="cb"></param>
+BufferSendMMsgW::BufferSendMMsgW(List<std::pair<Buffer::Ptr, bool>> list, SendResult cb)
+    : BufferCallBack(std::move(list), std::move(cb))
+    , _iovec(_pkt_list.size())
+    , _hdrvec(_pkt_list.size()) {
+    auto i = 0U;
+    _pkt_list.for_each([&](std::pair<Buffer::Ptr, bool> &pr) {
+        auto &io = _iovec[i];
+        io.buf = pr.first->data();
+        io.len = pr.first->size();
+        _remain_size += io.len; //+=
+
+        auto ptr = getBufferSockPtr(pr);
+        auto &msg = _hdrvec[i];
+        msg.name = ptr ? (LPSOCKADDR)ptr->sockaddr() : nullptr; // ipv6 是否也要考虑?
+        msg.namelen = ptr ? ptr->socklen() : 0;
+        msg.lpBuffers = &io;
+        msg.dwBufferCount = 1; // io.len;//
+       // msg.lpBuffers[i].buf = (CHAR *)io.buf;xx
+       // msg.lpBuffers[i].len = (ULONG)io.len; xx       
+        msg.Control.buf = nullptr;
+        msg.Control.len = 0;
+        msg.dwFlags = 0;
+        ++i;
+    });
+}
+#endif // define _win32
 
 BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp) {
 #if defined(_WIN32)
     if (is_udp) {
         // sendto/send 方案，待优化
+       // return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
+
+#if ENABLE_MMW
+        return std::make_shared<BufferSendMMsgW>(std::move(list), std::move(cb));
+#else
         return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
+#endif // end ENABLE_MMW
     }
     // WSASend方案
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
