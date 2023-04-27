@@ -441,7 +441,7 @@ BufferSendMMsg::BufferSendMMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResu
 
 #endif //defined(__linux__) || defined(__linux)
 
-//Wsasendmsg 开关， _send_buf_sending有部分 包没传到 wsasendmsg()批量发送结构上(04-27)，还有ipv6 考虑
+//Wsasendmsg 开关 0 ->1 ， _send_buf_sending有部分 包没传到 wsasendmsg()发送结构上BUG，还有可能ipv6 考虑
 #define ENABLE_MMW (0)
 
 //win32 BufferSendMMsgW 类
