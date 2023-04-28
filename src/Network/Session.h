@@ -67,6 +67,8 @@ public:
     inline void public_onRecv(const Buffer::Ptr &buf) { SessionType::onRecv(buf); }
     inline void public_send(const Buffer::Ptr &buf) { SessionType::send(std::move(const_cast<Buffer::Ptr &>(buf))); }
 
+    bool overSsl() const override { return true; }
+
 protected:
     ssize_t send(Buffer::Ptr buf) override {
         auto size = buf->size();
