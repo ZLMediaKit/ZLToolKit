@@ -137,6 +137,9 @@ public:
         _host = url;
         TcpClientType::startConnect(proxy_host, proxy_port, timeout_sec, local_port);
     }
+
+    bool overSsl() const override { return (bool)_ssl_box; }
+
 protected:
     void onConnect(const SockException &ex) override {
         if (!ex) {

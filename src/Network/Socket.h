@@ -651,6 +651,11 @@ public:
      */
     int flushAll();
 
+    /**
+     * 是否ssl加密
+     */
+    virtual bool overSsl() const { return false; }
+
     ///////////////////// SockInfo override /////////////////////
     std::string get_local_ip() override;
     uint16_t get_local_port() override;
