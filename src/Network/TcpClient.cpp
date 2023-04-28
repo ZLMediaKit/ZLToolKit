@@ -49,8 +49,7 @@ void TcpClient::setNetAdapter(const string &local_ip) {
 }
 
 void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec, uint16_t local_port) {
-    weak_ptr<TcpClient> weak_self = shared_from_this();
-
+    weak_ptr<TcpClient> weak_self = static_pointer_cast<TcpClient>(shared_from_this());
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
@@ -74,7 +73,7 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
         }
         strong_self->_timer.reset();
         TraceL << strong_self->getIdentifier() << " on err: " << ex;
-        strong_self->onErr(ex);
+        strong_self->onError(ex);
     });
 
     TraceL << getIdentifier() << " start connect " << url << ":" << port;
@@ -96,8 +95,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
     }
 
     auto sock_ptr = getSock().get();
-    weak_ptr<TcpClient> weak_self = shared_from_this();
-
+    weak_ptr<TcpClient> weak_self = static_pointer_cast<TcpClient>(shared_from_this());
     sock_ptr->setOnFlush([weak_self, sock_ptr]() {
         auto strong_self = weak_self.lock();
         if (!strong_self) {

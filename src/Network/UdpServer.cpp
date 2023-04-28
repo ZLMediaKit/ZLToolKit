@@ -48,7 +48,7 @@ UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
 
 void UdpServer::setupEvent() {
     _socket = createSocket(_poller);
-    std::weak_ptr<UdpServer> weak_self = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
+    std::weak_ptr<UdpServer> weak_self = std::static_pointer_cast<UdpServer>(shared_from_this());
     _socket->setOnRead([weak_self](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
         if (auto strong_self = weak_self.lock()) {
             strong_self->onRead(buf, addr, addr_len);
@@ -81,23 +81,21 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
     }
 
     // 新建一个定时器定时管理这些 udp 会话,这些对象只由主server做超时管理，cloned server不管理
-    std::weak_ptr<UdpServer> weak_self = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
+    std::weak_ptr<UdpServer> weak_self = std::static_pointer_cast<UdpServer>(shared_from_this());
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
-        auto strong_self = weak_self.lock();
-        if (!strong_self) {
-            return false;
+        if (auto strong_self = weak_self.lock()) {
+            strong_self->onManagerSession();
+            return true;
         }
-        strong_self->onManagerSession();
-        return true;
+        return false;
     }, _poller);
 
     //clone server至不同线程，让udp server支持多线程
     EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor) {
-        auto poller = std::dynamic_pointer_cast<EventPoller>(executor);
-        if (poller == _poller || !poller) {
+        auto poller = std::static_pointer_cast<EventPoller>(executor);
+        if (poller == _poller) {
             return;
         }
-
         auto &serverRef = _cloned_server[poller.get()];
         if (!serverRef) {
             serverRef = onCreatServer(poller);
@@ -187,10 +185,7 @@ void UdpServer::onManagerSession() {
         copy_map = std::make_shared<std::unordered_map<PeerIdType, SessionHelper::Ptr> >(*_session_map);
     }
     EventPollerPool::Instance().for_each([copy_map](const TaskExecutor::Ptr &executor) {
-        auto poller = std::dynamic_pointer_cast<EventPoller>(executor);
-        if (!poller) {
-            return;
-        }
+        auto poller = std::static_pointer_cast<EventPoller>(executor);
         poller->async([copy_map]() {
             for (auto &pr : *copy_map) {
                 auto &session = pr.second->session();
@@ -232,7 +227,7 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &b
     }
 
     auto addr_str = string((char *) addr, addr_len);
-    std::weak_ptr<UdpServer> weak_self = std::dynamic_pointer_cast<UdpServer>(shared_from_this());
+    std::weak_ptr<UdpServer> weak_self = std::static_pointer_cast<UdpServer>(shared_from_this());
     auto session_creator = [this, weak_self, socket, addr_str, id]() -> Session::Ptr {
         auto server = weak_self.lock();
         if (!server) {

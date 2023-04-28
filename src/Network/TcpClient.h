@@ -18,7 +18,7 @@
 namespace toolkit {
 
 //Tcp客户端，Socket对象默认开始互斥锁
-class TcpClient : public std::enable_shared_from_this<TcpClient>, public SocketHelper {
+class TcpClient : public SocketHelper {
 public:
     using Ptr = std::shared_ptr<TcpClient>;
     TcpClient(const EventPoller::Ptr &poller = nullptr);
@@ -73,26 +73,9 @@ protected:
     virtual void onConnect(const SockException &ex) = 0;
 
     /**
-     * 收到数据回调
-     * @param buf 接收到的数据(该buffer会重复使用)
-     */
-    virtual void onRecv(const Buffer::Ptr &buf) = 0;
-
-    /**
-     * 数据全部发送完毕后回调
-     */
-    virtual void onFlush() {}
-
-    /**
-     * 被动断开连接回调
-     * @param ex 断开原因
-     */
-    virtual void onErr(const SockException &ex) = 0;
-
-    /**
      * tcp连接成功后每2秒触发一次该事件
      */
-    virtual void onManager() {}
+    void onManager() override {}
 
 private:
     void onSockConnect(const SockException &ex);

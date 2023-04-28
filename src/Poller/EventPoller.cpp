@@ -447,7 +447,7 @@ static bool s_enable_cpu_affinity = true;
 INSTANCE_IMP(EventPollerPool)
 
 EventPoller::Ptr EventPollerPool::getFirstPoller() {
-    return dynamic_pointer_cast<EventPoller>(_threads.front());
+    return static_pointer_cast<EventPoller>(_threads.front());
 }
 
 EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread) {
@@ -455,7 +455,7 @@ EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread) {
     if (prefer_current_thread && _prefer_current_thread && poller) {
         return poller;
     }
-    return dynamic_pointer_cast<EventPoller>(getExecutor());
+    return static_pointer_cast<EventPoller>(getExecutor());
 }
 
 void EventPollerPool::preferCurrentThread(bool flag) {

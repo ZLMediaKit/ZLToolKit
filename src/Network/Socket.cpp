@@ -952,6 +952,15 @@ void SocketHelper::shutdown(const SockException &ex) {
     }
 }
 
+void SocketHelper::safeShutdown(const SockException &ex) {
+    std::weak_ptr<SocketHelper> weak_self = shared_from_this();
+    async_first([weak_self, ex]() {
+        if (auto strong_self = weak_self.lock()) {
+            strong_self->shutdown(ex);
+        }
+    });
+}
+
 string SocketHelper::get_local_ip() {
     return _sock ? _sock->get_local_ip() : "";
 }

@@ -25,7 +25,7 @@ TcpServer::TcpServer(const EventPoller::Ptr &poller) : Server(poller) {
 
 void TcpServer::setupEvent() {
     _socket = createSocket(_poller);
-    weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
+    weak_ptr<TcpServer> weak_self = std::static_pointer_cast<TcpServer>(shared_from_this());
     _socket->setOnBeforeAccept([weak_self](const EventPoller::Ptr &poller) -> Socket::Ptr {
         if (auto strong_self = weak_self.lock()) {
             return strong_self->onBeforeAcceptConnection(poller);
@@ -93,7 +93,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
     _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
     _socket->cloneSocket(*(that._socket));
-    weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
+    weak_ptr<TcpServer> weak_self = std::static_pointer_cast<TcpServer>(shared_from_this());
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
@@ -109,9 +109,9 @@ void TcpServer::cloneFrom(const TcpServer &that) {
 // 接收到客户端连接请求
 Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
     assert(_poller->isCurrentThread());
-    weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
+    weak_ptr<TcpServer> weak_self = std::static_pointer_cast<TcpServer>(shared_from_this());
     //创建一个Session;这里实现创建不同的服务会话实例
-    auto helper = _session_alloc(std::dynamic_pointer_cast<TcpServer>(shared_from_this()), sock);
+    auto helper = _session_alloc(std::static_pointer_cast<TcpServer>(shared_from_this()), sock);
     auto session = helper->session();
     //把本服务器的配置传递给Session
     session->attachServer(*this);
@@ -186,7 +186,7 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
     }
 
     //新建一个定时器定时管理这些tcp会话
-    weak_ptr<TcpServer> weak_self = std::dynamic_pointer_cast<TcpServer>(shared_from_this());
+    weak_ptr<TcpServer> weak_self = std::static_pointer_cast<TcpServer>(shared_from_this());
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
@@ -197,8 +197,8 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
     }, _poller);
 
     EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor) {
-        EventPoller::Ptr poller = dynamic_pointer_cast<EventPoller>(executor);
-        if (poller == _poller || !poller) {
+        EventPoller::Ptr poller = static_pointer_cast<EventPoller>(executor);
+        if (poller == _poller) {
             return;
         }
         auto &serverRef = _cloned_server[poller.get()];

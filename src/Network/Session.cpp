@@ -37,14 +37,4 @@ string Session::getIdentifier() const {
     return _id;
 }
 
-void Session::safeShutdown(const SockException &ex) {
-    std::weak_ptr<Session> weakSelf = shared_from_this();
-    async_first([weakSelf,ex](){
-        auto strongSelf = weakSelf.lock();
-        if (strongSelf) {
-            strongSelf->shutdown(ex);
-        }
-    });
-}
-
 } // namespace toolkit

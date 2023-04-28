@@ -81,7 +81,7 @@ EventPoller::Ptr nextPoller(){
     static int  s_poller_index = 0;
     if(s_poller_vec.empty()){
         EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor){
-            s_poller_vec.emplace_back(dynamic_pointer_cast<EventPoller>(executor));
+            s_poller_vec.emplace_back(static_pointer_cast<EventPoller>(executor));
         });
     }
     auto ret = s_poller_vec[s_poller_index++];
