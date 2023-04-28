@@ -37,7 +37,7 @@ protected:
         //发送阻塞后，缓存清空事件
         DebugL;
     }
-    virtual void onErr(const SockException &ex) override{
+    virtual void onError(const SockException &ex) override{
         //断开连接事件，一般是EOF
         WarnL << ex.what();
     }

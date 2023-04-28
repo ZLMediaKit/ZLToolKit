@@ -600,8 +600,9 @@ public:
 };
 
 //Socket对象的包装类
-class SocketHelper : public SockSender, public SockInfo, public TaskExecutorInterface {
+class SocketHelper : public SockSender, public SockInfo, public TaskExecutorInterface, public std::enable_shared_from_this<SocketHelper> {
 public:
+    using Ptr = std::shared_ptr<SocketHelper>;
     SocketHelper(const Socket::Ptr &sock);
     ~SocketHelper() override = default;
 
@@ -675,6 +676,36 @@ public:
      * 触发onErr事件
      */
     void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) override;
+
+    /**
+     * 线程安全的脱离 Server 并触发 onError 事件
+     * @param ex 触发 onError 事件的原因
+     */
+    void safeShutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
+
+    ///////////////////// event functions /////////////////////
+    /**
+     * 接收数据入口
+     * @param buf 数据，可以重复使用内存区,不可被缓存使用
+     */
+    virtual void onRecv(const Buffer::Ptr &buf) = 0;
+
+    /**
+     * 收到 eof 或其他导致脱离 Server 事件的回调
+     * 收到该事件时, 该对象一般将立即被销毁
+     * @param err 原因
+     */
+    virtual void onError(const SockException &err) = 0;
+
+    /**
+     * 数据全部发送完毕后回调
+     */
+    virtual void onFlush() {}
+
+    /**
+     * 每隔一段时间触发, 用来做超时管理
+     */
+    virtual void onManager() = 0;
 
 protected:
     void setPoller(const EventPoller::Ptr &poller);

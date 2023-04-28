@@ -18,11 +18,11 @@ static bool s_enable_cpu_affinity = true;
 INSTANCE_IMP(WorkThreadPool)
 
 EventPoller::Ptr WorkThreadPool::getFirstPoller() {
-    return std::dynamic_pointer_cast<EventPoller>(_threads.front());
+    return std::static_pointer_cast<EventPoller>(_threads.front());
 }
 
 EventPoller::Ptr WorkThreadPool::getPoller() {
-    return std::dynamic_pointer_cast<EventPoller>(getExecutor());
+    return std::static_pointer_cast<EventPoller>(getExecutor());
 }
 
 WorkThreadPool::WorkThreadPool() {
