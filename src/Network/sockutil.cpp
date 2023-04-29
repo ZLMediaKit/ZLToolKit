@@ -210,15 +210,15 @@ int SockUtil::setKeepAlive(int fd, bool on, int interval, int idle, int times) {
 #endif
     // Set the keep-alive parameters
     if (on && interval > 0 && ret != -1) {
-        ret = setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (char *) &idle, static_cast<socklen_t>(sizeof(idle)));
+        ret = setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, (char *) &idle, static_cast<socklen_t>(sizeof(idle)));
         if (ret == -1) {
             TraceL << "setsockopt TCP_KEEPIDLE failed";
         }
-        ret = setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (char *) &interval, static_cast<socklen_t>(sizeof(interval)));
+        ret = setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, (char *) &interval, static_cast<socklen_t>(sizeof(interval)));
         if (ret == -1) {
             TraceL << "setsockopt TCP_KEEPINTVL failed";
         }
-        ret = setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (char *) &times, static_cast<socklen_t>(sizeof(times)));
+        ret = setsockopt(fd, SOL_TCP, TCP_KEEPCNT, (char *) &times, static_cast<socklen_t>(sizeof(times)));
         if (ret == -1) {
             TraceL << "setsockopt TCP_KEEPCNT failed";
         }
