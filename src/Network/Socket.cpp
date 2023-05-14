@@ -222,7 +222,12 @@ void Socket::onConnected(int sock, const onErrCB &cb) {
         return;
     }
 
-    SockNum::setConnected(sock);
+    {
+        LOCK_GUARD(_mtx_sock_fd);
+        if (_sock_fd) {
+            _sock_fd->setConnected();
+        }
+    }
     // 连接成功
     cb(err);
 }
