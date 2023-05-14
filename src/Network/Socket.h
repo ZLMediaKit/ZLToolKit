@@ -139,7 +139,9 @@ public:
     }
 
     void setConnected() {
-        setConnected(_fd);
+#if defined (OS_IPHONE)
+        setSocketOfIOS(_fd);
+#endif //OS_IPHONE
     }
 
 #if defined (OS_IPHONE)
