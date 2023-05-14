@@ -142,12 +142,6 @@ public:
         setConnected(_fd);
     }
 
-    static void setConnected(int fd) {
-#if defined(OS_IPHONE)
-        setSocketOfIOS(_fd);
-#endif // OS_IPHONE
-    }
-
 #if defined (OS_IPHONE)
 private:
     void *readStream=nullptr;
