@@ -36,6 +36,7 @@ documentation and/or software.
 
 #include <string>
 #include <iostream>
+#include <cstdint>
 
 namespace toolkit {
 
