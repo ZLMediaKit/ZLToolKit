@@ -17,6 +17,7 @@
 #include <exception>
 #include <functional>
 #include <unordered_map>
+#include <stdexcept>
 #include "function_traits.h"
 
 namespace toolkit {
