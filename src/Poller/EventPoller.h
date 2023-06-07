@@ -179,6 +179,11 @@ private:
      */
     uint64_t getMinDelay();
 
+    /**
+     * 添加管道监听事件
+     */
+    void addEventPipe();
+
 private:
     class ExitException : public std::exception {};
 

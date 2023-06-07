@@ -31,6 +31,11 @@ using namespace std;
 namespace toolkit {
 
 PipeWrap::PipeWrap() {
+    reOpen();
+}
+
+void PipeWrap::reOpen() {
+    clearFD();
 #if defined(_WIN32)
     const char *localip = SockUtil::support_ipv6() ? "::1" : "127.0.0.1";
     auto listener_fd = SockUtil::listen(0, localip);
@@ -48,7 +53,7 @@ PipeWrap::PipeWrap() {
     if (pipe(_pipe_fd) == -1) {
         throw runtime_error(StrPrinter << "Create posix pipe failed: " << get_uv_errmsg());
     }
-#endif // defined(_WIN32)	
+#endif // defined(_WIN32)
     SockUtil::setNoBlocked(_pipe_fd[0], true);
     SockUtil::setNoBlocked(_pipe_fd[1], false);
     SockUtil::setCloExec(_pipe_fd[0]);
