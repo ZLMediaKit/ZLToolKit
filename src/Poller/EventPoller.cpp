@@ -226,7 +226,7 @@ inline void EventPoller::onPipeEvent() {
             continue;
         }
         err = get_uv_error(true);
-    } while (err != UV_EAGAIN);
+    } while (err == UV_EINTR);
 
     decltype(_list_task) _list_swap;
     {
