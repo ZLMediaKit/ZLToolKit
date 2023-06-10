@@ -49,11 +49,19 @@ EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
 
+void EventPoller::addEventPipe() {
+    SockUtil::setNoBlocked(_pipe.readFD());
+    SockUtil::setNoBlocked(_pipe.writeFD());
+
+    // 添加内部管道事件
+    if (addEvent(_pipe.readFD(), EventPoller::Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
+        throw std::runtime_error("Add pipe fd to poller failed");
+    }
+}
+
 EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
     _name = std::move(name);
     _priority = priority;
-    SockUtil::setNoBlocked(_pipe.readFD());
-    SockUtil::setNoBlocked(_pipe.writeFD());
 
 #if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
@@ -64,11 +72,7 @@ EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
 #endif //HAS_EPOLL
     _logger = Logger::Instance().shared_from_this();
     _loop_thread_id = this_thread::get_id();
-
-    //添加内部管道事件
-    if (addEvent(_pipe.readFD(), Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
-        throw std::runtime_error("Add pipe fd to poller failed");
-    }
+    addEventPipe();
 }
 
 void EventPoller::shutdown() {
@@ -221,12 +225,20 @@ bool EventPoller::isCurrentThread() {
 inline void EventPoller::onPipeEvent() {
     char buf[1024];
     int err = 0;
-    do {
-        if (_pipe.read(buf, sizeof(buf)) > 0) {
+    while (true) {
+        if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
+            // 读到管道数据,继续读,直到读空为止
             continue;
         }
-        err = get_uv_error(true);
-    } while (err == UV_EINTR);
+        if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
+            // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道
+            ErrorL << "Invalid pipe fd of event poller, reopen it";
+            delEvent(_pipe.readFD());
+            _pipe.reOpen();
+            addEventPipe();
+        }
+        break;
+    }
 
     decltype(_list_task) _list_swap;
     {
