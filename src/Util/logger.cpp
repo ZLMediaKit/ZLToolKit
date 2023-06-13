@@ -622,7 +622,7 @@ void FileChannel::setFileMaxCount(size_t max_count) {
 void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
     LogContextCapture info(logger, (LogLevel) level, file, function, line);
     char *str = nullptr;
-    if (vasprintf(&str, fmt, ap) > 0 && str) {
+    if (str && vasprintf(&str, fmt, ap) > 0) {
         info << str;
         free(str);
     }
