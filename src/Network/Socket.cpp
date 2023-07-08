@@ -806,6 +806,11 @@ int Socket::rawFD() const {
     return _sock_fd->rawFd();
 }
 
+bool Socket::alive() const {
+    LOCK_GUARD(_mtx_sock_fd);
+    return _sock_fd && !_err_emit;
+}
+
 SockNum::SockType Socket::sockType() const {
     LOCK_GUARD(_mtx_sock_fd);
     if (!_sock_fd) {

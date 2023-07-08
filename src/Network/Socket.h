@@ -422,6 +422,12 @@ public:
     int rawFD() const;
 
     /**
+     * tcp客户端是否处于连接状态
+     * 支持Sock_TCP类型socket
+     */
+    bool alive() const;
+
+    /**
      * 返回socket类型
      */
     SockNum::SockType sockType() const;

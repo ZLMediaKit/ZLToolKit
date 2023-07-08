@@ -41,7 +41,7 @@ bool TcpClient::alive() const {
     //在websocket client(zlmediakit)相关代码中，
     //_timer一直为空，但是socket fd有效，alive状态也应该返回true
     auto sock = getSock();
-    return sock && sock->rawFD() >= 0;
+    return sock && sock->alive();
 }
 
 void TcpClient::setNetAdapter(const string &local_ip) {
