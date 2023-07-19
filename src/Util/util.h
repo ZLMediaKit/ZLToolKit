@@ -264,7 +264,7 @@ bool end_with(const std::string &str, const std::string &substr);
 //拼接格式字符串
 template<typename... Args>
 std::string str_format(const std::string &format, Args... args) {
-#if __cplusplus > 202002L
+#if __cpp_lib_format
     return std::format(format, args...);
 #else
     // Calculate the buffer size
