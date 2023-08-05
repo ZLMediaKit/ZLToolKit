@@ -353,7 +353,12 @@ ssize_t Socket::send(string buf, struct sockaddr *addr, socklen_t addr_len, bool
 
 ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len, bool try_flush) {
     if (!addr) {
-        return send_l(std::move(buf), false, try_flush);
+        if (!_udp_send_dst) {
+            return send_l(std::move(buf), false, try_flush);
+        }
+        // 本次发送未指定目标地址，但是目标定制已通过bindPeerAddr指定
+        addr = (struct sockaddr *)_udp_send_dst.get();
+        addr_len = SockUtil::get_sock_len(addr);
     }
     return send_l(std::make_shared<BufferSock>(std::move(buf), addr, addr_len), true, try_flush);
 }
@@ -864,7 +869,7 @@ bool Socket::cloneSocket(const Socket &other) {
     return true;
 }
 
-bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
+bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len, bool soft_bind) {
     LOCK_GUARD(_mtx_sock_fd);
     if (!_sock_fd) {
         return false;
@@ -872,9 +877,18 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len) {
     if (_sock_fd->type() != SockNum::Sock_UDP) {
         return false;
     }
-    if (-1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len ? addr_len : SockUtil::get_sock_len(dst_addr))) {
-        WarnL << "Connect socket to peer address failed: " << SockUtil::inet_ntoa(dst_addr);
-        return false;
+    addr_len = addr_len ? addr_len : SockUtil::get_sock_len(dst_addr);
+    if (soft_bind) {
+        // 软绑定，只保存地址
+        _udp_send_dst = std::make_shared<struct sockaddr_storage>();
+        memcpy(_udp_send_dst.get(), dst_addr, addr_len);
+    } else {
+        // 硬绑定后，取消软绑定，防止memcpy目标地址的性能损失
+        _udp_send_dst = nullptr;
+        if (-1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len)) {
+            WarnL << "Connect socket to peer address failed: " << SockUtil::inet_ntoa(dst_addr);
+            return false;
+        }
     }
     return true;
 }
