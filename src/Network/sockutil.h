@@ -39,9 +39,6 @@ namespace toolkit {
 #ifndef socklen_t
 #define socklen_t int
 #endif //!socklen_t
-#ifndef SHUT_RDWR
-#define SHUT_RDWR 2
-#endif //!SHUT_RDWR
 int ioctl(int fd, long cmd, u_long *ptr);
 int close(int fd);
 #endif // defined(_WIN32)

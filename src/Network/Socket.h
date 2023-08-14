@@ -126,7 +126,7 @@ public:
         unsetSocketOfIOS(_fd);
 #endif //OS_IPHONE
         // 停止socket收发能力
-        ::shutdown(_fd, SHUT_RDWR);
+        ::shutdown(_fd, SD_BOTH);
         close(_fd);
     }
 
