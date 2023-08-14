@@ -613,6 +613,8 @@ int Socket::onAccept(int sock, int event) noexcept {
 void Socket::setPeerSock(int fd, SockNum::SockType type) {
     LOCK_GUARD(_mtx_sock_fd);
     _sock_fd = makeSock(fd, type);
+    SockUtil::get_sock_local_addr(fd,_local_addr);
+    SockUtil::get_sock_peer_addr(fd,_peer_addr);
 }
 
 string Socket::get_local_ip() {
@@ -620,7 +622,7 @@ string Socket::get_local_ip() {
     if (!_sock_fd) {
         return "";
     }
-    return SockUtil::get_local_ip(_sock_fd->rawFd());
+    return SockUtil::inet_ntoa((struct sockaddr *)&_local_addr);
 }
 
 uint16_t Socket::get_local_port() {
@@ -628,7 +630,7 @@ uint16_t Socket::get_local_port() {
     if (!_sock_fd) {
         return 0;
     }
-    return SockUtil::get_local_port(_sock_fd->rawFd());
+    return SockUtil::inet_port((struct sockaddr *)&_local_addr);
 }
 
 string Socket::get_peer_ip() {
@@ -636,7 +638,10 @@ string Socket::get_peer_ip() {
     if (!_sock_fd) {
         return "";
     }
-    return SockUtil::get_peer_ip(_sock_fd->rawFd());
+    if(_udp_send_dst){
+        return SockUtil::inet_ntoa((struct sockaddr *)_udp_send_dst.get());
+    }
+    return SockUtil::inet_ntoa((struct sockaddr *)&_peer_addr);
 }
 
 uint16_t Socket::get_peer_port() {
@@ -644,7 +649,10 @@ uint16_t Socket::get_peer_port() {
     if (!_sock_fd) {
         return 0;
     }
-    return SockUtil::get_peer_port(_sock_fd->rawFd());
+    if(_udp_send_dst){
+        return SockUtil::inet_port((struct sockaddr *)_udp_send_dst.get());
+    }
+    return SockUtil::inet_port((struct sockaddr *)&_peer_addr);
 }
 
 string Socket::getIdentifier() const {
