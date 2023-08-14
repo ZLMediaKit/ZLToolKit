@@ -576,6 +576,11 @@ private:
     BufferList::SendResult _send_result;
     //对象个数统计
     ObjectStatistic<Socket> _statistic;
+
+    //链接缓存地址,防止tcp reset 导致无法获取对端的地址
+    struct sockaddr_storage _local_addr;
+    struct sockaddr_storage _peer_addr;
+
 };
 
 class SockSender {
