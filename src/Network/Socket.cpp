@@ -897,6 +897,7 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len, b
             WarnL << "Connect socket to peer address failed: " << SockUtil::inet_ntoa(dst_addr);
             return false;
         }
+        memcpy(&_peer_addr, dst_addr, addr_len);
     }
     return true;
 }
