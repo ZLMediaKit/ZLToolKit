@@ -533,10 +533,12 @@ bool Socket::fromSock_l(int fd, SockNum::SockType type) {
 
 int Socket::onAccept(int sock, int event) noexcept {
     int fd;
+    socklen_t addr_len;
+    struct sockaddr_storage peer_addr;
     while (true) {
         if (event & EventPoller::Event_Read) {
             do {
-                fd = (int)accept(sock, nullptr, nullptr);
+                fd = (int)accept(sock, (struct sockaddr *)&peer_addr, &addr_len);
             } while (-1 == fd && UV_EINTR == get_uv_error(true));
 
             if (fd == -1) {
@@ -578,6 +580,9 @@ int Socket::onAccept(int sock, int event) noexcept {
 
             // 设置好fd,以备在onAccept事件中可以正常访问该fd
             peer_sock->setPeerSock(fd, SockNum::Sock_TCP);
+            // 赋值peer ip，防止在执行setPeerSock时，fd已经被reset断开
+            memcpy(&peer_sock->_peer_addr, &peer_addr, addr_len);
+
             shared_ptr<void> completed(nullptr, [peer_sock, fd](void *) {
                 try {
                     // 然后把该fd加入poll监听(确保先触发onAccept事件然后再触发onRead等事件)
