@@ -533,8 +533,8 @@ bool Socket::fromSock_l(int fd, SockNum::SockType type) {
 
 int Socket::onAccept(int sock, int event) noexcept {
     int fd;
-    socklen_t addr_len;
     struct sockaddr_storage peer_addr;
+    socklen_t addr_len = sizeof(peer_addr);
     while (true) {
         if (event & EventPoller::Event_Read) {
             do {
