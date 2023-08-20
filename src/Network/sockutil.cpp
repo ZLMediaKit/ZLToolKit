@@ -131,7 +131,7 @@ std::string SockUtil::inet_ntoa(const struct sockaddr *addr) {
             }
             return SockUtil::inet_ntoa(((struct sockaddr_in6 *)addr)->sin6_addr);
         }
-        default: assert(false); return "";
+        default: return "";
     }
 }
 
@@ -139,7 +139,7 @@ uint16_t SockUtil::inet_port(const struct sockaddr *addr) {
     switch (addr->sa_family) {
         case AF_INET: return ntohs(((struct sockaddr_in *)addr)->sin_port);
         case AF_INET6: return ntohs(((struct sockaddr_in6 *)addr)->sin6_port);
-        default: assert(false); return 0;
+        default: return 0;
     }
 }
 
@@ -390,7 +390,7 @@ bool SockUtil::getDomainIP(const char *host, uint16_t port, struct sockaddr_stor
         switch (addr.ss_family ) {
             case AF_INET : ((sockaddr_in *) &addr)->sin_port = htons(port); break;
             case AF_INET6 : ((sockaddr_in6 *) &addr)->sin6_port = htons(port); break;
-            default: assert(0); break;
+            default: break;
         }
     }
     return flag;
@@ -447,7 +447,7 @@ static int bind_sock(int fd, const char *ifr_ip, uint16_t port, int family) {
     switch (family) {
         case AF_INET: return bind_sock4(fd, ifr_ip, port);
         case AF_INET6: return bind_sock6(fd, ifr_ip, port);
-        default: assert(0); return -1;
+        default: return -1;
     }
 }
 
