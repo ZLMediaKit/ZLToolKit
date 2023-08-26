@@ -192,12 +192,17 @@ size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int pri
     size = size > 0 ? size : cpus;
     for (size_t i = 0; i < size; ++i) {
         auto full_name = name + " " + to_string(i);
-        EventPoller::Ptr poller(new EventPoller(full_name, (ThreadPool::Priority) priority));
+        auto cpu_index = i % cpus;
+        EventPoller::Ptr poller(new EventPoller(full_name));
         poller->runLoop(false, register_thread);
-        poller->async([i, cpus, full_name, enable_cpu_affinity]() {
+        poller->async([cpu_index, full_name, priority, enable_cpu_affinity]() {
+            // 设置线程优先级
+            ThreadPool::setPriority((ThreadPool::Priority)priority);
+            // 设置线程名
             setThreadName(full_name.data());
+            // 设置cpu亲和性
             if (enable_cpu_affinity) {
-                setThreadAffinity(i % cpus);
+                setThreadAffinity(cpu_index);
             }
         });
         _threads.emplace_back(std::move(poller));

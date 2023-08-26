@@ -123,7 +123,7 @@ public:
     /**
      * 获取poller线程id
      */
-    const std::thread::id& getThreadId() const;
+    std::thread::id getThreadId() const;
 
     /**
      * 获取线程名
@@ -134,7 +134,7 @@ private:
     /**
      * 本对象只允许在EventPollerPool中构造
      */
-    EventPoller(std::string name, ThreadPool::Priority priority = ThreadPool::PRIORITY_HIGHEST);
+    EventPoller(std::string name);
 
     /**
      * 执行事件轮询
@@ -156,12 +156,6 @@ private:
      * @return 可取消的任务本体，如果已经同步执行，则返回nullptr
      */
     Task::Ptr async_l(TaskIn task, bool may_sync = true, bool first = false);
-
-    /**
-     * 阻塞当前线程，等待轮询线程退出;
-     * 在执行shutdown接口时本函数会退出
-     */
-    void wait();
 
     /**
      * 结束事件轮询
@@ -194,14 +188,8 @@ private:
     std::string _name;
     //当前线程下，所有socket共享的读缓存
     std::weak_ptr<BufferRaw> _shared_buffer;
-    //线程优先级
-    ThreadPool::Priority _priority;
-    //正在运行事件循环时该锁处于被锁定状态
-    std::mutex _mtx_running;
     //执行事件循环的线程
     std::thread *_loop_thread = nullptr;
-    //事件循环的线程id
-    std::thread::id _loop_thread_id;
     //通知事件循环的线程已启动
     semaphore _sem_run_started;
 

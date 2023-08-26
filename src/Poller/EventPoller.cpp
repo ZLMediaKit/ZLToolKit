@@ -59,10 +59,8 @@ void EventPoller::addEventPipe() {
     }
 }
 
-EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
+EventPoller::EventPoller(std::string name) {
     _name = std::move(name);
-    _priority = priority;
-
 #if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
@@ -71,7 +69,6 @@ EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
     SockUtil::setCloExec(_epoll_fd);
 #endif //HAS_EPOLL
     _logger = Logger::Instance().shared_from_this();
-    _loop_thread_id = this_thread::get_id();
     addEventPipe();
 }
 
@@ -90,7 +87,6 @@ void EventPoller::shutdown() {
 
 EventPoller::~EventPoller() {
     shutdown();
-    wait();
 #if defined(HAS_EPOLL)
     if (_epoll_fd != -1) {
         close(_epoll_fd);
@@ -98,7 +94,6 @@ EventPoller::~EventPoller() {
     }
 #endif //defined(HAS_EPOLL)
     //退出前清理管道中的数据
-    _loop_thread_id = this_thread::get_id();
     onPipeEvent();
     InfoL << this;
 }
@@ -219,7 +214,7 @@ Task::Ptr EventPoller::async_l(TaskIn task, bool may_sync, bool first) {
 }
 
 bool EventPoller::isCurrentThread() {
-    return _loop_thread_id == this_thread::get_id();
+    return !_loop_thread || _loop_thread->get_id() == this_thread::get_id();
 }
 
 inline void EventPoller::onPipeEvent() {
@@ -257,10 +252,6 @@ inline void EventPoller::onPipeEvent() {
     });
 }
 
-void EventPoller::wait() {
-    lock_guard<mutex> lck(_mtx_running);
-}
-
 BufferRaw::Ptr EventPoller::getSharedBuffer() {
     auto ret = _shared_buffer.lock();
     if (!ret) {
@@ -272,8 +263,8 @@ BufferRaw::Ptr EventPoller::getSharedBuffer() {
     return ret;
 }
 
-const thread::id& EventPoller::getThreadId() const {
-    return _loop_thread_id;
+thread::id EventPoller::getThreadId() const {
+    return _loop_thread ? _loop_thread->get_id() : thread::id();
 }
 
 const std::string& EventPoller::getThreadName() const {
@@ -289,9 +280,6 @@ EventPoller::Ptr EventPoller::getCurrentPoller() {
 
 void EventPoller::runLoop(bool blocked, bool ref_self) {
     if (blocked) {
-        ThreadPool::setPriority(_priority);
-        lock_guard<mutex> lck(_mtx_running);
-        _loop_thread_id = this_thread::get_id();
         if (ref_self) {
             s_current_poller = shared_from_this();
         }
