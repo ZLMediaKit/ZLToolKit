@@ -214,6 +214,10 @@ public:
         return _num->type();
     }
 
+    const EventPoller::Ptr& getPoller() const {
+        return _poller;
+    }
+
 private:
     SockNum::Ptr _num;
     EventPoller::Ptr _poller;
@@ -505,7 +509,7 @@ public:
 private:
     SockFD::Ptr cloneSockFD(const Socket &other);
     SockFD::Ptr makeSock(int sock, SockNum::SockType type);
-    void setPeerSock(int fd, SockNum::SockType type);
+    void setSock(SockFD::Ptr fd);
     int onAccept(int sock, int event) noexcept;
     ssize_t onRead(int sock, SockNum::SockType type, const BufferRaw::Ptr &buffer) noexcept;
     void onWriteAble(int sock, SockNum::SockType type);
@@ -513,12 +517,11 @@ private:
     void onFlushed();
     void startWriteAbleEvent(int sock);
     void stopWriteAbleEvent(int sock);
-    bool listen(const SockFD::Ptr &sock);
     bool flushData(int sock, SockNum::SockType type, bool poller_thread);
     bool attachEvent(int sock, SockNum::SockType type);
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
-    bool fromSock_l(int fd, SockNum::SockType type);
+    bool fromSock_l(SockFD::Ptr sock);
 
 private:
     //send socket时的flag
