@@ -410,6 +410,13 @@ public:
         return *this;
     }
 
+    std::string type_name() const {
+        if (!_type) {
+            return "";
+        }
+        return demangle(_type->name());
+    }
+
 private:
     const std::type_info* _type = nullptr;
     std::shared_ptr<void> _data;
