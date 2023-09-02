@@ -90,7 +90,8 @@ private:
 
 private:
     bool _is_on_manager = false;
-    const TcpServer *_parent = nullptr;
+    bool _main_server = true;
+    std::weak_ptr<TcpServer> _parent;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
     Socket::onCreateSocket _on_create_socket;

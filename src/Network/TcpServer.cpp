@@ -45,7 +45,7 @@ void TcpServer::setupEvent() {
 }
 
 TcpServer::~TcpServer() {
-    if (!_parent && _socket && _socket->rawFD() != -1) {
+    if (_main_server && _socket && _socket->rawFD() != -1) {
         InfoL << "Close tcp server [" << _socket->get_local_ip() << "]: " << _socket->get_local_port();
     }
     _timer.reset();
@@ -90,6 +90,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
         throw std::invalid_argument("TcpServer::cloneFrom other with null socket");
     }
     setupEvent();
+    _main_server = false;
     _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
     _socket->cloneSocket(*(that._socket));
@@ -103,7 +104,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
         return true;
     }, _poller);
     this->mINI::operator=(that);
-    _parent = &that;
+    _parent = static_pointer_cast<TcpServer>(const_cast<TcpServer &>(that).shared_from_this());
 }
 
 // 接收到客户端连接请求
@@ -237,15 +238,15 @@ Socket::Ptr TcpServer::createSocket(const EventPoller::Ptr &poller) {
 }
 
 TcpServer::Ptr TcpServer::getServer(const EventPoller *poller) const {
-    auto &ref = _parent ? _parent->_cloned_server : _cloned_server;
+    auto parent = _parent.lock();
+    auto &ref = parent ? parent->_cloned_server : _cloned_server;
     auto it = ref.find(poller);
     if (it != ref.end()) {
         //派发到cloned server
         return it->second;
     }
     //派发到parent server
-    return static_pointer_cast<TcpServer>(_parent ? const_cast<TcpServer *>(_parent)->shared_from_this() :
-                                          const_cast<TcpServer *>(this)->shared_from_this());
+    return static_pointer_cast<TcpServer>(parent ? parent : const_cast<TcpServer *>(this)->shared_from_this());
 }
 
 Session::Ptr TcpServer::createSession(const Socket::Ptr &sock) {
