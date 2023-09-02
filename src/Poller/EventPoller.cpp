@@ -466,7 +466,7 @@ const std::string EventPollerPool::kOnStarted = "kBroadcastEventPollerPoolStarte
 
 EventPollerPool::EventPollerPool() {
     auto size = addPoller("event poller", s_pool_size, ThreadPool::PRIORITY_HIGHEST, true, s_enable_cpu_affinity);
-    NoticeCenter::Instance().emitEvent(kOnStarted, *this, size);
+    NOTICE_EMIT(EventPollerPoolOnStartedArgs, kOnStarted, *this, size);
     InfoL << "EventPoller created size: " << size;
 }
 

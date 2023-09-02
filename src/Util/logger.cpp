@@ -271,7 +271,7 @@ void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     if (_level > ctx->_level) {
         return;
     }
-    NoticeCenter::Instance().emitEvent(kBroadcastLogEvent, logger, ctx);
+    NOTICE_EMIT(BroadcastLogEventArgs, kBroadcastLogEvent, logger, ctx);
 }
 
 ///////////////////ConsoleChannel///////////////////

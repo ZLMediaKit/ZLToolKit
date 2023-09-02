@@ -225,6 +225,8 @@ class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, pu
 public:
     using Ptr = std::shared_ptr<EventPollerPool>;
     static const std::string kOnStarted;
+    #define EventPollerPoolOnStartedArgs EventPollerPool &pool, size_t &size
+
     ~EventPollerPool() = default;
 
     /**

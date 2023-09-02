@@ -18,6 +18,7 @@
 #include <functional>
 #include <unordered_map>
 #include <stdexcept>
+#include "util.h"
 #include "function_traits.h"
 
 namespace toolkit {
@@ -30,32 +31,30 @@ public:
     ~EventDispatcher() = default;
 
 private:
-    using MapType = std::unordered_multimap<void *, std::shared_ptr<void> >;
+    using MapType = std::unordered_multimap<void *, Any>;
 
     EventDispatcher() = default;
 
     class InterruptException : public std::runtime_error {
     public:
         InterruptException() : std::runtime_error("InterruptException") {}
-
         ~InterruptException() {}
     };
 
-    template<typename ...ArgsType>
-    int emitEvent(ArgsType &&...args) {
-        using funType = std::function<void(decltype(std::forward<ArgsType>(args))...)>;
+    template <typename... ArgsType>
+    int emitEvent(bool safe, ArgsType &&...args) {
+        using stl_func = std::function<void(decltype(std::forward<ArgsType>(args))...)>;
         decltype(_mapListener) copy;
         {
-            //先拷贝(开销比较小)，目的是防止在触发回调时还是上锁状态从而导致交叉互锁
+            // 先拷贝(开销比较小)，目的是防止在触发回调时还是上锁状态从而导致交叉互锁
             std::lock_guard<std::recursive_mutex> lck(_mtxListener);
             copy = _mapListener;
         }
 
         int ret = 0;
         for (auto &pr : copy) {
-            funType *obj = (funType *) (pr.second.get());
             try {
-                (*obj)(std::forward<ArgsType>(args)...);
+                pr.second.get<stl_func>(safe)(std::forward<ArgsType>(args)...);
                 ++ret;
             } catch (InterruptException &) {
                 ++ret;
@@ -65,15 +64,13 @@ private:
         return ret;
     }
 
-    template<typename FUNC>
+    template <typename FUNC>
     void addListener(void *tag, FUNC &&func) {
-        using funType = typename function_traits<typename std::remove_reference<FUNC>::type>::stl_function_type;
-        std::shared_ptr<void> pListener(new funType(std::forward<FUNC>(func)), [](void *ptr) {
-            funType *obj = (funType *) ptr;
-            delete obj;
-        });
+        using stl_func = typename function_traits<typename std::remove_reference<FUNC>::type>::stl_function_type;
+        Any listener;
+        listener.set<stl_func>(std::forward<FUNC>(func));
         std::lock_guard<std::recursive_mutex> lck(_mtxListener);
-        _mapListener.emplace(tag, pListener);
+        _mapListener.emplace(tag, listener);
     }
 
     void delListener(void *tag, bool &empty) {
@@ -93,17 +90,17 @@ public:
 
     static NoticeCenter &Instance();
 
-    template<typename ...ArgsType>
-    int emitEvent(const std::string &strEvent, ArgsType &&...args) {
-        auto dispatcher = getDispatcher(strEvent);
-        if (!dispatcher) {
-            //该事件无人监听
-            return 0;
-        }
-        return dispatcher->emitEvent(std::forward<ArgsType>(args)...);
+    template <typename... ArgsType>
+    int emitEvent(const std::string &event, ArgsType &&...args) {
+        return emitEvent_l(false, event, std::forward<ArgsType>(args)...);
     }
 
-    template<typename FUNC>
+    template <typename... ArgsType>
+    int emitEventSafe(const std::string &event, ArgsType &&...args) {
+        return emitEvent_l(true, event, std::forward<ArgsType>(args)...);
+    }
+
+    template <typename FUNC>
     void addListener(void *tag, const std::string &event, FUNC &&func) {
         getDispatcher(event, true)->addListener(tag, std::forward<FUNC>(func));
     }
@@ -111,7 +108,7 @@ public:
     void delListener(void *tag, const std::string &event) {
         auto dispatcher = getDispatcher(event);
         if (!dispatcher) {
-            //不存在该事件
+            // 不存在该事件
             return;
         }
         bool empty;
@@ -121,7 +118,7 @@ public:
         }
     }
 
-    //这个方法性能比较差
+    // 这个方法性能比较差
     void delListener(void *tag) {
         std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         bool empty;
@@ -141,6 +138,16 @@ public:
     }
 
 private:
+    template <typename... ArgsType>
+    int emitEvent_l(bool safe, const std::string &event, ArgsType &&...args) {
+        auto dispatcher = getDispatcher(event);
+        if (!dispatcher) {
+            // 该事件无人监听
+            return 0;
+        }
+        return dispatcher->emitEvent(safe, std::forward<ArgsType>(args)...);
+    }
+
     EventDispatcher::Ptr getDispatcher(const std::string &event, bool create = false) {
         std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         auto it = _mapListener.find(event);
@@ -148,7 +155,7 @@ private:
             return it->second;
         }
         if (create) {
-            //如果为空则创建一个
+            // 如果为空则创建一个
             EventDispatcher::Ptr dispatcher(new EventDispatcher());
             _mapListener.emplace(event, dispatcher);
             return dispatcher;
@@ -160,7 +167,7 @@ private:
         std::lock_guard<std::recursive_mutex> lck(_mtxListener);
         auto it = _mapListener.find(event);
         if (it != _mapListener.end() && dispatcher == it->second) {
-            //两者相同则删除
+            // 两者相同则删除
             _mapListener.erase(it);
         }
     }
@@ -169,6 +176,25 @@ private:
     std::recursive_mutex _mtxListener;
     std::unordered_map<std::string, EventDispatcher::Ptr> _mapListener;
 };
+
+template <typename T>
+struct NoticeHelper;
+
+template <typename RET, typename... Args>
+struct NoticeHelper<RET(Args...)> {
+public:
+    template <typename... ArgsType>
+    static int emit(const std::string &event, ArgsType &&...args) {
+        return emit(NoticeCenter::Instance(), event, std::forward<ArgsType>(args)...);
+    }
+
+    template <typename... ArgsType>
+    static int emit(NoticeCenter &center, const std::string &event, ArgsType &&...args) {
+        return center.emitEventSafe(event, std::forward<Args>(args)...);
+    }
+};
+
+#define NOTICE_EMIT(types, ...) NoticeHelper<void(types)>::emit(__VA_ARGS__)
 
 } /* namespace toolkit */
 #endif /* SRC_UTIL_NOTICECENTER_H_ */
