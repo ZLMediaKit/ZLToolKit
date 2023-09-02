@@ -347,6 +347,19 @@ public:
     Any() = default;
     ~Any() = default;
 
+    Any(const Any &that) = default;
+    Any(Any &&that) {
+        _type = that._type;
+        _data = std::move(that._data);
+    }
+
+    Any &operator=(const Any &that) = default;
+    Any &operator=(Any &&that) {
+        _type = that._type;
+        _data = std::move(that._data);
+        return *this;
+    }
+
     template <typename T, typename... ArgsType>
     void set(ArgsType &&...args) {
         _type = &typeid(T);
@@ -376,7 +389,7 @@ public:
 
     template <typename T>
     const T &get(bool safe = true) const {
-        return const_cast<Any &>(*this).template get<T>(safe);
+        return const_cast<Any &>(*this).get<T>(safe);
     }
 
     template <typename T>
@@ -398,7 +411,7 @@ public:
     }
 
 private:
-    const std::type_info* _type;
+    const std::type_info* _type = nullptr;
     std::shared_ptr<void> _data;
 };
 
