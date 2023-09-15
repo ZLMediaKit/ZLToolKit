@@ -174,6 +174,7 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
                 strong_self->onConnected(sock, con_cb);
             } else {
                 CLOSE_SOCK(sock);
+            }
         });
 
         if (result == -1) {
