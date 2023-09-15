@@ -179,6 +179,7 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
         });
 
         if (result == -1) {
+            CLOSE_SOCK(sock);
             con_cb(SockException(Err_other, "add event to poller failed when start connect"));
         }
     });
