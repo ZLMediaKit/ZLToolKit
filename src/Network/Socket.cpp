@@ -166,16 +166,19 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
             return;
         }
 
-        strong_self->setSock(strong_self->makeSock(sock, SockNum::Sock_TCP));
         // 监听该socket是否可写，可写表明已经连接服务器成功
         int result = strong_self->_poller->addEvent(sock, EventPoller::Event_Write, [weak_self, sock, con_cb](int event) {
             if (auto strong_self = weak_self.lock()) {
-                // socket可写事件，说明已经连接服务器成功
+                 // socket可写事件，说明已经连接服务器成功
+                strong_self->setSock(strong_self->makeSock(sock, SockNum::Sock_TCP));
                 strong_self->onConnected(sock, con_cb);
+            } else {
+                CLOSE_SOCK(sock);
             }
         });
 
         if (result == -1) {
+            CLOSE_SOCK(sock);
             con_cb(SockException(Err_other, "add event to poller failed when start connect"));
         }
     });
