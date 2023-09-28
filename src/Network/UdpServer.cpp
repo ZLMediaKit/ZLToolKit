@@ -124,9 +124,9 @@ void UdpServer::cloneFrom(const UdpServer &that) {
     _session_map = that._session_map;
     // clone udp socket
 #if 0
-     _socket->cloneFromPeerSocket(*(that._socket));
+     _socket->cloneSocket(*(that._socket));
 #else
-    // 实验发现cloneFromPeerSocket方式虽然可以节省fd资源，但是在某些系统上线程漂移问题更严重
+    // 实验发现cloneSocket方式虽然可以节省fd资源，但是在某些系统上线程漂移问题更严重
     _socket->bindUdpSock(that._socket->get_local_port(), that._socket->get_local_ip());
 #endif
     // clone properties
@@ -220,7 +220,8 @@ Session::Ptr UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, cons
 static Session::Ptr s_null_session;
 
 Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
-    auto socket = createSocket(_poller, buf, addr, addr_len);
+    // 此处改成自定义获取poller对象，防止负载不均衡
+    auto socket = createSocket(EventPollerPool::Instance().getPoller(false), buf, addr, addr_len);
     if (!socket) {
         //创建socket失败，本次onRead事件收到的数据直接丢弃
         return s_null_session;
