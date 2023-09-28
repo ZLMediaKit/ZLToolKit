@@ -117,11 +117,14 @@ void UdpServer::cloneFrom(const UdpServer &that) {
         throw std::invalid_argument("UdpServer::cloneFrom other with null socket");
     }
     setupEvent();
+    _cloned = true;
     // clone callbacks
     _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
     _session_mutex = that._session_mutex;
     _session_map = that._session_map;
+    // clone properties
+    this->mINI::operator=(that);
     // clone udp socket
 #if 0
      _socket->cloneSocket(*(that._socket));
@@ -129,9 +132,6 @@ void UdpServer::cloneFrom(const UdpServer &that) {
     // 实验发现cloneSocket方式虽然可以节省fd资源，但是在某些系统上线程漂移问题更严重
     _socket->bindUdpSock(that._socket->get_local_port(), that._socket->get_local_ip());
 #endif
-    // clone properties
-    this->mINI::operator=(that);
-    _cloned = true;
 }
 
 void UdpServer::onRead(const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {

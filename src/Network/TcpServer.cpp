@@ -93,7 +93,6 @@ void TcpServer::cloneFrom(const TcpServer &that) {
     _main_server = false;
     _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
-    _socket->cloneSocket(*(that._socket));
     weak_ptr<TcpServer> weak_self = std::static_pointer_cast<TcpServer>(shared_from_this());
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() -> bool {
         auto strong_self = weak_self.lock();
@@ -105,6 +104,7 @@ void TcpServer::cloneFrom(const TcpServer &that) {
     }, _poller);
     this->mINI::operator=(that);
     _parent = static_pointer_cast<TcpServer>(const_cast<TcpServer &>(that).shared_from_this());
+    _socket->cloneSocket(*(that._socket));
 }
 
 // 接收到客户端连接请求
