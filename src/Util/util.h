@@ -223,9 +223,7 @@ bool end_with(const std::string &str, const std::string &substr);
 //拼接格式字符串
 template<typename... Args>
 std::string str_format(const std::string &format, Args... args) {
-#if __cplusplus > 202002L
-    return std::format(format, args...);
-#else
+
     // Calculate the buffer size
     auto size_buf = snprintf(nullptr, 0, format.c_str(), args ...) + 1;
     // Allocate the buffer
@@ -244,7 +242,6 @@ std::string str_format(const std::string &format, Args... args) {
     auto result = snprintf(buf.get(), size_buf, format.c_str(), args ...);
     // Return the formatted string
     return std::string(buf.get(), buf.get() + result);
-#endif
 }
 
 #ifndef bzero
