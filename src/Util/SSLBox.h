@@ -74,6 +74,14 @@ public:
      */
     bool trustCertificate(X509 *cer, bool server_mode = false);
 
+    /**
+     * 根据虚拟主机获取SSL_CTX对象
+     * @param vhost 虚拟主机名
+     * @param server_mode 是否为服务器模式
+     * @return SSL_CTX对象
+     */
+    std::shared_ptr<SSL_CTX> getSSLCtx(const std::string &vhost, bool server_mode);
+
 private:
     SSL_Initor();
     ~SSL_Initor();
@@ -97,14 +105,6 @@ private:
      * @param ctx 对象指针
      */
     void setupCtx(SSL_CTX *ctx);
-
-    /**
-     * 根据虚拟主机获取SSL_CTX对象
-     * @param vhost 虚拟主机名
-     * @param server_mode 是否为服务器模式
-     * @return SSL_CTX对象
-     */
-    std::shared_ptr<SSL_CTX> getSSLCtx(const std::string &vhost, bool server_mode);
 
     std::shared_ptr<SSL_CTX> getSSLCtx_l(const std::string &vhost, bool server_mode);
 
