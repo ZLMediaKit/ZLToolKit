@@ -430,7 +430,7 @@ void Socket::onFlushed() {
 }
 
 void Socket::closeSock(bool close_fd) {
-    _sendable = true;
+    _sendable = false;
     _enable_recv = true;
     _enable_speed = false;
     _con_timer = nullptr;

@@ -531,7 +531,7 @@ private:
     //控制是否接收监听socket可读事件，关闭后可用于流量控制
     std::atomic<bool> _enable_recv {true};
     //标记该socket是否可写，socket写缓存满了就不可写
-    std::atomic<bool> _sendable {true};
+    std::atomic<bool> _sendable {false};
     //是否已经触发err回调了
     bool _err_emit = false;
     //是否启用网速统计
