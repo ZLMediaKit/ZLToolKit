@@ -86,11 +86,11 @@ public:
         }
         return true;
 #else
-        static int Min = sched_get_priority_min(SCHED_OTHER);
+        static int Min = sched_get_priority_min(SCHED_FIFO);
         if (Min == -1) {
             return false;
         }
-        static int Max = sched_get_priority_max(SCHED_OTHER);
+        static int Max = sched_get_priority_max(SCHED_FIFO);
         if (Max == -1) {
             return false;
         }
@@ -101,7 +101,7 @@ public:
         }
         struct sched_param params;
         params.sched_priority = Priorities[priority];
-        return pthread_setschedparam(threadId, SCHED_OTHER, &params) == 0;
+        return pthread_setschedparam(threadId, SCHED_FIFO, &params) == 0;
 #endif
     }
 
