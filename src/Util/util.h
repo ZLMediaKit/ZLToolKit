@@ -269,6 +269,10 @@ const char *strcasestr(const char *big, const char *little);
     #define strcasecmp _stricmp
 #endif
 
+#if !defined(strncasecmp)
+#define strncasecmp _strnicmp
+#endif
+
 #ifndef ssize_t
     #ifdef _WIN64
         #define ssize_t int64_t
