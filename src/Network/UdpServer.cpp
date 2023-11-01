@@ -74,11 +74,6 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
     //主server才创建session map，其他cloned server共享之
     _session_mutex = std::make_shared<std::recursive_mutex>();
     _session_map = std::make_shared<std::unordered_map<PeerIdType, SessionHelper::Ptr> >();
-    if (!_socket->bindUdpSock(port, host.c_str())) {
-        // udp 绑定端口失败, 可能是由于端口占用或权限问题
-        std::string err = (StrPrinter << "Bind udp socket on " << host << " " << port << " failed: " << get_uv_errmsg(true));
-        throw std::runtime_error(err);
-    }
 
     // 新建一个定时器定时管理这些 udp 会话,这些对象只由主server做超时管理，cloned server不管理
     std::weak_ptr<UdpServer> weak_self = std::static_pointer_cast<UdpServer>(shared_from_this());
@@ -105,6 +100,21 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
         }
     });
 
+    if (!_socket->bindUdpSock(port, host.c_str())) {
+        // udp 绑定端口失败, 可能是由于端口占用或权限问题
+        std::string err = (StrPrinter << "Bind udp socket on " << host << " " << port << " failed: " << get_uv_errmsg(true));
+        throw std::runtime_error(err);
+    }
+
+    for (auto &pr: _cloned_server) {
+        // 启动子Server
+#if 0
+        pr.second->_socket->cloneSocket(*_socket);
+#else
+        // 实验发现cloneSocket方式虽然可以节省fd资源，但是在某些系统上线程漂移问题更严重
+        pr.second->_socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
+#endif
+    }
     InfoL << "UDP server bind to [" << host << "]: " << port;
 }
 
@@ -125,13 +135,6 @@ void UdpServer::cloneFrom(const UdpServer &that) {
     _session_map = that._session_map;
     // clone properties
     this->mINI::operator=(that);
-    // clone udp socket
-#if 0
-     _socket->cloneSocket(*(that._socket));
-#else
-    // 实验发现cloneSocket方式虽然可以节省fd资源，但是在某些系统上线程漂移问题更严重
-    _socket->bindUdpSock(that._socket->get_local_port(), that._socket->get_local_ip());
-#endif
 }
 
 void UdpServer::onRead(const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
