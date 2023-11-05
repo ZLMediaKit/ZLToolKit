@@ -537,7 +537,7 @@ int Socket::onAccept(int sock, int event) noexcept {
                     return 0;
                 }
                 auto ex = toSockException(err);
-                emitErr(ex);
+                // emitErr(ex); https://github.com/ZLMediaKit/ZLMediaKit/issues/2946
                 ErrorL << "Accept socket failed: " << ex.what();
                 return -1;
             }
