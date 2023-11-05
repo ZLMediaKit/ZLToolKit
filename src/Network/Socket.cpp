@@ -167,7 +167,7 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
         }
 
         // 监听该socket是否可写，可写表明已经连接服务器成功
-        int result = strong_self->_poller->addEvent(sock, EventPoller::Event_Write, [weak_self, sock, con_cb](int event) {
+        int result = strong_self->_poller->addEvent(sock,  EventPoller::Event_Write | EventPoller::Event_Error, [weak_self, sock, con_cb](int event) {
             if (auto strong_self = weak_self.lock()) {
                  // socket可写事件，说明已经连接服务器成功
                 strong_self->setSock(strong_self->makeSock(sock, SockNum::Sock_TCP));
@@ -179,7 +179,7 @@ void Socket::connect_l(const string &url, uint16_t port, const onErrCB &con_cb_i
 
         if (result == -1) {
             CLOSE_SOCK(sock);
-            con_cb(SockException(Err_other, "add event to poller failed when start connect"));
+            con_cb(SockException(Err_other, std::string("add event to poller failed when start connect:") + get_uv_errmsg()));
         }
     });
 
@@ -531,6 +531,7 @@ int Socket::onAccept(int sock, int event) noexcept {
             } while (-1 == fd && UV_EINTR == get_uv_error(true));
 
             if (fd == -1) {
+                // accept失败
                 int err = get_uv_error(true);
                 if (err == UV_EAGAIN) {
                     // 没有新连接
@@ -539,7 +540,29 @@ int Socket::onAccept(int sock, int event) noexcept {
                 auto ex = toSockException(err);
                 // emitErr(ex); https://github.com/ZLMediaKit/ZLMediaKit/issues/2946
                 ErrorL << "Accept socket failed: " << ex.what();
+                if (err != UV_EMFILE && err != UV_ENFILE) {
+                    // 其他错误
+                    continue;
+                }
+                // 打开的文件描述符太多了
+#if defined(HAS_EPOLL)
+                // 边缘触发，还需要手动再触发accept事件
+                std::weak_ptr<Socket> weak_self = shared_from_this();
+                _poller->doDelayTask(100, [weak_self, sock, event]() {
+                    if (auto strong_self = weak_self.lock()) {
+                        // 100ms后再处理accept事件，说不定已经有空闲的fd
+                        strong_self->onAccept(sock, event);
+                    }
+                    return 0;
+                });
+                // 暂时不处理accept事件，等待100ms后手动触发onAccept(只有EAGAIN读空后才能通过epoll再次触发事件)
                 return -1;
+#else
+                // 水平触发；休眠10ms，防止无谓的accept失败
+                this_thread::sleep_for(std::chrono::milliseconds(10));
+                // 暂时不处理accept事件，由于是水平触发，下次还会再次自动进入onAccept函数
+                return -1;
+#endif
             }
 
             SockUtil::setNoSigpipe(fd);
