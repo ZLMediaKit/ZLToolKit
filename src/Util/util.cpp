@@ -623,7 +623,7 @@ string demangle(const char *mangled) {
     string out;
     if (status == 0 && demangled) { // Demangling succeeeded.
         out.append(demangled);
-        free(demangled);
+        delete [] demangled; // 开启asan后，用free会卡死
     } else {
         out.append(mangled);
     }

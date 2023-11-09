@@ -624,7 +624,7 @@ void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const
     char *str = nullptr;
     if (vasprintf(&str, fmt, ap) > 0 && str) {
         info << str;
-        free(str);
+        delete [] str; // 开启asan后，用free会卡死
     }
 }
 
