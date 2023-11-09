@@ -36,7 +36,7 @@ public:
 
     using Ptr = std::shared_ptr<EventPoller>;
     using PollEventCB = std::function<void(int event)>;
-    using PollDelCB = std::function<void(bool success)>;
+    using PollCompleteCB = std::function<void(bool success)>;
     using DelayTask = TaskCancelableImp<uint64_t(void)>;
 
     typedef enum {
@@ -70,7 +70,7 @@ public:
      * @param cb 删除成功回调functional
      * @return -1:失败，0:成功
      */
-    int delEvent(int fd, PollDelCB cb = nullptr);
+    int delEvent(int fd, PollCompleteCB cb = nullptr);
 
     /**
      * 修改监听事件类型
@@ -78,7 +78,7 @@ public:
      * @param event 事件类型，例如 Event_Read | Event_Write
      * @return -1:失败，0:成功
      */
-    int modifyEvent(int fd, int event);
+    int modifyEvent(int fd, int event, PollCompleteCB cb = nullptr);
 
     /**
      * 异步执行任务

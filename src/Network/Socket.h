@@ -173,8 +173,8 @@ public:
      * @param num 文件描述符，int数字
      * @param poller 事件监听器
      */
-    SockFD(int num, SockNum::SockType type, const EventPoller::Ptr &poller) {
-        _num = std::make_shared<SockNum>(num, type);
+    SockFD(SockNum::Ptr num, const EventPoller::Ptr &poller) {
+        _num = std::move(num);
         _poller = poller;
     }
 
@@ -208,6 +208,10 @@ public:
 
     int rawFd() const {
         return _num->rawFd();
+    }
+
+    SockNum::Ptr sockNum() const {
+        return _num;
     }
 
     SockNum::SockType type() {
@@ -507,21 +511,19 @@ public:
     std::string getIdentifier() const override;
 
 private:
-    SockFD::Ptr cloneSockFD(const Socket &other);
-    SockFD::Ptr makeSock(int sock, SockNum::SockType type);
-    void setSock(SockFD::Ptr fd);
-    int onAccept(int sock, int event) noexcept;
-    ssize_t onRead(int sock, SockNum::SockType type, const BufferRaw::Ptr &buffer) noexcept;
-    void onWriteAble(int sock, SockNum::SockType type);
-    void onConnected(int sock, const onErrCB &cb);
+    void setSock(SockNum::Ptr sock);
+    int onAccept(const SockNum::Ptr &sock, int event) noexcept;
+    ssize_t onRead(const SockNum::Ptr &sock, const BufferRaw::Ptr &buffer) noexcept;
+    void onWriteAble(const SockNum::Ptr &sock);
+    void onConnected(const SockNum::Ptr &sock, const onErrCB &cb);
     void onFlushed();
-    void startWriteAbleEvent(int sock);
-    void stopWriteAbleEvent(int sock);
-    bool flushData(int sock, SockNum::SockType type, bool poller_thread);
-    bool attachEvent(int sock, SockNum::SockType type);
+    void startWriteAbleEvent(const SockNum::Ptr &sock);
+    void stopWriteAbleEvent(const SockNum::Ptr &sock);
+    bool flushData(const SockNum::Ptr &sock, bool poller_thread);
+    bool attachEvent(const SockNum::Ptr &sock);
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
-    bool fromSock_l(SockFD::Ptr sock);
+    bool fromSock_l(SockNum::Ptr sock);
 
 private:
     //send socket时的flag
@@ -547,7 +549,7 @@ private:
     //tcp连接超时定时器
     Timer::Ptr _con_timer;
     //tcp连接结果回调对象
-    std::shared_ptr<std::function<void(int)> > _async_con_cb;
+    std::shared_ptr<void> _async_con_cb;
 
     //记录上次发送缓存(包括socket写缓存、应用层缓存)清空的计时器
     Ticker _send_flush_ticker;
@@ -587,7 +589,6 @@ private:
     //链接缓存地址,防止tcp reset 导致无法获取对端的地址
     struct sockaddr_storage _local_addr;
     struct sockaddr_storage _peer_addr;
-
 };
 
 class SockSender {

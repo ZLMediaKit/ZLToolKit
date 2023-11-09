@@ -137,7 +137,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
     return 0;
 }
 
-int EventPoller::delEvent(int fd, PollDelCB cb) {
+int EventPoller::delEvent(int fd, PollCompleteCB cb) {
     TimeTicker();
     if (!cb) {
         cb = [](bool success) {};
@@ -157,31 +157,37 @@ int EventPoller::delEvent(int fd, PollDelCB cb) {
 
     //跨线程操作
     async([this, fd, cb]() {
-        delEvent(fd, std::move(const_cast<PollDelCB &>(cb)));
+        delEvent(fd, std::move(const_cast<PollCompleteCB &>(cb)));
     });
     return 0;
 }
 
-int EventPoller::modifyEvent(int fd, int event) {
+int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
     TimeTicker();
-#if defined(HAS_EPOLL)
-    struct epoll_event ev = {0};
-    ev.events = toEpoll(event);
-    ev.data.fd = fd;
-    return epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
-#else
+    if (!cb) {
+        cb = [](bool success) {};
+    }
     if (isCurrentThread()) {
+#if defined(HAS_EPOLL)
+        struct epoll_event ev = { 0 };
+        ev.events = toEpoll(event);
+        ev.data.fd = fd;
+        auto ret = epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
+        cb(ret == 0);
+        return ret;
+#else
         auto it = _event_map.find(fd);
         if (it != _event_map.end()) {
             it->second->event = event;
         }
+        cb(it != _event_map.end());
         return 0;
+#endif // HAS_EPOLL
     }
-    async([this, fd, event]() {
-        modifyEvent(fd, event);
+    async([this, fd, event, cb]() {
+        modifyEvent(fd, event, std::move(const_cast<PollCompleteCB &>(cb)));
     });
     return 0;
-#endif //HAS_EPOLL
 }
 
 Task::Ptr EventPoller::async(TaskIn task, bool may_sync) {
