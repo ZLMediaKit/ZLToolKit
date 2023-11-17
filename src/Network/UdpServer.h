@@ -111,6 +111,8 @@ private:
     //cloned server共享主server的session map，防止数据在不同server间漂移
     std::shared_ptr<std::recursive_mutex> _session_mutex;
     std::shared_ptr<std::unordered_map<PeerIdType, SessionHelper::Ptr> > _session_map;
+    //避免关闭流时由于最后几帧数据导致再次重新创建session
+    std::shared_ptr<std::unordered_map<PeerIdType,std::unique_ptr<Timer>>> _session_erase_map;
     //主server持有cloned server的引用
     std::unordered_map<EventPoller *, Ptr> _cloned_server;
     std::function<SessionHelper::Ptr(const UdpServer::Ptr &, const Socket::Ptr &)> _session_alloc;

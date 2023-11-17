@@ -74,6 +74,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
     //主server才创建session map，其他cloned server共享之
     _session_mutex = std::make_shared<std::recursive_mutex>();
     _session_map = std::make_shared<std::unordered_map<PeerIdType, SessionHelper::Ptr> >();
+    _session_erase_map = std::make_shared<std::unordered_map<PeerIdType, std::unique_ptr<Timer>>>();
 
     // 新建一个定时器定时管理这些 udp 会话,这些对象只由主server做超时管理，cloned server不管理
     std::weak_ptr<UdpServer> weak_self = std::static_pointer_cast<UdpServer>(shared_from_this());
@@ -154,6 +155,13 @@ static void emitSessionRecv(const Session::Ptr &session, const Buffer::Ptr &buf)
 
 void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
     // udp server fd收到数据时触发此函数；大部分情况下数据应该在peer fd触发，此函数应该不是热点函数
+    //避免重复创建
+    {
+        std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
+        if (_session_erase_map->find(id) != _session_erase_map->end()) {
+            return;
+        }
+    }
     bool is_new = false;
     if (auto session = getOrCreateSession(id, buf, addr, addr_len, is_new)) {
         if (session->getPoller()->isCurrentThread()) {
@@ -286,6 +294,14 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &b
                 //从共享map中移除本session对象
                 lock_guard<std::recursive_mutex> lck(*strong_self->_session_mutex);
                 strong_self->_session_map->erase(id);
+                //0.5s后自动删除
+                strong_self->_session_erase_map->emplace(id,std::make_unique<Timer>(0.5f,
+                    [weak_self,id]() -> bool {
+                            auto strong_self = weak_self.lock();
+                            strong_self->_session_erase_map->erase(id);
+                        return false;
+                    },
+                    _poller));
             });
 
             // 获取会话强应用
