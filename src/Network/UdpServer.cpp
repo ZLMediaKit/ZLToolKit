@@ -292,13 +292,16 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &b
                 lock_guard<std::recursive_mutex> lck(*strong_self->_session_mutex);
                 strong_self->_session_map->erase(id);
                 //0.5s后自动删除
-                strong_self->_session_erase_map->emplace(id,std::make_unique<Timer>(0.5f,
+                strong_self->_session_erase_map->emplace(
+                    id,
+                    std::unique_ptr<Timer>(std::move(new Timer(
+                        0.5f,
                     [weak_self,id]() -> bool {
                             auto strong_self = weak_self.lock();
                             strong_self->_session_erase_map->erase(id);
                         return false;
                     },
-                    _poller));
+                    _poller))));
             });
 
             // 获取会话强应用
