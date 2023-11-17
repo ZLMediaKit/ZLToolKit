@@ -155,13 +155,6 @@ static void emitSessionRecv(const Session::Ptr &session, const Buffer::Ptr &buf)
 
 void UdpServer::onRead_l(bool is_server_fd, const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
     // udp server fd收到数据时触发此函数；大部分情况下数据应该在peer fd触发，此函数应该不是热点函数
-    //避免重复创建
-    {
-        std::lock_guard<std::recursive_mutex> lock(*_session_mutex);
-        if (_session_erase_map->find(id) != _session_erase_map->end()) {
-            return;
-        }
-    }
     bool is_new = false;
     if (auto session = getOrCreateSession(id, buf, addr, addr_len, is_new)) {
         if (session->getPoller()->isCurrentThread()) {
@@ -222,6 +215,10 @@ Session::Ptr UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, cons
         auto it = _session_map->find(id);
         if (it != _session_map->end()) {
             return it->second->session();
+        }
+        //避免重复创建
+        if (_session_erase_map->find(id) != _session_erase_map->end()) {
+            return nullptr;
         }
     }
     is_new = true;
