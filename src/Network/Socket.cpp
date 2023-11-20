@@ -1002,11 +1002,19 @@ bool SocketHelper::isSocketBusy() const {
 }
 
 Task::Ptr SocketHelper::async(TaskIn task, bool may_sync) {
-    return _poller->async(std::move(task), may_sync);
+    std::weak_ptr<SocketHelper> weak_this = shared_from_this();
+    return _poller->async([task, weak_this]() mutable{
+                Logger::setThreadContext(std::move(weak_this));
+                task();
+            }, may_sync);
 }
 
 Task::Ptr SocketHelper::async_first(TaskIn task, bool may_sync) {
-    return _poller->async_first(std::move(task), may_sync);
+    std::weak_ptr<SocketHelper> weak_this = shared_from_this();
+    return _poller->async_first([task, weak_this]() mutable {
+                Logger::setThreadContext(std::move(weak_this));
+                task();
+            }, may_sync);
 }
 
 void SocketHelper::setSendFlushFlag(bool try_flush) {

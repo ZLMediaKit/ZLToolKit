@@ -253,7 +253,7 @@ private:
     Mtx _mtx;
 };
 
-class SockInfo {
+class SockInfo : public LogThreadContext {
 public:
     SockInfo() = default;
     virtual ~SockInfo() = default;
@@ -266,8 +266,6 @@ public:
     virtual std::string get_peer_ip() = 0;
     //获取对方端口号
     virtual uint16_t get_peer_port() = 0;
-    //获取标识符
-    virtual std::string getIdentifier() const { return ""; }
 };
 
 #define TraceP(ptr) TraceL << ptr->getIdentifier() << "(" << ptr->get_peer_ip() << ":" << ptr->get_peer_port() << ") "

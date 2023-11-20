@@ -71,6 +71,17 @@ void setLogger(Logger *logger) {
     g_defaultLogger = logger;
 }
 
+static thread_local std::weak_ptr<LogThreadContext> g_log_context;
+
+void Logger::setThreadContext(std::weak_ptr<LogThreadContext> ctx) {
+    g_log_context = std::move(ctx);
+}
+
+std::string Logger::getThreadContext() {
+    auto ref = g_log_context.lock();
+    return ref ? ref->getIdentifier() : "";
+}
+
 ///////////////////Logger///////////////////
 
 INSTANCE_IMP(Logger, exeName())
@@ -175,9 +186,9 @@ static inline const char *getFunctionName(const char *func) {
 #endif
 }
 
-LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name, const char *flag)
+LogContext::LogContext(LogLevel level, const char *file, const char *function, int line, std::string module_name, std::string flag)
         : _level(level), _line(line), _file(getFileName(file)), _function(getFunctionName(function)),
-          _module_name(module_name), _flag(flag) {
+          _module_name(std::move(module_name)), _flag(std::move(flag)) {
     gettimeofday(&_tv, nullptr);
     _thread_name = getThreadName();
 }
@@ -195,8 +206,8 @@ const string &LogContext::str() {
 
 static string s_module_name = exeName(false);
 
-LogContextCapture::LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line, const char *flag) :
-        _ctx(new LogContext(level, file, function, line, s_module_name.c_str(), flag)), _logger(logger) {
+LogContextCapture::LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line, std::string flag) :
+    _ctx(new LogContext(level, file, function, line, s_module_name.c_str(), std::move(flag))), _logger(logger) {
 }
 
 LogContextCapture::LogContextCapture(const LogContextCapture &that) : _ctx(that._ctx), _logger(that._logger) {
@@ -380,10 +391,10 @@ void LogChannel::format(const Logger &logger, ostream &ost, const LogContextPtr 
 #endif
 
     if (enable_detail) {
-        // tag or process name
-        ost << "[" << (!ctx->_flag.empty() ? ctx->_flag : logger.getName()) << "] ";
         // pid and thread_name
         ost << "[" << printf_pid() << "-" << ctx->_thread_name << "] ";
+        // tag or process name
+        ost << "[" << (!ctx->_flag.empty() ? ctx->_flag : logger.getName()) << "] ";
         // source file location
         ost << ctx->_file << ":" << ctx->_line << " " << ctx->_function << " | ";
     }
@@ -620,7 +631,7 @@ void FileChannel::setFileMaxCount(size_t max_count) {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
-    LogContextCapture info(logger, (LogLevel) level, file, function, line);
+    LogContextCapture info(logger, (LogLevel) level, file, function, line, Logger::getThreadContext());
     char *str = nullptr;
     if (vasprintf(&str, fmt, ap) > 0 && str) {
         info << str;

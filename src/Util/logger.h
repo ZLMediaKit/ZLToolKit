@@ -38,6 +38,12 @@ typedef enum {
 Logger &getLogger();
 void setLogger(Logger *logger);
 
+class LogThreadContext {
+public:
+    virtual ~LogThreadContext() = default;
+    virtual std::string getIdentifier() const { return ""; }
+};
+
 /**
 * 日志类
 */
@@ -98,6 +104,12 @@ public:
      */
     void write(const LogContextPtr &ctx);
 
+    /**
+     * 设置线程日志上下文
+     */
+    static void setThreadContext(std::weak_ptr<LogThreadContext> ctx);
+    static std::string getThreadContext();
+
 private:
     /**
      * 写日志到各channel，仅供AsyncLogWriter调用
@@ -122,7 +134,7 @@ public:
     //_file,_function改成string保存，目的是有些情况下，指针可能会失效
     //比如说动态库中打印了一条日志，然后动态库卸载了，那么指向静态数据区的指针就会失效
     LogContext() = default;
-    LogContext(LogLevel level, const char *file, const char *function, int line, const char *module_name, const char *flag);
+    LogContext(LogLevel level, const char *file, const char *function, int line, std::string module_name, std::string flag);
     ~LogContext() = default;
 
     LogLevel _level;
@@ -149,7 +161,7 @@ class LogContextCapture {
 public:
     using Ptr = std::shared_ptr<LogContextCapture>;
 
-    LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line, const char *flag = "");
+    LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line, std::string flag = "");
     LogContextCapture(const LogContextCapture &that);
     ~LogContextCapture();
 
@@ -365,12 +377,11 @@ public:
 
 class BaseLogFlagInterface {
 protected:
-    virtual ~BaseLogFlagInterface() {}
+    virtual ~BaseLogFlagInterface() =default;
     // 获得日志标记Flag
-    const char* getLogFlag(){
-        return _log_flag;
-    }
+    const char *getLogFlag() { return _log_flag; }
     void setLogFlag(const char *flag) { _log_flag = flag; }
+
 private:
     const char *_log_flag = "";
 };
@@ -379,13 +390,13 @@ class LoggerWrapper {
 public:
     template<typename First, typename ...ARGS>
     static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line, First &&first, ARGS &&...args) {
-        LogContextCapture log(logger, level, file, function, line);
+        LogContextCapture log(logger, level, file, function, line, Logger::getThreadContext());
         log << std::forward<First>(first);
         appendLog(log, std::forward<ARGS>(args)...);
     }
 
     static inline void printLogArray(Logger &logger, LogLevel level, const char *file, const char *function, int line) {
-        LogContextCapture log(logger, level, file, function, line);
+        LogContextCapture log(logger, level, file, function, line, Logger::getThreadContext());
     }
 
     template<typename Log, typename First, typename ...ARGS>
@@ -402,11 +413,11 @@ public:
     static void printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap);
 };
 
-//可重置默认值
+// 可重置默认值
 extern Logger *g_defaultLogger;
 
 //用法: DebugL << 1 << "+" << 2 << '=' << 3;
-#define WriteL(level) ::toolkit::LogContextCapture(::toolkit::getLogger(), level, __FILE__, __FUNCTION__, __LINE__)
+#define WriteL(level) ::toolkit::LogContextCapture(::toolkit::getLogger(), level, __FILE__, __FUNCTION__, __LINE__, toolkit::Logger::getThreadContext())
 #define TraceL WriteL(::toolkit::LTrace)
 #define DebugL WriteL(::toolkit::LDebug)
 #define InfoL WriteL(::toolkit::LInfo)

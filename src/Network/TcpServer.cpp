@@ -129,6 +129,7 @@ Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
             return;
         }
         try {
+            Logger::setThreadContext(strong_session);
             strong_session->onRecv(buf);
         } catch (SockException &ex) {
             strong_session->shutdown(ex);
@@ -171,6 +172,7 @@ Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
         if (strong_session) {
             //触发onError事件回调
             TraceP(strong_session) << cls << " on err: " << err;
+            Logger::setThreadContext(strong_session);
             strong_session->onError(err);
         }
     });
@@ -230,6 +232,7 @@ void TcpServer::onManagerSession() {
     for (auto &pr : _session_map) {
         //遍历时，可能触发onErr事件(也会操作_session_map)
         try {
+            Logger::setThreadContext(pr.second->session());
             pr.second->session()->onManager();
         } catch (exception &ex) {
             WarnL << ex.what();

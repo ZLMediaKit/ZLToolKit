@@ -50,11 +50,13 @@ void TcpClient::setNetAdapter(const string &local_ip) {
 
 void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec, uint16_t local_port) {
     weak_ptr<TcpClient> weak_self = static_pointer_cast<TcpClient>(shared_from_this());
+    Logger::setThreadContext(weak_self);
     _timer = std::make_shared<Timer>(2.0f, [weak_self]() {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return false;
         }
+        Logger::setThreadContext(strong_self);
         strong_self->onManager();
         return true;
     }, getPoller());
@@ -73,6 +75,7 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
         }
         strong_self->_timer.reset();
         TraceL << strong_self->getIdentifier() << " on err: " << ex;
+        Logger::setThreadContext(strong_self);
         strong_self->onError(ex);
     });
 
@@ -80,6 +83,7 @@ void TcpClient::startConnect(const string &url, uint16_t port, float timeout_sec
     sock_ptr->connect(url, port, [weak_self](const SockException &err) {
         auto strong_self = weak_self.lock();
         if (strong_self) {
+            Logger::setThreadContext(strong_self);
             strong_self->onSockConnect(err);
         }
     }, timeout_sec, _net_adapter, local_port);
@@ -105,6 +109,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
             //已经重连socket，上传socket的事件忽略掉
             return false;
         }
+        Logger::setThreadContext(strong_self);
         strong_self->onFlush();
         return true;
     });
@@ -119,6 +124,7 @@ void TcpClient::onSockConnect(const SockException &ex) {
             return;
         }
         try {
+            Logger::setThreadContext(strong_self);
             strong_self->onRecv(pBuf);
         } catch (std::exception &ex) {
             strong_self->shutdown(SockException(Err_other, ex.what()));

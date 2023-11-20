@@ -144,6 +144,7 @@ void UdpServer::onRead(const Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
 
 static void emitSessionRecv(const Session::Ptr &session, const Buffer::Ptr &buf) {
     try {
+        Logger::setThreadContext(session);
         session->onRecv(buf);
     } catch (SockException &ex) {
         session->shutdown(ex);
@@ -197,6 +198,7 @@ void UdpServer::onManagerSession() {
                     continue;
                 }
                 try {
+                    Logger::setThreadContext(session);
                     // UDP 会话需要处理超时
                     session->onManager();
                 } catch (exception &ex) {
@@ -292,6 +294,7 @@ Session::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &b
             if (auto strong_session = weak_session.lock()) {
                 // 触发 onError 事件回调
                 TraceP(strong_session) << cls << " on err: " << err;
+                Logger::setThreadContext(strong_session);
                 strong_session->onError(err);
             }
         });

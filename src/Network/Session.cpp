@@ -31,8 +31,8 @@ Session::Session(const Socket::Ptr &sock) : SocketHelper(sock) {
 
 string Session::getIdentifier() const {
     if (_id.empty()) {
-        static atomic<uint64_t> s_session_index{0};
-        _id = to_string(++s_session_index) + '-' + to_string(getSock()->rawFD());
+        static atomic<uint64_t> s_session_index { 0 };
+        _id = toolkit::demangle(typeid(*this).name()) + "-" + to_string(++s_session_index) + '-' + to_string(getSock()->rawFD());
     }
     return _id;
 }
