@@ -49,6 +49,8 @@ class Server;
 
 class SessionHelper {
 public:
+    bool enable = true;
+
     using Ptr = std::shared_ptr<SessionHelper>;
 
     SessionHelper(const std::weak_ptr<Server> &server, Session::Ptr session, std::string cls);

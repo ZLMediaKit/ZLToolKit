@@ -89,12 +89,12 @@ private:
     /**
      * @brief 根据对端信息获取或创建一个会话
      */
-    Session::Ptr getOrCreateSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len, bool &is_new);
+    SessionHelper::Ptr getOrCreateSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len, bool &is_new);
 
     /**
      * @brief 创建一个会话, 同时进行必要的设置
      */
-    Session::Ptr createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
+    SessionHelper::Ptr createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
 
     /**
      * @brief 创建socket
