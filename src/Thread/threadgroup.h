@@ -47,7 +47,7 @@ public:
 
     template<typename F>
     std::thread *create_thread(F &&threadfunc) {
-        auto thread_new = std::make_shared<std::thread>(threadfunc);
+        auto thread_new = std::make_shared<std::thread>(std::forward<F>(threadfunc));
         _thread_id = thread_new->get_id();
         _threads[_thread_id] = thread_new;
         return thread_new.get();
