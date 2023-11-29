@@ -31,6 +31,7 @@ static SockException toSockException(int error) {
         case UV_EAGAIN: return SockException(Err_success, "success");
         case UV_ECONNREFUSED: return SockException(Err_refused, uv_strerror(error), error);
         case UV_ETIMEDOUT: return SockException(Err_timeout, uv_strerror(error), error);
+        case UV_ECONNRESET: return SockException(Err_reset, uv_strerror(error), error);
         default: return SockException(Err_other, uv_strerror(error), error);
     }
 }
