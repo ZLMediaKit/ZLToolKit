@@ -279,6 +279,10 @@ int SockUtil::setNoBlocked(int fd, bool noblock) {
 }
 
 int SockUtil::setRecvBuf(int fd, int size) {
+    if (size <= 0) {
+        // use the system default value
+        return 0;
+    }
     int ret = setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *) &size, sizeof(size));
     if (ret == -1) {
         TraceL << "setsockopt SO_RCVBUF failed";
@@ -287,6 +291,9 @@ int SockUtil::setRecvBuf(int fd, int size) {
 }
 
 int SockUtil::setSendBuf(int fd, int size) {
+    if (size <= 0) {
+        return 0;
+    }
     int ret = setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *) &size, sizeof(size));
     if (ret == -1) {
         TraceL << "setsockopt SO_SNDBUF failed";

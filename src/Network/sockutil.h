@@ -43,7 +43,17 @@ int ioctl(int fd, long cmd, u_long *ptr);
 int close(int fd);
 #endif // defined(_WIN32)
 
+#if !defined(SOCKET_DEFAULT_BUF_SIZE)
 #define SOCKET_DEFAULT_BUF_SIZE (256 * 1024)
+#else
+#if SOCKET_DEFAULT_BUF_SIZE == 0 && !defined(__linux__)
+// just for linux, because in some high-throughput environments,
+// kernel control is more efficient and reasonable than program
+// settings. For example, refer to cloudflare's blog
+#undef SOCKET_DEFAULT_BUF_SIZE
+#define SOCKET_DEFAULT_BUF_SIZE (256 * 1024)
+#endif
+#endif
 #define TCP_KEEPALIVE_INTERVAL 30
 #define TCP_KEEPALIVE_PROBE_TIMES 9
 #define TCP_KEEPALIVE_TIME 120

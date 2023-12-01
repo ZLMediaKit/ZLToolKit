@@ -51,13 +51,14 @@ namespace toolkit {
     
 //错误类型枚举
 typedef enum {
-    Err_success = 0, //成功
+    Err_success = 0, //成功 success
     Err_eof, //eof
-    Err_timeout, //超时
-    Err_refused,//连接被拒绝
-    Err_dns,//dns解析失败
-    Err_shutdown,//主动关闭
-    Err_other = 0xFF,//其他错误
+    Err_timeout, //超时 socket timeout
+    Err_refused,//连接被拒绝 socket refused
+    Err_reset,//连接被重置  socket reset
+    Err_dns,//dns解析失败 dns resolve failed
+    Err_shutdown,//主动关闭 socket shutdown
+    Err_other = 0xFF,//其他错误 other error
 } ErrCode;
 
 //错误信息类
