@@ -65,29 +65,29 @@ namespace toolkit {
 class File {
 public:
     //创建路径
-    static bool create_path(const char *file, unsigned int mod);
+    static bool create_path(const std::string &file, unsigned int mod);
 
     //新建文件，目录文件夹自动生成
-    static FILE *create_file(const char *file, const char *mode);
+    static FILE *create_file(const std::string &file, const std::string &mode);
 
     //判断是否为目录
-    static bool is_dir(const char *path);
+    static bool is_dir(const std::string &path);
 
     //判断是否是特殊目录（. or ..）
-    static bool is_special_dir(const char *path);
+    static bool is_special_dir(const std::string &path);
 
     //删除目录或文件
-    static int delete_file(const char *path);
+    static int delete_file(const std::string &path, bool del_empty_dir = false, bool backtrace = true);
 
     //判断文件是否存在
-    static bool fileExist(const char *path);
+    static bool fileExist(const std::string &path);
 
     /**
      * 加载文件内容至string
      * @param path 加载的文件路径
      * @return 文件内容
      */
-    static std::string loadFile(const char *path);
+    static std::string loadFile(const std::string &path);
 
     /**
      * 保存内容至文件
@@ -95,7 +95,7 @@ public:
      * @param path 保存的文件路径
      * @return 是否保存成功
      */
-    static bool saveFile(const std::string &data, const char *path);
+    static bool saveFile(const std::string &data, const std::string &path);
 
     /**
      * 获取父文件夹
@@ -118,8 +118,10 @@ public:
      * @param path 文件夹路径
      * @param cb 回调对象 ，path为绝对路径，isDir为该路径是否为文件夹，返回true代表继续扫描，否则中断
      * @param enter_subdirectory 是否进入子目录扫描
+     * @param show_hidden_file 是否显示隐藏的文件
      */
-    static void scanDir(const std::string &path, const std::function<bool(const std::string &path, bool isDir)> &cb, bool enter_subdirectory = false);
+    static void scanDir(const std::string &path, const std::function<bool(const std::string &path, bool isDir)> &cb,
+                        bool enter_subdirectory = false, bool show_hidden_file = false);
 
     /**
      * 获取文件大小
@@ -134,7 +136,14 @@ public:
      * @return 文件大小
      * @warning 调用者应确保文件存在
      */
-    static uint64_t fileSize(const char *path);
+    static uint64_t fileSize(const std::string &path);
+
+    /**
+     * 尝试删除空文件夹
+     * @param dir 文件夹路径
+     * @param backtrace 是否回溯上层文件夹，上层文件夹为空也一并删除，以此类推
+     */
+    static void deleteEmptyDir(const std::string &dir, bool backtrace = true);
 
 private:
     File();
