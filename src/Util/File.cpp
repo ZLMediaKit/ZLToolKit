@@ -346,12 +346,9 @@ uint64_t File::fileSize(const std::string &path) {
 static bool isEmptyDir(const std::string &path) {
     bool empty = true;
     File::scanDir(path,[&](const std::string &path, bool isDir) {
-        if (isDir) {
-            return true;
-        }
         empty = false;
         return false;
-    }, true);
+    }, true, true);
     return empty;
 }
 
