@@ -356,14 +356,13 @@ static bool isEmptyDir(const std::string &path) {
 }
 
 void File::deleteEmptyDir(const std::string &dir, bool backtrace) {
-    if (File::is_dir(dir) || !isEmptyDir(dir)) {
+    if (!File::is_dir(dir) || !isEmptyDir(dir)) {
         // 不是文件夹或者非空
         return;
     }
     File::delete_file(dir);
     if (backtrace) {
-        auto parent = File::parentDir(dir);
-        deleteEmptyDir(parent, backtrace);
+        deleteEmptyDir(File::parentDir(dir), true);
     }
 }
 
