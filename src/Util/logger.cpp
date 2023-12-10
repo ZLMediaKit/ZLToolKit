@@ -78,6 +78,7 @@ INSTANCE_IMP(Logger, exeName())
 Logger::Logger(const string &loggerName) {
     _logger_name = loggerName;
     _last_log = std::make_shared<LogContext>();
+    _default_channel = std::make_shared<ConsoleChannel>("default", LTrace);
 }
 
 Logger::~Logger() {
@@ -123,8 +124,12 @@ void Logger::setLevel(LogLevel level) {
 }
 
 void Logger::writeChannels_l(const LogContextPtr &ctx) {
-    for (auto &chn : _channels) {
-        chn.second->write(*this, ctx);
+    if (_channels.empty()) {
+        _default_channel->write(*this, ctx);
+    } else {
+        for (auto &chn : _channels) {
+            chn.second->write(*this, ctx);
+        }
     }
     _last_log = ctx;
     _last_log->_repeat = 0;

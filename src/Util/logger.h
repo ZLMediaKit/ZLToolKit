@@ -110,6 +110,7 @@ private:
     LogContextPtr _last_log;
     std::string _logger_name;
     std::shared_ptr<LogWriter> _writer;
+    std::shared_ptr<LogChannel> _default_channel;
     std::map<std::string, std::shared_ptr<LogChannel> > _channels;
 };
 
