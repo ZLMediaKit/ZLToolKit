@@ -211,7 +211,7 @@ public:
         return _num->rawFd();
     }
 
-    SockNum::Ptr sockNum() const {
+    const SockNum::Ptr& sockNum() const {
         return _num;
     }
 
