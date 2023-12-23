@@ -692,6 +692,12 @@ public:
     Task::Ptr async_first(TaskIn task, bool may_sync = true) override;
 
     ///////////////////// SockSender override /////////////////////
+
+    /**
+     * 使能 SockSender 其他未被重写的send重载函数
+     */
+    using SockSender::send;
+
     /**
      * 统一发送数据的出口
      */

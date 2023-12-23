@@ -111,6 +111,9 @@ public:
         }
     }
 
+    // 使能其他未被重写的send函数
+    using TcpClientType::send;
+
     ssize_t send(Buffer::Ptr buf) override {
         if (_ssl_box) {
             auto size = buf->size();
