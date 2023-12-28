@@ -65,7 +65,7 @@ public:
 
     // 添加public_onRecv和public_send函数是解决较低版本gcc一个lambad中不能访问protected或private方法的bug
     inline void public_onRecv(const Buffer::Ptr &buf) { SessionType::onRecv(buf); }
-    inline void public_send(const Buffer::Ptr &buf) { SessionType::send(std::move(const_cast<Buffer::Ptr &>(buf))); }
+    inline void public_send(const Buffer::Ptr &buf) { SessionType::send(buf); }
 
     bool overSsl() const override { return true; }
 

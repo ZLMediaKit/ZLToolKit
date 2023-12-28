@@ -357,7 +357,7 @@ public:
         for (auto &pr : _dispatcher_map) {
             auto &second = pr.second;
             //切换线程后触发onRead事件
-            pr.first->async([second, in, is_key]() { second->write(std::move(const_cast<T &>(in)), is_key); }, false);
+            pr.first->async([second, in, is_key]() mutable { second->write(std::move(in), is_key); }, false);
         }
         _storage->write(std::move(in), is_key);
     }

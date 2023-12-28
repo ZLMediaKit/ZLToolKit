@@ -131,8 +131,8 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
 #endif //HAS_EPOLL
     }
 
-    async([this, fd, event, cb]() {
-        addEvent(fd, event, std::move(const_cast<PollEventCB &>(cb)));
+    async([this, fd, event, cb]() mutable {
+        addEvent(fd, event, std::move(cb));
     });
     return 0;
 }
@@ -156,8 +156,8 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
     }
 
     //跨线程操作
-    async([this, fd, cb]() {
-        delEvent(fd, std::move(const_cast<PollCompleteCB &>(cb)));
+    async([this, fd, cb]() mutable {
+        delEvent(fd, std::move(cb));
     });
     return 0;
 }
@@ -184,8 +184,8 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
         return 0;
 #endif // HAS_EPOLL
     }
-    async([this, fd, event, cb]() {
-        modifyEvent(fd, event, std::move(const_cast<PollCompleteCB &>(cb)));
+    async([this, fd, event, cb]() mutable {
+        modifyEvent(fd, event, std::move(cb));
     });
     return 0;
 }

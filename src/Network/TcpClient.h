@@ -129,7 +129,7 @@ public:
     }
 
     inline void public_send(const Buffer::Ptr &buf) {
-        TcpClientType::send(std::move(const_cast<Buffer::Ptr &>(buf)));
+        TcpClientType::send(buf);
     }
 
     void startConnect(const std::string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0) override {
