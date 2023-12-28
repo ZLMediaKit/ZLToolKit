@@ -98,7 +98,7 @@ EventPoller::~EventPoller() {
     InfoL << this;
 }
 
-int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
+int EventPoller::addEvent(int fd, int event, PollEventCB cb, PollAttachingCB attachingCb) {
     TimeTicker();
     if (!cb) {
         WarnL << "PollEventCB is empty";
@@ -114,12 +114,19 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         if (ret == 0) {
             _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
         }
+
+        if (attachingCb) {
+            attachingCb(false);
+        }
         return ret;
 #else
 #ifndef _WIN32
         //win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
         if (fd >= FD_SETSIZE || _event_map.size() >= FD_SETSIZE) {
             WarnL << "select() can not watch fd bigger than " << FD_SETSIZE;
+            if (attachingCb) {
+                attachingCb(false);
+            }
             return -1;
         }
 #endif
@@ -127,10 +134,16 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         record->event = event;
         record->call_back = std::move(cb);
         _event_map.emplace(fd, record);
+        if (attachingCb) {
+            attachingCb(false);
+        }
         return 0;
 #endif //HAS_EPOLL
     }
 
+    if (attachingCb) {
+        attachingCb(true);
+    }
     async([this, fd, event, cb]() {
         addEvent(fd, event, std::move(const_cast<PollEventCB &>(cb)));
     });

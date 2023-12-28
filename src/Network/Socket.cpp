@@ -230,6 +230,12 @@ void Socket::onConnected(const SockNum::Ptr &sock, const onErrCB &cb) {
 }
 
 bool Socket::attachEvent(const SockNum::Ptr &sock) {
+
+    auto poller = _poller;
+    auto attachingCB = [sock, poller](bool flag) {
+        sock->setAttachingEvent(flag, poller);
+    };
+
     weak_ptr<Socket> weak_self = shared_from_this();
     if (sock->type() == SockNum::Sock_TCP_Server) {
         // tcp服务器
@@ -237,7 +243,7 @@ bool Socket::attachEvent(const SockNum::Ptr &sock) {
             if (auto strong_self = weak_self.lock()) {
                 strong_self->onAccept(sock, event);
             }
-        });
+        }, attachingCB);
         return -1 != result;
     }
 
@@ -258,7 +264,7 @@ bool Socket::attachEvent(const SockNum::Ptr &sock) {
         if (event & EventPoller::Event_Error) {
             strong_self->emitErr(getSockErr(sock->rawFd()));
         }
-    });
+    }, attachingCB);
 
     return -1 != result;
 }

@@ -37,6 +37,7 @@ public:
     using Ptr = std::shared_ptr<EventPoller>;
     using PollEventCB = std::function<void(int event)>;
     using PollCompleteCB = std::function<void(bool success)>;
+    using PollAttachingCB = std::function<void(bool success)>;
     using DelayTask = TaskCancelableImp<uint64_t(void)>;
 
     typedef enum {
@@ -60,9 +61,10 @@ public:
      * @param fd 监听的文件描述符
      * @param event 事件类型，例如 Event_Read | Event_Write
      * @param cb 事件回调functional
+     * @param attachingCb attach在异步处理中的标志位设置functional
      * @return -1:失败，0:成功
      */
-    int addEvent(int fd, int event, PollEventCB cb);
+    int addEvent(int fd, int event, PollEventCB cb, PollAttachingCB attachingCb = nullptr);
 
     /**
      * 删除事件监听

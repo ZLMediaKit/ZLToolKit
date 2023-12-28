@@ -143,6 +143,20 @@ public:
         return _type;
     }
 
+    bool getAttachingEvent(EventPoller::Ptr poller) {
+        auto &attchingFlag = _attaching_event[poller.get()];
+        if (!attchingFlag) {
+            return false;
+        }
+        return attchingFlag;
+    }
+
+    void setAttachingEvent(bool flag, EventPoller::Ptr poller) {
+        auto &attchingFlag = _attaching_event[poller.get()];
+        attchingFlag = flag;
+        return;
+    }
+
     void setConnected() {
 #if defined (OS_IPHONE)
         setSocketOfIOS(_fd);
@@ -160,6 +174,7 @@ private:
 private:
     int _fd;
     SockType _type;
+    std::unordered_map<const EventPoller *, bool> _attaching_event;
 };
 
 //socket 文件描述符的包装
@@ -197,9 +212,18 @@ public:
     void delEvent() {
         if (_poller) {
             auto num = _num;
-            // 移除io事件成功后再close fd
-            _poller->delEvent(num->rawFd(), [num](bool) {});
-            _poller = nullptr;
+            if (num->getAttachingEvent(_poller)) {
+                //该SockNum有addEvent操作在异步处理，将delEvent操作也改为异步操作
+                auto poller = _poller;
+                _poller->async([poller, num](){
+                    poller->delEvent(num->rawFd(), [num](bool) {});
+                }, false);
+                _poller = nullptr;
+            } else {
+                // 移除io事件成功后再close fd
+                _poller->delEvent(num->rawFd(), [num](bool) {});
+                _poller = nullptr;
+            }
         }
     }
 
