@@ -133,7 +133,7 @@ TaskExecutor::Ptr TaskExecutorGetterImp::getExecutor() {
     auto min_load = executor_min_load->load();
 
     for (size_t i = 0; i < _threads.size(); ++i) {
-        thread_pos++;
+        ++thread_pos;
         if (thread_pos >= _threads.size()) {
             thread_pos = 0;
         }
