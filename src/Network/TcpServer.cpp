@@ -76,7 +76,7 @@ void TcpServer::setOnCreateSocket(Socket::onCreateSocket cb) {
 }
 
 TcpServer::Ptr TcpServer::onCreatServer(const EventPoller::Ptr &poller) {
-    return std::make_shared<TcpServer>(poller);
+    return Ptr(new TcpServer(poller), [poller](TcpServer *ptr) { poller->async([ptr]() { delete ptr; }); });
 }
 
 Socket::Ptr TcpServer::onBeforeAcceptConnection(const EventPoller::Ptr &poller) {
