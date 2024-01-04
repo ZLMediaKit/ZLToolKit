@@ -124,6 +124,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         }
 #endif
         auto record = std::make_shared<Poll_Record>();
+        record->fd = fd;
         record->event = event;
         record->call_back = std::move(cb);
         _event_map.emplace(fd, record);
@@ -146,10 +147,12 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
     if (isCurrentThread()) {
 #if defined(HAS_EPOLL)
         bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr) == 0 && _event_map.erase(fd) > 0;
+        refreshEventCache(fd);
         cb(success);
         return success ? 0 : -1;
 #else
         cb(_event_map.erase(fd));
+        refreshEventCache(fd);
         return 0;
 #endif //HAS_EPOLL
 
@@ -303,9 +306,17 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 //超时或被打断
                 continue;
             }
+
+            _event_cache_expired_map.clear();
+
             for (int i = 0; i < ret; ++i) {
                 struct epoll_event &ev = events[i];
                 int fd = ev.data.fd;
+                if (_event_cache_expired_map[fd]) {
+                    //event cache refresh
+                    continue;
+                }
+
                 auto it = _event_map.find(fd);
                 if (it == _event_map.end()) {
                     epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
@@ -357,6 +368,9 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 //超时或被打断
                 continue;
             }
+
+            _event_cache_expired_map.clear();
+
             //收集select事件类型
             for (auto &pr : _event_map) {
                 int event = 0;
@@ -375,7 +389,12 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 }
             }
 
-            callback_list.for_each([](Poll_Record::Ptr &record) {
+            callback_list.for_each([this](Poll_Record::Ptr &record) {
+                if (this->_event_cache_expired_map[record->fd]) {
+                    //event cache refresh
+                    return;
+                }
+
                 try {
                     record->call_back(record->attach);
                 } catch (std::exception &ex) {
@@ -443,6 +462,11 @@ EventPoller::DelayTask::Ptr EventPoller::doDelayTask(uint64_t delay_ms, function
         _delay_task_map.emplace(time_line, ret);
     });
     return ret;
+}
+
+void EventPoller::refreshEventCache(int fd) {
+    _event_cache_expired_map[fd] = true;
+    return;
 }
 
 ///////////////////////////////////////////////
