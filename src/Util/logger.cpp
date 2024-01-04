@@ -201,7 +201,7 @@ const string &LogContext::str() {
 static string s_module_name = exeName(false);
 
 LogContextCapture::LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line, const char *flag) :
-        _ctx(new LogContext(level, file, function, line, s_module_name.c_str(), flag)), _logger(logger) {
+        _ctx(new LogContext(level, file, function, line, s_module_name.c_str() ? s_module_name.c_str() : "", flag)), _logger(logger) {
 }
 
 LogContextCapture::LogContextCapture(const LogContextCapture &that) : _ctx(that._ctx), _logger(that._logger) {
@@ -629,7 +629,11 @@ void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const
     char *str = nullptr;
     if (vasprintf(&str, fmt, ap) > 0 && str) {
         info << str;
+#ifdef ASAN_USE_DELETE
         delete [] str; // 开启asan后，用free会卡死
+#else
+        free(str);
+#endif
     }
 }
 
