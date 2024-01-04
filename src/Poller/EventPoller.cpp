@@ -147,15 +147,19 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
     if (isCurrentThread()) {
 #if defined(HAS_EPOLL)
         bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr) == 0 && _event_map.erase(fd) > 0;
-        refreshEventCache(fd);
+        if (success) {
+            _event_cache_expired_map[fd] = true;
+        }
         cb(success);
         return success ? 0 : -1;
 #else
-        cb(_event_map.erase(fd));
-        refreshEventCache(fd);
+        bool success = _event_map.erase(fd);
+        if (success) {
+            _event_cache_expired_map[fd] = true;
+        }
+        cb(success);
         return 0;
 #endif //HAS_EPOLL
-
     }
 
     //跨线程操作
@@ -312,7 +316,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             for (int i = 0; i < ret; ++i) {
                 struct epoll_event &ev = events[i];
                 int fd = ev.data.fd;
-                if (_event_cache_expired_map[fd]) {
+                if (_event_cache_expired_map.find(fd) != _event_cache_expired_map.end()) {
                     //event cache refresh
                     continue;
                 }
@@ -390,7 +394,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             }
 
             callback_list.for_each([this](Poll_Record::Ptr &record) {
-                if (this->_event_cache_expired_map[record->fd]) {
+                if (this->_event_cache_expired_map.find(record->fd) != this->_event_cache_expired_map.end()) {
                     //event cache refresh
                     return;
                 }
@@ -464,10 +468,6 @@ EventPoller::DelayTask::Ptr EventPoller::doDelayTask(uint64_t delay_ms, function
     return ret;
 }
 
-void EventPoller::refreshEventCache(int fd) {
-    _event_cache_expired_map[fd] = true;
-    return;
-}
 
 ///////////////////////////////////////////////
 

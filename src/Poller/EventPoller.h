@@ -178,11 +178,6 @@ private:
      */
     void addEventPipe();
 
-    /**
-     * 删除过时的事件缓存
-     */
-    void refreshEventCache(int fd);
-
 private:
     class ExitException : public std::exception {};
 
