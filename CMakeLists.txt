@@ -84,7 +84,7 @@ endif()
 
 set(ENABLE_OPENSSL ON CACHE BOOL "enable openssl")
 set(ENABLE_MYSQL ON CACHE BOOL "enable mysql")
-
+set(ASAN_USE_DELETE OFF CACHE BOOL "use delele[] or free when asan enabled")
 
 #查找openssl是否安装
 #Find out if openssl is installed
@@ -105,6 +105,12 @@ if(MYSQL_FOUND AND ENABLE_MYSQL)
     include_directories(${MYSQL_INCLUDE_DIR}/mysql)
     add_definitions(-DENABLE_MYSQL)
     list(APPEND  LINK_LIB_LIST ${MYSQL_LIBRARIES})
+endif()
+
+#是否使用delete[]替代free，用于解决开启asan后在MacOS上的卡死问题
+#use delele[] or free when asan enabled
+if(ASAN_USE_DELETE)
+    add_definitions(-DASAN_USE_DELETE)
 endif()
 
 #打印库文件
