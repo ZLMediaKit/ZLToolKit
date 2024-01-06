@@ -311,18 +311,21 @@ SessionHelper::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::
     };
 
     if (socket->getPoller()->isCurrentThread()) {
-        //该socket分配在本线程，直接创建session对象，并处理数据
+        // 该socket分配在本线程，直接创建helper对象
         return helper_creator();
     }
 
-    //该socket分配在其他线程，需要先拷贝buffer，然后在其所在线程创建session对象并处理数据
+    // 该socket分配在其他线程，需要先拷贝buffer，然后在其所在线程创建helper对象并处理数据
     auto cacheable_buf = std::make_shared<BufferString>(buf->toString());
     socket->getPoller()->async([helper_creator, cacheable_buf]() {
-        //在该socket所在线程创建session对象
+        // 在该socket所在线程创建helper对象
         auto helper = helper_creator();
         if (helper) {
-            //该数据不能丢弃，给session对象消费
-            emitSessionRecv(helper, cacheable_buf);
+            // 可能未实质创建hlepr对象成功，可能获取到其他线程创建的helper对象
+            helper->session()->getPoller()->async([helper, cacheable_buf]() {
+                // 该数据不能丢弃，给session对象消费
+                emitSessionRecv(helper, cacheable_buf);
+            });
         }
     });
     return nullptr;
