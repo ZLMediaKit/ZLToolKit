@@ -49,20 +49,17 @@ static SockException getSockErr(int sock, bool try_errno = true) {
     return toSockException(error);
 }
 
-Socket::Ptr Socket::createSocket(const EventPoller::Ptr &poller, bool enable_mutex) {
-    return std::make_shared<Socket>(poller, enable_mutex);
+Socket::Ptr Socket::createSocket(const EventPoller::Ptr &poller_in, bool enable_mutex) {
+    auto poller = poller_in ? poller_in : EventPollerPool::Instance().getPoller();
+    return Socket::Ptr(new Socket(poller, enable_mutex), [poller](Socket *ptr) { poller->async([ptr]() { delete ptr; }); });
 }
 
-Socket::Socket(const EventPoller::Ptr &poller, bool enable_mutex)
-    : _mtx_sock_fd(enable_mutex)
+Socket::Socket(EventPoller::Ptr poller, bool enable_mutex)
+    : _poller(std::move(poller))
+    , _mtx_sock_fd(enable_mutex)
     , _mtx_event(enable_mutex)
     , _mtx_send_buf_waiting(enable_mutex)
     , _mtx_send_buf_sending(enable_mutex) {
-
-    _poller = poller;
-    if (!_poller) {
-        _poller = EventPollerPool::Instance().getPoller();
-    }
     setOnRead(nullptr);
     setOnErr(nullptr);
     setOnAccept(nullptr);

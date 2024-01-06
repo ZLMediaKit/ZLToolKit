@@ -300,7 +300,6 @@ public:
      * @param enable_mutex 是否启用互斥锁(接口是否线程安全)
     */
     static Ptr createSocket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
-    Socket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
     ~Socket() override;
 
     /**
@@ -512,6 +511,8 @@ public:
     std::string getIdentifier() const override;
 
 private:
+    Socket(EventPoller::Ptr poller, bool enable_mutex = true);
+
     void setSock(SockNum::Ptr sock);
     int onAccept(const SockNum::Ptr &sock, int event) noexcept;
     ssize_t onRead(const SockNum::Ptr &sock, const BufferRaw::Ptr &buffer) noexcept;
