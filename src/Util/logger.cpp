@@ -627,7 +627,7 @@ void FileChannel::setFileMaxCount(size_t max_count) {
 void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
     LogContextCapture info(logger, (LogLevel) level, file, function, line);
     char *str = nullptr;
-    if (vasprintf(&str, fmt, ap) > 0 && str) {
+    if (vasprintf(&str, fmt, ap) >= 0 && str) {
         info << str;
 #ifdef ASAN_USE_DELETE
         delete [] str; // 开启asan后，用free会卡死
