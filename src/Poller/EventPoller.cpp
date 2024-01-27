@@ -95,7 +95,7 @@ EventPoller::~EventPoller() {
 #endif //defined(HAS_EPOLL)
     //退出前清理管道中的数据
     onPipeEvent();
-    InfoL << this;
+    InfoL << getThreadName();
 }
 
 int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
