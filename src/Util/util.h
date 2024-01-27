@@ -406,7 +406,7 @@ public:
         _data = nullptr;
     }
 
-    Any &operator=(nullptr_t) {
+    Any &operator=(std::nullptr_t) {
         reset();
         return *this;
     }
