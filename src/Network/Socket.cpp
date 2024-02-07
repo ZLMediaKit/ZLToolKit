@@ -51,7 +51,14 @@ static SockException getSockErr(int sock, bool try_errno = true) {
 
 Socket::Ptr Socket::createSocket(const EventPoller::Ptr &poller_in, bool enable_mutex) {
     auto poller = poller_in ? poller_in : EventPollerPool::Instance().getPoller();
-    return Socket::Ptr(new Socket(poller, enable_mutex), [poller](Socket *ptr) { poller->async([ptr]() { delete ptr; }); });
+    std::weak_ptr<EventPoller> weak_poller = poller;
+    return Socket::Ptr(new Socket(poller, enable_mutex), [weak_poller](Socket *ptr) {
+        if (auto poller = weak_poller.lock()) {
+            poller->async([ptr]() { delete ptr; });
+        } else {
+            delete ptr;
+        }
+    });
 }
 
 Socket::Socket(EventPoller::Ptr poller, bool enable_mutex)
