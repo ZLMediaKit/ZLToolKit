@@ -121,7 +121,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
 }
 
 UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {
-    return std::make_shared<UdpServer>(poller);
+    return Ptr(new UdpServer(poller), [poller](UdpServer *ptr) { poller->async([ptr]() { delete ptr; }); });
 }
 
 void UdpServer::cloneFrom(const UdpServer &that) {
