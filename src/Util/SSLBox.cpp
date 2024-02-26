@@ -210,6 +210,23 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
 #ifdef SSL_OP_NO_RENEGOTIATION /* openssl 1.1.0 */
     ssloptions |= SSL_OP_NO_RENEGOTIATION;
 #endif
+
+#ifdef SSL_OP_NO_SSLv2 
+    ssloptions |= SSL_OP_NO_SSLv2;
+#endif
+
+#ifdef SSL_OP_NO_SSLv3 
+    ssloptions |= SSL_OP_NO_SSLv3;
+#endif
+
+#ifdef SSL_OP_NO_TLSv1 
+    ssloptions |= SSL_OP_NO_TLSv1;
+#endif
+
+#ifdef SSL_OP_NO_TLSv1_1 /* openssl 1.0.1 */
+    ssloptions |= SSL_OP_NO_TLSv1_1;
+#endif
+
     SSL_CTX_set_options(ctx, ssloptions);
 
 #endif //defined(ENABLE_OPENSSL)
