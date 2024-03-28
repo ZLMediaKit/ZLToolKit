@@ -78,6 +78,7 @@ INSTANCE_IMP(Logger, exeName())
 Logger::Logger(const string &loggerName) {
     _logger_name = loggerName;
     _last_log = std::make_shared<LogContext>();
+    _default_channel = std::make_shared<ConsoleChannel>("default", LTrace);
 }
 
 Logger::~Logger() {
@@ -123,8 +124,12 @@ void Logger::setLevel(LogLevel level) {
 }
 
 void Logger::writeChannels_l(const LogContextPtr &ctx) {
-    for (auto &chn : _channels) {
-        chn.second->write(*this, ctx);
+    if (_channels.empty()) {
+        _default_channel->write(*this, ctx);
+    } else {
+        for (auto &chn : _channels) {
+            chn.second->write(*this, ctx);
+        }
     }
     _last_log = ctx;
     _last_log->_repeat = 0;
@@ -136,7 +141,7 @@ static int64_t timevalDiff(struct timeval &a, struct timeval &b) {
 }
 
 void Logger::writeChannels(const LogContextPtr &ctx) {
-    if (ctx->_line == _last_log->_line && ctx->_file == _last_log->_file && ctx->str() == _last_log->str()) {
+    if (ctx->_line == _last_log->_line && ctx->_file == _last_log->_file && ctx->str() == _last_log->str() && ctx->_thread_name == _last_log->_thread_name) {
         //重复的日志每隔500ms打印一次，过滤频繁的重复日志
         ++_last_log->_repeat;
         if (timevalDiff(_last_log->_tv, ctx->_tv) > 500) {
@@ -196,7 +201,7 @@ const string &LogContext::str() {
 static string s_module_name = exeName(false);
 
 LogContextCapture::LogContextCapture(Logger &logger, LogLevel level, const char *file, const char *function, int line, const char *flag) :
-        _ctx(new LogContext(level, file, function, line, s_module_name.c_str(), flag)), _logger(logger) {
+        _ctx(new LogContext(level, file, function, line, s_module_name.c_str() ? s_module_name.c_str() : "", flag)), _logger(logger) {
 }
 
 LogContextCapture::LogContextCapture(const LogContextCapture &that) : _ctx(that._ctx), _logger(that._logger) {
@@ -271,7 +276,7 @@ void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     if (_level > ctx->_level) {
         return;
     }
-    NoticeCenter::Instance().emitEvent(kBroadcastLogEvent, logger, ctx);
+    NOTICE_EMIT(BroadcastLogEventArgs, kBroadcastLogEvent, logger, ctx);
 }
 
 ///////////////////ConsoleChannel///////////////////
@@ -446,9 +451,9 @@ bool FileChannelBase::open() {
     _fstream.close();
 #if !defined(_WIN32)
     //创建文件夹
-    File::create_path(_path.data(), S_IRWXO | S_IRWXG | S_IRWXU);
+    File::create_path(_path, S_IRWXO | S_IRWXG | S_IRWXU);
 #else
-    File::create_path(_path.data(),0);
+    File::create_path(_path,0);
 #endif
     _fstream.open(_path.data(), ios::out | ios::app);
     if (!_fstream.is_open()) {
@@ -563,7 +568,7 @@ void FileChannel::clean() {
             break;
         }
         //这个文件距今超过了一定天数，则删除文件
-        File::delete_file(it->data());
+        File::delete_file(*it);
         //删除这条记录
         it = _log_file_map.erase(it);
     }
@@ -576,7 +581,7 @@ void FileChannel::clean() {
             break;
         }
         //删除文件
-        File::delete_file(it->data());
+        File::delete_file(*it);
         //删除这条记录
         _log_file_map.erase(it);
     }
@@ -622,9 +627,13 @@ void FileChannel::setFileMaxCount(size_t max_count) {
 void LoggerWrapper::printLogV(Logger &logger, int level, const char *file, const char *function, int line, const char *fmt, va_list ap) {
     LogContextCapture info(logger, (LogLevel) level, file, function, line);
     char *str = nullptr;
-    if (vasprintf(&str, fmt, ap) > 0 && str) {
+    if (vasprintf(&str, fmt, ap) >= 0 && str) {
         info << str;
+#ifdef ASAN_USE_DELETE
+        delete [] str; // 开启asan后，用free会卡死
+#else
         free(str);
+#endif
     }
 }
 

@@ -51,13 +51,14 @@ namespace toolkit {
     
 //错误类型枚举
 typedef enum {
-    Err_success = 0, //成功
+    Err_success = 0, //成功 success
     Err_eof, //eof
-    Err_timeout, //超时
-    Err_refused,//连接被拒绝
-    Err_dns,//dns解析失败
-    Err_shutdown,//主动关闭
-    Err_other = 0xFF,//其他错误
+    Err_timeout, //超时 socket timeout
+    Err_refused,//连接被拒绝 socket refused
+    Err_reset,//连接被重置  socket reset
+    Err_dns,//dns解析失败 dns resolve failed
+    Err_shutdown,//主动关闭 socket shutdown
+    Err_other = 0xFF,//其他错误 other error
 } ErrCode;
 
 //错误信息类
@@ -126,7 +127,11 @@ public:
         unsetSocketOfIOS(_fd);
 #endif //OS_IPHONE
         // 停止socket收发能力
+        #if defined(_WIN32)
+        ::shutdown(_fd, SD_BOTH);
+        #else
         ::shutdown(_fd, SHUT_RDWR);
+        #endif
         close(_fd);
     }
 
@@ -169,8 +174,8 @@ public:
      * @param num 文件描述符，int数字
      * @param poller 事件监听器
      */
-    SockFD(int num, SockNum::SockType type, const EventPoller::Ptr &poller) {
-        _num = std::make_shared<SockNum>(num, type);
+    SockFD(SockNum::Ptr num, const EventPoller::Ptr &poller) {
+        _num = std::move(num);
         _poller = poller;
     }
 
@@ -206,8 +211,16 @@ public:
         return _num->rawFd();
     }
 
+    const SockNum::Ptr& sockNum() const {
+        return _num;
+    }
+
     SockNum::SockType type() {
         return _num->type();
+    }
+
+    const EventPoller::Ptr& getPoller() const {
+        return _poller;
     }
 
 private:
@@ -287,7 +300,6 @@ public:
      * @param enable_mutex 是否启用互斥锁(接口是否线程安全)
     */
     static Ptr createSocket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
-    Socket(const EventPoller::Ptr &poller = nullptr, bool enable_mutex = true);
     ~Socket() override;
 
     /**
@@ -422,6 +434,12 @@ public:
     int rawFD() const;
 
     /**
+     * tcp客户端是否处于连接状态
+     * 支持Sock_TCP类型socket
+     */
+    bool alive() const;
+
+    /**
      * 返回socket类型
      */
     SockNum::SockType sockType() const;
@@ -448,9 +466,10 @@ public:
      * 绑定udp 目标地址，后续发送时就不用再单独指定了
      * @param dst_addr 目标地址
      * @param addr_len 目标地址长度
+     * @param soft_bind 是否软绑定，软绑定时不调用udp connect接口，只保存目标地址信息，发送时再传递到sendto函数
      * @return 是否成功
      */
-    bool bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len = 0);
+    bool bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len = 0, bool soft_bind = false);
 
     /**
      * 设置发送flags
@@ -492,22 +511,21 @@ public:
     std::string getIdentifier() const override;
 
 private:
-    SockFD::Ptr cloneSockFD(const Socket &other);
-    SockFD::Ptr makeSock(int sock, SockNum::SockType type);
-    void setPeerSock(int fd, SockNum::SockType type);
-    int onAccept(int sock, int event) noexcept;
-    ssize_t onRead(int sock, SockNum::SockType type, const BufferRaw::Ptr &buffer) noexcept;
-    void onWriteAble(int sock, SockNum::SockType type);
-    void onConnected(int sock, const onErrCB &cb);
+    Socket(EventPoller::Ptr poller, bool enable_mutex = true);
+
+    void setSock(SockNum::Ptr sock);
+    int onAccept(const SockNum::Ptr &sock, int event) noexcept;
+    ssize_t onRead(const SockNum::Ptr &sock, const BufferRaw::Ptr &buffer) noexcept;
+    void onWriteAble(const SockNum::Ptr &sock);
+    void onConnected(const SockNum::Ptr &sock, const onErrCB &cb);
     void onFlushed();
-    void startWriteAbleEvent(int sock);
-    void stopWriteAbleEvent(int sock);
-    bool listen(const SockFD::Ptr &sock);
-    bool flushData(int sock, SockNum::SockType type, bool poller_thread);
-    bool attachEvent(int sock, SockNum::SockType type);
+    void startWriteAbleEvent(const SockNum::Ptr &sock);
+    void stopWriteAbleEvent(const SockNum::Ptr &sock);
+    bool flushData(const SockNum::Ptr &sock, bool poller_thread);
+    bool attachEvent(const SockNum::Ptr &sock);
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
-    bool fromSock_l(int fd, SockNum::SockType type);
+    bool fromSock_l(SockNum::Ptr sock);
 
 private:
     //send socket时的flag
@@ -522,6 +540,9 @@ private:
     bool _err_emit = false;
     //是否启用网速统计
     bool _enable_speed = false;
+    // udp发送目标地址
+    std::shared_ptr<struct sockaddr_storage> _udp_send_dst;
+
     //接收速率统计
     BytesSpeed _recv_speed;
     //发送速率统计
@@ -530,7 +551,7 @@ private:
     //tcp连接超时定时器
     Timer::Ptr _con_timer;
     //tcp连接结果回调对象
-    std::shared_ptr<std::function<void(int)> > _async_con_cb;
+    std::shared_ptr<void> _async_con_cb;
 
     //记录上次发送缓存(包括socket写缓存、应用层缓存)清空的计时器
     Ticker _send_flush_ticker;
@@ -566,6 +587,10 @@ private:
     BufferList::SendResult _send_result;
     //对象个数统计
     ObjectStatistic<Socket> _statistic;
+
+    //链接缓存地址,防止tcp reset 导致无法获取对端的地址
+    struct sockaddr_storage _local_addr;
+    struct sockaddr_storage _peer_addr;
 };
 
 class SockSender {
@@ -668,6 +693,12 @@ public:
     Task::Ptr async_first(TaskIn task, bool may_sync = true) override;
 
     ///////////////////// SockSender override /////////////////////
+
+    /**
+     * 使能 SockSender 其他未被重写的send重载函数
+     */
+    using SockSender::send;
+
     /**
      * 统一发送数据的出口
      */

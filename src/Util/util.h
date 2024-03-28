@@ -85,47 +85,6 @@ private:
     noncopyable &operator=(noncopyable &&that) = delete;
 };
 
-//可以保存任意的对象
-class Any{
-public:
-    using Ptr = std::shared_ptr<Any>;
-
-    Any() = default;
-    ~Any() = default;
-
-    template <typename C,typename ...ArgsType>
-    void set(ArgsType &&...args){
-        _data.reset(new C(std::forward<ArgsType>(args)...),[](void *ptr){
-            delete (C*) ptr;
-        });
-    }
-    template <typename C>
-    C& get(){
-        if(!_data){
-            throw std::invalid_argument("Any is empty");
-        }
-        C *ptr = (C *)_data.get();
-        return *ptr;
-    }
-
-    operator bool() {
-        return _data.operator bool ();
-    }
-    bool empty(){
-        return !bool();
-    }
-private:
-    std::shared_ptr<void> _data;
-};
-
-//用于保存一些外加属性
-class AnyStorage : public std::unordered_map<std::string,Any>{
-public:
-    AnyStorage() = default;
-    ~AnyStorage() = default;
-    using Ptr = std::shared_ptr<AnyStorage>;
-};
-
 #ifndef CLASS_FUNC_TRAITS
 #define CLASS_FUNC_TRAITS(func_name) \
 template<typename T, typename ... ARGS> \
@@ -264,9 +223,7 @@ bool end_with(const std::string &str, const std::string &substr);
 //拼接格式字符串
 template<typename... Args>
 std::string str_format(const std::string &format, Args... args) {
-#if __cplusplus > 202002L
-    return std::format(format, args...);
-#else
+
     // Calculate the buffer size
     auto size_buf = snprintf(nullptr, 0, format.c_str(), args ...) + 1;
     // Allocate the buffer
@@ -285,7 +242,6 @@ std::string str_format(const std::string &format, Args... args) {
     auto result = snprintf(buf.get(), size_buf, format.c_str(), args ...);
     // Return the formatted string
     return std::string(buf.get(), buf.get() + result);
-#endif
 }
 
 #ifndef bzero
@@ -311,6 +267,10 @@ const char *strcasestr(const char *big, const char *little);
 
 #if !defined(strcasecmp)
     #define strcasecmp _stricmp
+#endif
+
+#if !defined(strncasecmp)
+#define strncasecmp _strnicmp
 #endif
 
 #ifndef ssize_t
@@ -379,6 +339,97 @@ std::string demangle(const char *mangled);
  * 获取环境变量内容，以'$'开头
  */
 std::string getEnv(const std::string &key);
+
+// 可以保存任意的对象
+class Any {
+public:
+    using Ptr = std::shared_ptr<Any>;
+
+    Any() = default;
+    ~Any() = default;
+
+    Any(const Any &that) = default;
+    Any(Any &&that) {
+        _type = that._type;
+        _data = std::move(that._data);
+    }
+
+    Any &operator=(const Any &that) = default;
+    Any &operator=(Any &&that) {
+        _type = that._type;
+        _data = std::move(that._data);
+        return *this;
+    }
+
+    template <typename T, typename... ArgsType>
+    void set(ArgsType &&...args) {
+        _type = &typeid(T);
+        _data.reset(new T(std::forward<ArgsType>(args)...), [](void *ptr) { delete (T *)ptr; });
+    }
+
+    template <typename T>
+    void set(std::shared_ptr<T> data) {
+        if (data) {
+            _type = &typeid(T);
+            _data = std::move(data);
+        } else {
+            reset();
+        }
+    }
+
+    template <typename T>
+    T &get(bool safe = true) {
+        if (!_data) {
+            throw std::invalid_argument("Any is empty");
+        }
+        if (safe && !is<T>()) {
+            throw std::invalid_argument("Any::get(): " + demangle(_type->name()) + " unable cast to " + demangle(typeid(T).name()));
+        }
+        return *((T *)_data.get());
+    }
+
+    template <typename T>
+    const T &get(bool safe = true) const {
+        return const_cast<Any &>(*this).get<T>(safe);
+    }
+
+    template <typename T>
+    bool is() const {
+        return _type && typeid(T) == *_type;
+    }
+
+    operator bool() const { return _data.operator bool(); }
+    bool empty() const { return !bool(); }
+
+    void reset() {
+        _type = nullptr;
+        _data = nullptr;
+    }
+
+    Any &operator=(std::nullptr_t) {
+        reset();
+        return *this;
+    }
+
+    std::string type_name() const {
+        if (!_type) {
+            return "";
+        }
+        return demangle(_type->name());
+    }
+
+private:
+    const std::type_info* _type = nullptr;
+    std::shared_ptr<void> _data;
+};
+
+// 用于保存一些外加属性
+class AnyStorage : public std::unordered_map<std::string, Any> {
+public:
+    AnyStorage() = default;
+    ~AnyStorage() = default;
+    using Ptr = std::shared_ptr<AnyStorage>;
+};
 
 }  // namespace toolkit
 #endif /* UTIL_UTIL_H_ */

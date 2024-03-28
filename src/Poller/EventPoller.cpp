@@ -49,12 +49,18 @@ EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
 
-EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
-    _name = std::move(name);
-    _priority = priority;
+void EventPoller::addEventPipe() {
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
 
+    // 添加内部管道事件
+    if (addEvent(_pipe.readFD(), EventPoller::Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
+        throw std::runtime_error("Add pipe fd to poller failed");
+    }
+}
+
+EventPoller::EventPoller(std::string name) {
+    _name = std::move(name);
 #if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
@@ -63,12 +69,7 @@ EventPoller::EventPoller(std::string name, ThreadPool::Priority priority) {
     SockUtil::setCloExec(_epoll_fd);
 #endif //HAS_EPOLL
     _logger = Logger::Instance().shared_from_this();
-    _loop_thread_id = this_thread::get_id();
-
-    //添加内部管道事件
-    if (addEvent(_pipe.readFD(), Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
-        throw std::runtime_error("Add pipe fd to poller failed");
-    }
+    addEventPipe();
 }
 
 void EventPoller::shutdown() {
@@ -78,7 +79,7 @@ void EventPoller::shutdown() {
 
     if (_loop_thread) {
         //防止作为子进程时崩溃
-        try { _loop_thread->join(); } catch (...) {}
+        try { _loop_thread->join(); } catch (...) { _loop_thread->detach(); }
         delete _loop_thread;
         _loop_thread = nullptr;
     }
@@ -86,7 +87,6 @@ void EventPoller::shutdown() {
 
 EventPoller::~EventPoller() {
     shutdown();
-    wait();
 #if defined(HAS_EPOLL)
     if (_epoll_fd != -1) {
         close(_epoll_fd);
@@ -94,9 +94,8 @@ EventPoller::~EventPoller() {
     }
 #endif //defined(HAS_EPOLL)
     //退出前清理管道中的数据
-    _loop_thread_id = this_thread::get_id();
     onPipeEvent();
-    InfoL << this;
+    InfoL << getThreadName();
 }
 
 int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
@@ -125,6 +124,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         }
 #endif
         auto record = std::make_shared<Poll_Record>();
+        record->fd = fd;
         record->event = event;
         record->call_back = std::move(cb);
         _event_map.emplace(fd, record);
@@ -132,13 +132,13 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
 #endif //HAS_EPOLL
     }
 
-    async([this, fd, event, cb]() {
-        addEvent(fd, event, std::move(const_cast<PollEventCB &>(cb)));
+    async([this, fd, event, cb]() mutable {
+        addEvent(fd, event, std::move(cb));
     });
     return 0;
 }
 
-int EventPoller::delEvent(int fd, PollDelCB cb) {
+int EventPoller::delEvent(int fd, PollCompleteCB cb) {
     TimeTicker();
     if (!cb) {
         cb = [](bool success) {};
@@ -147,42 +147,54 @@ int EventPoller::delEvent(int fd, PollDelCB cb) {
     if (isCurrentThread()) {
 #if defined(HAS_EPOLL)
         bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr) == 0 && _event_map.erase(fd) > 0;
+        if (success) {
+            _event_cache_expired_map[fd] = true;
+        }
         cb(success);
         return success ? 0 : -1;
 #else
-        cb(_event_map.erase(fd));
+        bool success = _event_map.erase(fd);
+        if (success) {
+            _event_cache_expired_map[fd] = true;
+        }
+        cb(success);
         return 0;
 #endif //HAS_EPOLL
-
     }
 
     //跨线程操作
-    async([this, fd, cb]() {
-        delEvent(fd, std::move(const_cast<PollDelCB &>(cb)));
+    async([this, fd, cb]() mutable {
+        delEvent(fd, std::move(cb));
     });
     return 0;
 }
 
-int EventPoller::modifyEvent(int fd, int event) {
+int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
     TimeTicker();
-#if defined(HAS_EPOLL)
-    struct epoll_event ev = {0};
-    ev.events = toEpoll(event);
-    ev.data.fd = fd;
-    return epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
-#else
+    if (!cb) {
+        cb = [](bool success) {};
+    }
     if (isCurrentThread()) {
+#if defined(HAS_EPOLL)
+        struct epoll_event ev = { 0 };
+        ev.events = toEpoll(event);
+        ev.data.fd = fd;
+        auto ret = epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
+        cb(ret == 0);
+        return ret;
+#else
         auto it = _event_map.find(fd);
         if (it != _event_map.end()) {
             it->second->event = event;
         }
+        cb(it != _event_map.end());
         return 0;
+#endif // HAS_EPOLL
     }
-    async([this, fd, event]() {
-        modifyEvent(fd, event);
+    async([this, fd, event, cb]() mutable {
+        modifyEvent(fd, event, std::move(cb));
     });
     return 0;
-#endif //HAS_EPOLL
 }
 
 Task::Ptr EventPoller::async(TaskIn task, bool may_sync) {
@@ -215,18 +227,26 @@ Task::Ptr EventPoller::async_l(TaskIn task, bool may_sync, bool first) {
 }
 
 bool EventPoller::isCurrentThread() {
-    return _loop_thread_id == this_thread::get_id();
+    return !_loop_thread || _loop_thread->get_id() == this_thread::get_id();
 }
 
 inline void EventPoller::onPipeEvent() {
     char buf[1024];
     int err = 0;
-    do {
-        if (_pipe.read(buf, sizeof(buf)) > 0) {
+    while (true) {
+        if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
+            // 读到管道数据,继续读,直到读空为止
             continue;
         }
-        err = get_uv_error(true);
-    } while (err != UV_EAGAIN);
+        if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
+            // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道
+            ErrorL << "Invalid pipe fd of event poller, reopen it";
+            delEvent(_pipe.readFD());
+            _pipe.reOpen();
+            addEventPipe();
+        }
+        break;
+    }
 
     decltype(_list_task) _list_swap;
     {
@@ -245,10 +265,6 @@ inline void EventPoller::onPipeEvent() {
     });
 }
 
-void EventPoller::wait() {
-    lock_guard<mutex> lck(_mtx_running);
-}
-
 BufferRaw::Ptr EventPoller::getSharedBuffer() {
     auto ret = _shared_buffer.lock();
     if (!ret) {
@@ -260,8 +276,8 @@ BufferRaw::Ptr EventPoller::getSharedBuffer() {
     return ret;
 }
 
-const thread::id& EventPoller::getThreadId() const {
-    return _loop_thread_id;
+thread::id EventPoller::getThreadId() const {
+    return _loop_thread ? _loop_thread->get_id() : thread::id();
 }
 
 const std::string& EventPoller::getThreadName() const {
@@ -277,9 +293,6 @@ EventPoller::Ptr EventPoller::getCurrentPoller() {
 
 void EventPoller::runLoop(bool blocked, bool ref_self) {
     if (blocked) {
-        ThreadPool::setPriority(_priority);
-        lock_guard<mutex> lck(_mtx_running);
-        _loop_thread_id = this_thread::get_id();
         if (ref_self) {
             s_current_poller = shared_from_this();
         }
@@ -297,9 +310,17 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 //超时或被打断
                 continue;
             }
+
+            _event_cache_expired_map.clear();
+
             for (int i = 0; i < ret; ++i) {
                 struct epoll_event &ev = events[i];
                 int fd = ev.data.fd;
+                if (_event_cache_expired_map.find(fd) != _event_cache_expired_map.end()) {
+                    //event cache refresh
+                    continue;
+                }
+
                 auto it = _event_map.find(fd);
                 if (it == _event_map.end()) {
                     epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, nullptr);
@@ -351,6 +372,9 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 //超时或被打断
                 continue;
             }
+
+            _event_cache_expired_map.clear();
+
             //收集select事件类型
             for (auto &pr : _event_map) {
                 int event = 0;
@@ -369,7 +393,12 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 }
             }
 
-            callback_list.for_each([](Poll_Record::Ptr &record) {
+            callback_list.for_each([this](Poll_Record::Ptr &record) {
+                if (this->_event_cache_expired_map.find(record->fd) != this->_event_cache_expired_map.end()) {
+                    //event cache refresh
+                    return;
+                }
+
                 try {
                     record->call_back(record->attach);
                 } catch (std::exception &ex) {
@@ -439,6 +468,7 @@ EventPoller::DelayTask::Ptr EventPoller::doDelayTask(uint64_t delay_ms, function
     return ret;
 }
 
+
 ///////////////////////////////////////////////
 
 static size_t s_pool_size = 0;
@@ -466,7 +496,7 @@ const std::string EventPollerPool::kOnStarted = "kBroadcastEventPollerPoolStarte
 
 EventPollerPool::EventPollerPool() {
     auto size = addPoller("event poller", s_pool_size, ThreadPool::PRIORITY_HIGHEST, true, s_enable_cpu_affinity);
-    NoticeCenter::Instance().emitEvent(kOnStarted, *this, size);
+    NOTICE_EMIT(EventPollerPoolOnStartedArgs, kOnStarted, *this, size);
     InfoL << "EventPoller created size: " << size;
 }
 

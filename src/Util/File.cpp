@@ -100,7 +100,7 @@ int closedir(DIR *d) {
 
 namespace toolkit {
 
-FILE *File::create_file(const char *file, const char *mode) {
+FILE *File::create_file(const std::string &file, const std::string &mode) {
     std::string path = file;
     std::string dir;
     size_t index = 1;
@@ -111,31 +111,31 @@ FILE *File::create_file(const char *file, const char *mode) {
         if (dir.length() == 0) {
             break;
         }
-        if (_access(dir.c_str(), 0) == -1) { //access函数是查看是不是存在
-            if (mkdir(dir.c_str(), 0777) == -1) {  //如果不存在就用mkdir函数来创建
+        if (_access(dir.data(), 0) == -1) { //access函数是查看是不是存在
+            if (mkdir(dir.data(), 0777) == -1) {  //如果不存在就用mkdir函数来创建
                 WarnL << "mkdir " << dir << " failed: " << get_uv_errmsg();
                 return nullptr;
             }
         }
     }
     if (path[path.size() - 1] != '/') {
-        ret = fopen(file, mode);
+        ret = fopen(file.data(), mode.data());
     }
     return ret;
 }
 
-bool File::create_path(const char *file, unsigned int mod) {
+bool File::create_path(const std::string &file, unsigned int mod) {
     std::string path = file;
     std::string dir;
     size_t index = 1;
-    while (1) {
+    while (true) {
         index = path.find('/', index) + 1;
         dir = path.substr(0, index);
         if (dir.length() == 0) {
             break;
         }
-        if (_access(dir.c_str(), 0) == -1) { //access函数是查看是不是存在
-            if (mkdir(dir.c_str(), mod) == -1) {  //如果不存在就用mkdir函数来创建
+        if (_access(dir.data(), 0) == -1) { //access函数是查看是不是存在
+            if (mkdir(dir.data(), mod) == -1) {  //如果不存在就用mkdir函数来创建
                 WarnL << "mkdir " << dir << " failed: " << get_uv_errmsg();
                 return false;
             }
@@ -145,8 +145,8 @@ bool File::create_path(const char *file, unsigned int mod) {
 }
 
 //判断是否为目录
-bool File::is_dir(const char *path) {
-    auto dir = opendir(path);
+bool File::is_dir(const std::string &path) {
+    auto dir = opendir(path.data());
     if (!dir) {
         return false;
     }
@@ -155,8 +155,8 @@ bool File::is_dir(const char *path) {
 }
 
 //判断是否为常规文件
-bool File::fileExist(const char *path) {
-    auto fp = fopen(path, "rb");
+bool File::fileExist(const std::string &path) {
+    auto fp = fopen(path.data(), "rb");
     if (!fp) {
         return false;
     }
@@ -165,43 +165,45 @@ bool File::fileExist(const char *path) {
 }
 
 //判断是否是特殊目录
-bool File::is_special_dir(const char *path) {
-    return strcmp(path, ".") == 0 || strcmp(path, "..") == 0;
+bool File::is_special_dir(const std::string &path) {
+    return path == "." || path == "..";
 }
 
-//生成完整的文件路径
-void get_file_path(const char *path, const char *file_name, char *file_path) {
-    strcpy(file_path, path);
-    if (file_path[strlen(file_path) - 1] != '/') {
-        strcat(file_path, "/");
-    }
-    strcat(file_path, file_name);
-}
-
-int File::delete_file(const char *path) {
+static int delete_file_l(const std::string &path_in) {
     DIR *dir;
     dirent *dir_info;
-    char file_path[PATH_MAX];
-    if (is_dir(path)) {
-        if ((dir = opendir(path)) == nullptr) {
-            return _rmdir(path);
+    auto path = path_in;
+    if (path.back() == '/') {
+        path.pop_back();
+    }
+    if (File::is_dir(path)) {
+        if ((dir = opendir(path.data())) == nullptr) {
+            return _rmdir(path.data());
         }
         while ((dir_info = readdir(dir)) != nullptr) {
-            if (is_special_dir(dir_info->d_name)) {
+            if (File::is_special_dir(dir_info->d_name)) {
                 continue;
             }
-            get_file_path(path, dir_info->d_name, file_path);
-            delete_file(file_path);
+            File::delete_file(path + "/" + dir_info->d_name);
         }
-        auto ret = _rmdir(path);
+        auto ret = _rmdir(path.data());
         closedir(dir);
         return ret;
     }
-    return remove(path) ? _unlink(path) : 0;
+    return remove(path.data()) ? _unlink(path.data()) : 0;
 }
 
-string File::loadFile(const char *path) {
-    FILE *fp = fopen(path, "rb");
+int File::delete_file(const std::string &path, bool del_empty_dir, bool backtrace) {
+    auto ret = delete_file_l(path);
+    if (!ret && del_empty_dir) {
+        // delete success
+        File::deleteEmptyDir(parentDir(path), backtrace);
+    }
+    return ret;
+}
+
+string File::loadFile(const std::string &path) {
+    FILE *fp = fopen(path.data(), "rb");
     if (!fp) {
         return "";
     }
@@ -209,15 +211,15 @@ string File::loadFile(const char *path) {
     auto len = ftell(fp);
     fseek(fp, 0, SEEK_SET);
     string str(len, '\0');
-    if (len != fread((char *)str.data(), 1, str.size(), fp)) {
+    if (len != (decltype(len))fread((char *)str.data(), 1, str.size(), fp)) {
         WarnL << "fread " << path << " failed: " << get_uv_errmsg();
     }
     fclose(fp);
     return str;
 }
 
-bool File::saveFile(const string &data, const char *path) {
-    FILE *fp = fopen(path, "wb");
+bool File::saveFile(const string &data, const std::string &path) {
+    FILE *fp = fopen(path.data(), "wb");
     if (!fp) {
         return false;
     }
@@ -226,7 +228,7 @@ bool File::saveFile(const string &data, const char *path) {
     return true;
 }
 
-string File::parentDir(const string &path) {
+string File::parentDir(const std::string &path) {
     auto parent_dir = path;
     if (parent_dir.back() == '/') {
         parent_dir.pop_back();
@@ -238,7 +240,7 @@ string File::parentDir(const string &path) {
     return parent_dir;
 }
 
-string File::absolutePath(const string &path, const string &current_path, bool can_access_parent) {
+string File::absolutePath(const std::string &path, const std::string &current_path, bool can_access_parent) {
     string currentPath = current_path;
     if (!currentPath.empty()) {
         //当前目录不为空
@@ -286,7 +288,8 @@ string File::absolutePath(const string &path, const string &current_path, bool c
     return currentPath;
 }
 
-void File::scanDir(const string &path_in, const function<bool(const string &path, bool is_dir)> &cb, bool enter_subdirectory) {
+void File::scanDir(const std::string &path_in, const function<bool(const string &path, bool is_dir)> &cb,
+                   bool enter_subdirectory, bool show_hidden_file) {
     string path = path_in;
     if (path.back() == '/') {
         path.pop_back();
@@ -302,12 +305,12 @@ void File::scanDir(const string &path_in, const function<bool(const string &path
         if (is_special_dir(pDirent->d_name)) {
             continue;
         }
-        if (pDirent->d_name[0] == '.') {
+        if (!show_hidden_file && pDirent->d_name[0] == '.') {
             //隐藏的文件
             continue;
         }
         string strAbsolutePath = path + "/" + pDirent->d_name;
-        bool isDir = is_dir(strAbsolutePath.data());
+        bool isDir = is_dir(strAbsolutePath);
         if (!cb(strAbsolutePath, isDir)) {
             //不再继续扫描
             break;
@@ -332,12 +335,32 @@ uint64_t File::fileSize(FILE *fp, bool remain_size) {
     return end - (remain_size ? current : 0);
 }
 
-uint64_t File::fileSize(const char *path) {
-    if (!path) {
+uint64_t File::fileSize(const std::string &path) {
+    if (path.empty()) {
         return 0;
     }
-    auto fp = std::unique_ptr<FILE, decltype(&fclose)>(fopen(path, "rb"), fclose);
+    auto fp = std::unique_ptr<FILE, decltype(&fclose)>(fopen(path.data(), "rb"), fclose);
     return fileSize(fp.get());
+}
+
+static bool isEmptyDir(const std::string &path) {
+    bool empty = true;
+    File::scanDir(path,[&](const std::string &path, bool isDir) {
+        empty = false;
+        return false;
+    }, true, true);
+    return empty;
+}
+
+void File::deleteEmptyDir(const std::string &dir, bool backtrace) {
+    if (!File::is_dir(dir) || !isEmptyDir(dir)) {
+        // 不是文件夹或者非空
+        return;
+    }
+    File::delete_file(dir);
+    if (backtrace) {
+        deleteEmptyDir(File::parentDir(dir), true);
+    }
 }
 
 } /* namespace toolkit */

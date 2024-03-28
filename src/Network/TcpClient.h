@@ -111,6 +111,9 @@ public:
         }
     }
 
+    // 使能其他未被重写的send函数
+    using TcpClientType::send;
+
     ssize_t send(Buffer::Ptr buf) override {
         if (_ssl_box) {
             auto size = buf->size();
@@ -126,7 +129,7 @@ public:
     }
 
     inline void public_send(const Buffer::Ptr &buf) {
-        TcpClientType::send(std::move(const_cast<Buffer::Ptr &>(buf)));
+        TcpClientType::send(buf);
     }
 
     void startConnect(const std::string &url, uint16_t port, float timeout_sec = 5, uint16_t local_port = 0) override {
