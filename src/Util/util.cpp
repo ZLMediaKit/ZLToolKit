@@ -505,36 +505,9 @@ string getThreadName() {
     string ret;
     ret.resize(32);
     auto tid = pthread_self();
-#if defined(__GLIBC__) || defined(__APPLE__)
-    int res = pthread_getname_np(tid, name, 16);
-#else
-    size_t namelen;
-    char comm[17];
-    char fname[64];
-    FILE* f;
+#if defined(__GLIBC__)
+    pthread_getname_np(tid, (char*)ret.data(), ret.size());
 
-    namelen = snprintf(fname, sizeof(fname), "/proc/self/task/%ld/comm", (long)tid);
-    if (namelen >= sizeof(fname))
-        goto err;
-    f = fopen(fname, "r");
-    if (!f)
-        goto err;
-    if (fgets(comm, sizeof(comm), f) == NULL) {
-        fclose(f);
-        goto err;
-    }
-    fclose(f);
-
-    /* There's a newline at the end. */
-    if (comm[0] == '\0')
-        goto err;
-
-    if (comm[strlen(comm) - 1] == '\n')
-        comm[strlen(comm) - 1] = '\0';
-
-    memcpy(name, comm, 16);
-    res = 0;
-err:
 #endif
     if (ret[0]) {
         ret.resize(strlen(ret.data()));
