@@ -505,7 +505,9 @@ string getThreadName() {
     string ret;
     ret.resize(32);
     auto tid = pthread_self();
-    pthread_getname_np(tid, (char *) ret.data(), ret.size());
+#if defined(__GLIBC__)
+    pthread_getname_np(tid, (char*)ret.data(), ret.size());
+#endif
     if (ret[0]) {
         ret.resize(strlen(ret.data()));
         return ret;
