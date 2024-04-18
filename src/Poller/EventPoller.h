@@ -28,6 +28,10 @@
 #define HAS_EPOLL
 #endif //__linux__
 
+#if defined(__APPLE__)
+#define HAS_KQUEUE
+#endif // __APPLE__
+
 namespace toolkit {
 
 class EventPoller : public TaskExecutor, public AnyStorage, public std::enable_shared_from_this<EventPoller> {
@@ -205,7 +209,10 @@ private:
 #if defined(HAS_EPOLL)
     //epoll相关
     int _epoll_fd = -1;
-    unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
+    unordered_map<int, std::shared_ptr<PollEventCB>> _event_map;
+#elif defined(HAS_KQUEUE)
+    int _kqueue_fd = -1;
+    unordered_map<int, std::shared_ptr<PollEventCB>> _event_map;
 #else
     //select相关
     struct Poll_Record {

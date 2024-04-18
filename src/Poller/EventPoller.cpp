@@ -41,6 +41,21 @@
                                 | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #endif //HAS_EPOLL
 
+#if defined(HAS_KQUEUE)
+#include <sys/event.h>
+
+#define KEVENT_SIZE 1024
+
+#define toKevent(event)      (((event) & Event_Read) ? EVFILT_READ : 0) \
+                           | (((event) & Event_Write) ? EVFILT_WRITE : 0) \
+                           | (((event) & Event_Error) ? EVFILT_EXCEPT : 0)
+
+#define KeventToPoller(kevent)     (((kevent) & EVFILT_READ) ? Event_Read : 0) \
+                                 | (((kevent) & EVFILT_WRITE) ? Event_Write : 0) \
+                                 | (((kevent) & EVFILT_EXCEPT) ? Event_Error : 0)
+
+#endif // HAS_KQUEUE
+
 using namespace std;
 
 namespace toolkit {
@@ -67,7 +82,14 @@ EventPoller::EventPoller(std::string name) {
         throw runtime_error(StrPrinter << "Create epoll fd failed: " << get_uv_errmsg());
     }
     SockUtil::setCloExec(_epoll_fd);
+#elif defined(HAS_KQUEUE)
+    _kqueue_fd = kqueue();
+    if (_kqueue_fd == -1) {
+        throw runtime_error(StrPrinter << "Create kqueue fd failed: " << get_uv_errmsg());
+    }
+    SockUtil::setCloExec(_kqueue_fd);
 #endif //HAS_EPOLL
+    
     _logger = Logger::Instance().shared_from_this();
     addEventPipe();
 }
@@ -92,7 +114,13 @@ EventPoller::~EventPoller() {
         close(_epoll_fd);
         _epoll_fd = -1;
     }
+#elif defined(HAS_KQUEUE)
+    if (_kqueue_fd != -1) {
+        close(_kqueue_fd);
+        _kqueue_fd = -1;
+    }
 #endif //defined(HAS_EPOLL)
+
     //退出前清理管道中的数据
     onPipeEvent();
     InfoL << getThreadName();
@@ -115,6 +143,15 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
             _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
         }
         return ret;
+#elif defined(HAS_KQUEUE)
+        struct kevent kev;
+        EV_SET(&kev, fd, toKevent(event), EV_ADD|EV_ENABLE, 0, 0, NULL);
+        int ret = kevent(_kqueue_fd, &kev, 1, NULL, 0, NULL);
+        if (ret >= 0) {
+            _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
+        }
+
+        return ret >= 0 ? 0 : ret;
 #else
 #ifndef _WIN32
         //win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
@@ -152,6 +189,17 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
         }
         cb(success);
         return success ? 0 : -1;
+#elif defined(HAS_KQUEUE)
+        _event_map.erase(fd);
+        struct kevent kev;
+        EV_SET(&kev, fd, EVFILT_READ | EVFILT_WRITE | EVFILT_EXCEPT, EV_DELETE, 0, 0, NULL);
+        int ret = kevent(_kqueue_fd, &kev, 1, NULL, 0, NULL);
+        if (ret >= 0) {
+            _event_cache_expired_map[fd] = true;
+        }
+        
+        cb(ret >= 0);
+        return ret >= 0 ? 0 : ret;
 #else
         bool success = _event_map.erase(fd);
         if (success) {
@@ -182,6 +230,12 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
         auto ret = epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
         cb(ret == 0);
         return ret;
+#elif defined(HAS_KQUEUE)
+        struct kevent kev;
+        EV_SET(&kev, fd, toKevent(event), EV_ADD|EV_ENABLE, 0, 0, NULL);
+        int ret = kevent(_kqueue_fd, &kev, 1, NULL, 0, NULL);
+        cb(ret >= 0);
+        return ret >= 0 ? 0 : ret;
 #else
         auto it = _event_map.find(fd);
         if (it != _event_map.end()) {
@@ -329,6 +383,43 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 auto cb = it->second;
                 try {
                     (*cb)(toPoller(ev.events));
+                } catch (std::exception &ex) {
+                    ErrorL << "Exception occurred when do event task: " << ex.what();
+                }
+            }
+        }
+#elif defined(HAS_KQUEUE)
+        struct kevent kevents[KEVENT_SIZE];
+        while (!_exit_flag) {
+            minDelay = getMinDelay();
+            struct timespec timeout = { (long) minDelay / 1000, (long) minDelay % 1000 * 1000000 };
+
+            startSleep();
+            int ret = kevent(_kqueue_fd, NULL, 0, kevents, KEVENT_SIZE, &timeout);
+            sleepWakeUp();
+            if (ret <= 0) {
+                continue;
+            }
+
+            _event_cache_expired_map.clear();
+
+            for (int i = 0; i < ret; ++i) {
+                struct kevent &kev = kevents[i];
+                int fd = kev.ident;
+                if (_event_cache_expired_map.find(fd) != _event_cache_expired_map.end()) {
+                    //event cache refresh
+                    continue;
+                }
+
+                auto it = _event_map.find(fd);
+                if (it == _event_map.end()) {
+                    EV_SET(&kev, fd, kev.filter, EV_DELETE, 0, 0, NULL);
+                    kevent(_kqueue_fd, &kev, 1, NULL, 0, NULL);
+                    continue;
+                }
+                auto cb = it->second;
+                try {
+                    (*cb)(KeventToPoller(kev.filter));
                 } catch (std::exception &ex) {
                     ErrorL << "Exception occurred when do event task: " << ex.what();
                 }
