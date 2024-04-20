@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include "PipeWrap.h"
 #include "Util/logger.h"
 #include "Util/List.h"
@@ -27,6 +28,10 @@
 #if defined(__linux__) || defined(__linux)
 #define HAS_EPOLL
 #endif //__linux__
+
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#define HAS_KQUEUE
+#endif // __APPLE__
 
 namespace toolkit {
 
@@ -202,12 +207,12 @@ private:
     //保持日志可用
     Logger::Ptr _logger;
 
-#if defined(HAS_EPOLL)
-    //epoll相关
-    int _epoll_fd = -1;
-    unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
+#if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
+    // epoll和kqueue相关
+    int _event_fd = -1;
+    std::unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
 #else
-    //select相关
+    // select相关
     struct Poll_Record {
         using Ptr = std::shared_ptr<Poll_Record>;
         int fd;
@@ -215,9 +220,9 @@ private:
         int attach;
         PollEventCB call_back;
     };
-    unordered_map<int, Poll_Record::Ptr> _event_map;
+    std::unordered_map<int, Poll_Record::Ptr> _event_map;
 #endif //HAS_EPOLL
-    unordered_map<int, bool> _event_cache_expired_map;
+    std::unordered_set<int> _event_cache_expired;
 
     //定时器相关
     std::multimap<uint64_t, DelayTask::Ptr> _delay_task_map;
