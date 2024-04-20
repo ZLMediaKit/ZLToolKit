@@ -129,12 +129,12 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         struct kevent kev[2];
         int index = 0;
         if (event & Event_Read) {
-            EV_SET(&kev[index++], fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+            EV_SET(&kev[index++], fd, EVFILT_READ, EV_ADD, 0, 0, nullptr);
         }
         if (event & Event_Write) {
-            EV_SET(&kev[index++], fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+            EV_SET(&kev[index++], fd, EVFILT_WRITE, EV_ADD, 0, 0, nullptr);
         }
-        int ret = kevent(_event_fd, kev, index, NULL, 0, NULL);
+        int ret = kevent(_event_fd, kev, index, nullptr, 0, nullptr);
         if (ret != -1) {
             _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
         }
@@ -180,9 +180,9 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
             _event_cache_expired.emplace(fd);
             struct kevent kev[2];
             int index = 0;
-            EV_SET(&kev[index++], fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
-            EV_SET(&kev[index++], fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
-            ret = kevent(_event_fd, kev, index, NULL, 0, NULL);
+            EV_SET(&kev[index++], fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+            EV_SET(&kev[index++], fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+            ret = kevent(_event_fd, kev, index, nullptr, 0, nullptr);
         }
         cb(ret != -1);
         return ret;
@@ -220,9 +220,9 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
 #elif defined(HAS_KQUEUE)
         struct kevent kev[2];
         int index = 0;
-        EV_SET(&kev[index++], fd, EVFILT_READ, event & Event_Read ? EV_ADD : EV_DELETE, 0, 0, NULL);
-        EV_SET(&kev[index++], fd, EVFILT_WRITE, event & Event_Write ? EV_ADD : EV_DELETE, 0, 0, NULL);
-        int ret = kevent(_event_fd, kev, index, NULL, 0, NULL);
+        EV_SET(&kev[index++], fd, EVFILT_READ, event & Event_Read ? EV_ADD : EV_DELETE, 0, 0, nullptr);
+        EV_SET(&kev[index++], fd, EVFILT_WRITE, event & Event_Write ? EV_ADD : EV_DELETE, 0, 0, nullptr);
+        int ret = kevent(_event_fd, kev, index, nullptr, 0, nullptr);
         cb(ret != -1);
         return ret;
 #else
@@ -384,7 +384,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             struct timespec timeout = { (long)minDelay / 1000, (long)minDelay % 1000 * 1000000 };
 
             startSleep();
-            int ret = kevent(_event_fd, NULL, 0, kevents, KEVENT_SIZE, minDelay ? &timeout : nullptr);
+            int ret = kevent(_event_fd, nullptr, 0, kevents, KEVENT_SIZE, minDelay ? &timeout : nullptr);
             sleepWakeUp();
             if (ret <= 0) {
                 continue;
@@ -402,8 +402,8 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
 
                 auto it = _event_map.find(fd);
                 if (it == _event_map.end()) {
-                    EV_SET(&kev, fd, kev.filter, EV_DELETE, 0, 0, NULL);
-                    kevent(_event_fd, &kev, 1, NULL, 0, NULL);
+                    EV_SET(&kev, fd, kev.filter, EV_DELETE, 0, 0, nullptr);
+                    kevent(_event_fd, &kev, 1, nullptr, 0, nullptr);
                     continue;
                 }
                 auto cb = it->second;
