@@ -79,6 +79,10 @@ Logger::Logger(const string &loggerName) {
     _logger_name = loggerName;
     _last_log = std::make_shared<LogContext>();
     _default_channel = std::make_shared<ConsoleChannel>("default", LTrace);
+
+#if defined(_WIN32)
+    SetConsoleOutputCP(CP_UTF8);
+#endif
 }
 
 Logger::~Logger() {

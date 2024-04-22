@@ -47,6 +47,9 @@ if(WIN32)
     #防止Windows.h包含Winsock.h
     #Prevent Windows.h from including Winsock.h
     add_definitions(-DWIN32_LEAN_AND_MEAN)
+    if (MSVC)
+        add_compile_options("/utf-8")
+    endif()
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
