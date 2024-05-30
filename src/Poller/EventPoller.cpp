@@ -140,10 +140,13 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         }
         return ret;
 #else
+#ifndef _WIN32
+        // win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
         if (fd >= FD_SETSIZE) {
             WarnL << "select() can not watch fd bigger than " << FD_SETSIZE;
             return -1;
         }
+#endif
         auto record = std::make_shared<Poll_Record>();
         record->fd = fd;
         record->event = event;
