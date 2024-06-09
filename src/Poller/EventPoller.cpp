@@ -35,8 +35,8 @@
                             | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
                             | (((event) & Event_LT)    ? 0 : EPOLLET)
 
-#define toPoller(epoll_event)     (((epoll_event) & EPOLLIN) ? Event_Read   : 0) \
-                                | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
+#define toPoller(epoll_event)     (((epoll_event) & (EPOLLIN | EPOLLRDNORM | EPOLLHUP)) ? Event_Read   : 0) \
+                                | (((epoll_event) & (EPOLLOUT | EPOLLWRNORM)) ? Event_Write : 0) \
                                 | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
                                 | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #define create_event() epoll_create(EPOLL_SIZE)
