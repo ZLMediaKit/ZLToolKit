@@ -108,6 +108,7 @@ private:
 
 private:
     bool _cloned = false;
+    bool _multi_poller;
     Socket::Ptr _socket;
     std::shared_ptr<Timer> _timer;
     onCreateSocket _on_create_socket;

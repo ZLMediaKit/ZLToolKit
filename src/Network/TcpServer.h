@@ -92,6 +92,7 @@ private:
     void setupEvent();
 
 private:
+    bool _multi_poller;
     bool _is_on_manager = false;
     bool _main_server = true;
     std::weak_ptr<TcpServer> _parent;

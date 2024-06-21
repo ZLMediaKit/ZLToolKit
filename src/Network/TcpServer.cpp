@@ -20,6 +20,7 @@ INSTANCE_IMP(SessionMap)
 StatisticImp(TcpServer)
 
 TcpServer::TcpServer(const EventPoller::Ptr &poller) : Server(poller) {
+    _multi_poller = !poller;
     setOnCreateSocket(nullptr);
 }
 
@@ -82,7 +83,7 @@ TcpServer::Ptr TcpServer::onCreatServer(const EventPoller::Ptr &poller) {
 Socket::Ptr TcpServer::onBeforeAcceptConnection(const EventPoller::Ptr &poller) {
     assert(_poller->isCurrentThread());
     //此处改成自定义获取poller对象，防止负载不均衡
-    return createSocket(EventPollerPool::Instance().getPoller(false));
+    return createSocket(_multi_poller ? EventPollerPool::Instance().getPoller(false) : _poller);
 }
 
 void TcpServer::cloneFrom(const TcpServer &that) {
@@ -191,19 +192,21 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
         return true;
     }, _poller);
 
-    EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor) {
-        EventPoller::Ptr poller = static_pointer_cast<EventPoller>(executor);
-        if (poller == _poller) {
-            return;
-        }
-        auto &serverRef = _cloned_server[poller.get()];
-        if (!serverRef) {
-            serverRef = onCreatServer(poller);
-        }
-        if (serverRef) {
-            serverRef->cloneFrom(*this);
-        }
-    });
+    if (_multi_poller) {
+        EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor) {
+            EventPoller::Ptr poller = static_pointer_cast<EventPoller>(executor);
+            if (poller == _poller) {
+                return;
+            }
+            auto &serverRef = _cloned_server[poller.get()];
+            if (!serverRef) {
+                serverRef = onCreatServer(poller);
+            }
+            if (serverRef) {
+                serverRef->cloneFrom(*this);
+            }
+        });
+    }
 
     if (!_socket->listen(port, host.c_str(), backlog)) {
         // 创建tcp监听失败，可能是由于端口占用或权限问题

@@ -45,6 +45,7 @@ static UdpServer::PeerIdType makeSockId(sockaddr *addr, int) {
 }
 
 UdpServer::UdpServer(const EventPoller::Ptr &poller) : Server(poller) {
+    _multi_poller = !poller;
     setOnCreateSocket(nullptr);
 }
 
@@ -87,20 +88,22 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
         return false;
     }, _poller);
 
-    //clone server至不同线程，让udp server支持多线程
-    EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor) {
-        auto poller = std::static_pointer_cast<EventPoller>(executor);
-        if (poller == _poller) {
-            return;
-        }
-        auto &serverRef = _cloned_server[poller.get()];
-        if (!serverRef) {
-            serverRef = onCreatServer(poller);
-        }
-        if (serverRef) {
-            serverRef->cloneFrom(*this);
-        }
-    });
+    if (_multi_poller) {
+        // clone server至不同线程，让udp server支持多线程
+        EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &executor) {
+            auto poller = std::static_pointer_cast<EventPoller>(executor);
+            if (poller == _poller) {
+                return;
+            }
+            auto &serverRef = _cloned_server[poller.get()];
+            if (!serverRef) {
+                serverRef = onCreatServer(poller);
+            }
+            if (serverRef) {
+                serverRef->cloneFrom(*this);
+            }
+        });
+    }
 
     if (!_socket->bindUdpSock(port, host.c_str())) {
         // udp 绑定端口失败, 可能是由于端口占用或权限问题
@@ -193,24 +196,28 @@ void UdpServer::onManagerSession() {
         //拷贝map，防止遍历时移除对象
         copy_map = std::make_shared<std::unordered_map<PeerIdType, SessionHelper::Ptr> >(*_session_map);
     }
-    EventPollerPool::Instance().for_each([copy_map](const TaskExecutor::Ptr &executor) {
-        auto poller = std::static_pointer_cast<EventPoller>(executor);
-        poller->async([copy_map]() {
-            for (auto &pr : *copy_map) {
-                auto &session = pr.second->session();
-                if (!session->getPoller()->isCurrentThread()) {
-                    //该session不归属该poller管理
-                    continue;
-                }
-                try {
-                    // UDP 会话需要处理超时
-                    session->onManager();
-                } catch (exception &ex) {
-                    WarnL << "Exception occurred when emit onManager: " << ex.what();
-                }
+    auto lam = [copy_map]() {
+        for (auto &pr : *copy_map) {
+            auto &session = pr.second->session();
+            if (!session->getPoller()->isCurrentThread()) {
+                // 该session不归属该poller管理
+                continue;
             }
+            try {
+                // UDP 会话需要处理超时
+                session->onManager();
+            } catch (exception &ex) {
+                WarnL << "Exception occurred when emit onManager: " << ex.what();
+            }
+        }
+    };
+    if (_multi_poller){
+        EventPollerPool::Instance().for_each([lam](const TaskExecutor::Ptr &executor) {
+            std::static_pointer_cast<EventPoller>(executor)->async(lam);
         });
-    });
+    } else {
+        lam();
+    }
 }
 
 SessionHelper::Ptr UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id, const Buffer::Ptr &buf, sockaddr *addr, int addr_len, bool &is_new) {
@@ -228,7 +235,7 @@ SessionHelper::Ptr UdpServer::getOrCreateSession(const UdpServer::PeerIdType &id
 
 SessionHelper::Ptr UdpServer::createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
     // 此处改成自定义获取poller对象，防止负载不均衡
-    auto socket = createSocket(EventPollerPool::Instance().getPoller(false), buf, addr, addr_len);
+    auto socket = createSocket(_multi_poller ? EventPollerPool::Instance().getPoller(false) : _poller, buf, addr, addr_len);
     if (!socket) {
         //创建socket失败，本次onRead事件收到的数据直接丢弃
         return nullptr;
