@@ -311,13 +311,15 @@ inline void EventPoller::onPipeEvent() {
     });
 }
 
-BufferRaw::Ptr EventPoller::getSharedBuffer() {
-    auto ret = _shared_buffer.lock();
+SocketRecvBuffer::Ptr EventPoller::getSharedBuffer(bool is_udp) {
+#if !defined(__linux) && !defined(__linux__)
+    // 非Linux平台下，tcp和udp共享recvfrom方案，使用同一个buffer
+    is_udp = 0;
+#endif
+    auto ret = _shared_buffer[is_udp].lock();
     if (!ret) {
-        //预留一个字节存放\0结尾符
-        ret = BufferRaw::create();
-        ret->setCapacity(1 + SOCKET_DEFAULT_BUF_SIZE);
-        _shared_buffer = ret;
+        ret = SocketRecvBuffer::create(is_udp);
+        _shared_buffer[is_udp] = ret;
     }
     return ret;
 }

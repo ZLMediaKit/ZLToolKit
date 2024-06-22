@@ -282,7 +282,9 @@ class Socket : public std::enable_shared_from_this<Socket>, public noncopyable, 
 public:
     using Ptr = std::shared_ptr<Socket>;
     //接收数据回调
-    using onReadCB = std::function<void(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len)>;
+    using onReadCB = std::function<void(Buffer::Ptr &buf, struct sockaddr *addr, int addr_len)>;
+    using onMultiReadCB = std::function<void(Buffer::Ptr *buf, struct sockaddr_storage *addr, size_t count)>;
+
     //发生错误回调
     using onErrCB = std::function<void(const SockException &err)>;
     //tcp监听接收到连接请求
@@ -352,6 +354,7 @@ public:
      * @param cb 回调对象
      */
     void setOnRead(onReadCB cb);
+    void setOnMultiRead(onMultiReadCB cb);
 
     /**
      * 设置异常事件(包括eof等)回调
@@ -515,7 +518,7 @@ private:
 
     void setSock(SockNum::Ptr sock);
     int onAccept(const SockNum::Ptr &sock, int event) noexcept;
-    ssize_t onRead(const SockNum::Ptr &sock, const BufferRaw::Ptr &buffer) noexcept;
+    ssize_t onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &buffer) noexcept;
     void onWriteAble(const SockNum::Ptr &sock);
     void onConnected(const SockNum::Ptr &sock, const onErrCB &cb);
     void onFlushed();
@@ -528,67 +531,67 @@ private:
     bool fromSock_l(SockNum::Ptr sock);
 
 private:
-    //send socket时的flag
+    // send socket时的flag
     int _sock_flags = SOCKET_DEFAULE_FLAGS;
-    //最大发送缓存，单位毫秒，距上次发送缓存清空时间不能超过该参数
+    // 最大发送缓存，单位毫秒，距上次发送缓存清空时间不能超过该参数
     uint32_t _max_send_buffer_ms = SEND_TIME_OUT_SEC * 1000;
-    //控制是否接收监听socket可读事件，关闭后可用于流量控制
-    std::atomic<bool> _enable_recv {true};
-    //标记该socket是否可写，socket写缓存满了就不可写
-    std::atomic<bool> _sendable {true};
-    //是否已经触发err回调了
+    // 控制是否接收监听socket可读事件，关闭后可用于流量控制
+    std::atomic<bool> _enable_recv { true };
+    // 标记该socket是否可写，socket写缓存满了就不可写
+    std::atomic<bool> _sendable { true };
+    // 是否已经触发err回调了
     bool _err_emit = false;
-    //是否启用网速统计
+    // 是否启用网速统计
     bool _enable_speed = false;
     // udp发送目标地址
     std::shared_ptr<struct sockaddr_storage> _udp_send_dst;
 
-    //接收速率统计
+    // 接收速率统计
     BytesSpeed _recv_speed;
-    //发送速率统计
+    // 发送速率统计
     BytesSpeed _send_speed;
 
-    //tcp连接超时定时器
+    // tcp连接超时定时器
     Timer::Ptr _con_timer;
-    //tcp连接结果回调对象
+    // tcp连接结果回调对象
     std::shared_ptr<void> _async_con_cb;
 
-    //记录上次发送缓存(包括socket写缓存、应用层缓存)清空的计时器
+    // 记录上次发送缓存(包括socket写缓存、应用层缓存)清空的计时器
     Ticker _send_flush_ticker;
-    //socket fd的抽象类
+    // socket fd的抽象类
     SockFD::Ptr _sock_fd;
-    //本socket绑定的poller线程，事件触发于此线程
+    // 本socket绑定的poller线程，事件触发于此线程
     EventPoller::Ptr _poller;
-    //跨线程访问_sock_fd时需要上锁
+    // 跨线程访问_sock_fd时需要上锁
     mutable MutexWrapper<std::recursive_mutex> _mtx_sock_fd;
 
-    //socket异常事件(比如说断开)
+    // socket异常事件(比如说断开)
     onErrCB _on_err;
-    //收到数据事件
-    onReadCB _on_read;
-    //socket缓存清空事件(可用于发送流速控制)
+    // 收到数据事件
+    onMultiReadCB _on_multi_read;
+    // socket缓存清空事件(可用于发送流速控制)
     onFlush _on_flush;
-    //tcp监听收到accept请求事件
+    // tcp监听收到accept请求事件
     onAcceptCB _on_accept;
-    //tcp监听收到accept请求，自定义创建peer Socket事件(可以控制子Socket绑定到其他poller线程)
+    // tcp监听收到accept请求，自定义创建peer Socket事件(可以控制子Socket绑定到其他poller线程)
     onCreateSocket _on_before_accept;
-    //设置上述回调函数的锁
+    // 设置上述回调函数的锁
     MutexWrapper<std::recursive_mutex> _mtx_event;
 
-    //一级发送缓存, socket可写时，会把一级缓存批量送入到二级缓存
-    List<std::pair<Buffer::Ptr, bool> > _send_buf_waiting;
-    //一级发送缓存锁
+    // 一级发送缓存, socket可写时，会把一级缓存批量送入到二级缓存
+    List<std::pair<Buffer::Ptr, bool>> _send_buf_waiting;
+    // 一级发送缓存锁
     MutexWrapper<std::recursive_mutex> _mtx_send_buf_waiting;
-    //二级发送缓存, socket可写时，会把二级缓存批量写入到socket
+    // 二级发送缓存, socket可写时，会把二级缓存批量写入到socket
     List<BufferList::Ptr> _send_buf_sending;
-    //二级发送缓存锁
+    // 二级发送缓存锁
     MutexWrapper<std::recursive_mutex> _mtx_send_buf_sending;
-    //发送buffer结果回调
+    // 发送buffer结果回调
     BufferList::SendResult _send_result;
-    //对象个数统计
+    // 对象个数统计
     ObjectStatistic<Socket> _statistic;
 
-    //链接缓存地址,防止tcp reset 导致无法获取对端的地址
+    // 链接缓存地址,防止tcp reset 导致无法获取对端的地址
     struct sockaddr_storage _local_addr;
     struct sockaddr_storage _peer_addr;
 };

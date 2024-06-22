@@ -80,11 +80,27 @@ Socket::~Socket() {
 }
 
 void Socket::setOnRead(onReadCB cb) {
+    onMultiReadCB cb2;
+    if (cb) {
+        cb2 = [cb](Buffer::Ptr *buf, struct sockaddr_storage *addr, size_t count) {
+            for (auto i = 0u; i < count; ++i) {
+                cb(buf[i], (struct sockaddr *)(addr + i), sizeof(struct sockaddr_storage));
+            }
+        };
+    }
+    setOnMultiRead(std::move(cb2));
+}
+
+void Socket::setOnMultiRead(onMultiReadCB cb) {
     LOCK_GUARD(_mtx_event);
     if (cb) {
-        _on_read = std::move(cb);
+        _on_multi_read = std::move(cb);
     } else {
-        _on_read = [](const Buffer::Ptr &buf, struct sockaddr *, int) { WarnL << "Socket not set read callback, data ignored: " << buf->size(); };
+        _on_multi_read = [](Buffer::Ptr *buf, struct sockaddr_storage *addr, size_t count) {
+            for (auto i = 0u; i < count; ++i) {
+                WarnL << "Socket not set read callback, data ignored: " << buf[i]->size();
+            }
+        };
     }
 }
 
@@ -246,7 +262,7 @@ bool Socket::attachEvent(const SockNum::Ptr &sock) {
     }
 
     // tcp客户端或udp
-    auto read_buffer = _poller->getSharedBuffer();
+    auto read_buffer = _poller->getSharedBuffer(sock->type() == SockNum::Sock_UDP);
     auto result = _poller->addEvent(sock->rawFd(), EventPoller::Event_Read | EventPoller::Event_Error | EventPoller::Event_Write, [weak_self, sock, read_buffer](int event) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
@@ -267,20 +283,11 @@ bool Socket::attachEvent(const SockNum::Ptr &sock) {
     return -1 != result;
 }
 
-ssize_t Socket::onRead(const SockNum::Ptr &sock, const BufferRaw::Ptr &buffer) noexcept {
-    ssize_t ret = 0, nread = 0;
-    auto data = buffer->data();
-    // 最后一个字节设置为'\0'
-    auto capacity = buffer->getCapacity() - 1;
-
-    struct sockaddr_storage addr;
-    socklen_t len = sizeof(addr);
+ssize_t Socket::onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &buffer) noexcept {
+    ssize_t ret = 0, nread = 0, count = 0;
 
     while (_enable_recv) {
-        do {
-            nread = recvfrom(sock->rawFd(), data, capacity, 0, (struct sockaddr *)&addr, &len);
-        } while (-1 == nread && UV_EINTR == get_uv_error(true));
-
+        nread = buffer->recvFromSocket(sock->rawFd(), count);
         if (nread == 0) {
             if (sock->type() == SockNum::Sock_TCP) {
                 emitErr(SockException(Err_eof, "end of file"));
@@ -302,21 +309,18 @@ ssize_t Socket::onRead(const SockNum::Ptr &sock, const BufferRaw::Ptr &buffer) n
             return ret;
         }
 
+        ret += nread;
         if (_enable_speed) {
             // 更新接收速率
             _recv_speed += nread;
         }
 
-        ret += nread;
-        data[nread] = '\0';
-        // 设置buffer有效数据大小
-        buffer->setSize(nread);
-
-        // 触发回调
-        LOCK_GUARD(_mtx_event);
+        auto &buf = buffer->getBuffer(0);
+        auto &addr = buffer->getAddress(0);
         try {
             // 此处捕获异常，目的是防止数据未读尽，epoll边沿触发失效的问题
-            _on_read(buffer, (struct sockaddr *)&addr, len);
+            LOCK_GUARD(_mtx_event);
+            _on_multi_read(&buf, &addr, count);
         } catch (std::exception &ex) {
             ErrorL << "Exception occurred when emit on_read: " << ex.what();
         }

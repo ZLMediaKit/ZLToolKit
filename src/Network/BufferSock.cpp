@@ -466,4 +466,132 @@ BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, Sen
 #endif
 }
 
+#if defined(__linux) || defined(__linux__)
+class SocketRecvmmsgBuffer : public SocketRecvBuffer {
+public:
+    SocketRecvmmsgBuffer(size_t count, size_t size)
+        : _size(size)
+        , _iovec(count)
+        , _mmsgs(count)
+        , _buffers(count)
+        , _address(count) {
+        for (auto i = 0u; i < count; ++i) {
+            auto buf = BufferRaw::create();
+            buf->setCapacity(size);
+
+            _buffers[i] = buf;
+            auto &mmsg = _mmsgs[i];
+            auto &addr = _address[i];
+            mmsg.msg_len = 0;
+            mmsg.msg_hdr.msg_name = &addr;
+            mmsg.msg_hdr.msg_namelen = sizeof(addr);
+            mmsg.msg_hdr.msg_iov = &_iovec[i];
+            mmsg.msg_hdr.msg_iov->iov_base = buf->data();
+            mmsg.msg_hdr.msg_iov->iov_len = buf->getCapacity() - 1;
+            mmsg.msg_hdr.msg_iovlen = 1;
+            mmsg.msg_hdr.msg_control = nullptr;
+            mmsg.msg_hdr.msg_controllen = 0;
+            mmsg.msg_hdr.msg_flags = 0;
+        }
+    }
+
+    ssize_t recvFromSocket(int fd, ssize_t &count) override {
+        for (auto i = 0; i < _last_count; ++i) {
+            auto &mmsg = _mmsgs[i];
+            mmsg.msg_hdr.msg_namelen = sizeof(struct sockaddr_storage);
+            auto &buf = _buffers[i];
+            if (!buf) {
+                auto raw = BufferRaw::create();
+                raw->setCapacity(_size);
+                buf = raw;
+                mmsg.msg_hdr.msg_iov->iov_base = buf->data();
+            }
+        }
+        do {
+            count = recvmmsg(fd, &_mmsgs[0], _mmsgs.size(), 0, nullptr);
+        } while (-1 == count && UV_EINTR == get_uv_error(true));
+
+        _last_count = count;
+        if (count <= 0) {
+            return count;
+        }
+
+        ssize_t nread = 0;
+        for (auto i = 0; i < count; ++i) {
+            auto &mmsg = _mmsgs[i];
+            nread += mmsg.msg_len;
+
+            auto buf = std::static_pointer_cast<BufferRaw>(_buffers[i]);
+            buf->setSize(mmsg.msg_len);
+            buf->data()[mmsg.msg_len] = '\0';
+        }
+        return nread;
+    }
+
+    Buffer::Ptr &getBuffer(size_t index) override { return _buffers[index]; }
+
+    struct sockaddr_storage &getAddress(size_t index) override { return _address[index]; }
+
+private:
+    size_t _size;
+    ssize_t _last_count { 0 };
+    std::vector<struct iovec> _iovec;
+    std::vector<struct mmsghdr> _mmsgs;
+    std::vector<Buffer::Ptr> _buffers;
+    std::vector<struct sockaddr_storage> _address;
+};
+#endif
+
+class SocketRecvFromBuffer : public SocketRecvBuffer {
+public:
+    SocketRecvFromBuffer(size_t size): _size(size) {}
+    
+    ssize_t recvFromSocket(int fd, ssize_t &count) override {
+        ssize_t nread;
+        socklen_t len = sizeof(_address);
+        if (!_buffer) {
+            allocBuffer();
+        }
+
+        do {
+            nread = recvfrom(fd, _buffer->data(), _buffer->getCapacity() - 1, 0, (struct sockaddr *)&_address, &len);
+        } while (-1 == nread && UV_EINTR == get_uv_error(true));
+
+        if (nread > 0) {
+            count = 1;
+            _buffer->data()[nread] = '\0';
+            std::static_pointer_cast<BufferRaw>(_buffer)->setSize(nread);
+        }
+        return nread;
+    }
+
+    Buffer::Ptr &getBuffer(size_t index) override { return _buffer; }
+
+    struct sockaddr_storage &getAddress(size_t index) override { return _address; }
+
+private:
+    void allocBuffer() {
+        auto buf = BufferRaw::create();
+        buf->setCapacity(_size);
+        _buffer = std::move(buf);
+    }
+
+private:
+    size_t _size;
+    Buffer::Ptr _buffer;
+    struct sockaddr_storage _address;
+};
+
+static constexpr auto kPacketCount = 32;
+static constexpr auto kBufferCapacity = 4 * 1024u;
+
+SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
+#if defined(__linux) || defined(__linux__)
+    if (is_udp) {
+        return std::make_shared<SocketRecvmmsgBuffer>(kPacketCount, kBufferCapacity);
+    }
+#endif
+    return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
+}
+
 } //toolkit

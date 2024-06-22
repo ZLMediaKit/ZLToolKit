@@ -24,6 +24,7 @@
 #include "Thread/TaskExecutor.h"
 #include "Thread/ThreadPool.h"
 #include "Network/Buffer.h"
+#include "Network/BufferSock.h"
 
 #if defined(__linux__) || defined(__linux)
 #define HAS_EPOLL
@@ -123,7 +124,7 @@ public:
     /**
      * 获取当前线程下所有socket共享的读缓存
      */
-    BufferRaw::Ptr getSharedBuffer();
+    SocketRecvBuffer::Ptr getSharedBuffer(bool is_udp);
 
     /**
      * 获取poller线程id
@@ -192,7 +193,7 @@ private:
     //线程名
     std::string _name;
     //当前线程下，所有socket共享的读缓存
-    std::weak_ptr<BufferRaw> _shared_buffer;
+    std::weak_ptr<SocketRecvBuffer> _shared_buffer[2];
     //执行事件循环的线程
     std::thread *_loop_thread = nullptr;
     //通知事件循环的线程已启动

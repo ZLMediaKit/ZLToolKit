@@ -69,5 +69,18 @@ private:
     ObjectStatistic<BufferList> _statistic;
 };
 
+class SocketRecvBuffer {
+public:
+    using Ptr = std::shared_ptr<SocketRecvBuffer>;
+
+    virtual ~SocketRecvBuffer() = default;
+
+    virtual ssize_t recvFromSocket(int fd, ssize_t &count) = 0;
+    virtual Buffer::Ptr &getBuffer(size_t index) = 0;
+    virtual struct sockaddr_storage &getAddress(size_t index) = 0;
+
+    static Ptr create(bool is_udp);
+};
+
 }
 #endif //ZLTOOLKIT_BUFFERSOCK_H

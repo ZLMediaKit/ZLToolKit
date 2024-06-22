@@ -77,7 +77,7 @@ private:
      */
     void onManagerSession();
 
-    void onRead(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
+    void onRead(Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
 
     /**
      * @brief 接收到数据,可能来自server fd，也可能来自peer fd
@@ -87,17 +87,17 @@ private:
      * @param addr 客户端地址
      * @param addr_len 客户端地址长度
      */
-    void onRead_l(bool is_server_fd, const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
+    void onRead_l(bool is_server_fd, const PeerIdType &id, Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
 
     /**
      * @brief 根据对端信息获取或创建一个会话
      */
-    SessionHelper::Ptr getOrCreateSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len, bool &is_new);
+    SessionHelper::Ptr getOrCreateSession(const PeerIdType &id, Buffer::Ptr &buf, struct sockaddr *addr, int addr_len, bool &is_new);
 
     /**
      * @brief 创建一个会话, 同时进行必要的设置
      */
-    SessionHelper::Ptr createSession(const PeerIdType &id, const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
+    SessionHelper::Ptr createSession(const PeerIdType &id, Buffer::Ptr &buf, struct sockaddr *addr, int addr_len);
 
     /**
      * @brief 创建socket
