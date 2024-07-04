@@ -544,7 +544,7 @@ private:
 
 class SocketRecvFromBuffer : public SocketRecvBuffer {
 public:
-    SocketRecvFromBuffer(size_t size): _size(size) {}
+   explicit SocketRecvFromBuffer(size_t size): _size(size) {}
     
     ssize_t recvFromSocket(int fd, ssize_t &count) override {
         ssize_t nread;
@@ -582,6 +582,65 @@ private:
     struct sockaddr_storage _address;
 };
 
+#if (_WIN32)
+class SocketWSARecvFromBuffers final : public SocketRecvBuffer {
+public:
+    explicit SocketWSARecvFromBuffers(size_t size) : _size(size) {
+        _wsabuf = wsa_buf_init(NULL, 0);
+    }
+
+    ssize_t recvFromSocket(int fd, ssize_t &count) override {
+        DWORD bytes = 0, flags = 0;
+        ssize_t nread;
+        socklen_t len = sizeof(_address);
+        if (!_buffer) {
+            allocBuffer();
+        }
+
+        do {
+            nread = WSARecvFrom(fd, (WSABUF *)&_wsabuf, 1, &bytes, &flags, (struct sockaddr *)&_address, &len, NULL, NULL);
+            nread = bytes;
+        } while (-1 == nread && UV_EINTR == get_uv_error(true));
+
+        if (nread > 0) {
+            count = 1;
+            _buffer->data()[nread] = '\0';
+            std::static_pointer_cast<BufferRaw>(_buffer)->setSize(nread);
+        }
+        return nread;
+    }
+
+    Buffer::Ptr &getBuffer(size_t index) override { return _buffer; }
+
+    struct sockaddr_storage &getAddress(size_t index) override {
+        return _address;
+    }
+
+private:
+    WSABUF wsa_buf_init(char *base, ssize_t len) {
+        WSABUF buftmp;
+        buftmp.buf = base;
+        buftmp.len = len;
+        return buftmp;
+    }
+
+    void allocBuffer() {
+        auto buf = BufferRaw::create();
+        buf->setCapacity(_size);
+        _buffer = std::move(buf);
+        _wsabuf = wsa_buf_init(_buffer->data(), _size);
+    }
+
+private:
+    size_t _size;
+    Buffer::Ptr _buffer;
+    struct sockaddr_storage _address;
+    WSABUF _wsabuf;
+    //bool _isudp;
+};
+
+#endif
+
 static constexpr auto kPacketCount = 32;
 static constexpr auto kBufferCapacity = 4 * 1024u;
 
@@ -591,6 +650,13 @@ SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
         return std::make_shared<SocketRecvmmsgBuffer>(kPacketCount, kBufferCapacity);
     }
 #endif
+
+#if (_WIN32)
+	if (is_udp)	{
+		return std::make_shared<SocketWSARecvFromBuffers>(kPacketCount * kBufferCapacity);
+	}
+#endif
+
     return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
 }
 

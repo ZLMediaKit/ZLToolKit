@@ -291,9 +291,13 @@ ssize_t Socket::onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &bu
         if (nread == 0) {
             if (sock->type() == SockNum::Sock_TCP) {
                 emitErr(SockException(Err_eof, "end of file"));
-            } else {
-                WarnL << "Recv eof on udp socket[" << sock->rawFd() << "]";
+            } 
+            #ifndef _WIN32
+            else {
+                // 在windows udp, 如果未发生任何错误，并且接收操作已立即完成， 则 WSARecvFrom 将返回零
+                 WarnL << "Recv eof on udp socket[" << sock->rawFd() << "]";
             }
+            #endif
             return ret;
         }
 

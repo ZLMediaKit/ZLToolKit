@@ -312,10 +312,8 @@ inline void EventPoller::onPipeEvent() {
 }
 
 SocketRecvBuffer::Ptr EventPoller::getSharedBuffer(bool is_udp) {
-#if !defined(__linux) && !defined(__linux__)
-    // 非Linux平台下，tcp和udp共享recvfrom方案，使用同一个buffer
-    is_udp = 0;
-#endif
+// Linux/windows跨平台里，tcp 用recvfrom方案，使用同一个buffer 
+// Linux UDP 用 recvmmsg，而 windows 用 WSARecvFrom
     auto ret = _shared_buffer[is_udp].lock();
     if (!ret) {
         ret = SocketRecvBuffer::create(is_udp);
