@@ -243,6 +243,8 @@ class EventChannel : public LogChannel {
 public:
     //输出日志时的广播名
     static const std::string kBroadcastLogEvent;
+    //toolkit目前仅只有一处全局变量被外部引用，减少导出相关定义，导出以下函数避免导出kBroadcastLogEvent
+    static const std::string& getBroadcastLogEventName();
     //日志广播参数类型和列表
     #define BroadcastLogEventArgs const Logger &logger, const LogContextPtr &ctx
 

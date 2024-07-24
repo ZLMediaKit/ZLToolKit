@@ -650,3 +650,17 @@ void Creator::onDestoryException(const type_info &info, const exception &ex) {
 
 }  // namespace toolkit
 
+
+extern "C" {
+void Assert_Throw(int failed, const char *exp, const char *func, const char *file, int line, const char *str) {
+    if (failed) {
+        toolkit::_StrPrinter printer;
+        printer << "Assertion failed: (" << exp ;
+        if(str && *str){
+            printer << ", " << str;
+        }
+        printer << "), function " << func << ", file " << file << ", line " << line << ".";
+        throw toolkit::AssertFailedException(printer);
+    }
+}
+}

@@ -283,6 +283,8 @@ void EventChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     NOTICE_EMIT(BroadcastLogEventArgs, kBroadcastLogEvent, logger, ctx);
 }
 
+const std::string &EventChannel::getBroadcastLogEventName() { return kBroadcastLogEvent;}
+
 ///////////////////ConsoleChannel///////////////////
 
 ConsoleChannel::ConsoleChannel(const string &name, LogLevel level) : LogChannel(name, level) {}
