@@ -128,7 +128,7 @@ int main(int argc,char *argv[]){
                 socket->setOnErr([](const SockException &err){
                     WarnL << err.what();
                 });
-                socket->setOnRead([interval,socket](const Buffer::Ptr &buffer, struct sockaddr *addr , int addr_len){
+                socket->setOnRead([interval,socket](Buffer::Ptr &buffer, struct sockaddr *addr , int addr_len){
                     if(!interval){
                         socket->send(buffer);
                     }
