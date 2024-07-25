@@ -118,7 +118,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
     if (isCurrentThread()) {
 #if defined(HAS_EPOLL)
         struct epoll_event ev = {0};
-        ev.events = (toEpoll(event)) | EPOLLEXCLUSIVE;
+        ev.events = (toEpoll(event)) ;
         ev.data.fd = fd;
         int ret = epoll_ctl(_event_fd, EPOLL_CTL_ADD, fd, &ev);
         if (ret != -1) {
