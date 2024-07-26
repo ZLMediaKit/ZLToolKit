@@ -30,6 +30,10 @@ string getIP(struct sockaddr *addr){
     return SockUtil::inet_ntoa(addr);
 }
 
+uint16_t getPort(struct sockaddr* addr) {
+    return SockUtil::inet_port(addr);
+}
+
 int main() {
     //设置程序退出信号处理函数
     signal(SIGINT, [](int){exitProgram = true;});
@@ -42,9 +46,9 @@ int main() {
     sockRecv->bindUdpSock(9001);//接收UDP绑定9001端口
     sockSend->bindUdpSock(0, "0.0.0.0");//发送UDP随机端口
 
-    sockRecv->setOnRead([](const Buffer::Ptr &buf, struct sockaddr *addr , int){
+    sockRecv->setOnRead([](Buffer::Ptr &buf, struct sockaddr *addr , int){
         //接收到数据回调
-        DebugL << "recv data form " << getIP(addr) << ":" << buf->data();
+        DebugL << "recv data form(" << getIP(addr) << ":" << getPort(addr)<< ") " << buf->data();
     });
 
     struct sockaddr_storage addrDst;
