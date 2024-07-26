@@ -129,10 +129,10 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         struct kevent kev[2];
         int index = 0;
         if (event & Event_Read) {
-            EV_SET(&kev[index++], fd, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+            EV_SET(&kev[index++], fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, nullptr);
         }
         if (event & Event_Write) {
-            EV_SET(&kev[index++], fd, EVFILT_WRITE, EV_ADD, 0, 0, nullptr);
+            EV_SET(&kev[index++], fd, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, nullptr);
         }
         int ret = kevent(_event_fd, kev, index, nullptr, 0, nullptr);
         if (ret != -1) {
@@ -223,8 +223,8 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
 #elif defined(HAS_KQUEUE)
         struct kevent kev[2];
         int index = 0;
-        EV_SET(&kev[index++], fd, EVFILT_READ, event & Event_Read ? EV_ADD : EV_DELETE, 0, 0, nullptr);
-        EV_SET(&kev[index++], fd, EVFILT_WRITE, event & Event_Write ? EV_ADD : EV_DELETE, 0, 0, nullptr);
+        EV_SET(&kev[index++], fd, EVFILT_READ, event & Event_Read ? EV_ADD | EV_CLEAR : EV_DELETE, 0, 0, nullptr);
+        EV_SET(&kev[index++], fd, EVFILT_WRITE, event & Event_Write ? EV_ADD | EV_CLEAR : EV_DELETE, 0, 0, nullptr);
         int ret = kevent(_event_fd, kev, index, nullptr, 0, nullptr);
         cb(ret != -1);
         return ret;

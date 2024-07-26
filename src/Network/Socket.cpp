@@ -543,9 +543,9 @@ int Socket::onAccept(const SockNum::Ptr &sock, int event) noexcept {
                 // emitErr(ex); https://github.com/ZLMediaKit/ZLMediaKit/issues/2946
                 ErrorL << "Accept socket failed: " << ex.what();
                 // 可能打开的文件描述符太多了:UV_EMFILE/UV_ENFILE
-#if defined(HAS_EPOLL) &&  !defined(_WIN32) 
+#if (defined(HAS_EPOLL) && !defined(_WIN32)) || defined(HAS_KQUEUE) 
                 // 边缘触发，还需要手动再触发accept事件,  
-                //wepoll, Edge-triggered (`EPOLLET`) mode isn't supported.
+                // wepoll, Edge-triggered (`EPOLLET`) mode isn't supported.
                 std::weak_ptr<Socket> weak_self = shared_from_this();
                 _poller->doDelayTask(100, [weak_self, sock]() {
                     if (auto strong_self = weak_self.lock()) {
