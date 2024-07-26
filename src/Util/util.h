@@ -195,6 +195,12 @@ private:
         return instance; \
     }
 
+class AssertFailedException : public std::runtime_error {
+public:
+    template<typename ...T>
+    AssertFailedException(T && ...args) : std::runtime_error(std::forward<T>(args)...) {}
+};
+
 std::string makeRandStr(int sz, bool printable = true);
 std::string hexdump(const void *buf, size_t len);
 std::string hexmem(const void* buf, size_t len);
@@ -432,4 +438,13 @@ public:
 };
 
 }  // namespace toolkit
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void Assert_Throw(int failed, const char *exp, const char *func, const char *file, int line, const char *str);
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* UTIL_UTIL_H_ */
