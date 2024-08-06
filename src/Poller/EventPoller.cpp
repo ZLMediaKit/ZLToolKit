@@ -276,10 +276,10 @@ bool EventPoller::isCurrentThread() {
     return !_loop_thread || _loop_thread->get_id() == this_thread::get_id();
 }
 
-inline void EventPoller::onPipeEvent(bool flus) {
+inline void EventPoller::onPipeEvent(bool flush) {
     char buf[1024];
     int err = 0;
-	if (!flus) {
+    if (!flush) {
        for (;;) {
          if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
              // 读到管道数据,继续读,直到读空为止
@@ -294,7 +294,7 @@ inline void EventPoller::onPipeEvent(bool flus) {
          }
          break;
       }
-	}
+    }
 
     decltype(_list_task) _list_swap;
     {
