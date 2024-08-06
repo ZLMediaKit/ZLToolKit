@@ -152,7 +152,7 @@ private:
     /**
      * 内部管道事件，用于唤醒轮询线程用
      */
-    void onPipeEvent();
+    void onPipeEvent(bool flush = false);
 
     /**
      * 切换线程并执行任务

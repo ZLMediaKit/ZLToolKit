@@ -104,7 +104,7 @@ EventPoller::~EventPoller() {
 #endif
 
     //退出前清理管道中的数据
-    onPipeEvent();
+    onPipeEvent(true);
     InfoL << getThreadName();
 }
 
@@ -276,22 +276,24 @@ bool EventPoller::isCurrentThread() {
     return !_loop_thread || _loop_thread->get_id() == this_thread::get_id();
 }
 
-inline void EventPoller::onPipeEvent() {
+inline void EventPoller::onPipeEvent(bool flush) {
     char buf[1024];
     int err = 0;
-    while (true) {
-        if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
-            // 读到管道数据,继续读,直到读空为止
-            continue;
-        }
-        if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
-            // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道
-            ErrorL << "Invalid pipe fd of event poller, reopen it";
-            delEvent(_pipe.readFD());
-            _pipe.reOpen();
-            addEventPipe();
-        }
-        break;
+    if (!flush) {
+       for (;;) {
+         if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
+             // 读到管道数据,继续读,直到读空为止
+             continue;
+         }
+         if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
+             // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道
+             ErrorL << "Invalid pipe fd of event poller, reopen it";
+             delEvent(_pipe.readFD());
+             _pipe.reOpen();
+             addEventPipe();
+         }
+         break;
+      }
     }
 
     decltype(_list_task) _list_swap;
