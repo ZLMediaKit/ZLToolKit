@@ -86,12 +86,6 @@ public:
         _msg_cb = cb ? std::move(cb) : [](const Any &data) {};
     }
 
-private:
-    void onRead(const T &data, bool /*is_key*/) { _read_cb(data); }
-    void onMessage(const Any &data) { _msg_cb(data); }
-    void onDetach() const { _detach_cb(); }
-    Any getInfo() { return _info_cb(); }
-
     void flushGop() {
         if (!_storage) {
             return;
@@ -101,6 +95,11 @@ private:
         });
     }
 
+private:
+    void onRead(const T &data, bool /*is_key*/) { _read_cb(data); }
+    void onMessage(const Any &data) { _msg_cb(data); }
+    void onDetach() const { _detach_cb(); }
+    Any getInfo() { return _info_cb(); }
 
 private:
     std::shared_ptr<_RingStorage<T>> _storage;
