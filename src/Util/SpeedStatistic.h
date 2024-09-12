@@ -22,11 +22,15 @@ public:
 
     /**
      * 添加统计字节
+     * Add statistical bytes
+     
+     * [AUTO-TRANSLATED:d6697ac9]
      */
     BytesSpeed &operator+=(size_t bytes) {
         _bytes += bytes;
         if (_bytes > 1024 * 1024) {
-            //数据大于1MB就计算一次网速
+            //数据大于1MB就计算一次网速  [AUTO-TRANSLATED:897af4d6]
+            //Data greater than 1MB is calculated once for network speed
             computeSpeed();
         }
         return *this;
@@ -34,10 +38,14 @@ public:
 
     /**
      * 获取速度，单位bytes/s
+     * Get speed, unit bytes/s
+     
+     * [AUTO-TRANSLATED:41e26e29]
      */
     int getSpeed() {
         if (_ticker.elapsedTime() < 1000) {
-            //获取频率小于1秒，那么返回上次计算结果
+            //获取频率小于1秒，那么返回上次计算结果  [AUTO-TRANSLATED:b687b762]
+            //Get frequency less than 1 second, return the last calculation result
             return _speed;
         }
         return computeSpeed();

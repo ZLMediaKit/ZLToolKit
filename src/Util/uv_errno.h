@@ -514,9 +514,11 @@ typedef enum {
 const char *uv_err_name(int err);
 const char *uv_strerror(int err);
 int uv_translate_posix_error(int err);
-//netErr参数在windows平台下才有效
+//netErr参数在windows平台下才有效  [AUTO-TRANSLATED:4e619bdb]
+//The netErr parameter is only valid on the Windows platform
 int get_uv_error(bool netErr = true);
-//netErr参数在windows平台下才有效
+//netErr参数在windows平台下才有效  [AUTO-TRANSLATED:4e619bdb]
+//The netErr parameter is only valid on the Windows platform
 const char *get_uv_errmsg(bool netErr = true);
 
 }//namespace toolkit

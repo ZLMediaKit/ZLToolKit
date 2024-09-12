@@ -18,6 +18,15 @@
 #include <semaphore.h>
 #define HAVE_SEM
 #endif //HAVE_SEM
+ /*
+ * Currently, it is found that semaphores have issues on 32-bit systems,
+ * sleeping threads cannot be normally woken up, disable them for now
+ #if defined(__linux__)
+ #include <semaphore.h>
+ #define HAVE_SEM
+ #endif //HAVE_SEM
+ 
+ * [AUTO-TRANSLATED:8823f395]
 */
 
 #include <mutex>

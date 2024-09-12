@@ -65,7 +65,8 @@ public:
     static Ptr create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp);
 
 private:
-    //对象个数统计
+    //对象个数统计  [AUTO-TRANSLATED:3b43e8c2]
+    //Object count statistics
     ObjectStatistic<BufferList> _statistic;
 };
 

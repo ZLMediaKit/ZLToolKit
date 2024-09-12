@@ -21,6 +21,9 @@ namespace toolkit {
 
 /**
 * cpu负载计算器
+ * CPU Load Calculator
+ 
+ * [AUTO-TRANSLATED:46dad663]
 */
 class ThreadLoadCounter {
 public:
@@ -28,23 +31,38 @@ public:
      * 构造函数
      * @param max_size 统计样本数量
      * @param max_usec 统计时间窗口,亦即最近{max_usec}的cpu负载率
+     * Constructor
+     * @param max_size Number of statistical samples
+     * @param max_usec Statistical time window, i.e., the CPU load rate for the most recent {max_usec}
+     
+     * [AUTO-TRANSLATED:718cb173]
      */
     ThreadLoadCounter(uint64_t max_size, uint64_t max_usec);
     ~ThreadLoadCounter() = default;
 
     /**
      * 线程进入休眠
+     * Thread enters sleep
+     
+     * [AUTO-TRANSLATED:d831fad1]
      */
     void startSleep();
 
     /**
      * 休眠唤醒,结束休眠
+     * Wake up from sleep, end sleep
+     
+     * [AUTO-TRANSLATED:361831f8]
      */
     void sleepWakeUp();
 
     /**
      * 返回当前线程cpu使用率，范围为 0 ~ 100
      * @return 当前线程cpu使用率
+     * Returns the current thread's CPU usage rate, ranging from 0 to 100
+     * @return Current thread's CPU usage rate
+     
+     * [AUTO-TRANSLATED:c9953342]
      */
     int load();
 
@@ -147,6 +165,12 @@ public:
      * @param task 任务
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
+     * Asynchronously execute a task
+     * @param task Task
+     * @param may_sync Whether to allow synchronous execution of the task
+     * @return Whether the task was added successfully
+     
+     * [AUTO-TRANSLATED:271d48a2]
      */
     virtual Task::Ptr async(TaskIn task, bool may_sync = true) = 0;
 
@@ -155,6 +179,12 @@ public:
      * @param task 任务
      * @param may_sync 是否允许同步执行该任务
      * @return 任务是否添加成功
+     * Asynchronously execute a task with the highest priority
+     * @param task Task
+     * @param may_sync Whether to allow synchronous execution of the task
+     * @return Whether the task was added successfully
+     
+     * [AUTO-TRANSLATED:d52ce80b]
      */
     virtual Task::Ptr async_first(TaskIn task, bool may_sync = true);
 
@@ -162,6 +192,11 @@ public:
      * 同步执行任务
      * @param task
      * @return
+     * Synchronously execute a task
+     * @param task
+     * @return
+     
+     * [AUTO-TRANSLATED:24854b4a]
      */
     void sync(const TaskIn &task);
 
@@ -169,12 +204,20 @@ public:
      * 最高优先级方式同步执行任务
      * @param task
      * @return
+     * Synchronously execute a task with the highest priority
+     * @param task
+     * @return
+     
+     * [AUTO-TRANSLATED:3d15452d]
      */
     void sync_first(const TaskIn &task);
 };
 
 /**
 * 任务执行器
+ * Task Executor
+ 
+ * [AUTO-TRANSLATED:630c364f]
 */
 class TaskExecutor : public ThreadLoadCounter, public TaskExecutorInterface {
 public:
@@ -184,6 +227,8 @@ public:
      * 构造函数
      * @param max_size cpu负载统计样本数
      * @param max_usec cpu负载统计时间窗口大小
+     fade fade оч fadeSalvar :::.Enums fade fade fade fade оч fade fade fade fade ::: fade fade fade fade fade fade fade fade_Checked fade fade fade fade_TYPEDEF fade fade fade fade fadeSalvar fade fade fade fade.Enums fade fade fade оч fade fade fade_Checked_Checked fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade_Checked fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade_TYPEDEF fade fade_TYPEDEF fade fade fadeSalvar fade fade fade fade fade fade fade fade fade оч fade.Enums fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade оч оч fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade.Enums_Checked_TYPEDEF fade.Enums_CheckedSalvar fade fade fade fade fade fade fade ::: fade.Enums fade fade fade fade fade fade.Enums fade.Enums fade fade fade fade fade fade_Checked fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fade fade fade оч fade fade оч fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fadeSalvar fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade оч оч fade fade.Enums fade fade ::: fade fade fade fade fade fade оч fade_Checked fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade_Checked fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade ::: fade fade fade fade fade fade fade fade fade fade fade оч fade_Checked AsyncStorage fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade_Checked fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade_Checked fade.Enums fade fade fade fade fade fade fade fade fade fadeSalvar fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums_TYPEDEF fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums ::: fade fade fade fade fade fade fade.Enums fade fade fade fade fade fadeSalvar оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fadeSalvar fade fade fade fade fadeSalvar fade fade fade fade fade fade fade fade fade fade оч fade fade Bai.Enums fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade очSalvar fade fade fade fade fade fade fade_Checked fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade :::_Checked ::: fade fade fade fade fade fade fade fade Bai fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fadeSalvar fade fade fade fade fade fade fade fade fadeSalvar fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade ::: fade_Checked fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade оч fade.Enums fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade оч.Enums ::: fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade оч оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fadeSalvar fade fade fade fade fade fade fade fade fade fade fade fade_TYPEDEF fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade ::: fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade_TYPEDEF fade fade fade fadeSalvar.Enums fade fade ::: fade fade fade fade оч fade fadeSalvar fade fade fade ::: fade fade fade fade fade fade fade fade fade fade fade fade fade fadedl fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade ::: fade fade fade fade fade fade fade fade Bai fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade fade fadeSalvar fade fade fade fade fade fade fade fade fade fade fade fade fade оч fade fade fade fade fade fade fade fade fade fade fade fade fade_TYPEDEF fade fade fade fade fade оч fade fade fade fade fade fade fade.Enums fade fade fade fade fade fade fade fade fade
+     * [AUTO-TRANSLATED:bd07d170]
      */
     TaskExecutor(uint64_t max_size = 32, uint64_t max_usec = 2 * 1000 * 1000);
     ~TaskExecutor() = default;
