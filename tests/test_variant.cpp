@@ -14,7 +14,8 @@
 using namespace toolkit;
 
 int main() {
-    //设置日志
+    //设置日志  [AUTO-TRANSLATED:50372045]
+    // Set log
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 

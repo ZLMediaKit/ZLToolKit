@@ -48,32 +48,39 @@ public:
 
 protected:
     virtual void onConnect(const SockException &ex) override{
-        //连接结果事件
+        //连接结果事件  [AUTO-TRANSLATED:46887902]
+        // Connection established event
         InfoL << (ex ?  ex.what() : "success");
     }
     virtual void onRecv(const Buffer::Ptr &pBuf) override{
-        //接收数据事件
+        //接收数据事件  [AUTO-TRANSLATED:397ef7e4]
+        // Data received event
         DebugL << pBuf->data();
     }
     virtual void onFlush() override{
-        //发送阻塞后，缓存清空事件
+        //发送阻塞后，缓存清空事件  [AUTO-TRANSLATED:46e8bca0]
+        // Buffer cleared after send blocking event
         DebugL;
     }
     virtual void onError(const SockException &ex) override{
-        //断开连接事件，一般是EOF
+        //断开连接事件，一般是EOF  [AUTO-TRANSLATED:7359fecf]
+        // Disconnected event, usually EOF
         WarnL << ex;
     }
 };
 
-//命令(http)
+//命令(http)  [AUTO-TRANSLATED:d96c7331]
+// Command (http)
 class CMD_http: public CMD {
 public:
     CMD_http(){
         _client.reset(new TestClient);
         _parser.reset(new OptionParser([this](const std::shared_ptr<ostream> &stream,mINI &args){
-            //所有选项解析完毕后触发该回调，我们可以在这里做一些全局的操作
+            //所有选项解析完毕后触发该回调，我们可以在这里做一些全局的操作  [AUTO-TRANSLATED:cce43d55]
+            // All options parsed, trigger this callback, we can do some global operations here
             if(hasKey("connect")){
-                //发起连接操作
+                //发起连接操作  [AUTO-TRANSLATED:405329cf]
+                // Initiate connection operation
                 connect(stream);
                 return;
             }
@@ -93,16 +100,19 @@ public:
                              "tcp服务器地址，以冒号分隔端口号",/*该选项说明文字*/
                              [this](const std::shared_ptr<ostream> &stream, const string &arg){/*解析到该选项的回调*/
                                  if(arg.find(":") == string::npos){
-                                     //中断后续选项的解析以及解析完毕回调等操作
+                                     //中断后续选项的解析以及解析完毕回调等操作  [AUTO-TRANSLATED:15b7592f]
+                                     // Interrupt subsequent option parsing and parsing completion callback operations
                                      throw std::runtime_error("\t地址必须指明端口号.");
                                  }
-                                 //如果返回false则忽略后续选项的解析
+                                 //如果返回false则忽略后续选项的解析  [AUTO-TRANSLATED:01a3d6bc]
+                                 // If return false, ignore subsequent option parsing
                                  return true;
                              });
 
         (*_parser) << Option('d', "disconnect", Option::ArgNone, nullptr ,false, "是否断开连接",
                              [this](const std::shared_ptr<ostream> &stream, const string &arg){
-                                 //断开连接操作，所以后续的参数我们都不解析了
+                                 //断开连接操作，所以后续的参数我们都不解析了  [AUTO-TRANSLATED:8aa1db56]
+                                 // Disconnect operation, so we don't parse subsequent parameters
                                  disconnect(stream);
                                  return false;
                              });
@@ -159,7 +169,8 @@ int main(int argc,char *argv[]){
         return 0;
     }
     GET_CMD("http").delOption("type");
-    //初始化环境
+    //初始化环境  [AUTO-TRANSLATED:efbad911]
+    // Initialize environment
     Logger::Instance().add(std::shared_ptr<ConsoleChannel>(new ConsoleChannel()));
     Logger::Instance().setWriter(std::shared_ptr<LogWriter>(new AsyncLogWriter()));
 
