@@ -276,7 +276,11 @@ bool Socket::attachEvent(const SockNum::Ptr &sock) {
             strong_self->onWriteAble(sock);
         }
         if (event & EventPoller::Event_Error) {
-            strong_self->emitErr(getSockErr(sock->rawFd()));
+            if (sock->type() == SockNum::Sock_UDP) {
+                // udp ignore error
+            } else {
+                strong_self->emitErr(getSockErr(sock->rawFd()));
+            }
         }
     });
 
