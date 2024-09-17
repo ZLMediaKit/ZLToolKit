@@ -686,15 +686,18 @@ bool check_ip(string &address, const string &ip) {
             //A类私有IP地址：  [AUTO-TRANSLATED:ef542777]
             //A-class private IP address:
             //10.0.0.0～10.255.255.255  [AUTO-TRANSLATED:dbbf8c5f]
-            //10.0.0.0～10.255.255.255
+            // 10.0.0.0～10.255.255.255  [AUTO-TRANSLATED:dbbf8c5f]
+            // 10.0.0.0～10.255.255.255
             //B类私有IP地址：  [AUTO-TRANSLATED:7dfef625]
             //B-class private IP address:
             //172.16.0.0～172.31.255.255  [AUTO-TRANSLATED:a96262fa]
-            //172.16.0.0～172.31.255.255
+            // 172.16.0.0～172.31.255.255  [AUTO-TRANSLATED:a96262fa]
+            // 172.16.0.0～172.31.255.255
             //C类私有IP地址：  [AUTO-TRANSLATED:dc37505e]
             //C-class private IP address:
             //192.168.0.0～192.168.255.255  [AUTO-TRANSLATED:c8c47e43]
-            //192.168.0.0～192.168.255.255
+            // 192.168.0.0～192.168.255.255  [AUTO-TRANSLATED:c8c47e43]
+            // 192.168.0.0～192.168.255.255
             //如果是私有地址 说明在nat内部  [AUTO-TRANSLATED:92007abb]
             //If it's a private address, it's inside the NAT
 
