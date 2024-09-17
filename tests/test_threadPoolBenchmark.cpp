@@ -22,7 +22,8 @@ int main() {
     signal(SIGINT,[](int ){
         exit(0);
     });
-    //初始化日志系统
+    //初始化日志系统  [AUTO-TRANSLATED:25c549de]
+    // Initialize the logging system
     Logger::Instance().add(std::make_shared<ConsoleChannel> ());
 
     atomic_llong count(0);
@@ -39,7 +40,8 @@ int main() {
     InfoL << "1000万任务入队耗时:" << ticker.elapsedTime() << "ms" << endl;
     uint64_t  lastCount = 0 ,nowCount = 1;
     ticker.resetTime();
-    //此处才开始启动线程
+    //此处才开始启动线程  [AUTO-TRANSLATED:b68d0810]
+    // The thread starts here
     pool.start();
     while (true){
         sleep(1);

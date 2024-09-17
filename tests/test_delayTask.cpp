@@ -20,7 +20,8 @@ using namespace std;
 using namespace toolkit;
 
 int main() {
-    //设置日志
+    //设置日志  [AUTO-TRANSLATED:50372045]
+    // Set log
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
@@ -64,7 +65,8 @@ int main() {
     tag1->cancel();
     WarnL << "取消task 0、1";
 
-    //退出程序事件处理
+    //退出程序事件处理  [AUTO-TRANSLATED:80065cb7]
+    // Exit program event handling
     static semaphore sem;
     signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
     sem.wait();

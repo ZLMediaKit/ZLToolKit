@@ -93,7 +93,8 @@ void TaskExecutorInterface::sync(const TaskIn &task) {
     semaphore sem;
     auto ret = async([&]() {
         onceToken token(nullptr, [&]() {
-            //通过RAII原理防止抛异常导致不执行这句代码
+            //通过RAII原理防止抛异常导致不执行这句代码  [AUTO-TRANSLATED:206bd80e]
+            //Prevent this code from not being executed due to an exception being thrown through RAII principle
             sem.post();
         });
         task();
@@ -107,7 +108,8 @@ void TaskExecutorInterface::sync_first(const TaskIn &task) {
     semaphore sem;
     auto ret = async_first([&]() {
         onceToken token(nullptr, [&]() {
-            //通过RAII原理防止抛异常导致不执行这句代码
+            //通过RAII原理防止抛异常导致不执行这句代码  [AUTO-TRANSLATED:206bd80e]
+            //Prevent this code from not being executed due to an exception being thrown through RAII principle
             sem.post();
         });
         task();
@@ -165,7 +167,8 @@ vector<int> TaskExecutorGetterImp::getExecutorLoad() {
 void TaskExecutorGetterImp::getExecutorDelay(const function<void(const vector<int> &)> &callback) {
     std::shared_ptr<vector<int> > delay_vec = std::make_shared<vector<int>>(_threads.size());
     shared_ptr<void> finished(nullptr, [callback, delay_vec](void *) {
-        //此析构回调触发时，说明已执行完毕所有async任务
+        //此析构回调触发时，说明已执行完毕所有async任务  [AUTO-TRANSLATED:8adf8212]
+        //When this destructor callback is triggered, it means all async tasks have been executed
         callback((*delay_vec));
     });
     int index = 0;
@@ -197,11 +200,14 @@ size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int pri
         EventPoller::Ptr poller(new EventPoller(full_name));
         poller->runLoop(false, register_thread);
         poller->async([cpu_index, full_name, priority, enable_cpu_affinity]() {
-            // 设置线程优先级
+            // 设置线程优先级  [AUTO-TRANSLATED:2966f860]
+            //Set thread priority
             ThreadPool::setPriority((ThreadPool::Priority)priority);
-            // 设置线程名
+            // 设置线程名  [AUTO-TRANSLATED:f5eb4704]
+            //Set thread name
             setThreadName(full_name.data());
-            // 设置cpu亲和性
+            // 设置cpu亲和性  [AUTO-TRANSLATED:ba213aed]
+            //Set CPU affinity
             if (enable_cpu_affinity) {
                 setThreadAffinity(cpu_index);
             }

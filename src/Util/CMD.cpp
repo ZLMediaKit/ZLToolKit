@@ -21,7 +21,8 @@ using namespace std;
 
 namespace toolkit {
 
-//默认注册exit/quit/help/clear命令
+//默认注册exit/quit/help/clear命令  [AUTO-TRANSLATED:1411f05e]
+//Default registration of exit/quit/help/clear commands
 static onceToken s_token([]() {
     REGIST_CMD(exit)
     REGIST_CMD(quit)
@@ -75,7 +76,8 @@ void OptionParser::operator()(mINI &all_args, int argc, char *argv[], const std:
         stringstream ss;
         ss << "  未识别的选项,输入\"-h\"获取帮助.";
         if (index < 0xFF) {
-            //短参数
+            //短参数  [AUTO-TRANSLATED:87b4c1df]
+            //Short parameters
             auto it = _map_char_index.find(index);
             if (it == _map_char_index.end()) {
                 throw std::invalid_argument(ss.str());
@@ -96,7 +98,8 @@ void OptionParser::operator()(mINI &all_args, int argc, char *argv[], const std:
     }
     for (auto &pr : _map_options) {
         if (pr.second._default_value && all_args.find(pr.second._long_opt) == all_args.end()) {
-            //有默认值,赋值默认值
+            //有默认值,赋值默认值  [AUTO-TRANSLATED:9a82f49c]
+            //Has default value, assigns default value
             all_args.emplace(pr.second._long_opt, *pr.second._default_value);
         }
     }

@@ -21,6 +21,9 @@ using namespace toolkit;
 
 /**
 * 回显会话
+ * Echo Session
+ 
+ * [AUTO-TRANSLATED:bc2a4e9e]
 */
 class EchoSession : public Session {
 public:
@@ -41,29 +44,37 @@ public:
     void onManager() override {}
 };
 
-//命令(http)
+//命令(http)  [AUTO-TRANSLATED:d96c7331]
+// Command (http)
 class CMD_pingpong: public CMD {
 public:
     CMD_pingpong(){
         _parser.reset(new OptionParser(nullptr));
         (*_parser) << Option('l', "listen",   Option::ArgRequired, "10000",                       false, "服务器模式：监听端口",                nullptr);
-        //测试客户端个数，默认10个
+        //测试客户端个数，默认10个  [AUTO-TRANSLATED:5a5a229a]
+        // Test client count, default 10
         (*_parser) << Option('c', "count",    Option::ArgRequired, to_string(10).data(),          false, "客户端模式：测试客户端个数",           nullptr);
-        //默认每次发送1MB的数据
+        //默认每次发送1MB的数据  [AUTO-TRANSLATED:22373e35]
+        // Default send 1MB data each time
         (*_parser) << Option('b', "block",    Option::ArgRequired, to_string(1024 * 1024).data(), false, "客户端模式：测试数据块大小",           nullptr);
-        //默认1秒发送10次，总速度率为1MB/s * 10 * 10 = 100MB/s
+        //默认1秒发送10次，总速度率为1MB/s * 10 * 10 = 100MB/s  [AUTO-TRANSLATED:d3b7bb36]
+        // Default send 10 times per second, total speed rate is 1MB/s * 10 * 10 = 100MB/s
         (*_parser) << Option('i', "interval", Option::ArgRequired, to_string(100).data(),         false, "客户端模式：测试数据发送间隔，单位毫秒", nullptr);
-        //客户端启动间隔时间
+        //客户端启动间隔时间  [AUTO-TRANSLATED:b401adf1]
+        // Client startup interval time
         (*_parser) << Option('d', "delay",   Option::ArgRequired, "50",                           false, "服务器模式：客户端启动间隔时间",        nullptr);
 
-        //指定服务器地址
+        //指定服务器地址  [AUTO-TRANSLATED:867c9c2d]
+        // Specify server address
         (*_parser) << Option('s', "server",   Option::ArgRequired, "127.0.0.1:10000",             false, "客户端模式：测试服务器地址", []
                 (const std::shared_ptr<ostream> &stream, const string &arg) {
             if (arg.find(":") == string::npos) {
-                //中断后续选项的解析以及解析完毕回调等操作
+                //中断后续选项的解析以及解析完毕回调等操作  [AUTO-TRANSLATED:15b7592f]
+                // Interrupt subsequent option parsing and parsing completion callback, etc.
                 throw std::runtime_error("\t地址必须指明端口号.");
             }
-            //如果返回false则忽略后续选项的解析
+            //如果返回false则忽略后续选项的解析  [AUTO-TRANSLATED:01a3d6bc]
+            // If return false, ignore subsequent option parsing
             return true;
         });
     }
@@ -100,7 +111,8 @@ int main(int argc,char *argv[]){
         return 0;
     }
 
-    //初始化环境
+    //初始化环境  [AUTO-TRANSLATED:efbad911]
+    // Initialize environment
     Logger::Instance().add(std::shared_ptr<ConsoleChannel>(new ConsoleChannel()));
     Logger::Instance().setWriter(std::shared_ptr<LogWriter>(new AsyncLogWriter()));
 
@@ -146,7 +158,8 @@ int main(int argc,char *argv[]){
             usleep(delay * 1000);
         }
 
-        //设置退出信号处理函数
+        //设置退出信号处理函数  [AUTO-TRANSLATED:4f047770]
+        // Set exit signal handling function
         static semaphore sem;
         signal(SIGINT, [](int) { sem.post(); });// 设置退出信号
         sem.wait();

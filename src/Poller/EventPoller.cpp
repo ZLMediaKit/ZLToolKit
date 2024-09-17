@@ -25,7 +25,8 @@
 
 #define EPOLL_SIZE 1024
 
-//防止epoll惊群
+//防止epoll惊群  [AUTO-TRANSLATED:ad53c775]
+//Prevent epoll thundering
 #ifndef EPOLLEXCLUSIVE
 #define EPOLLEXCLUSIVE 0
 #endif
@@ -60,7 +61,8 @@ void EventPoller::addEventPipe() {
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
 
-    // 添加内部管道事件
+    // 添加内部管道事件  [AUTO-TRANSLATED:6a72e39a]
+    //Add internal pipe event
     if (addEvent(_pipe.readFD(), EventPoller::Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
         throw std::runtime_error("Add pipe fd to poller failed");
     }
@@ -86,7 +88,8 @@ void EventPoller::shutdown() {
     }, false, true);
 
     if (_loop_thread) {
-        //防止作为子进程时崩溃
+        //防止作为子进程时崩溃  [AUTO-TRANSLATED:68727e34]
+        //Prevent crash when running as a child process
         try { _loop_thread->join(); } catch (...) { _loop_thread->detach(); }
         delete _loop_thread;
         _loop_thread = nullptr;
@@ -103,7 +106,8 @@ EventPoller::~EventPoller() {
     }
 #endif
 
-    //退出前清理管道中的数据
+    //退出前清理管道中的数据  [AUTO-TRANSLATED:60e26f9a]
+    //Clean up pipe data before exiting
     onPipeEvent(true);
     InfoL << getThreadName();
 }
@@ -141,7 +145,8 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         return ret;
 #else
 #ifndef _WIN32
-        // win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
+        // win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制  [AUTO-TRANSLATED:6adfc664]
+        //On the win32 platform, the socket does not equal the file descriptor, so this restriction may not apply
         if (fd >= FD_SETSIZE) {
             WarnL << "select() can not watch fd bigger than " << FD_SETSIZE;
             return -1;
@@ -200,7 +205,8 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
 #endif //HAS_EPOLL
     }
 
-    //跨线程操作
+    //跨线程操作  [AUTO-TRANSLATED:4e116519]
+    //Cross-thread operation
     async([this, fd, cb]() mutable {
         delEvent(fd, std::move(cb));
     });
@@ -267,7 +273,8 @@ Task::Ptr EventPoller::async_l(TaskIn task, bool may_sync, bool first) {
             _list_task.emplace_back(ret);
         }
     }
-    //写数据到管道,唤醒主线程
+    //写数据到管道,唤醒主线程  [AUTO-TRANSLATED:2ead8182]
+    //Write data to the pipe and wake up the main thread
     _pipe.write("", 1);
     return ret;
 }
@@ -282,11 +289,13 @@ inline void EventPoller::onPipeEvent(bool flush) {
     if (!flush) {
        for (;;) {
          if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
-             // 读到管道数据,继续读,直到读空为止
+             // 读到管道数据,继续读,直到读空为止  [AUTO-TRANSLATED:47bd325c]
+             //Read data from the pipe, continue reading until it's empty
              continue;
          }
          if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
-             // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道
+             // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道  [AUTO-TRANSLATED:5f7a013d]
+             //Received eof or non-EAGAIN (no more data) error, indicating that the pipe is invalid, reopen the pipe
              ErrorL << "Invalid pipe fd of event poller, reopen it";
              delEvent(_pipe.readFD());
              _pipe.reOpen();
@@ -315,7 +324,8 @@ inline void EventPoller::onPipeEvent(bool flush) {
 
 SocketRecvBuffer::Ptr EventPoller::getSharedBuffer(bool is_udp) {
 #if !defined(__linux) && !defined(__linux__)
-    // 非Linux平台下，tcp和udp共享recvfrom方案，使用同一个buffer
+    // 非Linux平台下，tcp和udp共享recvfrom方案，使用同一个buffer  [AUTO-TRANSLATED:2d2ee7bf]
+    //On non-Linux platforms, tcp and udp share the recvfrom scheme, using the same buffer
     is_udp = 0;
 #endif
     auto ret = _shared_buffer[is_udp].lock();
@@ -357,7 +367,8 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             int ret = epoll_wait(_event_fd, events, EPOLL_SIZE, minDelay ? minDelay : -1);
             sleepWakeUp();//用于统计当前线程负载情况
             if (ret <= 0) {
-                //超时或被打断
+                //超时或被打断  [AUTO-TRANSLATED:7005fded]
+                //Timed out or interrupted
                 continue;
             }
 
@@ -434,7 +445,8 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
         List<Poll_Record::Ptr> callback_list;
         struct timeval tv;
         while (!_exit_flag) {
-            //定时器事件中可能操作_event_map
+            //定时器事件中可能操作_event_map  [AUTO-TRANSLATED:f2a50ee2]
+            //Possible operations on _event_map in timer events
             minDelay = getMinDelay();
             tv.tv_sec = (decltype(tv.tv_sec)) (minDelay / 1000);
             tv.tv_usec = 1000 * (minDelay % 1000);
@@ -463,13 +475,15 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             sleepWakeUp();//用于统计当前线程负载情况
 
             if (ret <= 0) {
-                //超时或被打断
+                //超时或被打断  [AUTO-TRANSLATED:7005fded]
+                //Timed out or interrupted
                 continue;
             }
 
             _event_cache_expired.clear();
 
-            //收集select事件类型
+            //收集select事件类型  [AUTO-TRANSLATED:9a5c41d3]
+            //Collect select event types
             for (auto &pr : _event_map) {
                 int event = 0;
                 if (set_read.isSet(pr.first)) {
@@ -513,11 +527,13 @@ uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
     task_copy.swap(_delay_task_map);
 
     for (auto it = task_copy.begin(); it != task_copy.end() && it->first <= now_time; it = task_copy.erase(it)) {
-        //已到期的任务
+        //已到期的任务  [AUTO-TRANSLATED:849cdc29]
+        //Expired tasks
         try {
             auto next_delay = (*(it->second))();
             if (next_delay) {
-                //可重复任务,更新时间截止线
+                //可重复任务,更新时间截止线  [AUTO-TRANSLATED:c7746a21]
+                //Repeatable tasks, update deadline
                 _delay_task_map.emplace(next_delay + now_time, std::move(it->second));
             }
         } catch (std::exception &ex) {
@@ -530,25 +546,30 @@ uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
 
     auto it = _delay_task_map.begin();
     if (it == _delay_task_map.end()) {
-        //没有剩余的定时器了
+        //没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
+        //No remaining timers
         return 0;
     }
-    //最近一个定时器的执行延时
+    //最近一个定时器的执行延时  [AUTO-TRANSLATED:2535621b]
+    //Delay in execution of the last timer
     return it->first - now_time;
 }
 
 uint64_t EventPoller::getMinDelay() {
     auto it = _delay_task_map.begin();
     if (it == _delay_task_map.end()) {
-        //没有剩余的定时器了
+        //没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
+        //No remaining timers
         return 0;
     }
     auto now = getCurrentMillisecond();
     if (it->first > now) {
-        //所有任务尚未到期
+        //所有任务尚未到期  [AUTO-TRANSLATED:8d80eabf]
+        //All tasks have not expired
         return it->first - now;
     }
-    //执行已到期的任务并刷新休眠延时
+    //执行已到期的任务并刷新休眠延时  [AUTO-TRANSLATED:cd6348b7]
+    //Execute expired tasks and refresh sleep delay
     return flushDelayTask(now);
 }
 
@@ -556,7 +577,8 @@ EventPoller::DelayTask::Ptr EventPoller::doDelayTask(uint64_t delay_ms, function
     DelayTask::Ptr ret = std::make_shared<DelayTask>(std::move(task));
     auto time_line = getCurrentMillisecond() + delay_ms;
     async_first([time_line, ret, this]() {
-        //异步执行的目的是刷新select或epoll的休眠时间
+        //异步执行的目的是刷新select或epoll的休眠时间  [AUTO-TRANSLATED:a6b5c8d7]
+        //The purpose of asynchronous execution is to refresh the sleep time of select or epoll
         _delay_task_map.emplace(time_line, ret);
     });
     return ret;

@@ -97,7 +97,8 @@ public:
 
     void sendCompleted(bool flag) {
         if (_cb) {
-            //全部发送成功或失败回调
+            //全部发送成功或失败回调  [AUTO-TRANSLATED:6b9a9abf]
+            //All send success or failure callback
             while (!_pkt_list.empty()) {
                 _cb(_pkt_list.front().first, flag);
                 _pkt_list.pop_front();
@@ -109,7 +110,8 @@ public:
 
     void sendFrontSuccess() {
         if (_cb) {
-            //发送成功回调
+            //发送成功回调  [AUTO-TRANSLATED:52759efc]
+            //Send success callback
             _cb(_pkt_list.front().first, true);
         }
         _pkt_list.pop_front();
@@ -183,19 +185,22 @@ ssize_t BufferSendMsg::send_l(int fd, int flags) {
 #endif
 
     if (n >= (ssize_t)_remain_size) {
-        //全部写完了
+        //全部写完了  [AUTO-TRANSLATED:c990f48a]
+        //All written
         _remain_size = 0;
         sendCompleted(true);
         return n;
     }
 
     if (n > 0) {
-        //部分发送成功
+        //部分发送成功  [AUTO-TRANSLATED:4c240905]
+        //Partial send success
         reOffset(n);
         return n;
     }
 
-    //一个字节都未发送
+    //一个字节都未发送  [AUTO-TRANSLATED:c33c611b]
+    //Not a single byte sent
     return n;
 }
 
@@ -205,10 +210,12 @@ ssize_t BufferSendMsg::send(int fd, int flags) {
 
     ssize_t sent = remain_size - _remain_size;
     if (sent > 0) {
-        //部分或全部发送成功
+        //部分或全部发送成功  [AUTO-TRANSLATED:a3f5e70e]
+        //Partial or all send success
         return sent;
     }
-    //一个字节都未发送成功
+    //一个字节都未发送成功  [AUTO-TRANSLATED:858b63e5]
+    //Not a single byte sent successfully
     return -1;
 }
 
@@ -223,18 +230,21 @@ void BufferSendMsg::reOffset(size_t n) {
         offset += ref.len;
 #endif
         if (offset < n) {
-            //此包发送完毕
+            //此包发送完毕  [AUTO-TRANSLATED:759b9f0e]
+            //This package is sent
             sendFrontSuccess();
             continue;
         }
         _iovec_off = i;
         if (offset == n) {
-            //这是末尾发送完毕的一个包
+            //这是末尾发送完毕的一个包  [AUTO-TRANSLATED:6a3b77e4]
+            //This is the last package sent
             ++_iovec_off;
             sendFrontSuccess();
             break;
         }
-        //这是末尾发送部分成功的一个包
+        //这是末尾发送部分成功的一个包  [AUTO-TRANSLATED:64645cef]
+        //This is the last package partially sent
         size_t remain = offset - n;
 #if !defined(_WIN32)
         ref.iov_base = (char *)ref.iov_base + ref.iov_len - remain;
@@ -323,12 +333,15 @@ ssize_t BufferSendTo::send(int fd, int flags) {
             continue;
         }
 
-        //n == -1的情况
+        //n == -1的情况  [AUTO-TRANSLATED:305fb5bc]
+        //n == -1 case
         if (get_uv_error(true) == UV_EINTR) {
-            //被打断，需要继续发送
+            //被打断，需要继续发送  [AUTO-TRANSLATED:6ef0b34d]
+            //interrupted, need to continue sending
             continue;
         }
-        //其他原因导致的send返回-1
+        //其他原因导致的send返回-1  [AUTO-TRANSLATED:299cddb7]
+        //other reasons causing send to return -1
         break;
     }
     return sent ? sent : -1;
@@ -372,12 +385,14 @@ ssize_t BufferSendMMsg::send_l(int fd, int flags) {
     } while (-1 == n && UV_EINTR == get_uv_error(true));
 
     if (n > 0) {
-        //部分或全部发送成功
+        //部分或全部发送成功  [AUTO-TRANSLATED:a3f5e70e]
+        //partially or fully sent successfully
         reOffset(n);
         return n;
     }
 
-    //一个字节都未发送
+    //一个字节都未发送  [AUTO-TRANSLATED:c33c611b]
+    //not a single byte sent
     return n;
 }
 
@@ -386,10 +401,12 @@ ssize_t BufferSendMMsg::send(int fd, int flags) {
     while (_remain_size && send_l(fd, flags) != -1);
     ssize_t sent = remain_size - _remain_size;
     if (sent > 0) {
-        //部分或全部发送成功
+        //部分或全部发送成功  [AUTO-TRANSLATED:a3f5e70e]
+        //partially or fully sent successfully
         return sent;
     }
-    //一个字节都未发送成功
+    //一个字节都未发送成功  [AUTO-TRANSLATED:858b63e5]
+    //not a single byte sent successfully
     return -1;
 }
 
@@ -400,12 +417,14 @@ void BufferSendMMsg::reOffset(size_t n) {
         assert(hdr.msg_len <= io.iov_len);
         _remain_size -= hdr.msg_len;
         if (hdr.msg_len == io.iov_len) {
-            //这个udp包全部发送成功
+            //这个udp包全部发送成功  [AUTO-TRANSLATED:fce1cc86]
+            //this UDP packet sent successfully
             it = _hdrvec.erase(it);
             sendFrontSuccess();
             continue;
         }
-        //部分发送成功
+        //部分发送成功  [AUTO-TRANSLATED:4c240905]
+        //partially sent successfully
         io.iov_base = (char *)io.iov_base + hdr.msg_len;
         io.iov_len -= hdr.msg_len;
         break;
@@ -444,24 +463,30 @@ BufferSendMMsg::BufferSendMMsg(List<std::pair<Buffer::Ptr, bool>> list, SendResu
 BufferList::Ptr BufferList::create(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb, bool is_udp) {
 #if defined(_WIN32)
     if (is_udp) {
-        // sendto/send 方案，待优化
+        // sendto/send 方案，待优化  [AUTO-TRANSLATED:e94184aa]
+        //sendto/send scheme, to be optimized
         return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
     }
-    // WSASend方案
+    // WSASend方案  [AUTO-TRANSLATED:9ac7bb81]
+    //WSASend scheme
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #elif defined(__linux__) || defined(__linux)
     if (is_udp) {
-        // sendmmsg方案
+        // sendmmsg方案  [AUTO-TRANSLATED:4596c2c4]
+        //sendmmsg scheme
         return std::make_shared<BufferSendMMsg>(std::move(list), std::move(cb));
     }
-    // sendmsg方案
+    // sendmsg方案  [AUTO-TRANSLATED:8846f9c4]
+    //sendmsg scheme
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #else
     if (is_udp) {
-        // sendto/send 方案, 可优化？
+        // sendto/send 方案, 可优化？  [AUTO-TRANSLATED:21dbae7c]
+        //sendto/send scheme, can be optimized?
         return std::make_shared<BufferSendTo>(std::move(list), std::move(cb), is_udp);
     }
-    // sendmsg方案
+    // sendmsg方案  [AUTO-TRANSLATED:8846f9c4]
+    //sendmsg scheme
     return std::make_shared<BufferSendMsg>(std::move(list), std::move(cb));
 #endif
 }

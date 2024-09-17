@@ -22,7 +22,8 @@
 #include "List.h"
 #include "Poller/EventPoller.h"
 
-// GOP缓存最大长度下限值
+// GOP缓存最大长度下限值  [AUTO-TRANSLATED:63162058]
+//GOP cache minimum length lower bound value
 #define RING_MIN_SIZE 32
 #define LOCK_GUARD(mtx) std::lock_guard<decltype(mtx)> lck(mtx)
 
@@ -48,6 +49,12 @@ class _RingReaderDispatcher;
  * 该对象的事件触发都会在绑定的poller线程中执行
  * 所以把锁去掉了
  * 对该对象的一切操作都应该在poller线程中执行
+ * Circular cache reader
+ * All events triggered by this object will be executed in the bound poller thread
+ * So the lock is removed
+ * All operations on this object should be executed in the poller thread
+ 
+ * [AUTO-TRANSLATED:3d0f773d]
  */
 template <typename T>
 class _RingReader {
@@ -115,7 +122,8 @@ public:
     using Ptr = std::shared_ptr<_RingStorage>;
     using GopType = List<List<std::pair<bool, T>>>;
     _RingStorage(size_t max_size, size_t max_gop_size) {
-        // gop缓存个数不能小于32
+        // gop缓存个数不能小于32  [AUTO-TRANSLATED:63d52404]
+        //The number of GOP caches cannot be less than 32
         if (max_size < RING_MIN_SIZE) {
             max_size = RING_MIN_SIZE;
         }
@@ -131,34 +139,46 @@ public:
      * @param in 数据
      * @param is_key 是否为关键帧
      * @return 是否触发重置环形缓存大小
+     * Write data to the circular cache
+     * @param in Data
+     * @param is_key Whether it is a key frame
+     * @return Whether to trigger a reset of the circular cache size
+     
+     * [AUTO-TRANSLATED:8ccedd1d]
      */
     void write(T in, bool is_key = true) {
         if (is_key) {
             _have_idr = true;
             _started = true;
             if (!_data_cache.back().empty()) {
-                //当前gop列队还没收到任意缓存
+                //当前gop列队还没收到任意缓存  [AUTO-TRANSLATED:81e257d0]
+                //The current GOP queue has not received any cache
                 _data_cache.emplace_back();
             }
             if (_data_cache.size() > _max_gop_size) {
-                // GOP个数超过限制，那么移除最早的GOP
+                // GOP个数超过限制，那么移除最早的GOP  [AUTO-TRANSLATED:054ad5e4]
+                //The number of GOPs exceeds the limit, so remove the earliest GOP
                 popFrontGop();
             }
         }
 
         if (!_have_idr && _started) {
-            //缓存中没有关键帧，那么gop缓存无效
+            //缓存中没有关键帧，那么gop缓存无效  [AUTO-TRANSLATED:394a9170]
+            //There is no key frame in the cache, so the GOP cache is invalid
             return;
         }
         _data_cache.back().emplace_back(std::make_pair(is_key, std::move(in)));
         if (++_size > _max_size) {
-            // GOP缓存溢出
+            // GOP缓存溢出  [AUTO-TRANSLATED:1cd0ddc4]
+            //GOP cache overflow
             while (_data_cache.size() > 1) {
-                //先尝试清除老的GOP缓存
+                //先尝试清除老的GOP缓存  [AUTO-TRANSLATED:a01422a1]
+                //Try to clear the old GOP cache first
                 popFrontGop();
             }
             if (_size > _max_size) {
-                //还是大于最大缓冲限制，那么清空所有GOP
+                //还是大于最大缓冲限制，那么清空所有GOP  [AUTO-TRANSLATED:dec7aa9b]
+                //Still greater than the maximum buffer limit, so clear all GOPs
                 clearCache();
             }
         }
@@ -212,6 +232,10 @@ class RingBuffer;
 /**
  * 环形缓存事件派发器，只能一个poller线程操作它
  * @tparam T
+ * Ring buffer event dispatcher, can only be operated by one poller thread
+ * @tparam T
+ 
+ * [AUTO-TRANSLATED:6c0d8449]
  */
 template <typename T>
 class _RingReaderDispatcher : public std::enable_shared_from_this<_RingReaderDispatcher<T>> {
@@ -340,7 +364,8 @@ public:
     RingBuffer(size_t max_size = 1024, onReaderChanged cb = nullptr, size_t max_gop_size = 1) {
         _storage = std::make_shared<RingStorage>(max_size, max_gop_size);
         _on_reader_changed = cb ? std::move(cb) : [](int size) {};
-        //先触发无人观看
+        //先触发无人观看  [AUTO-TRANSLATED:34c64fef]
+        //First trigger no one watching
         _on_reader_changed(0);
     }
 
@@ -355,7 +380,8 @@ public:
         LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcher_map) {
             auto &second = pr.second;
-            //切换线程后触发onRead事件
+            //切换线程后触发onRead事件  [AUTO-TRANSLATED:4ca6647d]
+            //Switch thread and trigger onRead event
             pr.first->async([second, in, is_key]() mutable { second->write(std::move(in), is_key); }, false);
         }
         _storage->write(std::move(in), is_key);
@@ -365,7 +391,8 @@ public:
         LOCK_GUARD(_mtx_map);
         for (auto &pr : _dispatcher_map) {
             auto &second = pr.second;
-            // 切换线程后触发sendMessage
+            // 切换线程后触发sendMessage  [AUTO-TRANSLATED:350138c9]
+            //Switch thread and trigger sendMessage
             pr.first->async([second, data]() { second->sendMessage(data); }, false);
         }
     }
@@ -400,7 +427,8 @@ public:
         _storage->clearCache();
         for (auto &pr : _dispatcher_map) {
             auto &second = pr.second;
-            //切换线程后清空缓存
+            //切换线程后清空缓存  [AUTO-TRANSLATED:150f7fa4]
+            //Switch thread and clear cache
             pr.first->async([second]() { second->clearCache(); }, false);
         }
     }
@@ -416,10 +444,12 @@ public:
         LOCK_GUARD(_mtx_map);
 
         auto info_vec = std::make_shared<std::vector<std::list<Any>>>();
-        // 1、最少确保一个元素
+        // 1、最少确保一个元素  [AUTO-TRANSLATED:6dafe078]
+        //1. Ensure at least one element
         info_vec->resize(_dispatcher_map.empty() ? 1 : _dispatcher_map.size());
         std::shared_ptr<void> on_finished(nullptr, [cb, info_vec](void *) mutable {
-            // 2、防止这里为空
+            // 2、防止这里为空  [AUTO-TRANSLATED:4484baf7]
+            //2. Prevent this from being empty
             auto &lst = *info_vec->begin();
             for (auto &item : *info_vec) {
                 if (&lst != &item) {

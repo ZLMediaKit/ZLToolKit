@@ -58,6 +58,11 @@ char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in_size);
  * 编码base64
  * @param txt 明文
  * @return 密文
+ * Encode base64
+ * @param txt plaintext
+ * @return ciphertext
+ 
+ * [AUTO-TRANSLATED:72045f2c]
  */
 std::string encodeBase64(const std::string &txt);
 
@@ -65,6 +70,11 @@ std::string encodeBase64(const std::string &txt);
  * 解码base64
  * @param txt 密文
  * @return 明文
+ * Decode base64
+ * @param txt ciphertext
+ * @return plaintext
+ 
+ * [AUTO-TRANSLATED:115e667b]
  */
 std::string decodeBase64(const std::string &txt);
 

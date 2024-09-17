@@ -23,7 +23,8 @@
 #include "function_traits.h"
 #if defined(_WIN32)
 #undef FD_SETSIZE
-//修改默认64为1024路
+//修改默认64为1024路  [AUTO-TRANSLATED:90567e14]
+//Modify the default 64 to 1024 paths
 #define FD_SETSIZE 1024
 #include <winsock2.h>
 #pragma comment (lib,"WS2_32")
@@ -72,13 +73,15 @@ private:
     std::stringstream _stream;
 };
 
-//禁止拷贝基类
+//禁止拷贝基类  [AUTO-TRANSLATED:a4ca4dcb]
+//Prohibit copying of base classes
 class noncopyable {
 protected:
     noncopyable() {}
     ~noncopyable() {}
 private:
-    //禁止拷贝
+    //禁止拷贝  [AUTO-TRANSLATED:e8af72e3]
+    //Prohibit copying
     noncopyable(const noncopyable &that) = delete;
     noncopyable(noncopyable &&that) = delete;
     noncopyable &operator=(const noncopyable &that) = delete;
@@ -119,6 +122,11 @@ CLASS_FUNC_TRAITS(Create)
  * 对象安全的构建和析构,构建后执行onCreate函数,析构前执行onDestory函数
  * 在函数onCreate和onDestory中可以执行构造或析构中不能调用的方法，比如说shared_from_this或者虚函数
  * @warning onDestory函数确保参数个数为0；否则会被忽略调用
+ * Object-safe construction and destruction, execute the onCreate function after construction, and execute the onDestroy function before destruction
+ * Methods that cannot be called during construction or destruction, such as shared_from_this or virtual functions, can be executed in the onCreate and onDestroy functions
+ * @warning The onDestroy function must have 0 parameters; otherwise, it will be ignored
+ 
+ * [AUTO-TRANSLATED:54ef34ac]
  */
 class Creator {
 public:
@@ -126,6 +134,11 @@ public:
      * 创建对象，用空参数执行onCreate和onDestory函数
      * @param args 对象构造函数参数列表
      * @return args对象的智能指针
+     * Create an object, execute onCreate and onDestroy functions with empty parameters
+     * @param args List of parameters for the object's constructor
+     * @return Smart pointer to the args object
+     
+     * [AUTO-TRANSLATED:c6c90c2b]
      */
     template<typename C, typename ...ArgsType>
     static std::shared_ptr<C> create(ArgsType &&...args) {
@@ -146,6 +159,12 @@ public:
      * @param args 对象onCreate函数参数列表
      * @warning args参数类型和个数必须与onCreate函数类型匹配(不可忽略默认参数)，否则会由于模板匹配失败导致忽略调用
      * @return args对象的智能指针
+     * Create an object, execute the onCreate function with specified parameters
+     * @param args List of parameters for the object's onCreate function
+     * @warning The type and number of args parameters must match the type of the onCreate function (default parameters cannot be ignored), otherwise it will be ignored due to template matching failure
+     * @return Smart pointer to the args object
+     
+     * [AUTO-TRANSLATED:bd672150]
      */
     template<typename C, typename ...ArgsType>
     static std::shared_ptr<C> create2(ArgsType &&...args) {
@@ -209,24 +228,32 @@ std::string exeDir(bool isExe = true);
 std::string exeName(bool isExe = true);
 
 std::vector<std::string> split(const std::string& s, const char *delim);
-//去除前后的空格、回车符、制表符...
+//去除前后的空格、回车符、制表符...  [AUTO-TRANSLATED:7c50cbc8]
+//Remove leading and trailing spaces, line breaks, tabs...
 std::string& trim(std::string &s,const std::string &chars=" \r\n\t");
 std::string trim(std::string &&s,const std::string &chars=" \r\n\t");
-// string转小写
+// string转小写  [AUTO-TRANSLATED:bf92618b]
+//Convert string to lowercase
 std::string &strToLower(std::string &str);
 std::string strToLower(std::string &&str);
-// string转大写
+// string转大写  [AUTO-TRANSLATED:0197b884]
+//Convert string to uppercase
 std::string &strToUpper(std::string &str);
 std::string strToUpper(std::string &&str);
-//替换子字符串
+//替换子字符串  [AUTO-TRANSLATED:cbacb116]
+//Replace substring
 void replace(std::string &str, const std::string &old_str, const std::string &new_str, std::string::size_type b_pos = 0) ;
-//判断是否为ip
+//判断是否为ip  [AUTO-TRANSLATED:288e7a54]
+//Determine if it's an IP
 bool isIP(const char *str);
-//字符串是否以xx开头
+//字符串是否以xx开头  [AUTO-TRANSLATED:585cf826]
+//Check if a string starts with xx
 bool start_with(const std::string &str, const std::string &substr);
-//字符串是否以xx结尾
+//字符串是否以xx结尾  [AUTO-TRANSLATED:50cc80d7]
+//Check if a string ends with xx
 bool end_with(const std::string &str, const std::string &substr);
-//拼接格式字符串
+//拼接格式字符串  [AUTO-TRANSLATED:2f902ef7]
+//Concatenate format string
 template<typename... Args>
 std::string str_format(const std::string &format, Args... args) {
 
@@ -290,18 +317,29 @@ const char *strcasestr(const char *big, const char *little);
 
 /**
  * 获取时间差, 返回值单位为秒
+ * Get time difference, return value in seconds
+ 
+ * [AUTO-TRANSLATED:43d2403a]
  */
 long getGMTOff();
 
 /**
  * 获取1970年至今的毫秒数
  * @param system_time 是否为系统时间(系统时间可以回退),否则为程序启动时间(不可回退)
+ * Get the number of milliseconds since 1970
+ * @param system_time Whether it's system time (system time can be rolled back), otherwise it's program startup time (cannot be rolled back)
+ 
+ * [AUTO-TRANSLATED:9857bfbe]
  */
 uint64_t getCurrentMillisecond(bool system_time = false);
 
 /**
  * 获取1970年至今的微秒数
  * @param system_time 是否为系统时间(系统时间可以回退),否则为程序启动时间(不可回退)
+ * Get the number of microseconds since 1970
+ * @param system_time Whether it's system time (system time can be rolled back), otherwise it's program startup time (cannot be rolled back)
+ 
+ * [AUTO-TRANSLATED:e4bed7e3]
  */
 uint64_t getCurrentMicrosecond(bool system_time = false);
 
@@ -309,6 +347,11 @@ uint64_t getCurrentMicrosecond(bool system_time = false);
  * 获取时间字符串
  * @param fmt 时间格式，譬如%Y-%m-%d %H:%M:%S
  * @return 时间字符串
+ * Get time string
+ * @param fmt Time format, e.g. %Y-%m-%d %H:%M:%S
+ * @return Time string
+ 
+ * [AUTO-TRANSLATED:444636ec]
  */
 std::string getTimeStr(const char *fmt,time_t time = 0);
 
@@ -316,16 +359,27 @@ std::string getTimeStr(const char *fmt,time_t time = 0);
  * 根据unix时间戳获取本地时间
  * @param sec unix时间戳
  * @return tm结构体
+ * Get local time based on Unix timestamp
+ * @param sec Unix timestamp
+ * @return tm structure
+ 
+ * [AUTO-TRANSLATED:22a03a5b]
  */
 struct tm getLocalTime(time_t sec);
 
 /**
  * 设置线程名
+ * Set thread name
+ 
+ * [AUTO-TRANSLATED:d0bcbcdc]
  */
 void setThreadName(const char *name);
 
 /**
  * 获取线程名
+ * Get thread name
+ 
+ * [AUTO-TRANSLATED:99245fec]
  */
 std::string getThreadName();
 
@@ -333,20 +387,32 @@ std::string getThreadName();
  * 设置当前线程cpu亲和性
  * @param i cpu索引，如果为-1，那么取消cpu亲和性
  * @return 是否成功，目前只支持linux
+ * Set current thread CPU affinity
+ * @param i CPU index, if -1, cancel CPU affinity
+ * @return Whether successful, currently only supports Linux
+ 
+ * [AUTO-TRANSLATED:9b3d6a83]
  */
 bool setThreadAffinity(int i);
 
 /**
  * 根据typeid(class).name()获取类名
+ * Get class name based on typeid(class).name()
+ 
+ * [AUTO-TRANSLATED:7ac66c58]
  */
 std::string demangle(const char *mangled);
 
 /**
  * 获取环境变量内容，以'$'开头
+ * Get environment variable content, starting with '$'
+ 
+ * [AUTO-TRANSLATED:c2c1689d]
  */
 std::string getEnv(const std::string &key);
 
-// 可以保存任意的对象
+// 可以保存任意的对象  [AUTO-TRANSLATED:e7c40bad]
+//Can store any object
 class Any {
 public:
     using Ptr = std::shared_ptr<Any>;
@@ -429,7 +495,8 @@ private:
     std::shared_ptr<void> _data;
 };
 
-// 用于保存一些外加属性
+// 用于保存一些外加属性  [AUTO-TRANSLATED:cfbc20a3]
+//Used to store some additional properties
 class AnyStorage : public std::unordered_map<std::string, Any> {
 public:
     AnyStorage() = default;

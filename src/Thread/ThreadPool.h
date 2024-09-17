@@ -51,7 +51,8 @@ public:
         wait();
     }
 
-    //把任务打入线程池并异步执行
+    //把任务打入线程池并异步执行  [AUTO-TRANSLATED:651c8d5a]
+    //Put the task into the thread pool and execute it asynchronously
     Task::Ptr async(TaskIn task, bool may_sync = true) override {
         if (may_sync && _thread_group.is_this_thread_in()) {
             task();
@@ -122,7 +123,8 @@ private:
         while (true) {
             startSleep();
             if (!_queue.get_task(task)) {
-                //空任务，退出线程
+                //空任务，退出线程  [AUTO-TRANSLATED:583e2f11]
+                //Empty task, exit the thread
                 break;
             }
             sleepWakeUp();

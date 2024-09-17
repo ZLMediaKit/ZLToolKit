@@ -60,7 +60,8 @@ int uv_translate_posix_error(int err) {
         return err;
     }
     switch (err) {
-        //为了兼容windows/unix平台，信号EINPROGRESS ，EAGAIN，EWOULDBLOCK，ENOBUFS 全部统一成EAGAIN处理
+        //为了兼容windows/unix平台，信号EINPROGRESS ，EAGAIN，EWOULDBLOCK，ENOBUFS 全部统一成EAGAIN处理  [AUTO-TRANSLATED:aa58d626]
+        //To be compatible with Windows/Unix platforms, signals EINPROGRESS, EAGAIN, EWOULDBLOCK, ENOBUFS are all unified as EAGAIN for processing
         case ENOBUFS://在mac系统下实测发现会有此信号发生
         case EINPROGRESS:
         case EWOULDBLOCK: err = EAGAIN; break;

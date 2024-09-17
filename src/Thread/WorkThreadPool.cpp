@@ -26,7 +26,8 @@ EventPoller::Ptr WorkThreadPool::getPoller() {
 }
 
 WorkThreadPool::WorkThreadPool() {
-    //最低优先级
+    //最低优先级  [AUTO-TRANSLATED:cd1f0dbc]
+    //Lowest priority
     addPoller("work poller", s_pool_size, ThreadPool::PRIORITY_LOWEST, false, s_enable_cpu_affinity);
 }
 

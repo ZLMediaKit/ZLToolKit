@@ -17,23 +17,28 @@
 using namespace std;
 using namespace toolkit;
 
-//主线程退出标志
+//主线程退出标志  [AUTO-TRANSLATED:4465f04c]
+// Main thread exit flag
 bool exitProgram = false;
 
-//赋值struct sockaddr
+//赋值struct sockaddr  [AUTO-TRANSLATED:07f9df9d]
+// Assign struct sockaddr
 void makeAddr(struct sockaddr_storage *out,const char *ip,uint16_t port){
     *out = SockUtil::make_sockaddr(ip, port);
 }
 
-//获取struct sockaddr的IP字符串
+//获取struct sockaddr的IP字符串  [AUTO-TRANSLATED:651562f1]
+// Get IP string from struct sockaddr
 string getIP(struct sockaddr *addr){
     return SockUtil::inet_ntoa(addr);
 }
 
 int main() {
-    //设置程序退出信号处理函数
+    //设置程序退出信号处理函数  [AUTO-TRANSLATED:419fb1c3]
+    // Set program exit signal handling function
     signal(SIGINT, [](int){exitProgram = true;});
-    //设置日志系统
+    //设置日志系统  [AUTO-TRANSLATED:ad15b8d6]
+    // Set up logging system
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
@@ -43,7 +48,8 @@ int main() {
     sockSend->bindUdpSock(0, "0.0.0.0");//发送UDP随机端口
 
     sockRecv->setOnRead([](const Buffer::Ptr &buf, struct sockaddr *addr , int){
-        //接收到数据回调
+        //接收到数据回调  [AUTO-TRANSLATED:1cd064ad]
+        // Data received callback
         DebugL << "recv data form " << getIP(addr) << ":" << buf->data();
     });
 
@@ -52,7 +58,8 @@ int main() {
 //	sockSend->bindPeerAddr(&addrDst);
     int i = 0;
     while(!exitProgram){
-        //每隔一秒往对方发送数据
+        //每隔一秒往对方发送数据  [AUTO-TRANSLATED:d70ac05f]
+        // Send data to the other side every second
         sockSend->send(to_string(i++), (struct sockaddr *)&addrDst);
         sleep(1);
     }

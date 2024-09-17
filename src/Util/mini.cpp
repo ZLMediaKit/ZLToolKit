@@ -34,7 +34,8 @@ mINI_basic<string, variant> &mINI_basic<string, variant>::Instance(){
 template <>
 bool variant::as<bool>() const {
     if (empty() || isdigit(front())) {
-        //数字开头
+        //数字开头  [AUTO-TRANSLATED:e4266329]
+        //Starts with a number
         return as_default<bool>();
     }
     if (strToLower(std::string(*this)) == "true") {
@@ -43,7 +44,8 @@ bool variant::as<bool>() const {
     if (strToLower(std::string(*this)) == "false") {
         return false;
     }
-    //未识别字符串
+    //未识别字符串  [AUTO-TRANSLATED:b8037f51]
+    //Unrecognized string
     return as_default<bool>();
 }
 
