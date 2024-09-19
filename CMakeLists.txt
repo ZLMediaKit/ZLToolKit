@@ -89,12 +89,12 @@ endif()
 set(ENABLE_OPENSSL ON CACHE BOOL "enable openssl")
 set(ENABLE_MYSQL ON CACHE BOOL "enable mysql")
 set(ASAN_USE_DELETE OFF CACHE BOOL "use delele[] or free when asan enabled")
+set(ENABLE_IO_URING OFF CACHE BOOL "enable io_uring")
 
 # 添加io_uring支持
 # Add io_uring support
-option(ENABLE_IO_URING "enable io_uring" ON)
 if(ENABLE_IO_URING)
-    find_package(LibUring QUIET)
+    find_package(LIBURING QUIET)
     if(LIBURING_FOUND)
         message(STATUS "Found liburing")
         add_definitions(-DHAS_IO_URING)
