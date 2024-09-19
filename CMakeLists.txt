@@ -19,6 +19,7 @@ if(HAVE_RECVMMSG_API)
     add_definitions(-DHAVE_RECVMMSG_API)
 endif()
 
+
 # check the socket buffer size set by the upper cmake project, if it is set, use the setting of the upper cmake project, otherwise set it to 256K
 # if the socket buffer size is set to 0, it means that the socket buffer size is not set, and the kernel default value is used(just for linux)
 if(DEFINED SOCKET_DEFAULT_BUF_SIZE)
@@ -88,6 +89,19 @@ endif()
 set(ENABLE_OPENSSL ON CACHE BOOL "enable openssl")
 set(ENABLE_MYSQL ON CACHE BOOL "enable mysql")
 set(ASAN_USE_DELETE OFF CACHE BOOL "use delele[] or free when asan enabled")
+
+# 添加io_uring支持
+# Add io_uring support
+option(ENABLE_IO_URING "enable io_uring" ON)
+if(ENABLE_IO_URING)
+    find_package(LibUring QUIET)
+    if(LIBURING_FOUND)
+        message(STATUS "Found liburing")
+        add_definitions(-DHAS_IO_URING)
+        include_directories(${LIBURING_INCLUDE_DIRS})
+        list(APPEND LINK_LIB_LIST ${LIBURING_LIBRARIES})
+    endif()
+endif()
 
 #查找openssl是否安装
 #Find out if openssl is installed
