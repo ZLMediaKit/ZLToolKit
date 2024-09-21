@@ -154,7 +154,7 @@ private:
      
      * [AUTO-TRANSLATED:1b3438d0]
      */
-    void setupCtx(SSL_CTX *ctx);
+    static void setupCtx(SSL_CTX *ctx);
 
     std::shared_ptr<SSL_CTX> getSSLCtx_l(const std::string &vhost, bool server_mode);
 
@@ -184,6 +184,7 @@ private:
     };
 
 private:
+    std::recursive_mutex _mtx;
     std::string _default_vhost[2];
     std::shared_ptr<SSL_CTX> _ctx_empty[2];
     std::map<std::string, std::shared_ptr<SSL_CTX>, less_nocase> _ctxs[2];

@@ -93,8 +93,7 @@ SSL_Initor::~SSL_Initor() {
 #endif //defined(ENABLE_OPENSSL)
 }
 
-bool SSL_Initor::loadCertificate(const string &pem_or_p12, bool server_mode, const string &password, bool is_file,
-                                 bool is_default) {
+bool SSL_Initor::loadCertificate(const string &pem_or_p12, bool server_mode, const string &password, bool is_file, bool is_default) {
     auto cers = SSLUtil::loadPublicKey(pem_or_p12, password, is_file);
     auto key = SSLUtil::loadPrivateKey(pem_or_p12, password, is_file);
     auto ssl_ctx = SSLUtil::makeSSLContext(cers, key, server_mode, true);
@@ -128,6 +127,7 @@ int SSL_Initor::findCertificate(SSL *ssl, int *, void *arg) {
         if (!ctx) {
             //未找到对应的证书  [AUTO-TRANSLATED:d4550e6f]
             //No corresponding certificate found
+            std::lock_guard<std::recursive_mutex> lck(ref._mtx);
             WarnL << "Can not find any certificate of host: " << vhost
                   << ", select default certificate of: " << ref._default_vhost[(bool) (arg)];
         }
@@ -153,6 +153,7 @@ int SSL_Initor::findCertificate(SSL *ssl, int *, void *arg) {
 }
 
 bool SSL_Initor::setContext(const string &vhost, const shared_ptr<SSL_CTX> &ctx, bool server_mode, bool is_default) {
+    std::lock_guard<std::recursive_mutex> lck(_mtx);
     if (!ctx) {
         return false;
     }
@@ -240,6 +241,7 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
 }
 
 shared_ptr<SSL> SSL_Initor::makeSSL(bool server_mode) {
+    std::lock_guard<std::recursive_mutex> lck(_mtx);
 #if defined(ENABLE_OPENSSL)
 #ifdef SSL_ENABLE_SNI
     //openssl 版本支持SNI  [AUTO-TRANSLATED:b8029f6c]
@@ -256,6 +258,7 @@ shared_ptr<SSL> SSL_Initor::makeSSL(bool server_mode) {
 }
 
 bool SSL_Initor::trustCertificate(X509 *cer, bool server_mode) {
+    std::lock_guard<std::recursive_mutex> lck(_mtx);
     return SSLUtil::trustCertificate(_ctx_empty[server_mode].get(), cer);
 }
 
@@ -276,6 +279,7 @@ std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx(const string &vhost, bool server_
 }
 
 std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtxWildcards(const string &vhost, bool server_mode) {
+    std::lock_guard<std::recursive_mutex> lck(_mtx);
     for (auto &pr : _ctxs_wildcards[server_mode]) {
         auto pos = strcasestr(vhost.data(), pr.first.data());
         if (pos && pos + pr.first.size() == &vhost.back() + 1) {
@@ -286,6 +290,7 @@ std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtxWildcards(const string &vhost, boo
 }
 
 std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx_l(const string &vhost_in, bool server_mode) {
+    std::lock_guard<std::recursive_mutex> lck(_mtx);
     auto vhost = vhost_in;
     if (vhost.empty()) {
         if (!_default_vhost[server_mode].empty()) {
@@ -309,6 +314,7 @@ std::shared_ptr<SSL_CTX> SSL_Initor::getSSLCtx_l(const string &vhost_in, bool se
 }
 
 string SSL_Initor::defaultVhost(bool server_mode) {
+    std::lock_guard<std::recursive_mutex> lck(_mtx);
     return _default_vhost[server_mode];
 }
 
