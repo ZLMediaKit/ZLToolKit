@@ -583,15 +583,19 @@ bool setThreadAffinity(int i) {
     return false;
 }
 
+#if defined(__MACH__) || defined(__APPLE__)
+#include <limits.h>
+#include <mach-o/dyld.h> /* _NSGetExecutablePath */
+#endif
+
 #ifndef HAS_CXA_DEMANGLE
 // We only support some compilers that support __cxa_demangle.
-// TODO: Checks if Android NDK has fixed this issue or not.
-#if defined(__ANDROID__) && (defined(__i386__) || defined(__x86_64__))
+// TODO: Check if Android NDK has fixed this issue or not.
+#if defined(ANDROID) && (defined(i386) || defined(x86_64))
 #define HAS_CXA_DEMANGLE 0
-#elif (__GNUC__ >= 4 || (__GNUC__ >= 3 && __GNUC_MINOR__ >= 4)) && \
-    !defined(__mips__)
+#elif (GNUC >= 4 || (GNUC >= 3 && GNUC_MINOR >= 4)) && !defined(mips)
 #define HAS_CXA_DEMANGLE 1
-#elif defined(__clang__) && !defined(_MSC_VER)
+#elif defined(clang) && !defined(_MSC_VER)
 #define HAS_CXA_DEMANGLE 1
 #else
 #define HAS_CXA_DEMANGLE 0
