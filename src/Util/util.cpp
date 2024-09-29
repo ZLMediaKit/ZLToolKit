@@ -72,6 +72,24 @@ int uv_exepath(char *buffer, int *size) {
 
 using namespace std;
 
+#ifndef HAS_CXA_DEMANGLE
+// We only support some compilers that support __cxa_demangle.
+// TODO: Checks if Android NDK has fixed this issue or not.
+#if defined(__ANDROID__) && (defined(__i386__) || defined(__x86_64__))
+#define HAS_CXA_DEMANGLE 0
+#elif (__GNUC__ >= 4 || (__GNUC__ >= 3 && __GNUC_MINOR__ >= 4)) && \
+!defined(__mips__)
+#define HAS_CXA_DEMANGLE 1
+#elif defined(__clang__) && !defined(_MSC_VER)
+#define HAS_CXA_DEMANGLE 1
+#else
+#define HAS_CXA_DEMANGLE 0
+#endif
+#endif
+#if HAS_CXA_DEMANGLE
+#include <cxxabi.h>
+#endif
+
 namespace toolkit {
 
 static constexpr char CCH[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -582,24 +600,6 @@ bool setThreadAffinity(int i) {
 #endif
     return false;
 }
-
-#ifndef HAS_CXA_DEMANGLE
-// We only support some compilers that support __cxa_demangle.
-// TODO: Checks if Android NDK has fixed this issue or not.
-#if defined(__ANDROID__) && (defined(__i386__) || defined(__x86_64__))
-#define HAS_CXA_DEMANGLE 0
-#elif (__GNUC__ >= 4 || (__GNUC__ >= 3 && __GNUC_MINOR__ >= 4)) && \
-    !defined(__mips__)
-#define HAS_CXA_DEMANGLE 1
-#elif defined(__clang__) && !defined(_MSC_VER)
-#define HAS_CXA_DEMANGLE 1
-#else
-#define HAS_CXA_DEMANGLE 0
-#endif
-#endif
-#if HAS_CXA_DEMANGLE
-#include <cxxabi.h>
-#endif
 
 // Demangle a mangled symbol name and return the demangled name.
 // If 'mangled' isn't mangled in the first place, this function
