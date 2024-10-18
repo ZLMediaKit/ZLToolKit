@@ -433,6 +433,13 @@ public:
         }
     }
 
+    void flushGop(std::function<void(const T &)> cb) {
+        LOCK_GUARD(_mtx_map);
+        _storage->getCache().for_each([&](const List<std::pair<bool, T>> &lst) {
+            lst.for_each([&](const std::pair<bool, T> &pr) { cb(pr.second); });
+        });
+    }
+
     void getInfoList(const onGetInfoCB &cb, const typename RingReaderDispatcher::onChangeInfoCB &on_change = nullptr) {
         if (!cb) {
             return;
