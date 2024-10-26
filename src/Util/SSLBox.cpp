@@ -192,7 +192,7 @@ void SSL_Initor::setupCtx(SSL_CTX *ctx) {
     //加载默认信任证书  [AUTO-TRANSLATED:4d98f092]
     //Load default trusted certificate
     SSLUtil::loadDefaultCAs(ctx);
-    SSL_CTX_set_cipher_list(ctx, "ALL:!ADH:!LOW:!EXP:!MD5:!3DES:!DES:!IDEA:!RC4:@STRENGTH");
+    SSL_CTX_set_cipher_list(ctx, "ALL:!ADH:!LOW:!EXP:!MD5:!3DES:!DES:!IDEA:!RC4:!SEED-SHA:@STRENGTH");
     SSL_CTX_set_verify_depth(ctx, 9);
     SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
     SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
