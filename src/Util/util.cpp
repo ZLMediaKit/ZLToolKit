@@ -669,7 +669,16 @@ void Assert_Throw(int failed, const char *exp, const char *func, const char *fil
         if(str && *str){
             printer << ", " << str;
         }
-        printer << "), function " << func << ", file " << file << ", line " << line << ".";
+#if defined(ZLMediaKit_PARENT_DIR_LENGTH) && defined(ZLMediaKit_PARENT_DIR)
+        // Assertion failed: (false), at ZLMediaKit/ext-codec/H264Rtmp.cpp#42@foobar
+        int offset = strncmp(file, ZLMediaKit_PARENT_DIR, ZLMediaKit_PARENT_DIR_LENGTH) == 0
+                        ? ZLMediaKit_PARENT_DIR_LENGTH + 1
+                        : 0;
+        printer << "), at " << (file + offset) << "#" << line << "@" << func;
+#else
+        printer << "), at " << file << "#" << line << "@" << func;
+#endif
+
         throw toolkit::AssertFailedException(printer);
     }
 }
