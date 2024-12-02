@@ -243,11 +243,18 @@ public:
     /**
      * 获取任务执行器
      * @return 任务执行器
+     * Get task executor
+     * @return task executor
+     
+     * [AUTO-TRANSLATED:49f1c782]
      */
     virtual TaskExecutor::Ptr getExecutor() = 0;
 
     /**
      * 获取执行器个数
+     * Get the number of executors
+     
+     * [AUTO-TRANSLATED:19813118]
      */
     virtual size_t getExecutorSize() const = 0;
 };
@@ -260,12 +267,20 @@ public:
     /**
      * 根据线程负载情况，获取最空闲的任务执行器
      * @return 任务执行器
+     * Get the most idle task executor based on thread load
+     * @return task executor
+     
+     * [AUTO-TRANSLATED:424dae60]
      */
     TaskExecutor::Ptr getExecutor() override;
 
     /**
      * 获取所有线程的负载率
      * @return 所有线程的负载率
+     * Get the load rate of all threads
+     * @return load rate of all threads
+     
+     * [AUTO-TRANSLATED:99f44986]
      */
     std::vector<int> getExecutorLoad();
 
@@ -273,16 +288,27 @@ public:
      * 获取所有线程任务执行延时，单位毫秒
      * 通过此函数也可以大概知道线程负载情况
      * @return
+     * Get the task execution delay of all threads in milliseconds
+     * This function can also roughly determine the thread load
+     * @return
+     
+     * [AUTO-TRANSLATED:f4045148]
      */
     void getExecutorDelay(const std::function<void(const std::vector<int> &)> &callback);
 
     /**
      * 遍历所有线程
+     * Traverse all threads
+     
+     * [AUTO-TRANSLATED:3ca5fb62]
      */
     void for_each(const std::function<void(const TaskExecutor::Ptr &)> &cb);
 
     /**
      * 获取线程数
+     * Get the number of threads
+     
+     * [AUTO-TRANSLATED:cf1903ce]
      */
     size_t getExecutorSize() const override;
 
