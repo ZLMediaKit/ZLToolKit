@@ -290,10 +290,10 @@ SessionHelper::Ptr UdpServer::createSession(const PeerIdType &id, Buffer::Ptr &b
             if (!strong_self) {
                 return;
             }
-
+            auto new_id = makeSockId(addr, addr_len);
             //快速判断是否为本会话的的数据, 通常应该成立  [AUTO-TRANSLATED:d5d147e4]
             //Quickly determine if it's data for the current session, usually should be true
-            if (id == makeSockId(addr, addr_len)) {
+            if (id == new_id) {
                 if (auto strong_helper = weak_helper.lock()) {
                     emitSessionRecv(strong_helper, buf);
                 }
@@ -302,7 +302,7 @@ SessionHelper::Ptr UdpServer::createSession(const PeerIdType &id, Buffer::Ptr &b
 
             //收到非本peer fd的数据，让server去派发此数据到合适的session对象  [AUTO-TRANSLATED:e5f44445]
             //Received data from a non-current peer fd, let the server dispatch this data to the appropriate session object
-            strong_self->onRead_l(false, id, buf, addr, addr_len);
+            strong_self->onRead_l(false, new_id, buf, addr, addr_len);
         });
         socket->setOnErr([weak_self, weak_helper, id](const SockException &err) {
             // 在本函数作用域结束时移除会话对象  [AUTO-TRANSLATED:b2ade305]
