@@ -127,9 +127,7 @@ int SSL_Initor::findCertificate(SSL *ssl, int *, void *arg) {
         if (!ctx) {
             //未找到对应的证书  [AUTO-TRANSLATED:d4550e6f]
             //No corresponding certificate found
-            std::lock_guard<std::recursive_mutex> lck(ref._mtx);
-            WarnL << "Can not find any certificate of host: " << vhost
-                  << ", select default certificate of: " << ref._default_vhost[(bool) (arg)];
+            TraceL << "Can not find any certificate of host: " << vhost;
         }
     }
 
