@@ -8,13 +8,13 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "SelectWrap.h"
 #include "EventPoller.h"
+#include "Network/sockutil.h"
+#include "SelectWrap.h"
+#include "Util/NoticeCenter.h"
+#include "Util/TimeTicker.h"
 #include "Util/util.h"
 #include "Util/uv_errno.h"
-#include "Util/TimeTicker.h"
-#include "Util/NoticeCenter.h"
-#include "Network/sockutil.h"
 
 #if defined(HAS_EPOLL)
 #include <sys/epoll.h>
@@ -25,23 +25,21 @@
 
 #define EPOLL_SIZE 1024
 
-//防止epoll惊群  [AUTO-TRANSLATED:ad53c775]
-//Prevent epoll thundering
+// 防止epoll惊群  [AUTO-TRANSLATED:ad53c775]
+// Prevent epoll thundering
 #ifndef EPOLLEXCLUSIVE
 #define EPOLLEXCLUSIVE 0
 #endif
 
-#define toEpoll(event)        (((event) & Event_Read)  ? EPOLLIN : 0) \
-                            | (((event) & Event_Write) ? EPOLLOUT : 0) \
-                            | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
-                            | (((event) & Event_LT)    ? 0 : EPOLLET)
+#define toEpoll(event)                                                                                                                                         \
+    (((event)&Event_Read) ? EPOLLIN : 0) | (((event)&Event_Write) ? EPOLLOUT : 0) | (((event)&Event_Error) ? (EPOLLHUP | EPOLLERR) : 0)                        \
+        | (((event)&Event_LT) ? 0 : EPOLLET)
 
-#define toPoller(epoll_event)     (((epoll_event) & (EPOLLIN | EPOLLRDNORM | EPOLLHUP)) ? Event_Read   : 0) \
-                                | (((epoll_event) & (EPOLLOUT | EPOLLWRNORM)) ? Event_Write : 0) \
-                                | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
-                                | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
+#define toPoller(epoll_event)                                                                                                                                  \
+    (((epoll_event) & (EPOLLIN | EPOLLRDNORM | EPOLLHUP)) ? Event_Read : 0) | (((epoll_event) & (EPOLLOUT | EPOLLWRNORM)) ? Event_Write : 0)                   \
+        | (((epoll_event)&EPOLLHUP) ? Event_Error : 0) | (((epoll_event)&EPOLLERR) ? Event_Error : 0)
 #define create_event() epoll_create(EPOLL_SIZE)
-#endif //HAS_EPOLL
+#endif // HAS_EPOLL
 
 #if defined(HAS_KQUEUE)
 #include <sys/event.h>
@@ -62,35 +60,51 @@ void EventPoller::addEventPipe() {
     SockUtil::setNoBlocked(_pipe.writeFD());
 
     // 添加内部管道事件  [AUTO-TRANSLATED:6a72e39a]
-    //Add internal pipe event
+    // Add internal pipe event
     if (addEvent(_pipe.readFD(), EventPoller::Event_Read, [this](int event) { onPipeEvent(); }) == -1) {
         throw std::runtime_error("Add pipe fd to poller failed");
     }
 }
 
 EventPoller::EventPoller(std::string name) {
+#if defined(HAS_IO_URING)
+    struct io_uring_params params;
+    memset(&params, 0, sizeof(params));
+    params.flags = IORING_SETUP_SQPOLL; // 使用内核轮询模式
+    params.sq_thread_idle = 2000; // 空闲2秒后休眠
+
+    if (io_uring_queue_init_params(1024, &_ring, &params) < 0) {
+        throw runtime_error(StrPrinter << "Create io_uring failed: " << strerror(errno));
+    }
+
+    if (!(params.features & IORING_FEAT_FAST_POLL)) {
+        WarnL << "IORING_FEAT_FAST_POLL not available. Performance might be suboptimal.";
+    }
+#else
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     _event_fd = create_event();
     if (_event_fd == -1) {
         throw runtime_error(StrPrinter << "Create event fd failed: " << get_uv_errmsg());
     }
     SockUtil::setCloExec(_event_fd);
-#endif //HAS_EPOLL
-
+#endif // HAS_EPOLL
+#endif // HAS_IO_URING
     _name = std::move(name);
     _logger = Logger::Instance().shared_from_this();
     addEventPipe();
 }
 
 void EventPoller::shutdown() {
-    async_l([]() {
-        throw ExitException();
-    }, false, true);
+    async_l([]() { throw ExitException(); }, false, true);
 
     if (_loop_thread) {
-        //防止作为子进程时崩溃  [AUTO-TRANSLATED:68727e34]
-        //Prevent crash when running as a child process
-        try { _loop_thread->join(); } catch (...) { _loop_thread->detach(); }
+        // 防止作为子进程时崩溃  [AUTO-TRANSLATED:68727e34]
+        // Prevent crash when running as a child process
+        try {
+            _loop_thread->join();
+        } catch (...) {
+            _loop_thread->detach();
+        }
         delete _loop_thread;
         _loop_thread = nullptr;
     }
@@ -98,16 +112,18 @@ void EventPoller::shutdown() {
 
 EventPoller::~EventPoller() {
     shutdown();
-    
+
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     if (_event_fd != -1) {
         close(_event_fd);
         _event_fd = -1;
     }
+#elif defined(HAS_IO_URING)
+    io_uring_queue_exit(&_ring);
 #endif
 
-    //退出前清理管道中的数据  [AUTO-TRANSLATED:60e26f9a]
-    //Clean up pipe data before exiting
+    // 退出前清理管道中的数据  [AUTO-TRANSLATED:60e26f9a]
+    // Clean up pipe data before exiting
     onPipeEvent(true);
     InfoL << getThreadName();
 }
@@ -120,9 +136,33 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
     }
 
     if (isCurrentThread()) {
-#if defined(HAS_EPOLL)
-        struct epoll_event ev = {0};
-        ev.events = toEpoll(event) ;
+#if defined(HAS_IO_URING)
+        struct io_uring_sqe *sqe = io_uring_get_sqe(&_ring);
+        if (!sqe) {
+            WarnL << "Failed to get SQE for fd: " << fd;
+            return -1;
+        }
+
+        uint32_t poll_mask = convert_to_poll_mask(event);
+        io_uring_prep_poll_add(sqe, fd, poll_mask);
+
+        std::unique_ptr<EventPoller::IOBuffer> buffer(new EventPoller::IOBuffer);
+        buffer->fd = fd;
+
+        buffer->callback = std::make_shared<PollEventCB>(std::move(cb));
+//        DebugL << "callback address: " << std::addressof(buffer->callback);
+        io_uring_sqe_set_data(sqe, buffer.get());
+        _io_buffers.emplace(fd, std::move(buffer));
+        int ret = io_uring_submit(&_ring);
+        if (ret < 0) {
+            ErrorL << "Failed to submit io_uring request: " << strerror(-ret);
+            _io_buffers.erase(fd);
+            return ret;
+        }
+        return 0;
+#elif defined(HAS_EPOLL)
+        struct epoll_event ev = { 0 };
+        ev.events = toEpoll(event);
         ev.data.fd = fd;
         int ret = epoll_ctl(_event_fd, EPOLL_CTL_ADD, fd, &ev);
         if (ret != -1) {
@@ -146,7 +186,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
 #else
 #ifndef _WIN32
         // win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制  [AUTO-TRANSLATED:6adfc664]
-        //On the win32 platform, the socket does not equal the file descriptor, so this restriction may not apply
+        // On the win32 platform, the socket does not equal the file descriptor, so this restriction may not apply
         if (fd >= FD_SETSIZE) {
             WarnL << "select() can not watch fd bigger than " << FD_SETSIZE;
             return -1;
@@ -161,9 +201,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
 #endif
     }
 
-    async([this, fd, event, cb]() mutable {
-        addEvent(fd, event, std::move(cb));
-    });
+    async([this, fd, event, cb]() mutable { addEvent(fd, event, std::move(cb)); });
     return 0;
 }
 
@@ -174,7 +212,30 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
     }
 
     if (isCurrentThread()) {
-#if defined(HAS_EPOLL)
+#if defined(HAS_IO_URING)
+        auto it = _io_buffers.find(fd);
+        if (it != _io_buffers.end()) {
+            struct io_uring_sqe *sqe = io_uring_get_sqe(&_ring);
+            if (!sqe) {
+                WarnL << "Failed to get SQE for cancelling fd: " << fd;
+                cb(false);
+                return -1;
+            }
+            io_uring_prep_poll_remove(sqe, (unsigned long long)(uintptr_t)it->second.get());
+            int ret = io_uring_submit(&_ring);
+            if (ret < 0) {
+                ErrorL << "Failed to submit cancel request: " << strerror(-ret);
+                cb(false);
+                return ret;
+            }
+            _event_cache_expired.emplace(fd);
+            _io_buffers.erase(it);
+            cb(true);
+            return 0;
+        }
+        cb(false);
+        return -1;
+#elif defined(HAS_EPOLL)
         int ret = -1;
         if (_event_map.erase(fd)) {
             _event_cache_expired.emplace(fd);
@@ -202,14 +263,12 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
         }
         cb(ret != -1);
         return ret;
-#endif //HAS_EPOLL
+#endif // HAS_EPOLL
     }
 
-    //跨线程操作  [AUTO-TRANSLATED:4e116519]
-    //Cross-thread operation
-    async([this, fd, cb]() mutable {
-        delEvent(fd, std::move(cb));
-    });
+    // 跨线程操作  [AUTO-TRANSLATED:4e116519]
+    // Cross-thread operation
+    async([this, fd, cb]() mutable { delEvent(fd, std::move(cb)); });
     return 0;
 }
 
@@ -219,7 +278,17 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
         cb = [](bool success) {};
     }
     if (isCurrentThread()) {
-#if defined(HAS_EPOLL)
+#if defined(HAS_IO_URING)
+        auto it = _io_buffers.find(fd);
+        if (it != _io_buffers.end()) {
+            uint32_t poll_mask = convert_to_poll_mask(event);
+            rearm_io_uring(fd, poll_mask);
+            cb(true);
+            return 0;
+        }
+        cb(false);
+        return -1;
+#elif defined(HAS_EPOLL)
         struct epoll_event ev = { 0 };
         ev.events = toEpoll(event);
         ev.data.fd = fd;
@@ -243,9 +312,7 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
         return it != _event_map.end() ? 0 : -1;
 #endif // HAS_EPOLL
     }
-    async([this, fd, event, cb]() mutable {
-        modifyEvent(fd, event, std::move(cb));
-    });
+    async([this, fd, event, cb]() mutable { modifyEvent(fd, event, std::move(cb)); });
     return 0;
 }
 
@@ -273,8 +340,8 @@ Task::Ptr EventPoller::async_l(TaskIn task, bool may_sync, bool first) {
             _list_task.emplace_back(ret);
         }
     }
-    //写数据到管道,唤醒主线程  [AUTO-TRANSLATED:2ead8182]
-    //Write data to the pipe and wake up the main thread
+    // 写数据到管道,唤醒主线程  [AUTO-TRANSLATED:2ead8182]
+    // Write data to the pipe and wake up the main thread
     _pipe.write("", 1);
     return ret;
 }
@@ -287,22 +354,22 @@ inline void EventPoller::onPipeEvent(bool flush) {
     char buf[1024];
     int err = 0;
     if (!flush) {
-       for (;;) {
-         if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
-             // 读到管道数据,继续读,直到读空为止  [AUTO-TRANSLATED:47bd325c]
-             //Read data from the pipe, continue reading until it's empty
-             continue;
-         }
-         if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
-             // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道  [AUTO-TRANSLATED:5f7a013d]
-             //Received eof or non-EAGAIN (no more data) error, indicating that the pipe is invalid, reopen the pipe
-             ErrorL << "Invalid pipe fd of event poller, reopen it";
-             delEvent(_pipe.readFD());
-             _pipe.reOpen();
-             addEventPipe();
-         }
-         break;
-      }
+        for (;;) {
+            if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
+                // 读到管道数据,继续读,直到读空为止  [AUTO-TRANSLATED:47bd325c]
+                // Read data from the pipe, continue reading until it's empty
+                continue;
+            }
+            if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
+                // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道  [AUTO-TRANSLATED:5f7a013d]
+                // Received eof or non-EAGAIN (no more data) error, indicating that the pipe is invalid, reopen the pipe
+                ErrorL << "Invalid pipe fd of event poller, reopen it";
+                delEvent(_pipe.readFD());
+                _pipe.reOpen();
+                addEventPipe();
+            }
+            break;
+        }
     }
 
     decltype(_list_task) _list_swap;
@@ -325,7 +392,7 @@ inline void EventPoller::onPipeEvent(bool flush) {
 SocketRecvBuffer::Ptr EventPoller::getSharedBuffer(bool is_udp) {
 #if !defined(__linux) && !defined(__linux__)
     // 非Linux平台下，tcp和udp共享recvfrom方案，使用同一个buffer  [AUTO-TRANSLATED:2d2ee7bf]
-    //On non-Linux platforms, tcp and udp share the recvfrom scheme, using the same buffer
+    // On non-Linux platforms, tcp and udp share the recvfrom scheme, using the same buffer
     is_udp = 0;
 #endif
     auto ret = _shared_buffer[is_udp].lock();
@@ -340,7 +407,7 @@ thread::id EventPoller::getThreadId() const {
     return _loop_thread ? _loop_thread->get_id() : thread::id();
 }
 
-const std::string& EventPoller::getThreadName() const {
+const std::string &EventPoller::getThreadName() const {
     return _name;
 }
 
@@ -359,16 +426,83 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
         _sem_run_started.post();
         _exit_flag = false;
         uint64_t minDelay;
-#if defined(HAS_EPOLL)
+#if defined(HAS_IO_URING)
+        struct io_uring_cqe *cqe;
+        while (!_exit_flag) {
+            minDelay = getMinDelay();
+            int ret;
+            if (minDelay) {
+                struct __kernel_timespec ts = { .tv_sec = static_cast<long>(minDelay / 1000), .tv_nsec = static_cast<long>((minDelay % 1000) * 1000000) };
+                ret = io_uring_wait_cqe_timeout(&_ring, &cqe, &ts);
+            } else {
+                ret = io_uring_wait_cqe(&_ring, &cqe);
+            }
+
+            if (ret < 0 && ret != -ETIME) {
+                ErrorL << "io_uring_wait_cqe_timeout failed: " << strerror(-ret);
+                continue;
+            }
+
+            _event_cache_expired.clear();
+
+            unsigned head;
+            unsigned count = 0;
+            io_uring_for_each_cqe(&_ring, head, cqe) {
+                ++count;
+                IOBuffer *buffer = static_cast<IOBuffer *>(io_uring_cqe_get_data(cqe));
+
+                if (!buffer || _event_cache_expired.count(buffer->fd)) {
+                    continue;
+                }
+
+                int fd = buffer->fd;
+                int event = convert_from_poll_mask(cqe->res);
+
+                std::shared_ptr<PollEventCB> callback;
+                {
+                    auto it = _io_buffers.find(fd);
+                    if (it != _io_buffers.end()) {
+                        callback = it->second->callback;
+                    }
+                }
+                if (callback) {
+                    try {
+                        (*callback)(event);
+                    } catch (std::exception &ex) {
+                        ErrorL << "Exception occurred when do event task: " << ex.what();
+                    }
+
+                    // 重新添加监听
+                    struct io_uring_sqe *sqe = io_uring_get_sqe(&_ring);
+                    if (sqe) {
+                        // io_uring_prep_poll_add(sqe, buffer->fd, POLLIN | POLLOUT);
+                        io_uring_prep_poll_add(sqe, fd, convert_to_poll_mask(event));
+                        io_uring_sqe_set_data(sqe, buffer);
+                    } else {
+                        WarnL << "Failed to get SQE for re-adding fd: " << fd;
+                    }
+                }
+            }
+
+            io_uring_cq_advance(&_ring, count);
+
+            if (count > 0) {
+                ret = io_uring_submit(&_ring);
+                if (ret < 0) {
+                    ErrorL << "Failed to submit io_uring requests: " << strerror(-ret);
+                }
+            }
+        }
+#elif defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         while (!_exit_flag) {
             minDelay = getMinDelay();
-            startSleep();//用于统计当前线程负载情况
+            startSleep(); // 用于统计当前线程负载情况
             int ret = epoll_wait(_event_fd, events, EPOLL_SIZE, minDelay ? minDelay : -1);
-            sleepWakeUp();//用于统计当前线程负载情况
+            sleepWakeUp(); // 用于统计当前线程负载情况
             if (ret <= 0) {
-                //超时或被打断  [AUTO-TRANSLATED:7005fded]
-                //Timed out or interrupted
+                // 超时或被打断  [AUTO-TRANSLATED:7005fded]
+                // Timed out or interrupted
                 continue;
             }
 
@@ -378,7 +512,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                 struct epoll_event &ev = events[i];
                 int fd = ev.data.fd;
                 if (_event_cache_expired.count(fd)) {
-                    //event cache refresh
+                    // event cache refresh
                     continue;
                 }
 
@@ -445,10 +579,10 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
         List<Poll_Record::Ptr> callback_list;
         struct timeval tv;
         while (!_exit_flag) {
-            //定时器事件中可能操作_event_map  [AUTO-TRANSLATED:f2a50ee2]
-            //Possible operations on _event_map in timer events
+            // 定时器事件中可能操作_event_map  [AUTO-TRANSLATED:f2a50ee2]
+            // Possible operations on _event_map in timer events
             minDelay = getMinDelay();
-            tv.tv_sec = (decltype(tv.tv_sec)) (minDelay / 1000);
+            tv.tv_sec = (decltype(tv.tv_sec))(minDelay / 1000);
             tv.tv_usec = 1000 * (minDelay % 1000);
 
             set_read.fdZero();
@@ -460,30 +594,30 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
                     max_fd = pr.first;
                 }
                 if (pr.second->event & Event_Read) {
-                    set_read.fdSet(pr.first);//监听管道可读事件
+                    set_read.fdSet(pr.first); // 监听管道可读事件
                 }
                 if (pr.second->event & Event_Write) {
-                    set_write.fdSet(pr.first);//监听管道可写事件
+                    set_write.fdSet(pr.first); // 监听管道可写事件
                 }
                 if (pr.second->event & Event_Error) {
-                    set_err.fdSet(pr.first);//监听管道错误事件
+                    set_err.fdSet(pr.first); // 监听管道错误事件
                 }
             }
 
-            startSleep();//用于统计当前线程负载情况
+            startSleep(); // 用于统计当前线程负载情况
             ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay ? &tv : nullptr);
-            sleepWakeUp();//用于统计当前线程负载情况
+            sleepWakeUp(); // 用于统计当前线程负载情况
 
             if (ret <= 0) {
-                //超时或被打断  [AUTO-TRANSLATED:7005fded]
-                //Timed out or interrupted
+                // 超时或被打断  [AUTO-TRANSLATED:7005fded]
+                // Timed out or interrupted
                 continue;
             }
 
             _event_cache_expired.clear();
 
-            //收集select事件类型  [AUTO-TRANSLATED:9a5c41d3]
-            //Collect select event types
+            // 收集select事件类型  [AUTO-TRANSLATED:9a5c41d3]
+            // Collect select event types
             for (auto &pr : _event_map) {
                 int event = 0;
                 if (set_read.isSet(pr.first)) {
@@ -503,7 +637,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
 
             callback_list.for_each([&](Poll_Record::Ptr &record) {
                 if (_event_cache_expired.count(record->fd)) {
-                    //event cache refresh
+                    // event cache refresh
                     return;
                 }
 
@@ -515,7 +649,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             });
             callback_list.clear();
         }
-#endif //HAS_EPOLL
+#endif // HAS_EPOLL
     } else {
         _loop_thread = new thread(&EventPoller::runLoop, this, true, ref_self);
         _sem_run_started.wait();
@@ -527,13 +661,13 @@ uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
     task_copy.swap(_delay_task_map);
 
     for (auto it = task_copy.begin(); it != task_copy.end() && it->first <= now_time; it = task_copy.erase(it)) {
-        //已到期的任务  [AUTO-TRANSLATED:849cdc29]
-        //Expired tasks
+        // 已到期的任务  [AUTO-TRANSLATED:849cdc29]
+        // Expired tasks
         try {
             auto next_delay = (*(it->second))();
             if (next_delay) {
-                //可重复任务,更新时间截止线  [AUTO-TRANSLATED:c7746a21]
-                //Repeatable tasks, update deadline
+                // 可重复任务,更新时间截止线  [AUTO-TRANSLATED:c7746a21]
+                // Repeatable tasks, update deadline
                 _delay_task_map.emplace(next_delay + now_time, std::move(it->second));
             }
         } catch (std::exception &ex) {
@@ -546,30 +680,30 @@ uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
 
     auto it = _delay_task_map.begin();
     if (it == _delay_task_map.end()) {
-        //没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
-        //No remaining timers
+        // 没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
+        // No remaining timers
         return 0;
     }
-    //最近一个定时器的执行延时  [AUTO-TRANSLATED:2535621b]
-    //Delay in execution of the last timer
+    // 最近一个定时器的执行延时  [AUTO-TRANSLATED:2535621b]
+    // Delay in execution of the last timer
     return it->first - now_time;
 }
 
 uint64_t EventPoller::getMinDelay() {
     auto it = _delay_task_map.begin();
     if (it == _delay_task_map.end()) {
-        //没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
-        //No remaining timers
+        // 没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
+        // No remaining timers
         return 0;
     }
     auto now = getCurrentMillisecond();
     if (it->first > now) {
-        //所有任务尚未到期  [AUTO-TRANSLATED:8d80eabf]
-        //All tasks have not expired
+        // 所有任务尚未到期  [AUTO-TRANSLATED:8d80eabf]
+        // All tasks have not expired
         return it->first - now;
     }
-    //执行已到期的任务并刷新休眠延时  [AUTO-TRANSLATED:cd6348b7]
-    //Execute expired tasks and refresh sleep delay
+    // 执行已到期的任务并刷新休眠延时  [AUTO-TRANSLATED:cd6348b7]
+    // Execute expired tasks and refresh sleep delay
     return flushDelayTask(now);
 }
 
@@ -577,14 +711,33 @@ EventPoller::DelayTask::Ptr EventPoller::doDelayTask(uint64_t delay_ms, function
     DelayTask::Ptr ret = std::make_shared<DelayTask>(std::move(task));
     auto time_line = getCurrentMillisecond() + delay_ms;
     async_first([time_line, ret, this]() {
-        //异步执行的目的是刷新select或epoll的休眠时间  [AUTO-TRANSLATED:a6b5c8d7]
-        //The purpose of asynchronous execution is to refresh the sleep time of select or epoll
+        // 异步执行的目的是刷新select或epoll的休眠时间  [AUTO-TRANSLATED:a6b5c8d7]
+        // The purpose of asynchronous execution is to refresh the sleep time of select or epoll
         _delay_task_map.emplace(time_line, ret);
     });
     return ret;
 }
 
+#if defined(HAS_IO_URING)
+void EventPoller::rearm_io_uring(int fd, uint32_t events) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(&_ring);
+    if (!sqe) {
+        WarnL << "Failed to get SQE for re-arming fd: " << fd;
+        return;
+    }
 
+    io_uring_prep_poll_add(sqe, fd, events);
+    auto it = _io_buffers.find(fd);
+    if (it != _io_buffers.end()) {
+        io_uring_sqe_set_data(sqe, it->second.get());
+    }
+
+    int ret = io_uring_submit(&_ring);
+    if (ret < 0) {
+        ErrorL << "Failed to submit io_uring re-arm request: " << strerror(-ret);
+    }
+}
+#endif
 ///////////////////////////////////////////////
 
 static size_t s_pool_size = 0;
@@ -624,5 +777,4 @@ void EventPollerPool::enableCpuAffinity(bool enable) {
     s_enable_cpu_affinity = enable;
 }
 
-}  // namespace toolkit
-
+} // namespace toolkit
