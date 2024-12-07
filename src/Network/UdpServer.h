@@ -11,7 +11,10 @@
 #ifndef TOOLKIT_NETWORK_UDPSERVER_H
 #define TOOLKIT_NETWORK_UDPSERVER_H
 
+#if __cplusplus >= 201703L
+#include <array>
 #include <string_view>
+#endif
 #include "Server.h"
 #include "Session.h"
 
@@ -19,8 +22,17 @@ namespace toolkit {
 
 class UdpServer : public Server {
 public:
+#if __cplusplus >= 201703L
     class PeerIdType : public std::array<char, 18> {
+#else
+    class PeerIdType : public std::string {
+#endif
     public:
+#if __cplusplus < 201703L
+        PeerIdType() {
+            resize(18);
+        }
+#endif
         bool operator==(const PeerIdType &that) const {
             return as<uint64_t>(0) == that.as<uint64_t>(0) &&
                    as<uint64_t>(8) == that.as<uint64_t>(8) &&
@@ -91,7 +103,11 @@ protected:
 
 private:
     struct PeerIdHash {
+#if __cplusplus >= 201703L
         size_t operator()(const PeerIdType &v) const noexcept { return std::hash<std::string_view> {}(std::string_view(v.data(), v.size())); }
+#else
+        size_t operator()(const PeerIdType &v) const noexcept { return std::hash<std::string> {}(v); }
+#endif
     };
     using SessionMapType = std::unordered_map<PeerIdType, SessionHelper::Ptr, PeerIdHash>;
 
