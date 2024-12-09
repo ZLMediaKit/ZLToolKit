@@ -30,10 +30,10 @@ public:
             fill(' ');
         }
         PeerIdType(size_t len, char fillChar) {
-            if (len > size()) {
-                len = size(); 
-            }
-            fill(fillChar);
+            //if (len > size()) {
+            //    len = size(); 
+            //}
+            //fill(fillChar);
         }
         bool operator==(const PeerIdType &that) const {
             return (as<uint64_t>(0) == that.as<uint64_t>(0)) && (as<uint64_t>(8) == that.as<uint64_t>(8)) && (as<uint16_t>(16) == that.as<uint16_t>(16));
@@ -45,8 +45,15 @@ public:
             return *(reinterpret_cast<const T *>(data() + offset));
         }
     };
+
+	struct PeerIdHash {
+		size_t operator()(const PeerIdType& v) const noexcept { return std::hash<std::string_view> {}(std::string_view(v.data(), v.size())); }
+};
+	using SessionMapType = std::unordered_map<PeerIdType, SessionHelper::Ptr, PeerIdHash>;
+
 #else
     using PeerIdType = std::string;
+    using SessionMapType = std::unordered_map<PeerIdType, SessionHelper::Ptr>;
 #endif
 
     using Ptr = std::shared_ptr<UdpServer>;
@@ -105,14 +112,6 @@ protected:
     virtual void cloneFrom(const UdpServer &that);
 
 private:
-#if __cplusplus >= 201703L
-    struct PeerIdHash {
-        size_t operator()(const PeerIdType &v) const noexcept { return std::hash<std::string_view> {}(std::string_view(v.data(), v.size())); }
-    };
-    using SessionMapType = std::unordered_map<PeerIdType, SessionHelper::Ptr, PeerIdHash>;
-#else
-    using SessionMapType = std::unordered_map<PeerIdType, SessionHelper::Ptr>;
-#endif
     /**
      * @brief 开始udp server
      * @param port 本机端口，0则随机
