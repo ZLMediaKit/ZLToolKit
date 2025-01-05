@@ -59,7 +59,9 @@ public:
             return nullptr;
         }
         auto ret = std::make_shared<Task>(std::move(task));
-        _queue.push_task(ret);
+        _queue.push_task([ret](size_t) {
+            (*ret)();
+        });
         return ret;
     }
 
@@ -70,8 +72,18 @@ public:
         }
 
         auto ret = std::make_shared<Task>(std::move(task));
-        _queue.push_task_first(ret);
+        _queue.push_task_first([ret](size_t) {
+            (*ret)();
+        });
         return ret;
+    }
+
+    void async2(std::function<void(size_t index)> task, bool may_sync = true) {
+        if (may_sync && _thread_group.is_this_thread_in()) {
+            task(0);
+            return;
+        }
+        _queue.push_task(std::move(task));
     }
 
     size_t size() {
@@ -119,17 +131,17 @@ public:
 private:
     void run(size_t index) {
         _on_setup(index);
-        Task::Ptr task;
+        std::function<void(size_t index)> task;
         while (true) {
             startSleep();
             if (!_queue.get_task(task)) {
-                //空任务，退出线程  [AUTO-TRANSLATED:583e2f11]
-                //Empty task, exit the thread
+                // 空任务，退出线程  [AUTO-TRANSLATED:583e2f11]
+                // Empty task, exit the thread
                 break;
             }
             sleepWakeUp();
             try {
-                (*task)();
+                task(index);
                 task = nullptr;
             } catch (std::exception &ex) {
                 ErrorL << "ThreadPool catch a exception: " << ex.what();
@@ -149,7 +161,7 @@ private:
     size_t _thread_num;
     Logger::Ptr _logger;
     thread_group _thread_group;
-    TaskQueue<Task::Ptr> _queue;
+    TaskQueue<std::function<void(size_t index)>> _queue;
     std::function<void(int)> _on_setup;
 };
 
