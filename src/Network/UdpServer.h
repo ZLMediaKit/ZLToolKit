@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2021 The ZLToolKit project authors. All Rights Reserved.
  *
  * This file is part of ZLToolKit(https://github.com/ZLMediaKit/ZLToolKit).
@@ -11,52 +11,15 @@
 #ifndef TOOLKIT_NETWORK_UDPSERVER_H
 #define TOOLKIT_NETWORK_UDPSERVER_H
 
-#if __cplusplus >= 201703L
-#include <array>
-#include <string_view>
-#endif
 #include "Server.h"
 #include "Session.h"
 
-#define PEERTYPELEN (18)
 namespace toolkit {
 
 class UdpServer : public Server {
 public:
-#if __cplusplus >= 201703L
-    class PeerIdType : public std::array<char, PEERTYPELEN> {
-    public:
-        PeerIdType() {
-            fill(' ');
-        }
-        PeerIdType(size_t len, char fillChar) {
-            //if (len > size()) {
-            //    len = size(); 
-            //}
-            //fill(fillChar);
-        }
-        bool operator==(const PeerIdType &that) const {
-            return (as<uint64_t>(0) == that.as<uint64_t>(0)) && (as<uint64_t>(8) == that.as<uint64_t>(8)) && (as<uint16_t>(16) == that.as<uint16_t>(16));
-        }
-
-    private:
-        template <class T>
-        const T& as(size_t offset) const {
-            return *(reinterpret_cast<const T *>(data() + offset));
-        }
-    };
-
-	struct PeerIdHash {
-		size_t operator()(const PeerIdType& v) const noexcept { return std::hash<std::string_view> {}(std::string_view(v.data(), v.size())); }
-};
-	using SessionMapType = std::unordered_map<PeerIdType, SessionHelper::Ptr, PeerIdHash>;
-
-#else
-    using PeerIdType = std::string;
-    using SessionMapType = std::unordered_map<PeerIdType, SessionHelper::Ptr>;
-#endif
-
     using Ptr = std::shared_ptr<UdpServer>;
+    using PeerIdType = std::string;
     using onCreateSocket = std::function<Socket::Ptr(const EventPoller::Ptr &, const Buffer::Ptr &, struct sockaddr *, int)>;
 
     explicit UdpServer(const EventPoller::Ptr &poller = nullptr);
@@ -187,7 +150,7 @@ private:
     //cloned server共享主server的session map，防止数据在不同server间漂移  [AUTO-TRANSLATED:9a149e52]
     //Cloned server shares the session map with the main server, preventing data drift between different servers
     std::shared_ptr<std::recursive_mutex> _session_mutex;
-    std::shared_ptr<SessionMapType> _session_map;
+    std::shared_ptr<std::unordered_map<PeerIdType, SessionHelper::Ptr> > _session_map;
     //主server持有cloned server的引用  [AUTO-TRANSLATED:04a6403a]
     //Main server holds a reference to the cloned server
     std::unordered_map<EventPoller *, Ptr> _cloned_server;
