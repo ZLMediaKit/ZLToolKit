@@ -21,6 +21,7 @@
 #include <atomic>
 #include <unordered_map>
 #include "function_traits.h"
+#include "onceToken.h"
 #if defined(_WIN32)
 #undef FD_SETSIZE
 //修改默认64为1024路  [AUTO-TRANSLATED:90567e14]
@@ -502,6 +503,81 @@ public:
     AnyStorage() = default;
     ~AnyStorage() = default;
     using Ptr = std::shared_ptr<AnyStorage>;
+};
+
+template <class R, class... ArgTypes>
+class function_safe;
+
+template <typename R, typename... ArgTypes>
+class function_safe<R(ArgTypes...)> {
+public:
+    using func = std::function<R(ArgTypes...)>;
+    using this_type = function_safe<R(ArgTypes...)>;
+
+    template <class F>
+    using enable_if_not_this = typename std::enable_if<!std::is_same<this_type, typename std::decay<F>::type>::value, typename std::decay<F>::type>::type;
+
+    R operator()(ArgTypes... args) const {
+        onceToken token([&]() { _doing = true; checkUpdate(); }, [&]() { checkUpdate(); _doing = false; });
+        if (!_impl) {
+            throw std::invalid_argument("try to invoke a empty functional");
+        }
+        return _impl(std::forward<ArgTypes>(args)...);
+    }
+
+    function_safe(std::nullptr_t) {
+        update(func{});
+    }
+
+    function_safe &operator=(std::nullptr_t) {
+        update(func{});
+        return *this;
+    }
+
+    template <typename F, typename = enable_if_not_this<F>>
+    function_safe(F &&f) {
+        update(func { std::forward<F>(f) });
+    }
+
+    template <typename F, typename = enable_if_not_this<F>>
+    this_type &operator=(F &&f) {
+        update(func { std::forward<F>(f) });
+        return *this;
+    }
+
+    function_safe() = default;
+    function_safe(this_type &&) = default;
+    function_safe(const this_type &) = default;
+    this_type &operator=(this_type &&) = default;
+    this_type &operator=(const this_type &) = default;
+
+    operator bool() const { return _update ? (bool)_tmp : (bool)_impl; }
+
+private:
+    void checkUpdate() const {
+        if (_update) {
+            _update = false;
+            _impl = std::move(_tmp);
+        }
+    }
+    void update(func in) {
+        if (!_doing) {
+            // 没在执行中，那么立即覆写
+            _impl = std::move(in);
+            _tmp = nullptr;
+            _update = false;
+        } else {
+            // 正在执行中，延后覆写
+            _tmp = std::move(in);
+            _update = true;
+        }
+    }
+
+private:
+    mutable bool _update = false;
+    mutable bool _doing = false;
+    mutable func _tmp;
+    mutable func _impl;
 };
 
 }  // namespace toolkit

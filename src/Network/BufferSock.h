@@ -53,7 +53,7 @@ private:
 class BufferList : public noncopyable {
 public:
     using Ptr = std::shared_ptr<BufferList>;
-    using SendResult = std::function<void(const Buffer::Ptr &buffer, bool send_success)>;
+    using SendResult = toolkit::function_safe<void(const Buffer::Ptr &buffer, bool send_success)>;
 
     BufferList() = default;
     virtual ~BufferList() = default;
