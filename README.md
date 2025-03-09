@@ -32,6 +32,14 @@
   - 简单易用的ssl加解密黑盒，支持多线程。
   - 其他一些有用的工具。
   - 命令行解析工具，可以很便捷的实现可配置应用程序
+ 
+## 网络IO适配
+
+|      | Linux(Android)    | Windows             | MacOS(iOS/Unix)  |
+|:----:|:-----------------:|:-------------------:|:----------------:|
+| 多路复用 | epoll/select      | wepoll(iocp)/select | kqueue/select    |
+| udp  | recvmmsg/sendmmsg | recvfrom/WSASend    | recvfrom/sendto  |
+| tcp  | recvfrom/sendmsg  | recvfrom/WSASend    | recvfrom/sendmsg |
 
 ## 编译(Linux)
 - 我的编译环境
