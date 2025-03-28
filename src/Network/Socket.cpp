@@ -141,8 +141,23 @@ void Socket::setOnBeforeAccept(onCreateSocket cb) {
 }
 
 void Socket::setOnSendResult(onSendResult cb) {
+    onSendResult cb2;
+    if (cb) {
+        cb2 = [cb, this](const Buffer::Ptr &buffer, bool send_success) {
+            if (send_success)
+                _send_total_bytes += buffer->size();
+            LOCK_GUARD(_mtx_event);
+            cb(buffer, send_success);
+        };
+    } else {
+        cb2 = [this](const Buffer::Ptr &buffer, bool send_success) {
+            if (send_success)
+                _send_total_bytes += buffer->size();
+        };
+    }
+
     LOCK_GUARD(_mtx_event);
-    _send_result = std::move(cb);
+    _send_result = std::move(cb2);
 }
 
 void Socket::connect(const string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const string &local_ip, uint16_t local_port) {
@@ -327,6 +342,7 @@ ssize_t Socket::onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &bu
         }
 
         ret += nread;
+        _recv_total_bytes += nread;
         if (_enable_speed) {
             // 更新接收速率  [AUTO-TRANSLATED:1e24774c]
             //Update receive rate
@@ -511,6 +527,14 @@ int Socket::getRecvSpeed() {
 int Socket::getSendSpeed() {
     _enable_speed = true;
     return _send_speed.getSpeed();
+}
+
+size_t Socket::getRecvTotalBytes() {
+    return _recv_total_bytes;
+}
+
+size_t Socket::getSendTotalBytes() {
+    return _send_total_bytes;
 }
 
 bool Socket::listen(uint16_t port, const string &local_ip, int backlog) {
@@ -751,10 +775,7 @@ bool Socket::flushData(const SockNum::Ptr &sock, bool poller_thread) {
                             //Update the sending rate
                             _send_speed += buffer->size();
                         }
-                        LOCK_GUARD(_mtx_event);
-                        if (_send_result) {
-                            _send_result(buffer, send_success);
-                        }
+                        _send_result(buffer, send_success);
                     } : _send_result;
                     send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), std::move(send_result), sock->type() == SockNum::Sock_UDP));
                     break;
