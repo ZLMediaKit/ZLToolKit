@@ -144,15 +144,16 @@ void Socket::setOnSendResult(onSendResult cb) {
     onSendResult cb2;
     if (cb) {
         cb2 = [cb, this](const Buffer::Ptr &buffer, bool send_success) {
-            if (send_success)
+            if (send_success) {
                 _send_total_bytes += buffer->size();
-            LOCK_GUARD(_mtx_event);
+            }
             cb(buffer, send_success);
         };
     } else {
         cb2 = [this](const Buffer::Ptr &buffer, bool send_success) {
-            if (send_success)
+            if (send_success) {
                 _send_total_bytes += buffer->size();
+            }
         };
     }
 
@@ -768,15 +769,19 @@ bool Socket::flushData(const SockNum::Ptr &sock, bool poller_thread) {
                 if (!_send_buf_waiting.empty()) {
                     // 把一级缓中数数据放置到二级缓存中并清空  [AUTO-TRANSLATED:4884aa58]
                     //Put the data from the first-level cache into the second-level cache and clear it
-                    LOCK_GUARD(_mtx_event);
-                    auto send_result = _enable_speed ? [this](const Buffer::Ptr &buffer, bool send_success) {
+                    BufferList::SendResult send_result_tmp;
+                    {
+                        LOCK_GUARD(_mtx_event);
+                        send_result_tmp = _send_result;
+                    }
+                    auto send_result = _enable_speed ? [this, send_result_tmp](const Buffer::Ptr &buffer, bool send_success) {
                         if (send_success) {
                             //更新发送速率  [AUTO-TRANSLATED:e35a1eba]
                             //Update the sending rate
                             _send_speed += buffer->size();
                         }
-                        _send_result(buffer, send_success);
-                    } : _send_result;
+                        send_result_tmp(buffer, send_success);
+                    } : std::move(send_result_tmp);
                     send_buf_sending_tmp.emplace_back(BufferList::create(std::move(_send_buf_waiting), std::move(send_result), sock->type() == SockNum::Sock_UDP));
                     break;
                 }
