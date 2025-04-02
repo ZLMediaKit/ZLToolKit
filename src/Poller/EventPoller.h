@@ -34,6 +34,13 @@
 #define HAS_KQUEUE
 #endif // __APPLE__
 
+#if defined(HAS_IO_URING)
+#include <sys/poll.h>
+#include <liburing.h>
+#undef HAS_EPOLL
+#undef HAS_KQUEUE
+#endif //HAS_IO_URING
+
 namespace toolkit {
 
 class EventPoller : public TaskExecutor, public AnyStorage, public std::enable_shared_from_this<EventPoller> {
@@ -52,6 +59,12 @@ public:
         Event_LT = 1 << 3,//水平触发
     } Poll_Event;
 
+    struct IOBuffer {
+        char data[4096];
+        int fd;
+
+        std::shared_ptr<PollEventCB> callback;
+    };
     ~EventPoller();
 
     /**
@@ -278,56 +291,68 @@ private:
      */
     void addEventPipe();
 
+#if defined(HAS_IO_URING)
+    void rearm_io_uring(int fd, uint32_t events);
+    uint32_t convert_to_poll_mask(int event) {
+        uint32_t mask = 0;
+        if (event & Event_Read) mask |= POLLIN;
+        if (event & Event_Write) mask |= POLLOUT;
+        if (event & Event_Error) mask |= POLLERR;
+        return mask;
+    }
+
+    int convert_from_poll_mask(uint32_t mask) {
+        int event = 0;
+        if (mask & POLLIN) event |= Event_Read;
+        if (mask & POLLOUT) event |= Event_Write;
+        if (mask & POLLERR) event |= Event_Error;
+        return event;
+    }
+#endif
+
 private:
     class ExitException : public std::exception {};
 
 private:
     //标记loop线程是否退出  [AUTO-TRANSLATED:98250f84]
-    //标记loop线程是否退出
-// Mark the loop thread as exited
+    // Mark the loop thread as exited
     bool _exit_flag;
     //线程名  [AUTO-TRANSLATED:f1d62d9f]
-    //线程名
-// Thread name
+    // Thread name
     std::string _name;
     //当前线程下，所有socket共享的读缓存  [AUTO-TRANSLATED:6ce70017]
-    //当前线程下，所有socket共享的读缓存
-// Shared read buffer for all sockets under the current thread
+    // Shared read buffer for all sockets under the current thread
     std::weak_ptr<SocketRecvBuffer> _shared_buffer[2];
     //执行事件循环的线程  [AUTO-TRANSLATED:2465cc75]
-    //执行事件循环的线程
-// Thread that executes the event loop
+    // Thread that executes the event loop
     std::thread *_loop_thread = nullptr;
     //通知事件循环的线程已启动  [AUTO-TRANSLATED:61f478cf]
-    //通知事件循环的线程已启动
-// Notify the event loop thread that it has started
+    // Notify the event loop thread that it has started
     semaphore _sem_run_started;
 
     //内部事件管道  [AUTO-TRANSLATED:dc1d3a93]
-    //内部事件管道
-// Internal event pipe
+    // Internal event pipe
     PipeWrap _pipe;
     //从其他线程切换过来的任务  [AUTO-TRANSLATED:d16917d6]
-    //从其他线程切换过来的任务
-// Tasks switched from other threads
+    // Tasks switched from other threads
     std::mutex _mtx_task;
     List<Task::Ptr> _list_task;
 
     //保持日志可用  [AUTO-TRANSLATED:4a6c2438]
-    //保持日志可用
-// Keep the log available
+    // Keep the log available
     Logger::Ptr _logger;
 
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     // epoll和kqueue相关  [AUTO-TRANSLATED:84d2785e]
-    //epoll和kqueue相关
-// epoll and kqueue related
+    // epoll and kqueue related
     int _event_fd = -1;
     std::unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
+#elif defined(HAS_IO_URING)
+    struct io_uring _ring;
+    std::unordered_map<int, std::unique_ptr<IOBuffer>> _io_buffers;
 #else
     // select相关  [AUTO-TRANSLATED:bf3e2edd]
-    //select相关
-// select related
+    // select related
     struct Poll_Record {
         using Ptr = std::shared_ptr<Poll_Record>;
         int fd;
