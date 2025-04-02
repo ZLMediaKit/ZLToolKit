@@ -757,13 +757,6 @@ private:
     //Send rate statistics
     BytesSpeed _send_speed;
 
-    // 接收总字节数统计
-    // tatal recv bytes statistics
-    size_t _recv_total_bytes = 0;
-    // 接收总字节数统计
-    // tatal send bytes statistics
-    size_t _send_total_bytes = 0;
-
     // tcp连接超时定时器  [AUTO-TRANSLATED:1b3e5fc4]
     //TCP connection timeout timer
     Timer::Ptr _con_timer;

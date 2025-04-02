@@ -33,6 +33,7 @@ public:
             //Data greater than 1MB is calculated once for network speed
             computeSpeed();
         }
+        _total_bytes = _total_bytes + bytes;
         return *this;
     }
 
@@ -51,6 +52,9 @@ public:
         return computeSpeed();
     }
 
+    uint64_t getTotalBytes() const {
+        return _total_bytes;
+    }
 private:
     int computeSpeed() {
         auto elapsed = _ticker.elapsedTime();
@@ -65,6 +69,7 @@ private:
 
 private:
     int _speed = 0;
+    uint64_t _total_bytes = 0;
     size_t _bytes = 0;
     Ticker _ticker;
 };

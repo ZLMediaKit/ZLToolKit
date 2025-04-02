@@ -95,6 +95,14 @@ public:
      */
     std::string getIdentifier() const override;
 
+    int getTxSpeed() const;
+
+    int getRxSpeed() const; 
+
+    size_t getRxTotalBytes() const;
+
+    size_t getTxTotalBytes() const;
+
 protected:
     /**
      * 连接服务器结果回调
