@@ -52,7 +52,7 @@ public:
         return computeSpeed();
     }
 
-    uint64_t getTotalBytes() const {
+    size_t getTotalBytes() const {
         return _total_bytes;
     }
 private:
@@ -69,7 +69,7 @@ private:
 
 private:
     int _speed = 0;
-    uint64_t _total_bytes = 0;
+    size_t _total_bytes = 0;
     size_t _bytes = 0;
     Ticker _ticker;
 };
