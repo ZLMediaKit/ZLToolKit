@@ -514,11 +514,11 @@ size_t Socket::getSendSpeed() {
 }
 
 size_t Socket::getRecvTotalBytes() {
-	return _recv_speed.getTotalBytes();
+    return _recv_speed.getTotalBytes();
 }
 
 size_t Socket::getSendTotalBytes() {
-	return _send_speed.getTotalBytes();
+    return _send_speed.getTotalBytes();
 }
 
 bool Socket::listen(uint16_t port, const string &local_ip, int backlog) {
