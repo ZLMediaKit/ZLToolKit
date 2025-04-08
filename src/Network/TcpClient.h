@@ -95,13 +95,13 @@ public:
      */
     std::string getIdentifier() const override;
 
-    int getTxSpeed() const;
+    size_t getSendSpeed() const;
 
-    int getRxSpeed() const; 
+    size_t getRecvSpeed() const;
 
-    size_t getRxTotalBytes() const;
+    size_t getRecvTotalBytes() const;
 
-    size_t getTxTotalBytes() const;
+    size_t getSendTotalBytes() const;
 
 protected:
     /**

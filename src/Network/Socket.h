@@ -677,7 +677,7 @@ public:
      
      * [AUTO-TRANSLATED:5de8aa1c]
      */
-    int getRecvSpeed();
+    size_t getRecvSpeed();
 
     /**
      * 获取发送速率，单位bytes/s
@@ -685,7 +685,7 @@ public:
      
      * [AUTO-TRANSLATED:96a2595d]
      */
-    int getSendSpeed();
+    size_t getSendSpeed();
 
     /**
      * 获取接收总字节数
