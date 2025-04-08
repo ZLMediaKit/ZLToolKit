@@ -145,19 +145,35 @@ std::string TcpClient::getIdentifier() const {
 }
 
 size_t TcpClient::getSendSpeed() const {
-	return getSock() ? sock->getSendSpeed() : 0;
+	auto sock = getSock();
+	if (sock) {
+		return sock->getSendSpeed();
+	}
+	return 0;
 }
 
 size_t TcpClient::getRecvSpeed() const {
-	return getSock() ? sock->getRecvSpeed() : 0;
+	auto sock = getSock();
+	if (sock) {
+		return sock->getRecvSpeed();
+	}
+	return 0;
 }
 
 size_t TcpClient::getRecvTotalBytes() const {
-	return getSock() ? sock->getRecvTotalBytes() : 0;
+	auto sock = getSock();
+	if (sock) {
+		return sock->getRecvTotalBytes();
+	}
+	return 0;
 }
 
 size_t TcpClient::getSendTotalBytes() const {
-	return getSock() ? sock->getSendTotalBytes() : 0;
+	auto sock = getSock();
+	if (sock) {
+		return sock->getSendTotalBytes();
+	}
+	return 0;
 }
 
 } /* namespace toolkit */
