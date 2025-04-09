@@ -29,10 +29,11 @@ public:
     BytesSpeed &operator+=(size_t bytes) {
         _bytes += bytes;
         if (_bytes > 1024 * 1024) {
-            //数据大于1MB就计算一次网速  [AUTO-TRANSLATED:897af4d6]
-            //Data greater than 1MB is calculated once for network speed
+            // 数据大于1MB就计算一次网速  [AUTO-TRANSLATED:897af4d6]
+            // Data greater than 1MB is calculated once for network speed
             computeSpeed();
         }
+        _total_bytes +=  bytes;
         return *this;
     }
 
@@ -42,30 +43,35 @@ public:
      
      * [AUTO-TRANSLATED:41e26e29]
      */
-    int getSpeed() {
+    size_t getSpeed() {
         if (_ticker.elapsedTime() < 1000) {
-            //获取频率小于1秒，那么返回上次计算结果  [AUTO-TRANSLATED:b687b762]
-            //Get frequency less than 1 second, return the last calculation result
+            // 获取频率小于1秒，那么返回上次计算结果  [AUTO-TRANSLATED:b687b762]
+            // Get frequency less than 1 second, return the last calculation result
             return _speed;
         }
         return computeSpeed();
     }
 
+    size_t getTotalBytes() const {
+        return _total_bytes;
+    }
+
 private:
-    int computeSpeed() {
+    size_t computeSpeed() {
         auto elapsed = _ticker.elapsedTime();
         if (!elapsed) {
             return _speed;
         }
-        _speed = (int)(_bytes * 1000 / elapsed);
+        _speed = (size_t)(_bytes * 1000 / elapsed);
         _ticker.resetTime();
         _bytes = 0;
         return _speed;
     }
 
 private:
-    int _speed = 0;
+    size_t _speed = 0;
     size_t _bytes = 0;
+    size_t _total_bytes = 0;
     Ticker _ticker;
 };
 

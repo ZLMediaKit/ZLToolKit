@@ -677,7 +677,7 @@ public:
      
      * [AUTO-TRANSLATED:5de8aa1c]
      */
-    int getRecvSpeed();
+    size_t getRecvSpeed();
 
     /**
      * 获取发送速率，单位bytes/s
@@ -685,7 +685,7 @@ public:
      
      * [AUTO-TRANSLATED:96a2595d]
      */
-    int getSendSpeed();
+    size_t getSendSpeed();
 
     /**
      * 获取接收总字节数
@@ -756,13 +756,6 @@ private:
     // 发送速率统计  [AUTO-TRANSLATED:eab3486a]
     //Send rate statistics
     BytesSpeed _send_speed;
-
-    // 接收总字节数统计
-    // tatal recv bytes statistics
-    size_t _recv_total_bytes = 0;
-    // 接收总字节数统计
-    // tatal send bytes statistics
-    size_t _send_total_bytes = 0;
 
     // tcp连接超时定时器  [AUTO-TRANSLATED:1b3e5fc4]
     //TCP connection timeout timer

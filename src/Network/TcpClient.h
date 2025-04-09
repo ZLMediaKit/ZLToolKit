@@ -95,6 +95,14 @@ public:
      */
     std::string getIdentifier() const override;
 
+    size_t getSendSpeed() const;
+
+    size_t getRecvSpeed() const;
+
+    size_t getRecvTotalBytes() const;
+
+    size_t getSendTotalBytes() const;
+
 protected:
     /**
      * 连接服务器结果回调
