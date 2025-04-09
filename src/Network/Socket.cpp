@@ -514,10 +514,12 @@ size_t Socket::getSendSpeed() {
 }
 
 size_t Socket::getRecvTotalBytes() {
+	_enable_speed = true;
     return _recv_speed.getTotalBytes();
 }
 
 size_t Socket::getSendTotalBytes() {
+	_enable_speed = true;
     return _send_speed.getTotalBytes();
 }
 
