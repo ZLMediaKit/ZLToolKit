@@ -283,50 +283,70 @@ private:
 
 private:
     //标记loop线程是否退出  [AUTO-TRANSLATED:98250f84]
-    //标记loop线程是否退出
+    // 标记loop线程是否退出  [AUTO-TRANSLATED:98250f84]
+    // 标记loop线程是否退出
+// Mark the loop thread as exited
 // Mark the loop thread as exited
     bool _exit_flag;
     //线程名  [AUTO-TRANSLATED:f1d62d9f]
-    //线程名
+    // 线程名  [AUTO-TRANSLATED:f1d62d9f]
+    // 线程名
+// Thread name
 // Thread name
     std::string _name;
     //当前线程下，所有socket共享的读缓存  [AUTO-TRANSLATED:6ce70017]
-    //当前线程下，所有socket共享的读缓存
+    // 当前线程下，所有socket共享的读缓存  [AUTO-TRANSLATED:6ce70017]
+    // 当前线程下，所有socket共享的读缓存
+// Shared read buffer for all sockets under the current thread
 // Shared read buffer for all sockets under the current thread
     std::weak_ptr<SocketRecvBuffer> _shared_buffer[2];
     //执行事件循环的线程  [AUTO-TRANSLATED:2465cc75]
-    //执行事件循环的线程
+    // 执行事件循环的线程  [AUTO-TRANSLATED:2465cc75]
+    // 执行事件循环的线程
+// Thread that executes the event loop
 // Thread that executes the event loop
     std::thread *_loop_thread = nullptr;
     //通知事件循环的线程已启动  [AUTO-TRANSLATED:61f478cf]
-    //通知事件循环的线程已启动
+    // 通知事件循环的线程已启动  [AUTO-TRANSLATED:61f478cf]
+    // 通知事件循环的线程已启动
+// Notify the event loop thread that it has started
 // Notify the event loop thread that it has started
     semaphore _sem_run_started;
 
     //内部事件管道  [AUTO-TRANSLATED:dc1d3a93]
-    //内部事件管道
+    // 内部事件管道  [AUTO-TRANSLATED:dc1d3a93]
+    // 内部事件管道
+// Internal event pipe
 // Internal event pipe
     PipeWrap _pipe;
     //从其他线程切换过来的任务  [AUTO-TRANSLATED:d16917d6]
-    //从其他线程切换过来的任务
+    // 从其他线程切换过来的任务  [AUTO-TRANSLATED:d16917d6]
+    // 从其他线程切换过来的任务
+// Tasks switched from other threads
 // Tasks switched from other threads
     std::mutex _mtx_task;
     List<Task::Ptr> _list_task;
 
     //保持日志可用  [AUTO-TRANSLATED:4a6c2438]
-    //保持日志可用
+    // 保持日志可用  [AUTO-TRANSLATED:4a6c2438]
+    // 保持日志可用
+// Keep the log available
 // Keep the log available
     Logger::Ptr _logger;
 
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     // epoll和kqueue相关  [AUTO-TRANSLATED:84d2785e]
-    //epoll和kqueue相关
+    // epoll和kqueue相关  [AUTO-TRANSLATED:da2e77d9]
+    // epoll和kqueue相关
+// Related to epoll and kqueue
 // epoll and kqueue related
     int _event_fd = -1;
     std::unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
 #else
     // select相关  [AUTO-TRANSLATED:bf3e2edd]
-    //select相关
+    // select相关  [AUTO-TRANSLATED:d6f5b859]
+    // select相关
+// Related to select
 // select related
     struct Poll_Record {
         using Ptr = std::shared_ptr<Poll_Record>;
