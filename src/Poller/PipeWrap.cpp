@@ -37,7 +37,7 @@ PipeWrap::PipeWrap() {
 void PipeWrap::reOpen() {
     clearFD();
 #if defined(_WIN32)
-    const char *localip = SockUtil::support_ipv6() ? "::1" : "127.0.0.1";
+    const char *localip = "127.0.0.1";
     auto listener_fd = SockUtil::listen(0, localip);
     checkFD(listener_fd)
     SockUtil::setNoBlocked(listener_fd,false);
