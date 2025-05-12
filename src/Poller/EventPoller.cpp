@@ -364,7 +364,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
         while (!_exit_flag) {
             minDelay = getMinDelay();
             startSleep();//用于统计当前线程负载情况
-            int ret = epoll_wait(_event_fd, events, EPOLL_SIZE, minDelay ? minDelay : -1);
+            int ret = epoll_wait(_event_fd, events, EPOLL_SIZE, minDelay);
             sleepWakeUp();//用于统计当前线程负载情况
             if (ret <= 0) {
                 //超时或被打断  [AUTO-TRANSLATED:7005fded]
@@ -402,7 +402,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             struct timespec timeout = { (long)minDelay / 1000, (long)minDelay % 1000 * 1000000 };
 
             startSleep();
-            int ret = kevent(_event_fd, nullptr, 0, kevents, KEVENT_SIZE, minDelay ? &timeout : nullptr);
+            int ret = kevent(_event_fd, nullptr, 0, kevents, KEVENT_SIZE, minDelay == -1 ? nullptr : &timeout);
             sleepWakeUp();
             if (ret <= 0) {
                 continue;
@@ -471,7 +471,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             }
 
             startSleep();//用于统计当前线程负载情况
-            ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay ? &tv : nullptr);
+            ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay == -1 ? nullptr : &tv);
             sleepWakeUp();//用于统计当前线程负载情况
 
             if (ret <= 0) {
@@ -522,7 +522,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
     }
 }
 
-uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
+int64_t EventPoller::flushDelayTask(uint64_t now_time) {
     decltype(_delay_task_map) task_copy;
     task_copy.swap(_delay_task_map);
 
@@ -548,19 +548,19 @@ uint64_t EventPoller::flushDelayTask(uint64_t now_time) {
     if (it == _delay_task_map.end()) {
         //没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
         //No remaining timers
-        return 0;
+        return -1;
     }
     //最近一个定时器的执行延时  [AUTO-TRANSLATED:2535621b]
     //Delay in execution of the last timer
     return it->first - now_time;
 }
 
-uint64_t EventPoller::getMinDelay() {
+int64_t EventPoller::getMinDelay() {
     auto it = _delay_task_map.begin();
     if (it == _delay_task_map.end()) {
         //没有剩余的定时器了  [AUTO-TRANSLATED:23b1119e]
         //No remaining timers
-        return 0;
+        return -1;
     }
     auto now = getCurrentMillisecond();
     if (it->first > now) {

@@ -260,7 +260,7 @@ private:
      
      * [AUTO-TRANSLATED:88104b90]
      */
-    uint64_t flushDelayTask(uint64_t now);
+    int64_t flushDelayTask(uint64_t now);
 
     /**
      * 获取select或epoll休眠时间
@@ -268,7 +268,7 @@ private:
      
      * [AUTO-TRANSLATED:34e0384e]
      */
-    uint64_t getMinDelay();
+    int64_t getMinDelay();
 
     /**
      * 添加管道监听事件
