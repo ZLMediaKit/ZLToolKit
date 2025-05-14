@@ -136,10 +136,12 @@ void UdpServer::cloneFrom(const UdpServer &that) {
     if (!that._socket) {
         throw std::invalid_argument("UdpServer::cloneFrom other with null socket");
     }
+    // 将socket的创建回调复制前置, 确保所有的socket都可以通过上层创建
+    _on_create_socket = that._on_create_socket;
+    
     setupEvent();
     _cloned = true;
     // clone callbacks
-    _on_create_socket = that._on_create_socket;
     _session_alloc = that._session_alloc;
     _session_mutex = that._session_mutex;
     _session_map = that._session_map;
