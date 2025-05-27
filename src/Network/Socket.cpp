@@ -1053,6 +1053,13 @@ ssize_t SocketHelper::send(Buffer::Ptr buf) {
     return _sock->send(std::move(buf), nullptr, 0, _try_flush);
 }
 
+ssize_t SocketHelper::sendto(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len) {
+    if (!_sock) {
+        return -1;
+    }
+    return _sock->send(std::move(buf), addr, addr_len, _try_flush);
+}
+
 void SocketHelper::shutdown(const SockException &ex) {
     if (_sock) {
         _sock->emitErr(ex);

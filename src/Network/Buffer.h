@@ -116,7 +116,7 @@ class BufferRaw : public Buffer {
 public:
     using Ptr = std::shared_ptr<BufferRaw>;
 
-    static Ptr create();
+    static Ptr create(size_t size = 0);
 
     ~BufferRaw() override {
         if (_data) {

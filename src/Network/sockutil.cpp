@@ -581,6 +581,27 @@ static uint16_t get_socket_port(int fd, getsockname_type func) {
     return SockUtil::inet_port((struct sockaddr *)&addr);
 }
 
+bool SockUtil::is_same_addr(const struct sockaddr* a, const struct sockaddr* b) {
+    if (a->sa_family != b->sa_family) {
+        return false;
+    }
+
+    switch (a->sa_family) {
+        case AF_INET: {
+            const struct sockaddr_in* a_in = reinterpret_cast<const struct sockaddr_in*>(a);
+            const struct sockaddr_in* b_in = reinterpret_cast<const struct sockaddr_in*>(b);
+            return a_in->sin_addr.s_addr == b_in->sin_addr.s_addr && a_in->sin_port == b_in->sin_port;
+        }
+        case AF_INET6: {
+            const struct sockaddr_in6* a_in6 = reinterpret_cast<const struct sockaddr_in6*>(a);
+            const struct sockaddr_in6* b_in6 = reinterpret_cast<const struct sockaddr_in6*>(b);
+            return memcmp(&a_in6->sin6_addr, &b_in6->sin6_addr, sizeof(a_in6->sin6_addr)) == 0 && a_in6->sin6_port == b_in6->sin6_port;
+        }
+        default:
+            return false;
+    }
+}
+
 string SockUtil::get_local_ip(int fd) {
     return get_socket_ip(fd, getsockname);
 }

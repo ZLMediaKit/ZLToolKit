@@ -826,6 +826,7 @@ public:
     SockSender() = default;
     virtual ~SockSender() = default;
     virtual ssize_t send(Buffer::Ptr buf) = 0;
+    virtual ssize_t sendto(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0) = 0;
     virtual void shutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown")) = 0;
 
     //发送char *  [AUTO-TRANSLATED:ab84aeb3]
@@ -978,6 +979,11 @@ public:
      * [AUTO-TRANSLATED:6a7a5178]
      */
     ssize_t send(Buffer::Ptr buf) override;
+	
+	/**
+     * 统一发送数据的出口
+     */
+    ssize_t sendto(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0) override;
 
     /**
      * 触发onErr事件
