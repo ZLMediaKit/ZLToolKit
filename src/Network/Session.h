@@ -15,6 +15,7 @@
 #include "Socket.h"
 #include "Util/util.h"
 #include "Util/SSLBox.h"
+#include "Kcp.h"
 
 namespace toolkit {
 
@@ -89,6 +90,34 @@ protected:
 
 private:
     SSL_Box _ssl_box;
+};
+
+// 通过该模板可以让UDP服务器快速支持KCP
+template <typename SessionType>
+class SessionWithKCP : public SessionType {
+public:
+    template <typename... ArgsType>
+    SessionWithKCP(ArgsType &&...args)
+        : SessionType(std::forward<ArgsType>(args)...) {
+        _kcp_box = std::make_shared<KcpTransport>(true);
+        _kcp_box->setOnWrite([&](const Buffer::Ptr &buf) { public_send(buf); });
+        _kcp_box->setOnRead([&](const Buffer::Ptr &buf) { public_onRecv(buf); });
+    }
+
+    ~SessionWithKCP() override { }
+
+    void onRecv(const Buffer::Ptr &buf) override { _kcp_box->input(buf); }
+
+    inline void public_onRecv(const Buffer::Ptr &buf) { SessionType::onRecv(buf); }
+    inline void public_send(const Buffer::Ptr &buf) { SessionType::send(buf); }
+
+protected:
+    ssize_t send(Buffer::Ptr buf) override {
+        return _kcp_box->send(std::move(buf));
+    }
+
+private:
+    KcpTransport::Ptr _kcp_box;
 };
 
 } // namespace toolkit
