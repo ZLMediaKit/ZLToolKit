@@ -14,6 +14,7 @@
 #include <memory>
 #include "Socket.h"
 #include "Util/SSLBox.h"
+#include "Kcp.h"
 
 namespace toolkit {
 
@@ -73,8 +74,7 @@ protected:
         }
     }
 
-    void onRecv(const Buffer::Ptr &buf) override {
-    }
+    void onRecv(const Buffer::Ptr &buf) override {}
 
     void onError(const SockException &err) override {
         DebugL;
@@ -97,6 +97,57 @@ private:
 
     OnRecvFrom _on_recvfrom;
     OnErr _on_err;
+};
+
+//用于实现KCP客户端的模板对象
+template<typename UdpClientType>
+class UdpClientWithKcp : public UdpClientType {
+public:
+    using Ptr = std::shared_ptr<UdpClientWithKcp>;
+
+    template<typename ...ArgsType>
+    UdpClientWithKcp(ArgsType &&...args)
+        :UdpClientType(std::forward<ArgsType>(args)...) {
+        _kcp_box = std::make_shared<KcpTransport>(false);
+        _kcp_box->setOnWrite([&](const Buffer::Ptr &buf) { public_send(buf); });
+        _kcp_box->setOnRead([&](const Buffer::Ptr &buf) { public_onRecv(buf); });
+    }
+
+    ~UdpClientWithKcp() override { }
+
+    void onRecvFrom(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+        //KCP 暂不支持一个UDP Socket 对多个目标,因此先忽略addr参数
+        _kcp_box->input(buf);
+    }
+
+    ssize_t send(Buffer::Ptr buf) override {
+        return _kcp_box->send(std::move(buf));
+    }
+
+    ssize_t sendto(Buffer::Ptr buf, struct sockaddr *addr = nullptr, socklen_t addr_len = 0) override {
+        //KCP 暂不支持一个UDP Socket 对多个目标,因此先忽略addr参数
+        return _kcp_box->send(std::move(buf));
+    }
+
+    inline void public_onRecv(const Buffer::Ptr &buf) {
+        //KCP 暂不支持一个UDP Socket 对多个目标,因此固定采用bind的地址参数
+        UdpClientType::onRecvFrom(buf, &_peer_addr, _peer_addr_len);
+    }
+
+    inline void public_send(const Buffer::Ptr &buf) {
+        UdpClientType::send(buf);
+    }
+
+    virtual void startConnect(const std::string &peer_host, uint16_t peer_port, uint16_t local_port) override {
+        _peer_addr = SockUtil::make_sockaddr(peer_host.data(), peer_port);
+        _peer_addr_len = SockUtil::get_sock_len((const struct sockaddr*)&_peer_addr);
+        UdpClientType::startConnect();
+    }
+
+private:
+    struct sockaddr_storage _peer_addr;
+    int _peer_addr_len = 0;
+    KcpTransport::Ptr _kcp_box;
 };
 
 } /* namespace toolkit */
