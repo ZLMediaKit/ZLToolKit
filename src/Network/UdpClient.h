@@ -68,7 +68,7 @@ public:
 
 protected:
 
-    void onRecvFrom(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+    virtual void onRecvFrom(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
         if (_on_recvfrom) {
             _on_recvfrom(buf, addr, addr_len);
         }
@@ -131,17 +131,17 @@ public:
 
     inline void public_onRecv(const Buffer::Ptr &buf) {
         //KCP 暂不支持一个UDP Socket 对多个目标,因此固定采用bind的地址参数
-        UdpClientType::onRecvFrom(buf, &_peer_addr, _peer_addr_len);
+        UdpClientType::onRecvFrom(buf, (struct sockaddr*)&_peer_addr, _peer_addr_len);
     }
 
     inline void public_send(const Buffer::Ptr &buf) {
         UdpClientType::send(buf);
     }
 
-    virtual void startConnect(const std::string &peer_host, uint16_t peer_port, uint16_t local_port) override {
+    virtual void startConnect(const std::string &peer_host, uint16_t peer_port, uint16_t local_port = 0) override {
         _peer_addr = SockUtil::make_sockaddr(peer_host.data(), peer_port);
         _peer_addr_len = SockUtil::get_sock_len((const struct sockaddr*)&_peer_addr);
-        UdpClientType::startConnect();
+        UdpClientType::startConnect(peer_host, peer_port, local_port);
     }
 
 private:
