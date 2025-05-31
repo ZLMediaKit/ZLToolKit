@@ -102,6 +102,7 @@ public:
         _kcp_box = std::make_shared<KcpTransport>(true);
         _kcp_box->setOnWrite([&](const Buffer::Ptr &buf) { public_send(buf); });
         _kcp_box->setOnRead([&](const Buffer::Ptr &buf) { public_onRecv(buf); });
+        _kcp_box->setOnErr([&](const SockException &ex) { public_onErr(ex); });
     }
 
     ~SessionWithKCP() override { }
@@ -110,6 +111,7 @@ public:
 
     inline void public_onRecv(const Buffer::Ptr &buf) { SessionType::onRecv(buf); }
     inline void public_send(const Buffer::Ptr &buf) { SessionType::send(buf); }
+    inline void public_onErr(const SockException &ex) { SessionType::onError(ex); }
 
 protected:
     ssize_t send(Buffer::Ptr buf) override {

@@ -6,6 +6,8 @@
  * Use of this source code is governed by MIT license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
+ *
+ * code reference github.com/skywind3000/kcp/releases/tag/1.7.
  */
 
 #ifndef TOOLKIT_NETWORK_KCP_H
@@ -16,6 +18,7 @@
 #include "Poller/EventPoller.h"
 #include "Poller/Timer.h"
 #include "Util/TimeTicker.h"
+#include "Socket.h"
 
 namespace toolkit {
 
@@ -63,6 +66,7 @@ public:
 
     uint32_t getPacketSize() const { return _len + HEADER_SIZE; }
     bool loadHeaderFromData(const char *data, size_t len);
+    bool storeHeaderToData(char *buf, size_t size);
 };
 
 class KcpPacket : public KcpHeader, public toolkit::BufferRaw {
@@ -83,6 +87,8 @@ public:
     }
 
     virtual ~KcpPacket();
+
+    bool storeToData();
 
     char *getPayloadData() {
         return data() + HEADER_SIZE;
@@ -147,13 +153,14 @@ public:
     }
 };
 
+//可以根据实际需要调整参数
+//参考kcp V.1.7实现由以下推荐模式和参数
+//默认,开启流控: setDelayMode(DELAY_MODE_NORMAL); setInterval(10); setFastResend(0); setNoCwnd(false)
+//普通,关闭流控: setDelayMode(DELAY_MODE_NORMAL); setInterval(10); setFastResend(0); setNoCwnd(true)
+//快速,关闭流控: setDelayMode(DELAY_MODE_NO_DELAY); setInterval(10); setFastResend(1); setNoCwnd(true); setRxMinrto(10)
 class KcpTransport : public std::enable_shared_from_this<KcpTransport> {
 public:
     using Ptr = std::shared_ptr<KcpTransport>;
-    enum State {
-        STATE_INIT = 0,      // 初始化状态，KCP实例刚创建
-        STATE_TIMEOUT = 1,    // 连接超时，dead_link计数超过阈值
-    };
 
     enum DelayMode {
         DELAY_MODE_NORMAL   = 0,    // 正常模式, 每次重发rto翻倍,往外增加12.5%的最小rto
@@ -161,32 +168,34 @@ public:
         DELAY_MODE_NO_DELAY = 2,    // 极速模式, 每次重发rto增加基础rto的一半,不额外增加延时
     };
 
-    static const uint32_t IKCP_ASK_SEND = 1;		// need to send IKCP_CMD_WASK
-    static const uint32_t IKCP_ASK_TELL = 2;		// need to send IKCP_CMD_WINS
+    static const uint32_t IKCP_ASK_SEND = 1;            // need to send IKCP_CMD_WASK
+    static const uint32_t IKCP_ASK_TELL = 2;            // need to send IKCP_CMD_WINS
 
-    static const uint32_t IKCP_RTO_NDL = 30;		// no delay min rto
-    static const uint32_t IKCP_RTO_MIN = 100;		// normal min rto
+    static const uint32_t IKCP_RTO_NDL = 30;            // no delay min rto
+    static const uint32_t IKCP_RTO_MIN = 100;           // normal min rto
     static const uint32_t IKCP_RTO_DEF = 200;
     static const uint32_t IKCP_RTO_MAX = 60000;
 
     static const uint32_t IKCP_WND_SND = 32;
-    static const uint32_t IKCP_WND_RCV = 128;       // must >= max fragment size
+    static const uint32_t IKCP_WND_RCV = 128;           // must >= max fragment size
     static const uint32_t IKCP_MTU_DEF = 1400;
-    static const uint32_t IKCP_ACK_FAST	= 3;
-    static const uint32_t IKCP_INTERVAL	= 100;
+    static const uint32_t IKCP_ACK_FAST = 3;
+    static const uint32_t IKCP_INTERVAL = 100;
     static const uint32_t IKCP_THRESH_INIT = 2;
     static const uint32_t IKCP_THRESH_MIN = 2;
-    static const uint32_t IKCP_PROBE_INIT = 7000;		// 7 secs to probe window size
-    static const uint32_t IKCP_PROBE_LIMIT = 120000;	// up to 120 secs to probe window
+    static const uint32_t IKCP_PROBE_INIT = 7000;       // 7 secs to probe window size
+    static const uint32_t IKCP_PROBE_LIMIT = 120000;    // up to 120 secs to probe window
  
     using onReadCB = std::function<void(const Buffer::Ptr &buf)>;
     using onWriteCB = std::function<void(const Buffer::Ptr &buf)>;
+    using OnErr = std::function<void(const SockException &)>;
 
     KcpTransport(bool serverMode);
     virtual ~KcpTransport();
 
-    void setOnRead(onReadCB cb) { _on_read = cb; }
-    void setOnWrite(onWriteCB cb) { _on_write = cb; }
+    void setOnRead(onReadCB cb) { _on_read = std::move(cb); }
+    void setOnWrite(onWriteCB cb) { _on_write = std::move(cb); }
+    void setOnErr(OnErr cb) { _on_err = std::move(cb); }
 
     // 应用层将数据放到发送队列中
     ssize_t send(const Buffer::Ptr &buf, bool flush = false);
@@ -199,27 +208,29 @@ public:
 
     void setInterval(int intervoal);
 
+    void setRxMinrto(int rx_minrto);
+
     // set maximum window size: sndwnd=32, rcvwnd=32 by default
     void setWndSize(int sndwnd, int rcvwnd);
 
-    // fastest: ikcp_nodelay(kcp, 1, 20, 2, 1)
-    // nodelay: 0:disable(default), 1:enable
-    // interval: internal update timer interval in millisec, default is 100ms 
-    // resend: 0:disable fast resend(default), 1:enable fast resend
-    // nc: 0:normal congestion control(default), 1:disable congestion control
+    //设置低延时模式
+    //默认DELAY_MODE_NORMAL
     void setDelayMode(DelayMode delay_mode);
 
     //设置快速重传的阈值
+    //默认0,即不会快速重传
     void setFastResend(int resend);
 
     //设置快速重传保守模式
     //默认保守模式
     void setFastackConserve(bool flag);
 
-    //设置是否开启拥塞控制
+    //设置是否关闭拥塞控制
+    //默认开启
     void setNoCwnd(bool flag);
 
     //设置是否开启流传输模式
+    //默认不开启
     void setStreamMode(bool flag);
 
 protected:
@@ -233,6 +244,13 @@ protected:
     void onRead(const Buffer::Ptr &buf) {
         if (_on_read) {
             _on_read(buf);
+        }
+    }
+
+    void onErr(const SockException &err) {
+        DebugL;
+        if (_on_err) {
+            _on_err(err);
         }
     }
 
@@ -259,7 +277,7 @@ protected:
     void sendSendQueue();
     void sendAckList();
     void sendProbePacket();
-    void sendPacket(Buffer::Ptr pkt, bool flush = false);
+    void sendPacket(KcpPacket::Ptr pkt, bool flush = false);
     void flushPool();
 
     //将发送缓存中对端已经确认的数据包丢弃
@@ -290,11 +308,12 @@ protected:
 private:
     onReadCB _on_read = nullptr;
     onWriteCB _on_write = nullptr;
+    OnErr _on_err = nullptr;
 
     bool _server_mode;
     bool _conv_init = false;
 
-    EventPoller::Ptr _poller;
+    EventPoller::Ptr _poller = nullptr;
     Timer::Ptr _timer;
     //刷新计时器
     Ticker _alive_ticker;
@@ -304,10 +323,8 @@ private:
     uint32_t _conv;    // 会话ID,用于标识一个会话
     uint32_t _mtu  = IKCP_MTU_DEF;     // 最大传输单元,默认1400
     uint32_t _mss  = IKCP_MTU_DEF - KcpPacket::HEADER_SIZE;     // 最大分片大小,由MTU计算得到
-    State    _state = STATE_INIT;   // 连接状态
 
     uint32_t _interval = IKCP_INTERVAL;  //内部flush的率先哪个间隔
-    uint32_t _ts_flush = IKCP_INTERVAL;  //下次需要flush的时间戳
 
     uint _fastresend = 0;  //快速重传触发阈值,当packet的_fastack超过该值时,触发快速重传
     int _fastlimit = 5;   //快速重传限制，限制触发快速重传的最大次数,防止过度重传
@@ -332,7 +349,7 @@ private:
     uint32_t _snd_wnd = IKCP_WND_SND; //发送队列窗口,用于限制发送速率,用户配置(单位分片数量)
     uint32_t _rcv_wnd = IKCP_WND_RCV; //接收队列窗口,用于限制接收速率,用户配置(单位分片数量)
     uint32_t _rmt_wnd = IKCP_WND_RCV; //对端接收缓存拥塞窗口,对端通告(单位分片数量)
-    uint32_t _cwnd = 0;  //发送缓存拥塞窗口大小,算法动态调整(单位分片数量)
+    uint32_t _cwnd = 1;  //发送缓存拥塞窗口大小,算法动态调整(单位分片数量)
     uint32_t _incr = 0;  //拥塞窗口增量,用于拥塞控制算法中动态窗口大小(单位字节)
     uint32_t _ssthresh = IKCP_THRESH_INIT;  //慢启动阈值
 

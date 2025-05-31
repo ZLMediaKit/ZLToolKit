@@ -111,11 +111,12 @@ public:
         _kcp_box = std::make_shared<KcpTransport>(false);
         _kcp_box->setOnWrite([&](const Buffer::Ptr &buf) { public_send(buf); });
         _kcp_box->setOnRead([&](const Buffer::Ptr &buf) { public_onRecv(buf); });
+        _kcp_box->setOnErr([&](const SockException &ex) { public_onErr(ex); });
     }
 
     ~UdpClientWithKcp() override { }
 
-    void onRecvFrom(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+    void onRecvFrom(const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) override {
         //KCP 暂不支持一个UDP Socket 对多个目标,因此先忽略addr参数
         _kcp_box->input(buf);
     }
@@ -138,10 +139,48 @@ public:
         UdpClientType::send(buf);
     }
 
+    inline void public_onErr(const SockException &ex) { UdpClientWithKcp::onError(ex); }
+
     virtual void startConnect(const std::string &peer_host, uint16_t peer_port, uint16_t local_port = 0) override {
         _peer_addr = SockUtil::make_sockaddr(peer_host.data(), peer_port);
         _peer_addr_len = SockUtil::get_sock_len((const struct sockaddr*)&_peer_addr);
         UdpClientType::startConnect(peer_host, peer_port, local_port);
+    }
+
+    void setMtu(int mtu) {
+        _kcp_box->setMtu(mtu);
+    }
+
+    void setInterval(int intervoal) {
+        _kcp_box->setInterval(intervoal);
+    }
+
+    void setRxMinrto(int rx_minrto) {
+        _kcp_box->setRxMinrto(rx_minrto);
+    }
+
+    void setWndSize(int sndwnd, int rcvwnd) {
+        _kcp_box->setWndSize(sndwnd, rcvwnd);
+    }
+
+    void setDelayMode(KcpTransport::DelayMode delay_mode) {
+        _kcp_box->setDelayMode(delay_mode);
+    }
+
+    void setFastResend(int resend) {
+        _kcp_box->setFastResend(resend);
+    }
+
+    void setFastackConserve(bool flag) {
+        _kcp_box->setFastackConserve(flag);
+    }
+
+    void setNoCwnd(bool flag) {
+        _kcp_box->setNoCwnd(flag);
+    }
+
+    void setStreamMode(bool flag) {
+        _kcp_box->setStreamMode(flag);
     }
 
 private:

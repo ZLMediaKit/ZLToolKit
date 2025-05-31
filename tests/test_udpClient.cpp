@@ -29,7 +29,7 @@ protected:
         if (!addr) {
             DebugL << " recvfrom ip: " << SockUtil::inet_ntoa(addr) << ", port: " << SockUtil::inet_port(addr);
         }
-        DebugL << buf->data();
+        TraceL << hexdump(buf->data(), buf->size());
     }
 
     virtual void onError(const SockException &ex) override{

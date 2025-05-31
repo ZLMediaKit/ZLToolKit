@@ -51,6 +51,16 @@ public:
     static void Set8Bytes(uint8_t *data, size_t i, uint64_t value);
     static uint16_t PadTo4Bytes(uint16_t size);
     static uint32_t PadTo4Bytes(uint32_t size);
+
+    static uint16_t Get2BytesLE(const uint8_t *data, size_t i);
+    static uint32_t Get3BytesLE(const uint8_t *data, size_t i);
+    static uint32_t Get4BytesLE(const uint8_t *data, size_t i);
+    static uint64_t Get8BytesLE(const uint8_t *data, size_t i);
+    static void Set2BytesLE(uint8_t *data, size_t i, uint16_t value);
+    static void Set3BytesLE(uint8_t *data, size_t i, uint32_t value);
+    static void Set4BytesLE(uint8_t *data, size_t i, uint32_t value);
+    static void Set8BytesLE(uint8_t *data, size_t i, uint64_t value);
+ 
 };
 
 /* Inline static methods. */
@@ -103,6 +113,53 @@ inline void Byte::Set8Bytes(uint8_t *data, size_t i, uint64_t value) {
     data[i + 2] = static_cast<uint8_t>(value >> 40);
     data[i + 1] = static_cast<uint8_t>(value >> 48);
     data[i] = static_cast<uint8_t>(value >> 56);
+}
+
+
+inline uint16_t Byte::Get2BytesLE(const uint8_t *data, size_t i) {
+    return uint16_t{data[i]} | uint16_t{data[i + 1]} << 8;
+}
+
+inline uint32_t Byte::Get3BytesLE(const uint8_t *data, size_t i) {
+    return uint32_t{data[i]} | uint32_t{data[i + 1]} << 8 | uint32_t{data[i + 2]} << 16;
+}
+
+inline uint32_t Byte::Get4BytesLE(const uint8_t *data, size_t i) {
+    return uint32_t{data[i]} | uint32_t{data[i + 1]} << 8 | uint32_t{data[i + 2]} << 16 |
+           uint32_t{data[i + 3]} << 24;
+}
+
+inline uint64_t Byte::Get8BytesLE(const uint8_t *data, size_t i) {
+    return uint64_t{Byte::Get4Bytes(data, i + 4)} << 32 | Byte::Get4Bytes(data, i);
+}
+
+inline void Byte::Set2BytesLE(uint8_t *data, size_t i, uint16_t value) {
+    data[i] = static_cast<uint8_t>(value);
+    data[i + 1] = static_cast<uint8_t>(value >> 8);
+}
+
+inline void Byte::Set3BytesLE(uint8_t *data, size_t i, uint32_t value) {
+    data[i] = static_cast<uint8_t>(value);
+    data[i + 1] = static_cast<uint8_t>(value >> 8);
+    data[i + 2] = static_cast<uint8_t>(value >> 16);
+}
+
+inline void Byte::Set4BytesLE(uint8_t *data, size_t i, uint32_t value) {
+    data[i] = static_cast<uint8_t>(value);
+    data[i + 1] = static_cast<uint8_t>(value >> 8);
+    data[i + 2] = static_cast<uint8_t>(value >> 16);
+    data[i + 3] = static_cast<uint8_t>(value >> 24);
+}
+
+inline void Byte::Set8BytesLE(uint8_t *data, size_t i, uint64_t value) {
+    data[i] = static_cast<uint8_t>(value);
+    data[i + 1] = static_cast<uint8_t>(value >> 8);
+    data[i + 2] = static_cast<uint8_t>(value >> 16);
+    data[i + 3] = static_cast<uint8_t>(value >> 24);
+    data[i + 4] = static_cast<uint8_t>(value >> 32);
+    data[i + 5] = static_cast<uint8_t>(value >> 40);
+    data[i + 6] = static_cast<uint8_t>(value >> 48);
+    data[i + 7] = static_cast<uint8_t>(value >> 56);
 }
 
 inline uint16_t Byte::PadTo4Bytes(uint16_t size) {

@@ -39,26 +39,52 @@ uint32_t getCurrent() {
 
 bool KcpHeader::loadHeaderFromData(const char *data, size_t len) {
     if (HEADER_SIZE > len) {
-        ErrorL << "size too smalle " << len;
+        WarnL << "data len: " << len << " too small";
         return false;
     }
 
     int offset = 0;
-    _conv = Byte::Get4Bytes((const uint8_t*)data, 0);
+    _conv = Byte::Get4BytesLE((const uint8_t*)data, 0);
     offset += 4;
     _cmd = (Cmd)Byte::Get1Byte((const uint8_t*)data, offset);
     offset += 1;
     _frg = Byte::Get1Byte((const uint8_t*)data, offset);
     offset += 1;
-    _wnd = Byte::Get2Bytes((const uint8_t*)data, offset);
+    _wnd = Byte::Get2BytesLE((const uint8_t*)data, offset);
     offset += 2;
-    _ts = Byte::Get4Bytes((const uint8_t*)data, offset);
+    _ts = Byte::Get4BytesLE((const uint8_t*)data, offset);
     offset += 4;
-    _sn = Byte::Get4Bytes((const uint8_t*)data, offset);
+    _sn = Byte::Get4BytesLE((const uint8_t*)data, offset);
     offset += 4;
-    _una = Byte::Get4Bytes((const uint8_t*)data, offset);
+    _una = Byte::Get4BytesLE((const uint8_t*)data, offset);
     offset += 4;
-    _len = Byte::Get4Bytes((const uint8_t*)data, offset);
+    _len = Byte::Get4BytesLE((const uint8_t*)data, offset);
+
+    return true;
+}
+
+bool KcpHeader::storeHeaderToData(char *buf, size_t size) {
+    if (HEADER_SIZE > size) {
+        ErrorL << "size too smalle " << size;
+        return false;
+    }
+    char *ptr = buf;
+    int offset = 0;
+    Byte::Set4BytesLE((uint8_t*)buf, offset, _conv);
+    offset += 4;
+    Byte::Set1Byte((uint8_t*)buf, offset, (uint8_t)_cmd);
+    offset += 1;
+    Byte::Set1Byte((uint8_t*)buf, offset, _frg);
+    offset += 1;
+    Byte::Set2BytesLE((uint8_t*)buf, offset, _wnd);
+    offset += 2;
+    Byte::Set4BytesLE((uint8_t*)buf, offset, _ts);
+    offset += 4;
+    Byte::Set4BytesLE((uint8_t*)buf, offset, _sn);
+    offset += 4;
+    Byte::Set4BytesLE((uint8_t*)buf, offset, _una);
+    offset += 4;
+    Byte::Set4BytesLE((uint8_t*)buf, offset, _len);
 
     return true;
 }
@@ -70,8 +96,10 @@ KcpPacket::~KcpPacket() {
 
 KcpPacket::Ptr KcpPacket::parse(const char* data, size_t len) {
     auto packet = std::make_shared<KcpPacket>();
-    packet->loadFromData(data, len);
-    return packet;
+    if (packet->loadFromData(data, len)) {
+        return packet;
+    }
+    return nullptr;
 }
 
 bool KcpPacket::loadFromData(const char *data, size_t len) {
@@ -81,13 +109,17 @@ bool KcpPacket::loadFromData(const char *data, size_t len) {
     }
 
     auto packetSize = getPacketSize();
-    if (len <= packetSize) {
-        WarnL << "data len " << len << " is smaller than packet len :" << packetSize;
+    if (len < packetSize) {
+        WarnL << "data len: " << len << " is smaller than packet len: " << packetSize;
         return false;
     }
 
     assign((const char *)(data), packetSize);
     return true;
+}
+
+bool KcpPacket::storeToData() {
+    return storeHeaderToData(data(), size());
 }
 
 ////////////  KcpTransport //////////////////////////
@@ -105,8 +137,7 @@ KcpTransport::~KcpTransport() {
     update();
 }
 
-ssize_t KcpTransport::send(const Buffer::Ptr &buf, bool flush) {
-
+ssize_t KcpTransport::send(const Buffer::Ptr& buf, bool flush) {
     if (!_poller) {
         startTimer();
     }
@@ -116,137 +147,152 @@ ssize_t KcpTransport::send(const Buffer::Ptr &buf, bool flush) {
         return -1;
     }
 
-    auto data = buf->data();
     auto size = buf->size();
     if (size <= 0) {
         return 0;
     }
 
     if (size >= _mss * IKCP_WND_RCV) {
+        WarnL << "size : "<< size << "over size, send fail";
         //分片过大,拒绝发送
         return -1;
     }
 
-    auto leftLen = size;
-    auto extendLen = mergeSendQueue(data, leftLen);
-    data += extendLen;
-    leftLen -= extendLen;
+    auto cache = BufferRaw::create(size);
+    cache->assign(buf->data(), size);
 
-    // fragment
-    int count = (leftLen + _mss - 1) / _mss;
-    for (int i = 0; i < count; i++) {
-        auto len = std::min<size_t>(leftLen, _mss);
-        auto packet = std::make_shared<KcpDataPacket>(_conv, len);
-        memcpy(packet->getPayloadData(), data, len);
-        packet->setFrg(!_stream? (count - i - 1) : 0);
-        _snd_queue.push_back(packet);
+    _poller->async([=] {
+        auto data = cache->data();
+        auto leftLen = size;
+        auto extendLen = mergeSendQueue(data, leftLen);
+        data += extendLen;
+        leftLen -= extendLen;
 
-        data += len;
-        leftLen -= len;
-    }
+        // fragment
+        int count = (leftLen + _mss - 1) / _mss;
+        for (int i = 0; i < count; i++) {
+            auto len = std::min<size_t>(leftLen, _mss);
+            auto packet = std::make_shared<KcpDataPacket>(_conv, len);
+            memcpy(packet->getPayloadData(), data, len);
+            packet->setFrg(!_stream? (count - i - 1) : 0);
+            _snd_queue.push_back(packet);
 
-    if (flush) {
-        sendSendQueue();
-    }
+            data += len;
+            leftLen -= len;
+        }
+
+        if (flush) {
+            update();
+            // sendSendQueue();
+        }
+
+    }, true);
     return size;
 }
 
-void KcpTransport::input(const Buffer::Ptr &buf) {
-
+void KcpTransport::input(const Buffer::Ptr& buf) {
     if (!_poller) {
         startTimer();
     }
 
-    auto data = buf->data();
-    auto size = buf->size();
-    uint32_t current = getCurrent();
-	uint32_t prev_una = _snd_una;
-	uint32_t maxack = 0;
-	uint32_t latest_ts = 0;
-	bool fastAckFlag = false;
-	bool hasData = false;
+    auto cache = BufferRaw::create(buf->size());
+    cache->assign(buf->data(), buf->size());
 
-	while (1) {
-        auto packet = KcpPacket::parse(data, size);
-        if (!packet) {
-            WarnL << "parse kcp packet fail";
-            break;
-        }
-		data += packet->size();
-		size -= packet->size();
+    _poller->async([=] {
+        // DebugL << hexdump(cache->data(), cache->size());
 
-        if (!_conv_init) {
-            _conv = packet->getConv();
-            _conv_init = true;
-        } else {
-            if (_conv != packet->getConv()) {
-                WarnL << "_conv check fail, skip this packet";
+        auto data = cache->data();
+        auto size = cache->size();
+        uint32_t current = getCurrent();
+        uint32_t prev_una = _snd_una;
+        uint32_t maxack = 0;
+        uint32_t latest_ts = 0;
+        bool fastAckFlag = false;
+        bool hasData = false;
+
+        while (size) {
+            auto packet = KcpPacket::parse(data, size);
+            if (!packet) {
+                WarnL << "parse kcp packet fail";
+                break;
+            }
+            data += packet->size();
+            size -= packet->size();
+            if (!_conv_init) {
+                _conv = packet->getConv();
+                _conv_init = true;
+            } else {
+                if (_conv != packet->getConv()) {
+                    WarnL << "_conv check fail, skip this packet";
+                    continue;
+                }
+            }
+
+            auto cmd = packet->getCmd();
+            if (cmd != KcpHeader::Cmd::CMD_PUSH && cmd != KcpHeader::Cmd::CMD_ACK &&
+                cmd != KcpHeader::Cmd::CMD_WASK && cmd != KcpHeader::Cmd::CMD_WINS) {
+                WarnL << "unknow cmd: " << (uint8_t)cmd;
                 continue;
             }
-        }
 
-        auto cmd = packet->getCmd();
-		if (cmd != KcpHeader::Cmd::CMD_PUSH && cmd != KcpHeader::Cmd::CMD_ACK &&
-			cmd != KcpHeader::Cmd::CMD_WASK && cmd != KcpHeader::Cmd::CMD_WINS) {
-            WarnL << "unknow cmd: " << (uint8_t)cmd;
-            continue;
-        }
+            handleAnyPacket(packet);
 
-        handleAnyPacket(packet);
-
-        switch (cmd) {
-            case KcpHeader::Cmd::CMD_ACK: {
-                auto sn = packet->getSn();
-                auto ts = packet->getTs();
-                handleCmdAck(packet, current);
-                if (!fastAckFlag) {
-                    fastAckFlag = true;
-                    maxack = sn;
-                    latest_ts = ts;
-                } else {
-                    if (sn > maxack) {
-                        if (!_fastack_conserve || ts > latest_ts) {
-                            //激进模式
-                            maxack = sn;
-                            latest_ts = ts;
+            switch (cmd) {
+                case KcpHeader::Cmd::CMD_ACK: {
+                    auto sn = packet->getSn();
+                    auto ts = packet->getTs();
+                    handleCmdAck(packet, current);
+                    if (!fastAckFlag) {
+                        fastAckFlag = true;
+                        maxack = sn;
+                        latest_ts = ts;
+                    } else {
+                        if (sn > maxack) {
+                            if (!_fastack_conserve || ts > latest_ts) {
+                                //激进模式
+                                maxack = sn;
+                                latest_ts = ts;
+                            }
                         }
                     }
                 }
+                    break;
+                case KcpHeader::Cmd::CMD_PUSH:
+                    handleCmdPush(packet);
+                    hasData = true;
+                    break;
+                case KcpHeader::Cmd::CMD_WASK:
+                    _probe |= IKCP_ASK_TELL;
+                    break;
+                case KcpHeader::Cmd::CMD_WINS:
+                    break;
+                default:
+                    WarnL << "unknow cmd: " << (uint32_t)cmd;
+                    break;
             }
-                break;
-            case KcpHeader::Cmd::CMD_PUSH:
-                handleCmdPush(packet);
-                hasData = true;
-                break;
-            case KcpHeader::Cmd::CMD_WASK:
-                _probe |= IKCP_ASK_TELL;
-                break;
-            case KcpHeader::Cmd::CMD_WINS:
-            default:
-                WarnL << "unknow cmd: " << (uint8_t)cmd;
-                break;
         }
-	}
 
-	if (fastAckFlag) {
-		updateFastAck(maxack, latest_ts);
-	}
+        if (fastAckFlag) {
+            updateFastAck(maxack, latest_ts);
+        }
 
-    if (_snd_una > prev_una) {
-        //有新的应答,尝试增大拥塞窗口
-        increaseCwnd();
-    }
+        if (_snd_una > prev_una) {
+            //有新的应答,尝试增大拥塞窗口
+            increaseCwnd();
+        }
 
-    if (hasData) {
-        onData();
-    }
+        if (hasData) {
+            onData();
+        }
 
-	return;
+    }, true);
+
+    return;
 }
 
 void KcpTransport::startTimer() {
     if (!_poller) {
-        _poller = EventPoller::getCurrentPoller();
+        _poller = EventPollerPool::Instance().getPoller();
     }
 
     std::weak_ptr<KcpTransport> weak_self = std::static_pointer_cast<KcpTransport>(shared_from_this());
@@ -277,6 +323,7 @@ void KcpTransport::onData() {
         while (1) {
             int offset = 0;
             auto buffer = BufferRaw::create(size);
+            buffer->setSize(size);
             auto packet = _rcv_queue.front();
             _rcv_queue.pop_front();
             memcpy(buffer->data() + offset, packet->getPayloadData(), packet->getLen());
@@ -351,12 +398,14 @@ void KcpTransport::sortSendQueue() {
     uint32_t current = getCurrent();
 
     uint32_t cwnd = _imin_(_snd_wnd, _rmt_wnd);
-    if (_nocwnd == 0) {
+    if (!_nocwnd) {
         cwnd = _imin_(_cwnd, cwnd);
     }
+    cwnd = _imax_(1, cwnd);
 
-    while (_snd_nxt < _snd_una + cwnd) {
-        if (_snd_queue.empty()) {
+    while (!_snd_queue.empty()) {
+        if (_snd_nxt >= _snd_una + cwnd) {
+            // WarnL << "snd cwnd over size";
             break;
         }
 
@@ -365,14 +414,17 @@ void KcpTransport::sortSendQueue() {
 
 		packet->setConv(_conv);
 		packet->setCmd(KcpHeader::Cmd::CMD_PUSH);
-		packet->setWnd(getWaitSnd());
-		packet->setTs(current);
 		packet->setSn(_snd_nxt++);
-		packet->setUna(_rcv_nxt);
-		packet->setResendts(current);
-		packet->setRto(_rx_rto);
-		packet->setFastack(0);
 		packet->setXmit(0);
+	    packet->setFastack(0);
+#if 0
+	    packet->setTs(current);
+	    packet->setWnd(getWaitSnd());
+	    packet->setUna(_rcv_nxt);
+
+	    packet->setResendts(current);
+	    packet->setRto(_rx_rto);
+#endif
 
         _snd_buf.push_back(packet);
 	}
@@ -435,6 +487,11 @@ void KcpTransport::updateRtt(int32_t rtt) {
 }
 
 void KcpTransport::dropCacheByUna(uint32_t una) {
+    // TraceL << "recv una: " << una;
+    if (una <= _snd_una) {
+        return;
+    }
+
     while (!_snd_buf.empty()) {
         if (una <= _snd_buf.front()->getSn()) {
             break;
@@ -447,6 +504,11 @@ void KcpTransport::dropCacheByUna(uint32_t una) {
 }
 
 void KcpTransport::dropCacheByAck(uint32_t sn) {
+    // TraceL << "recv ack sn: " << sn;
+    if (sn < _snd_una) {
+        return;
+    }
+
 	for (auto it = _snd_buf.begin(); it != _snd_buf.end(); it++) {
 		if (sn < (*it)->getSn()) {
 			break;
@@ -527,37 +589,34 @@ void KcpTransport::handleCmdAck(KcpPacket::Ptr packet, uint32_t current) {
 void KcpTransport::handleCmdPush(KcpPacket::Ptr packet) {
     auto sn = packet->getSn();
     auto ts = packet->getTs();
+    // TraceL << "recv packet sn: " << sn << ", frg: " << (uint32_t)packet->getFrg();
 
     if (sn >= _rcv_nxt + _rcv_wnd) {
-        WarnL << "sn: " << sn << "is over wnd, _rcv_nxt: " << _rcv_nxt << ":, skip";
+        // TraceL << "sn: " << sn << " is over wnd, _rcv_nxt: " << _rcv_nxt << ":, skip";
         //超出接受窗口数据
         return;
     }
 
     _acklist.push_back(std::make_pair(sn, ts));
-    if (sn <= _rcv_nxt) {
-        WarnL << "sn: " << sn << "is small than _rcv_nxt: " << _rcv_nxt << ":, skip";
+    if (sn < _rcv_nxt) {
+        // TraceL << "sn: " << sn << " is smaller than _rcv_nxt: " << _rcv_nxt << ":, skip";
         return;
     }
 
-	bool repeat = false;
-    auto it = _rcv_buf.begin();
-    for (; it != _rcv_buf.end(); it++) {
-        auto packet = *it;
-		if (packet->getSn() == sn) {
-            DebugL << "sn: " << sn << "is repeat skip";
-			repeat = true;
-			break;
+    for (auto it = _rcv_buf.begin(); it != _rcv_buf.end(); it++) {
+        auto old = *it;
+		if (old->getSn() == sn) {
+            // TraceL << "sn: " << sn << " is repeat skip";
+            return;
 		}
 
-		if (sn > packet->getSn()) {
-			break;
+        if (old->getSn() > sn) {
+            _rcv_buf.insert(it, packet);
+            return;
 		}
 	}
 
-	if (!repeat) {
-        _rcv_buf.insert(it, packet);
-	}
+    _rcv_buf.push_back(packet);
 
     return;
 }
@@ -599,12 +658,14 @@ void KcpTransport::sendSendQueue() {
         auto xmit = packet->getXmit();
         //没重传过,第一次发送数据包
         if (xmit == 0) {
+            // TraceL << "normal send sn: " << packet->getSn();
             needsend = true;
             packet->setXmit(xmit + 1);
             packet->setRto(_rx_rto);
             packet->setResendts(current + _rx_rto + rtomin);
         } else if (current >= packet->getResendts()) {
             //普通重传
+            // TraceL << "resend sn: " << packet->getSn() << ", xmit: " << packet->getXmit();
             needsend = true;
             packet->setXmit(xmit + 1);
             _xmit++;
@@ -620,6 +681,7 @@ void KcpTransport::sendSendQueue() {
         } else if (packet->getFastack() >= resent) {
             //快速重传
             if ((int)xmit <= _fastlimit || _fastlimit <= 0) {
+                // TraceL << "fast resend sn: " << packet->getSn() << ", xmit: " << packet->getXmit();
                 auto rto = packet->getRto();
                 needsend = true;
                 packet->setXmit(xmit + 1);
@@ -634,12 +696,12 @@ void KcpTransport::sendSendQueue() {
             packet->setTs(current);
             packet->setWnd(getRcvWndUnused());
             packet->setUna(_rcv_nxt);
+            sendPacket(packet);
 
             if (packet->getXmit() >= _dead_link) {
-                _state = STATE_TIMEOUT;
+                onErr(SockException(Err_other, 
+                    (StrPrinter << "resend time : " << packet->getXmit() << " over " << _dead_link)));
             }
-
-            sendPacket(packet);
         }
     }
 
@@ -660,6 +722,7 @@ void KcpTransport::sendAckList() {
         packet->setSn(front.first);
         packet->setTs(front.second);
         sendPacket(packet);
+        // TraceL << "send ack sn: " << packet->getSn() << ", una: " << _rcv_nxt;
     }
     return;
 }
@@ -769,6 +832,11 @@ void KcpTransport::setInterval(int interval) {
 	return;
 }
 
+void KcpTransport::setRxMinrto(int rx_minrto) {
+    _rx_minrto = rx_minrto;
+	return;
+}
+
 void KcpTransport::setDelayMode(DelayMode delay_mode) {
     if (delay_mode < DelayMode::DELAY_MODE_NORMAL 
         || delay_mode > DelayMode::DELAY_MODE_NO_DELAY) {
@@ -814,7 +882,8 @@ void KcpTransport::setWndSize(int sndwnd, int rcvwnd) {
 	return;
 }
 
-void KcpTransport::sendPacket(Buffer::Ptr pkt, bool flush) {
+void KcpTransport::sendPacket(KcpPacket::Ptr pkt, bool flush) {
+    pkt->storeToData();
     if (pkt->size() + _buffer_pool->size() > _mtu) {
         flushPool();
     }

@@ -15,6 +15,7 @@
 #include <unistd.h>
 #endif
 
+#include "Util/util.h"
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
 #include "Network/UdpServer.h"
@@ -35,7 +36,7 @@ public:
     virtual void onRecv(const Buffer::Ptr &buf) override{
         //处理客户端发送过来的数据  [AUTO-TRANSLATED:c095b82e]
         // Handle data sent from the client
-        TraceL << buf->data() <<  " from port:" << get_local_port();
+        // TraceL << hexdump(buf->data(), buf->size()) <<  " from port:" << get_local_port();
         send(buf);
     }
     virtual void onError(const SockException &err) override{
@@ -46,7 +47,7 @@ public:
     virtual void onManager() override {
         //定时管理该对象，譬如会话超时检查  [AUTO-TRANSLATED:2caa54f6]
         // Periodically manage the object, such as session timeout check
-        DebugL;
+        // DebugL;
     }
 
 private:
