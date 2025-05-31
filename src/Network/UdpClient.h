@@ -142,6 +142,7 @@ public:
     inline void public_onErr(const SockException &ex) { UdpClientWithKcp::onError(ex); }
 
     virtual void startConnect(const std::string &peer_host, uint16_t peer_port, uint16_t local_port = 0) override {
+        _kcp_box->setPoller(UdpClientType::getPoller());
         _peer_addr = SockUtil::make_sockaddr(peer_host.data(), peer_port);
         _peer_addr_len = SockUtil::get_sock_len((const struct sockaddr*)&_peer_addr);
         UdpClientType::startConnect(peer_host, peer_port, local_port);

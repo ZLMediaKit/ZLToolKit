@@ -191,11 +191,16 @@ public:
     using OnErr = std::function<void(const SockException &)>;
 
     KcpTransport(bool serverMode);
+    KcpTransport(bool serverMode, const EventPoller::Ptr &poller);
     virtual ~KcpTransport();
 
     void setOnRead(onReadCB cb) { _on_read = std::move(cb); }
     void setOnWrite(onWriteCB cb) { _on_write = std::move(cb); }
     void setOnErr(OnErr cb) { _on_err = std::move(cb); }
+
+    void setPoller(const EventPoller::Ptr &poller) {
+        _poller = poller ? poller : EventPollerPool::Instance().getPoller();
+    }
 
     // 应用层将数据放到发送队列中
     ssize_t send(const Buffer::Ptr &buf, bool flush = false);

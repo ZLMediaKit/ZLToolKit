@@ -123,6 +123,7 @@ bool KcpPacket::storeToData() {
 }
 
 ////////////  KcpTransport //////////////////////////
+
 KcpTransport::KcpTransport(bool server_mode) {
     _server_mode = server_mode;
     if (!server_mode) {
@@ -133,12 +134,17 @@ KcpTransport::KcpTransport(bool server_mode) {
     _buffer_pool = BufferRaw::create(_mtu);
 }
 
+KcpTransport::KcpTransport(bool server_mode, const EventPoller::Ptr &poller) 
+    : KcpTransport(server_mode) {
+    _poller = poller ? poller : EventPollerPool::Instance().getPoller();
+}
+
 KcpTransport::~KcpTransport() {
     update();
 }
 
 ssize_t KcpTransport::send(const Buffer::Ptr& buf, bool flush) {
-    if (!_poller) {
+    if (!_timer) {
         startTimer();
     }
 
@@ -191,7 +197,7 @@ ssize_t KcpTransport::send(const Buffer::Ptr& buf, bool flush) {
 }
 
 void KcpTransport::input(const Buffer::Ptr& buf) {
-    if (!_poller) {
+    if (!_timer) {
         startTimer();
     }
 

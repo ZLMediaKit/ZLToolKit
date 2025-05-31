@@ -99,7 +99,7 @@ public:
     template <typename... ArgsType>
     SessionWithKCP(ArgsType &&...args)
         : SessionType(std::forward<ArgsType>(args)...) {
-        _kcp_box = std::make_shared<KcpTransport>(true);
+        _kcp_box = std::make_shared<KcpTransport>(true, std::forward<ArgsType>(args)...);
         _kcp_box->setOnWrite([&](const Buffer::Ptr &buf) { public_send(buf); });
         _kcp_box->setOnRead([&](const Buffer::Ptr &buf) { public_onRecv(buf); });
         _kcp_box->setOnErr([&](const SockException &ex) { public_onErr(ex); });
