@@ -331,7 +331,7 @@ private:
 
     uint32_t _interval = IKCP_INTERVAL;  //内部flush的率先哪个间隔
 
-    uint _fastresend = 0;  //快速重传触发阈值,当packet的_fastack超过该值时,触发快速重传
+    uint32_t _fastresend = 0;  //快速重传触发阈值,当packet的_fastack超过该值时,触发快速重传
     int _fastlimit = 5;   //快速重传限制，限制触发快速重传的最大次数,防止过度重传
 
     uint32_t _xmit = 0;      //重传次数计数器
