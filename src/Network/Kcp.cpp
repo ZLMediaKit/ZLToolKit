@@ -16,19 +16,19 @@ using namespace std;
 namespace toolkit {
 
 static inline uint32_t _imin_(uint32_t a, uint32_t b) {
-	return a <= b ? a : b;
+    return a <= b ? a : b;
 }
 
 static inline uint32_t _imax_(uint32_t a, uint32_t b) {
-	return a >= b ? a : b;
+    return a >= b ? a : b;
 }
 
 static inline uint32_t _ibound_(uint32_t lower, uint32_t middle, uint32_t upper) {
-	return _imin_(_imax_(lower, middle), upper);
+    return _imin_(_imax_(lower, middle), upper);
 }
 
 static inline long _itimediff(uint32_t later, uint32_t earlier) {
-	return ((int32_t)(later - earlier));
+    return ((int32_t)(later - earlier));
 }
 
 uint32_t getCurrent() {
@@ -135,7 +135,7 @@ KcpTransport::KcpTransport(bool server_mode) {
 }
 
 KcpTransport::KcpTransport(bool server_mode, const EventPoller::Ptr &poller) 
-    : KcpTransport(server_mode) {
+: KcpTransport(server_mode) {
     _poller = poller ? poller : EventPollerPool::Instance().getPoller();
 }
 
@@ -348,29 +348,29 @@ void KcpTransport::onData() {
         // tell remote my window size
         _probe |= IKCP_ASK_TELL;
     }
-	return;
+    return;
 }
 
 int KcpTransport::peeksize() {
-	if (_rcv_queue.empty()) {
+    if (_rcv_queue.empty()) {
         return 0;
     }
 
     //分包数据还没发送完全
-	if (_rcv_queue.size() < _rcv_queue.front()->getFrg() + 1) {
+    if (_rcv_queue.size() < _rcv_queue.front()->getFrg() + 1) {
         return 0;
     }
 
-	int length = 0;
-	for (auto it = _rcv_queue.begin(); it != _rcv_queue.end(); it++) {
+    int length = 0;
+    for (auto it = _rcv_queue.begin(); it != _rcv_queue.end(); it++) {
         auto seg = *it;
-		length += seg->getLen();
-		if (seg->getFrg() == 0) {
+        length += seg->getLen();
+        if (seg->getFrg() == 0) {
             break;
         }
-	}
+    }
 
-	return length;
+    return length;
 }
 
 // move available data from rcv_buf -> rcv_queue
@@ -418,27 +418,27 @@ void KcpTransport::sortSendQueue() {
         auto packet = _snd_queue.front();
         _snd_queue.pop_front();
 
-		packet->setConv(_conv);
-		packet->setCmd(KcpHeader::Cmd::CMD_PUSH);
-		packet->setSn(_snd_nxt++);
-		packet->setXmit(0);
-	    packet->setFastack(0);
+        packet->setConv(_conv);
+        packet->setCmd(KcpHeader::Cmd::CMD_PUSH);
+        packet->setSn(_snd_nxt++);
+        packet->setXmit(0);
+        packet->setFastack(0);
 #if 0
-	    packet->setTs(current);
-	    packet->setWnd(getWaitSnd());
-	    packet->setUna(_rcv_nxt);
+        packet->setTs(current);
+        packet->setWnd(getWaitSnd());
+        packet->setUna(_rcv_nxt);
 
-	    packet->setResendts(current);
-	    packet->setRto(_rx_rto);
+        packet->setResendts(current);
+        packet->setRto(_rx_rto);
 #endif
 
         _snd_buf.push_back(packet);
-	}
+    }
     return;
 }
 
 size_t KcpTransport::mergeSendQueue(const char *buffer, size_t len) {
-	if (len <= 0) {
+    if (len <= 0) {
         return 0;
     }
 
@@ -515,14 +515,14 @@ void KcpTransport::dropCacheByAck(uint32_t sn) {
         return;
     }
 
-	for (auto it = _snd_buf.begin(); it != _snd_buf.end(); it++) {
-		if (sn < (*it)->getSn()) {
-			break;
-		} else if (sn == (*it)->getSn()) {
+    for (auto it = _snd_buf.begin(); it != _snd_buf.end(); it++) {
+        if (sn < (*it)->getSn()) {
+            break;
+        } else if (sn == (*it)->getSn()) {
             _snd_buf.erase(it);
-			break;
+            break;
         }
-	}
+    }
 
     _snd_una = _snd_buf.empty()? _snd_nxt : _snd_buf.front()->getSn();
     return;
@@ -611,16 +611,16 @@ void KcpTransport::handleCmdPush(KcpPacket::Ptr packet) {
 
     for (auto it = _rcv_buf.begin(); it != _rcv_buf.end(); it++) {
         auto old = *it;
-		if (old->getSn() == sn) {
+        if (old->getSn() == sn) {
             // TraceL << "sn: " << sn << " is repeat skip";
             return;
-		}
+        }
 
         if (old->getSn() > sn) {
             _rcv_buf.insert(it, packet);
             return;
-		}
-	}
+        }
+    }
 
     _rcv_buf.push_back(packet);
 
@@ -633,7 +633,7 @@ int KcpTransport::getRcvWndUnused() {
     if (wnd > 0) {
         return wnd;
     }
-	return 0;
+    return 0;
 }
 
 
@@ -706,7 +706,7 @@ void KcpTransport::sendSendQueue() {
 
             if (packet->getXmit() >= _dead_link) {
                 onErr(SockException(Err_other, 
-                    (StrPrinter << "resend time : " << packet->getXmit() << " over " << _dead_link)));
+                                    (StrPrinter << "resend time : " << packet->getXmit() << " over " << _dead_link)));
             }
         }
     }
@@ -734,8 +734,8 @@ void KcpTransport::sendAckList() {
 }
 
 void KcpTransport::sendProbePacket() {
-	uint32_t current = getCurrent();
- 
+    uint32_t current = getCurrent();
+
     // probe window size (if remote window size equals zero)
     if (_rmt_wnd == 0) {
         if (_probe_wait == 0) {
@@ -763,27 +763,27 @@ void KcpTransport::sendProbePacket() {
     if (_probe & IKCP_ASK_SEND) {
         auto packet = std::make_shared<KcpProbePacket>(_conv);
         sendPacket(packet);
-	}
+    }
 
-	// flush window probing commands
-	if (_probe & IKCP_ASK_TELL) {
+    // flush window probing commands
+    if (_probe & IKCP_ASK_TELL) {
         auto packet = std::make_shared<KcpTellPacket>(_conv);
         sendPacket(packet);
-	}
+    }
 
-	_probe = 0;
+    _probe = 0;
     return;
 }
 
 int KcpTransport::getWaitSnd() {
-	return _snd_buf.size() + _snd_queue.size();
+    return _snd_buf.size() + _snd_queue.size();
 }
 
 // update ssthresh
 void KcpTransport::decreaseCwnd(bool change, bool lost) {
     //处理因为快速重传或者丢包的情况下,进行拥塞窗口处理
 
-	uint32_t resent = (_fastresend > 0)? (uint32_t)_fastresend : 0xffffffff;
+    uint32_t resent = (_fastresend > 0)? (uint32_t)_fastresend : 0xffffffff;
 
     // calculate window size
     uint32_t cwnd = _imin_(_snd_wnd, _rmt_wnd);
@@ -791,10 +791,10 @@ void KcpTransport::decreaseCwnd(bool change, bool lost) {
         cwnd = _imin_(_cwnd, cwnd);
     }
 
-	//快速重传表明网络出现轻微拥塞，采用相对温和的调整策略。
+    //快速重传表明网络出现轻微拥塞，采用相对温和的调整策略。
     //主动降低发送速率,但不是因为实际的丢包(可能是乱序)
     if (change) {
-		//调整慢启动阈值为在途数据量的一半
+        //调整慢启动阈值为在途数据量的一半
         uint32_t inflight = _snd_nxt - _snd_una;
         _ssthresh = inflight / 2;
         if (_ssthresh < IKCP_THRESH_MIN) {
@@ -804,13 +804,13 @@ void KcpTransport::decreaseCwnd(bool change, bool lost) {
         _incr = _cwnd * _mss;
     }
 
-	//超时重传表明网络严重拥塞，采用激进的调整策略。
+    //超时重传表明网络严重拥塞，采用激进的调整策略。
     if (lost) {
         _ssthresh = cwnd / 2;
         if (_ssthresh < IKCP_THRESH_MIN) {
             _ssthresh = IKCP_THRESH_MIN;
         }
-		//重置拥塞窗口,回到慢启动阶段
+        //重置拥塞窗口,回到慢启动阶段
         _cwnd = 1;
         _incr = _mss;
     }
@@ -823,24 +823,24 @@ void KcpTransport::decreaseCwnd(bool change, bool lost) {
 }
 
 void KcpTransport::setMtu(int mtu) {
-	if (mtu < 50 || mtu < KcpHeader::HEADER_SIZE) {
+    if (mtu < 50 || mtu < KcpHeader::HEADER_SIZE) {
         std::string err = (StrPrinter << "kcp setMtu " << mtu << "to small");
         throw std::runtime_error(err);
     }
 
-	_mtu = mtu;
-	_mss = _mtu - KcpHeader::HEADER_SIZE;
-	return;
+    _mtu = mtu;
+    _mss = _mtu - KcpHeader::HEADER_SIZE;
+    return;
 }
 
 void KcpTransport::setInterval(int interval) {
     _interval = _ibound_(10, interval, 5000);
-	return;
+    return;
 }
 
 void KcpTransport::setRxMinrto(int rx_minrto) {
     _rx_minrto = rx_minrto;
-	return;
+    return;
 }
 
 void KcpTransport::setDelayMode(DelayMode delay_mode) {
@@ -855,7 +855,7 @@ void KcpTransport::setDelayMode(DelayMode delay_mode) {
     } else {
         _rx_minrto = IKCP_RTO_NDL;
     }
-	return;
+    return;
 }
 
 void KcpTransport::setFastackConserve(bool flag) {
@@ -885,7 +885,7 @@ void KcpTransport::setWndSize(int sndwnd, int rcvwnd) {
     if (rcvwnd > 0) {   // must >= max fragment size
         _rcv_wnd = _imax_(rcvwnd, IKCP_WND_RCV);
     }
-	return;
+    return;
 }
 
 void KcpTransport::sendPacket(KcpPacket::Ptr pkt, bool flush) {

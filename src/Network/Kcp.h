@@ -124,7 +124,7 @@ private:
 class KcpDataPacket : public KcpPacket {
 public:
     KcpDataPacket(uint32_t conv, size_t payloadSize)
-        : KcpPacket(conv, KcpHeader::Cmd::CMD_WASK, payloadSize) {
+    : KcpPacket(conv, KcpHeader::Cmd::CMD_WASK, payloadSize) {
     }
 };
 
@@ -132,7 +132,7 @@ public:
 class KcpAckPacket : public KcpPacket {
 public:
     KcpAckPacket(uint32_t conv) 
-        : KcpPacket(conv, KcpHeader::Cmd::CMD_ACK, 0) {
+    : KcpPacket(conv, KcpHeader::Cmd::CMD_ACK, 0) {
     }
 };
 
@@ -140,7 +140,7 @@ public:
 class KcpProbePacket : public KcpPacket {
 public:
     KcpProbePacket(uint32_t conv)
-        : KcpPacket(conv, KcpHeader::Cmd::CMD_WASK, 0) {
+    : KcpPacket(conv, KcpHeader::Cmd::CMD_WASK, 0) {
     }
 
 };
@@ -149,7 +149,7 @@ public:
 class KcpTellPacket : public KcpPacket {
 public:
     KcpTellPacket(uint32_t conv)
-        : KcpPacket(conv, KcpHeader::Cmd::CMD_WINS, 0) {
+    : KcpPacket(conv, KcpHeader::Cmd::CMD_WINS, 0) {
     }
 };
 
@@ -185,7 +185,7 @@ public:
     static const uint32_t IKCP_THRESH_MIN = 2;
     static const uint32_t IKCP_PROBE_INIT = 7000;       // 7 secs to probe window size
     static const uint32_t IKCP_PROBE_LIMIT = 120000;    // up to 120 secs to probe window
- 
+
     using onReadCB = std::function<void(const Buffer::Ptr &buf)>;
     using onWriteCB = std::function<void(const Buffer::Ptr &buf)>;
     using OnErr = std::function<void(const SockException &)>;
