@@ -62,6 +62,32 @@ int close(int fd);
 //Socket tool class, encapsulating some basic socket and network operations
 class SockUtil {
 public:
+    struct SockAddrHash {
+        std::size_t operator()(const sockaddr_storage& addr) const {
+            switch (addr.ss_family) {
+                case AF_INET: {
+                    const struct sockaddr_in* addr_in = reinterpret_cast<const struct sockaddr_in*>(&addr);
+                    return std::hash<uint32_t>()(addr_in->sin_addr.s_addr) ^ std::hash<uint16_t>()(addr_in->sin_port);
+                }
+                case AF_INET6: {
+                    const struct sockaddr_in6* addr_in6 = reinterpret_cast<const struct sockaddr_in6*>(&addr);
+                    std::size_t h = 0;
+                    for (int i = 0; i < 16; ++i) {
+                        h ^= std::hash<uint8_t>()(addr_in6->sin6_addr.s6_addr[i]) << (i % 8);
+                    }
+                    return h ^ std::hash<uint16_t>()(addr_in6->sin6_port);
+                }
+                default:
+                    return 0;
+            }
+        }
+    };
+
+    struct SockAddrEqual {
+        bool operator()(const sockaddr_storage& a, const sockaddr_storage& b) const {
+            return toolkit::SockUtil::is_same_addr(reinterpret_cast<const struct sockaddr*>(&a), reinterpret_cast<const struct sockaddr*>(&b));
+        }
+    };
     /**
      * 创建tcp客户端套接字并连接服务器
      * @param host 服务器ip或域名
@@ -486,6 +512,7 @@ public:
     static socklen_t get_sock_len(const struct sockaddr *addr);
     static bool get_sock_local_addr(int fd, struct sockaddr_storage &addr);
     static bool get_sock_peer_addr(int fd, struct sockaddr_storage &addr);
+    static bool is_same_addr(const struct sockaddr* a, const struct sockaddr* b);
 
     /**
      * 获取网卡ip

@@ -17,11 +17,16 @@
 
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
-#include "Network/TcpServer.h"
+#include "Util/Byte.hpp"
+#include "Network/UdpServer.h"
 #include "Network/Session.h"
 
 using namespace std;
 using namespace toolkit;
+
+static const size_t msg_len = 128; //date len 4 * 128 = 512
+static const uint32_t tick_limit = 1* (1024 * 2); //MB
+static uint64_t clock_time;
 
 class EchoSession: public Session {
 public:
@@ -32,10 +37,9 @@ public:
     ~EchoSession() {
         DebugL;
     }
-    virtual void onRecv(const Buffer::Ptr &buf) override{
+    virtual void onRecv(const Buffer::Ptr &buf) override {
         //处理客户端发送过来的数据  [AUTO-TRANSLATED:c095b82e]
         // Handle data sent from the client
-        // TraceL << buf->data() <<  " from port:" << get_local_port();
         // TraceL << hexdump(buf->data(), buf->size()) <<  " from port:" << get_local_port();
         send(buf);
     }
@@ -51,9 +55,46 @@ public:
     }
 
 private:
-    Ticker _ticker;
+    uint32_t _nTick = 0;
 };
 
+//通过模板全特化实现对指定会话拥塞参数的调整
+namespace toolkit {
+template <>
+class SessionWithKCP<EchoSession> : public EchoSession {
+public:
+    template <typename... ArgsType>
+    SessionWithKCP(ArgsType &&...args)
+        : EchoSession(std::forward<ArgsType>(args)...) {
+        _kcp_box = std::make_shared<KcpTransport>(true);
+        _kcp_box->setOnWrite([&](const Buffer::Ptr &buf) { public_send(buf); });
+        _kcp_box->setOnRead([&](const Buffer::Ptr &buf) { public_onRecv(buf); });
+        _kcp_box->setOnErr([&](const SockException &ex) { public_onErr(ex); });
+        _kcp_box->setInterval(10);
+        _kcp_box->setDelayMode(KcpTransport::DelayMode::DELAY_MODE_NO_DELAY);
+        _kcp_box->setFastResend(2);
+        _kcp_box->setWndSize(1024, 1024);
+        _kcp_box->setNoCwnd(true);
+        // _kcp_box->setRxMinrto(10);
+    }
+
+    ~SessionWithKCP() override { }
+
+    void onRecv(const Buffer::Ptr &buf) override { _kcp_box->input(buf); }
+
+    inline void public_onRecv(const Buffer::Ptr &buf) { EchoSession::onRecv(buf); }
+    inline void public_send(const Buffer::Ptr &buf) { EchoSession::send(buf); }
+    inline void public_onErr(const SockException &ex) { EchoSession::onError(ex); }
+
+protected:
+    ssize_t send(Buffer::Ptr buf) override {
+        return _kcp_box->send(std::move(buf));
+    }
+
+private:
+    KcpTransport::Ptr _kcp_box;
+};
+}
 
 int main() {
     //初始化日志模块  [AUTO-TRANSLATED:fd9321b2]
@@ -61,17 +102,8 @@ int main() {
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-    //加载证书，证书包含公钥和私钥  [AUTO-TRANSLATED:fce78641]
-    // Load the certificate, the certificate contains the public key and private key
-    SSL_Initor::Instance().loadCertificate((exeDir() + "ssl.p12").data());
-    SSL_Initor::Instance().trustCertificate((exeDir() + "ssl.p12").data());
-    SSL_Initor::Instance().ignoreInvalidCertificate(false);
-
-    TcpServer::Ptr server(new TcpServer());
-    server->start<EchoSession>(9000);//监听9000端口
-
-    TcpServer::Ptr serverSSL(new TcpServer());
-    serverSSL->start<SessionWithSSL<EchoSession> >(9001);//监听9001端口
+    UdpServer::Ptr server(new UdpServer());
+    server->start<SessionWithKCP<EchoSession> >(9000);//监听9000端口
 
     //退出程序事件处理  [AUTO-TRANSLATED:80065cb7]
     // Exit program event handling

@@ -110,6 +110,52 @@ string makeRandStr(int sz, bool printable) {
     return ret;
 }
 
+uint64_t makeRandNum() {
+    // 生成一个 64 位的随机整数
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_int_distribution<uint64_t> dist(0, UINT64_MAX);
+    uint64_t id = dist(mt);
+
+    return id;
+}
+
+string makeUuidStr() {
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_int_distribution<uint64_t> dist(0, 15);
+    std::uniform_int_distribution<uint64_t> dist2(8, 11);
+    uint64_t id = dist(mt);
+
+    std::stringstream ret;
+    ret << std::hex;
+
+    for (int i = 0; i < 8; i++) {
+        ret << dist(mt);
+    }
+    ret << "-";
+
+    for (int i = 0; i < 4; i++) {
+        ret << dist(mt);
+    }
+    ret << "-4";  //版本4表示
+
+    for (int i = 0; i < 3; i++) {
+        ret << dist2(mt);
+    }
+    ret << "-";
+
+    for (int i = 0; i < 3; i++) {
+        ret << dist(mt);
+    }
+    ret << "-";
+
+    for (int i = 0; i < 12; i++) {
+        ret << dist(mt);
+    }
+    return ret.str();
+}
+
 bool is_safe(uint8_t b) {
     return b >= ' ' && b < 128;
 }
