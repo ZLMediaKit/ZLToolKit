@@ -25,12 +25,12 @@
  #include <semaphore.h>
  #define HAVE_SEM
  #endif //HAVE_SEM
- 
+
  * [AUTO-TRANSLATED:8823f395]
 */
 
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
 
 namespace toolkit {
 
