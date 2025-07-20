@@ -15,11 +15,11 @@ template<typename Ret, typename... Args>
 struct function_traits<Ret(Args...)>
 {
 public:
-    enum { arity = sizeof...(Args) };
-    typedef Ret function_type(Args...);
-    typedef Ret return_type;
+    static constexpr size_t arity = sizeof...(Args);
+    using function_type = Ret(Args...);
+    using return_type = Ret;
     using stl_function_type = std::function<function_type>;
-    typedef Ret(*pointer)(Args...);
+    using pointer = Ret(*)(Args...);
 
     template<size_t I>
     struct args
