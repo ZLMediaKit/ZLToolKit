@@ -245,6 +245,12 @@ public:
     virtual TaskExecutor::Ptr getExecutor() = 0;
 
     /**
+     * 异步获取延时最低的任务执行器
+     * @param cb 回调
+     */
+    virtual void getExecutor(const std::function<void(const TaskExecutor::Ptr &)> &cb) = 0;
+
+    /**
      * 获取执行器个数
      */
     virtual size_t getExecutorSize() const = 0;
@@ -260,6 +266,12 @@ public:
      * @return 任务执行器
      */
     TaskExecutor::Ptr getExecutor() override;
+
+    /**
+     * 异步获取延时最低的任务执行器
+     * @param cb 回调
+     */
+    void getExecutor(const std::function<void(const TaskExecutor::Ptr &)> &cb) override;
 
     /**
      * 获取所有线程的负载率

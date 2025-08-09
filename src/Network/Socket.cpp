@@ -557,6 +557,16 @@ bool Socket::fromSock_l(SockNum::Ptr sock) {
     return true;
 }
 
+void Socket::moveTo(EventPoller::Ptr poller) {
+    LOCK_GUARD(_mtx_sock_fd);
+    if (poller) {
+        _poller = std::move(poller);
+    }
+    if (_sock_fd) {
+        _sock_fd = std::make_shared<SockFD>(_sock_fd->sockNum(), _poller);
+    }
+}
+
 int Socket::onAccept(const SockNum::Ptr &sock, int event) noexcept {
     int fd;
     struct sockaddr_storage peer_addr;

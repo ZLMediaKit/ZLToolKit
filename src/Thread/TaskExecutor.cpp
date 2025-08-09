@@ -9,6 +9,7 @@
  */
 
 #include <memory>
+#include <atomic>
 #include "TaskExecutor.h"
 #include "Poller/EventPoller.h"
 #include "Util/onceToken.h"
@@ -178,6 +179,31 @@ void TaskExecutorGetterImp::getExecutorDelay(const function<void(const vector<in
             (*delay_vec)[index] = (int) delay_ticker->elapsedTime();
         }, false);
         ++index;
+    }
+}
+
+using onGetExecutor = std::function<void(const TaskExecutor::Ptr &)>;
+class onGetExecutorCB {
+public:
+    onGetExecutorCB(onGetExecutor cb): _cb(std::move(cb)) {}
+
+    void operator()(const TaskExecutor::Ptr &exe) {
+        bool expected = false;
+        if (_done.compare_exchange_strong(expected, true)) {
+            _cb(exe);
+            _cb = nullptr;
+        }
+    }
+
+private:
+    std::atomic<bool> _done { false };
+    std::function<void(const TaskExecutor::Ptr &)> _cb;
+};
+
+void TaskExecutorGetterImp::getExecutor(const onGetExecutor &cb) {
+    auto callback = std::make_shared<onGetExecutorCB>(cb);
+    for (auto &th : _threads) {
+        th->async([th, callback]() mutable { (*callback)(th); }, false);
     }
 }
 

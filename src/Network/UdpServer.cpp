@@ -145,6 +145,7 @@ void UdpServer::cloneFrom(const UdpServer &that) {
     _session_alloc = that._session_alloc;
     _session_mutex = that._session_mutex;
     _session_map = that._session_map;
+    _multi_poller = that._multi_poller;
     // clone properties
     this->mINI::operator=(that);
 }
