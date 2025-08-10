@@ -46,10 +46,10 @@ public:
     using DelayTask = TaskCancelableImp<uint64_t(void)>;
 
     typedef enum {
-        Event_Read = 1 << 0, //读事件
-        Event_Write = 1 << 1, //写事件
-        Event_Error = 1 << 2, //错误事件
-        Event_LT = 1 << 3,//水平触发
+        Event_Read = 1 << 0, // 读事件
+        Event_Write = 1 << 1, // 写事件
+        Event_Error = 1 << 2, // 错误事件
+        Event_LT = 1 << 3, // 水平触发
     } Poll_Event;
 
     ~EventPoller();
@@ -61,7 +61,6 @@ public:
      * Gets the first EventPoller instance from the EventPollerPool singleton,
      * This interface is preserved for compatibility with old code.
      * @return singleton
-     
      * [AUTO-TRANSLATED:b536ebf6]
      */
     static EventPoller &Instance();
@@ -77,7 +76,6 @@ public:
      * @param event The event type, e.g. Event_Read | Event_Write
      * @param cb The event callback function
      * @return -1: failed, 0: success
-     
      * [AUTO-TRANSLATED:cfba4c75]
      */
     int addEvent(int fd, int event, PollEventCB cb);
@@ -91,7 +89,6 @@ public:
      * @param fd The file descriptor to stop listening to
      * @param cb The callback function for successful deletion
      * @return -1: failed, 0: success
-     
      * [AUTO-TRANSLATED:be6fdf51]
      */
     int delEvent(int fd, PollCompleteCB cb = nullptr);
@@ -105,10 +102,14 @@ public:
      * @param fd The file descriptor to modify
      * @param event The new event type, e.g. Event_Read | Event_Write
      * @return -1: failed, 0: success
-     
      * [AUTO-TRANSLATED:becf3d09]
      */
     int modifyEvent(int fd, int event, PollCompleteCB cb = nullptr);
+
+    /**
+     * 返回获取监听了多少个fd事件
+     */
+    size_t fdCount() const;
 
     /**
      * 异步执行任务
@@ -120,7 +121,6 @@ public:
      * @param may_sync If the calling thread is the polling thread of this object,
      *                  then if may_sync is true, the task will be executed synchronously
      * @return Whether the task was executed successfully (always returns true)
-     
      * [AUTO-TRANSLATED:071f7ed8]
      */
     Task::Ptr async(TaskIn task, bool may_sync = true) override;
@@ -136,7 +136,6 @@ public:
      * @param may_sync If the calling thread is the polling thread of this object,
      *                  then if may_sync is true, the task will be executed synchronously
      * @return Whether the task was executed successfully (always returns true)
-     
      * [AUTO-TRANSLATED:9ef5169b]
      */
     Task::Ptr async_first(TaskIn task, bool may_sync = true) override;
@@ -146,7 +145,6 @@ public:
      * @return 是否为本对象的轮询线程
      * Checks if the thread calling this interface is the polling thread of this object
      * @return Whether the calling thread is the polling thread
-     
      * [AUTO-TRANSLATED:db9a4916]
      */
     bool isCurrentThread();
@@ -162,7 +160,6 @@ public:
      *              otherwise returns the delay for the next execution.
      *              If an exception is thrown in the task, it defaults to not repeating the task.
      * @return A cancellable task label
-     
      * [AUTO-TRANSLATED:61f97e64]
      */
     DelayTask::Ptr doDelayTask(uint64_t delay_ms, std::function<uint64_t()> task);
@@ -170,7 +167,6 @@ public:
     /**
      * 获取当前线程关联的Poller实例
      * Gets the Poller instance associated with the current thread
-     
      * [AUTO-TRANSLATED:debcf0e2]
      */
     static EventPoller::Ptr getCurrentPoller();
@@ -178,7 +174,6 @@ public:
     /**
      * 获取当前线程下所有socket共享的读缓存
      * Gets the shared read buffer for all sockets in the current thread
-     
      * [AUTO-TRANSLATED:2796f458]
      */
     SocketRecvBuffer::Ptr getSharedBuffer(bool is_udp);
@@ -186,7 +181,6 @@ public:
     /**
      * 获取poller线程id
      * Get the poller thread ID
-     
      * [AUTO-TRANSLATED:1c968752]
      */
     std::thread::id getThreadId() const;
@@ -194,16 +188,14 @@ public:
     /**
      * 获取线程名
      * Get the thread name
-     
      * [AUTO-TRANSLATED:842652d9]
      */
-    const std::string& getThreadName() const;
+    const std::string &getThreadName() const;
 
 private:
     /**
      * 本对象只允许在EventPollerPool中构造
      * This object can only be constructed in EventPollerPool
-     
      * [AUTO-TRANSLATED:0c9a8a28]
      */
     EventPoller(std::string name);
@@ -215,7 +207,6 @@ private:
      * Perform event polling
      * @param blocked Whether to execute polling with the thread that calls this interface
      * @param ref_self Whether to record this object to thread local variable
-     
      * [AUTO-TRANSLATED:b0ac803c]
      */
     void runLoop(bool blocked, bool ref_self);
@@ -223,7 +214,6 @@ private:
     /**
      * 内部管道事件，用于唤醒轮询线程用
      * Internal pipe event, used to wake up the polling thread
-     
      * [AUTO-TRANSLATED:022754b9]
      */
     void onPipeEvent(bool flush = false);
@@ -239,7 +229,6 @@ private:
      * @param may_sync
      * @param first
      * @return The cancellable task itself, or nullptr if it has been executed synchronously
-     
      * [AUTO-TRANSLATED:e7019c4a]
      */
     Task::Ptr async_l(TaskIn task, bool may_sync = true, bool first = false);
@@ -249,7 +238,6 @@ private:
      * 需要指出的是，一旦结束就不能再次恢复轮询线程
      * End event polling
      * Note that once ended, the polling thread cannot be resumed
-     
      * [AUTO-TRANSLATED:4f232154]
      */
     void shutdown();
@@ -257,7 +245,6 @@ private:
     /**
      * 刷新延时任务
      * Refresh delayed tasks
-     
      * [AUTO-TRANSLATED:88104b90]
      */
     int64_t flushDelayTask(uint64_t now);
@@ -265,7 +252,6 @@ private:
     /**
      * 获取select或epoll休眠时间
      * Get the sleep time for select or epoll
-     
      * [AUTO-TRANSLATED:34e0384e]
      */
     int64_t getMinDelay();
@@ -273,7 +259,6 @@ private:
     /**
      * 添加管道监听事件
      * Add pipe listening event
-     
      * [AUTO-TRANSLATED:06e5bc67]
      */
     void addEventPipe();
@@ -282,52 +267,54 @@ private:
     class ExitException : public std::exception {};
 
 private:
-    //标记loop线程是否退出  [AUTO-TRANSLATED:98250f84]
-    //标记loop线程是否退出
-// Mark the loop thread as exited
+    // 标记loop线程是否退出  [AUTO-TRANSLATED:98250f84]
+    // 标记loop线程是否退出
+    // Mark the loop thread as exited
     bool _exit_flag;
-    //线程名  [AUTO-TRANSLATED:f1d62d9f]
-    //线程名
-// Thread name
+    // 统计监听了多少个fd
+    size_t _fd_count = 0;
+    // 线程名  [AUTO-TRANSLATED:f1d62d9f]
+    // 线程名
+    // Thread name
     std::string _name;
-    //当前线程下，所有socket共享的读缓存  [AUTO-TRANSLATED:6ce70017]
-    //当前线程下，所有socket共享的读缓存
-// Shared read buffer for all sockets under the current thread
+    // 当前线程下，所有socket共享的读缓存  [AUTO-TRANSLATED:6ce70017]
+    // 当前线程下，所有socket共享的读缓存
+    // Shared read buffer for all sockets under the current thread
     std::weak_ptr<SocketRecvBuffer> _shared_buffer[2];
-    //执行事件循环的线程  [AUTO-TRANSLATED:2465cc75]
-    //执行事件循环的线程
-// Thread that executes the event loop
+    // 执行事件循环的线程  [AUTO-TRANSLATED:2465cc75]
+    // 执行事件循环的线程
+    // Thread that executes the event loop
     std::thread *_loop_thread = nullptr;
-    //通知事件循环的线程已启动  [AUTO-TRANSLATED:61f478cf]
-    //通知事件循环的线程已启动
-// Notify the event loop thread that it has started
+    // 通知事件循环的线程已启动  [AUTO-TRANSLATED:61f478cf]
+    // 通知事件循环的线程已启动
+    // Notify the event loop thread that it has started
     semaphore _sem_run_started;
 
-    //内部事件管道  [AUTO-TRANSLATED:dc1d3a93]
-    //内部事件管道
-// Internal event pipe
+    // 内部事件管道  [AUTO-TRANSLATED:dc1d3a93]
+    // 内部事件管道
+    // Internal event pipe
     PipeWrap _pipe;
-    //从其他线程切换过来的任务  [AUTO-TRANSLATED:d16917d6]
-    //从其他线程切换过来的任务
-// Tasks switched from other threads
+    // 从其他线程切换过来的任务  [AUTO-TRANSLATED:d16917d6]
+    // 从其他线程切换过来的任务
+    // Tasks switched from other threads
     std::mutex _mtx_task;
     List<Task::Ptr> _list_task;
 
-    //保持日志可用  [AUTO-TRANSLATED:4a6c2438]
-    //保持日志可用
-// Keep the log available
+    // 保持日志可用  [AUTO-TRANSLATED:4a6c2438]
+    // 保持日志可用
+    // Keep the log available
     Logger::Ptr _logger;
 
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     // epoll和kqueue相关  [AUTO-TRANSLATED:84d2785e]
-    //epoll和kqueue相关
-// epoll and kqueue related
+    // epoll和kqueue相关
+    // epoll and kqueue related
     int _event_fd = -1;
-    std::unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
+    std::unordered_map<int, std::shared_ptr<PollEventCB>> _event_map;
 #else
     // select相关  [AUTO-TRANSLATED:bf3e2edd]
-    //select相关
-// select related
+    // select相关
+    // select related
     struct Poll_Record {
         using Ptr = std::shared_ptr<Poll_Record>;
         int fd;
@@ -336,11 +323,11 @@ private:
         PollEventCB call_back;
     };
     std::unordered_map<int, Poll_Record::Ptr> _event_map;
-#endif //HAS_EPOLL
+#endif // HAS_EPOLL
     std::unordered_set<int> _event_cache_expired;
 
-    //定时器相关  [AUTO-TRANSLATED:fa2e84da]
-    //Timer related
+    // 定时器相关  [AUTO-TRANSLATED:fa2e84da]
+    // Timer related
     std::multimap<uint64_t, DelayTask::Ptr> _delay_task_map;
 };
 
@@ -348,7 +335,7 @@ class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, pu
 public:
     using Ptr = std::shared_ptr<EventPollerPool>;
     static const std::string kOnStarted;
-    #define EventPollerPoolOnStartedArgs EventPollerPool &pool, size_t &size
+#define EventPollerPoolOnStartedArgs EventPollerPool &pool, size_t &size
 
     ~EventPollerPool() = default;
 
@@ -357,7 +344,6 @@ public:
      * @return
      * Get singleton
      * @return
-     
      * [AUTO-TRANSLATED:1cb32aa7]
      */
     static EventPollerPool &Instance();
@@ -369,7 +355,6 @@ public:
      * Set the number of EventPoller instances, effective before the EventPollerPool singleton is created
      * If this method is not called, the default is to create thread::hardware_concurrency() EventPoller instances
      * @param size  Number of EventPoller instances, 0 means thread::hardware_concurrency()
-     
      * [AUTO-TRANSLATED:bdc02181]
      */
     static void setPoolSize(size_t size = 0);
@@ -377,7 +362,6 @@ public:
     /**
      * 内部创建线程是否设置cpu亲和性，默认设置cpu亲和性
      * Whether to set CPU affinity for internal thread creation, default is to set CPU affinity
-     
      * [AUTO-TRANSLATED:46941c9f]
      */
     static void enableCpuAffinity(bool enable);
@@ -387,7 +371,6 @@ public:
      * @return
      * Get the first instance
      * @return
-     
      * [AUTO-TRANSLATED:a76aad3b]
      */
     EventPoller::Ptr getFirstPoller();
@@ -401,7 +384,6 @@ public:
      * If prioritizing the current thread, it will return the current thread
      * The purpose of returning the current thread is to improve thread safety
      * @param prefer_current_thread Whether to prioritize getting the current thread
-     
      * [AUTO-TRANSLATED:f0830806]
      */
     EventPoller::Ptr getPoller(bool prefer_current_thread = true);
@@ -415,7 +397,6 @@ public:
      * When creating Socket objects in batches, if prioritizing the current thread,
      * it will cause the load to be unbalanced, so it can be temporarily closed and then reopened
      * @param flag Whether to prioritize returning the current thread
-     
      * [AUTO-TRANSLATED:c354e1d5]
      */
     void preferCurrentThread(bool flag = true);
@@ -427,5 +408,5 @@ private:
     bool _prefer_current_thread = true;
 };
 
-}  // namespace toolkit
+} // namespace toolkit
 #endif /* EventPoller_h */

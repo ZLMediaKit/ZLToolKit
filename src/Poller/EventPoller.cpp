@@ -128,6 +128,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         if (ret != -1) {
             _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
         }
+        _fd_count = _event_map.size();
         return ret;
 #elif defined(HAS_KQUEUE)
         struct kevent kev[2];
@@ -142,6 +143,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         if (ret != -1) {
             _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
         }
+        _fd_count = _event_map.size();
         return ret;
 #else
 #ifndef _WIN32
@@ -157,6 +159,7 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
         record->event = event;
         record->call_back = std::move(cb);
         _event_map.emplace(fd, record);
+        _fd_count = _event_map.size();
         return 0;
 #endif
     }
@@ -181,6 +184,7 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
             ret = epoll_ctl(_event_fd, EPOLL_CTL_DEL, fd, nullptr);
         }
         cb(ret != -1);
+        _fd_count = _event_map.size();
         return ret;
 #elif defined(HAS_KQUEUE)
         int ret = -1;
@@ -193,6 +197,7 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
             ret = kevent(_event_fd, kev, index, nullptr, 0, nullptr);
         }
         cb(ret != -1);
+        _fd_count = _event_map.size();
         return ret;
 #else
         int ret = -1;
@@ -201,6 +206,7 @@ int EventPoller::delEvent(int fd, PollCompleteCB cb) {
             ret = 0;
         }
         cb(ret != -1);
+        _fd_count = _event_map.size();
         return ret;
 #endif //HAS_EPOLL
     }
@@ -247,6 +253,10 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
         modifyEvent(fd, event, std::move(cb));
     });
     return 0;
+}
+
+size_t EventPoller::fdCount() const {
+    return _fd_count;
 }
 
 Task::Ptr EventPoller::async(TaskIn task, bool may_sync) {
