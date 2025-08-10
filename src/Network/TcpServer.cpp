@@ -27,6 +27,25 @@ TcpServer::TcpServer(const EventPoller::Ptr &poller) : Server(poller) {
 void TcpServer::setupEvent() {
     _socket = createSocket(_poller);
     weak_ptr<TcpServer> weak_self = std::static_pointer_cast<TcpServer>(shared_from_this());
+#if 1
+    _socket->setOnBeforeAccept([weak_self](const EventPoller::Ptr &poller) -> Socket::Ptr {
+        if (auto strong_self = weak_self.lock()) {
+            return strong_self->onBeforeAcceptConnection(poller);
+        }
+        return nullptr;
+    });
+    _socket->setOnAccept([weak_self](Socket::Ptr &sock, shared_ptr<void> &complete) {
+        if (auto strong_self = weak_self.lock()) {
+            auto ptr = sock->getPoller().get();
+            auto server = strong_self->getServer(ptr);
+            ptr->async([server, sock, complete]() {
+                // 该tcp客户端派发给对应线程的TcpServer服务器  [AUTO-TRANSLATED:662b882f]
+                // This TCP client is dispatched to the corresponding thread of the TcpServer server
+                server->onAcceptConnection(sock);
+            });
+        }
+    });
+#else
     _socket->setOnAccept([weak_self](Socket::Ptr &sock, shared_ptr<void> &complete) {
         if (auto strong_self = weak_self.lock()) {
             if (strong_self->_multi_poller) {
@@ -41,6 +60,7 @@ void TcpServer::setupEvent() {
             }
         }
     });
+#endif
 }
 
 TcpServer::~TcpServer() {

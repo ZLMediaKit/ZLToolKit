@@ -202,9 +202,19 @@ private:
 
 void TaskExecutorGetterImp::getExecutor(const onGetExecutor &cb) {
     auto callback = std::make_shared<onGetExecutorCB>(cb);
-    for (auto &th : _threads) {
+    auto thread_pos = _thread_pos;
+    if (thread_pos >= _threads.size()) {
+        thread_pos = 0;
+    }
+    for (size_t i = 0; i < _threads.size(); ++i) {
+        ++thread_pos;
+        if (thread_pos >= _threads.size()) {
+            thread_pos = 0;
+        }
+        auto &th = _threads[thread_pos];
         th->async([th, callback]() mutable { (*callback)(th); }, false);
     }
+    _thread_pos = thread_pos;
 }
 
 void TaskExecutorGetterImp::for_each(const function<void(const TaskExecutor::Ptr &)> &cb) {
