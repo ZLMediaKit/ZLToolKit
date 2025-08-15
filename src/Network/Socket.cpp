@@ -716,6 +716,17 @@ uint16_t Socket::get_local_port() {
     return SockUtil::inet_port((struct sockaddr *)&_local_addr);
 }
 
+const sockaddr *Socket::get_local_addr() {
+    return (const sockaddr*)&_local_addr;
+}
+
+const sockaddr *Socket::get_peer_addr() {
+    if (_udp_send_dst)
+        return (const sockaddr *)_udp_send_dst.get();
+    else
+        return (const sockaddr *)&_peer_addr;
+}
+
 string Socket::get_peer_ip() {
     LOCK_GUARD(_mtx_sock_fd);
     if (!_sock_fd) {
@@ -1099,6 +1110,14 @@ string SocketHelper::get_peer_ip() {
 
 uint16_t SocketHelper::get_peer_port() {
     return _sock ? _sock->get_peer_port() : 0;
+}
+
+const sockaddr * SocketHelper::get_peer_addr() {
+    return _sock ? _sock->get_peer_addr() : nullptr;
+}
+
+const sockaddr *SocketHelper::get_local_addr() {
+    return _sock ? _sock->get_local_addr() : nullptr;
 }
 
 bool SocketHelper::isSocketBusy() const {
