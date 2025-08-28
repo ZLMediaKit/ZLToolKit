@@ -715,6 +715,8 @@ public:
     std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
     std::string getIdentifier() const override;
+    const sockaddr *get_peer_addr();
+    const sockaddr *get_local_addr();
 
 private:
     Socket(EventPoller::Ptr poller, bool enable_mutex = true);
@@ -953,6 +955,8 @@ public:
     uint16_t get_local_port() override;
     std::string get_peer_ip() override;
     uint16_t get_peer_port() override;
+    const sockaddr *get_peer_addr();
+    const sockaddr *get_local_addr();
 
     ///////////////////// TaskExecutorInterface override /////////////////////
     /**

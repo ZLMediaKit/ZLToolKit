@@ -506,7 +506,7 @@ public:
      */
     static std::string inet_ntoa(const struct in_addr &addr);
     static std::string inet_ntoa(const struct in6_addr &addr);
-    static std::string inet_ntoa(const struct sockaddr *addr);
+    static std::string inet_ntoa(const struct sockaddr *addr, bool mapV4 = true);
     static uint16_t inet_port(const struct sockaddr *addr);
     static struct sockaddr_storage make_sockaddr(const char *ip, uint16_t port);
     static socklen_t get_sock_len(const struct sockaddr *addr);
