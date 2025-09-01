@@ -67,6 +67,7 @@ Socket::Socket(EventPoller::Ptr poller, bool enable_mutex)
     , _mtx_event(enable_mutex)
     , _mtx_send_buf_waiting(enable_mutex)
     , _mtx_send_buf_sending(enable_mutex) {
+    memset(&_peer_addr, 0, sizeof _peer_addr);
     setOnRead(nullptr);
     setOnErr(nullptr);
     setOnAccept(nullptr);
@@ -396,6 +397,11 @@ ssize_t Socket::send(Buffer::Ptr buf, struct sockaddr *addr, socklen_t addr_len,
         //This send did not specify a target address, but the target is customized through bindPeerAddr
         addr = (struct sockaddr *)_udp_send_dst.get();
         addr_len = SockUtil::get_sock_len(addr);
+    } else {
+        if (_peer_addr.ss_family != AF_UNSPEC) {
+            // udp connect后不能再sendto指定其他地址
+            return send_l(std::move(buf), false, try_flush);
+        }
     }
     return send_l(std::make_shared<BufferSock>(std::move(buf), addr, addr_len), true, try_flush);
 }
@@ -847,7 +853,7 @@ bool Socket::flushData(const SockNum::Ptr &sock, bool poller_thread) {
             // udp发送异常，把数据丢弃  [AUTO-TRANSLATED:3a7d095d]
             //UDP send exception, discard the data
             send_buf_sending_tmp.pop_front();
-            WarnL << "Send udp socket[" << sock << "] failed, data ignored: " << uv_strerror(err);
+            WarnL << "Send udp socket[" << sock->rawFd() << "] failed, data ignored: " << uv_strerror(err);
             continue;
         }
         // tcp发送失败时，触发异常  [AUTO-TRANSLATED:06f06449]
