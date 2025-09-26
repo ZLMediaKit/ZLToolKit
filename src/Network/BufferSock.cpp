@@ -315,34 +315,39 @@ ssize_t BufferSendTo::send(int fd, int flags) {
     while (!_pkt_list.empty()) {
         auto &front = _pkt_list.front();
         auto &buffer = front.first;
-        if (_is_udp) {
-            auto ptr = getBufferSockPtr(front);
-            n = ::sendto(fd, buffer->data() + _offset, buffer->size() - _offset, flags, ptr ? ptr->sockaddr() : nullptr, ptr ? ptr->socklen() : 0);
-        } else {
-            n = ::send(fd, buffer->data() + _offset, buffer->size() - _offset, flags);
-        }
-
-        if (n >= 0) {
-            assert(n);
-            _offset += n;
-            if (_offset == buffer->size()) {
-                sendFrontSuccess();
-                _offset = 0;
+        
+        // 内层循环：确保当前数据包完全发送完成
+        while (_offset < buffer->size()) {
+            if (_is_udp) {
+                auto ptr = getBufferSockPtr(front);
+                n = ::sendto(fd, buffer->data() + _offset, buffer->size() - _offset, flags, ptr ? ptr->sockaddr() : nullptr, ptr ? ptr->socklen() : 0);
+            } else {
+                n = ::send(fd, buffer->data() + _offset, buffer->size() - _offset, flags);
             }
-            sent += n;
-            continue;
-        }
 
-        //n == -1的情况  [AUTO-TRANSLATED:305fb5bc]
-        //n == -1 case
-        if (get_uv_error(true) == UV_EINTR) {
-            //被打断，需要继续发送  [AUTO-TRANSLATED:6ef0b34d]
-            //interrupted, need to continue sending
-            continue;
+            if (n >= 0) {
+                assert(n);
+                _offset += n;
+                sent += n;
+                // 如果当前数据包发送完成，跳出内层循环
+                if (_offset == buffer->size()) {
+                    sendFrontSuccess();
+                    _offset = 0;
+                    break;
+                }
+            } else {
+                //n == -1的情况  [AUTO-TRANSLATED:305fb5bc]
+                //n == -1 case
+                if (get_uv_error(true) == UV_EINTR) {
+                    //被打断，需要继续发送  [AUTO-TRANSLATED:6ef0b34d]
+                    //interrupted, need to continue sending
+                    continue;
+                }
+                //其他原因导致的send返回-1  [AUTO-TRANSLATED:299cddb7]
+                //other reasons causing send to return -1
+                return sent ? sent : -1;
+            }
         }
-        //其他原因导致的send返回-1  [AUTO-TRANSLATED:299cddb7]
-        //other reasons causing send to return -1
-        break;
     }
     return sent ? sent : -1;
 }
