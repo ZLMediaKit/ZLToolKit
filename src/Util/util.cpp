@@ -433,6 +433,8 @@ static atomic<uint64_t> s_currentMillisecond_system(getCurrentMicrosecondOrigin(
 
 static inline bool initMillisecondThread() {
     static std::thread s_thread([]() {
+        // 确该保线程退出前日志打印可用
+        auto logger = Logger::Instance().shared_from_this();
         setThreadName("stamp thread");
         DebugL << "Stamp thread started";
         uint64_t last = getCurrentMicrosecondOrigin();
