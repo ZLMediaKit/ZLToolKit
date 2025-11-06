@@ -426,9 +426,25 @@ public:
     }
 
     void resize(size_t size, char c = '\0') {
-        _str.resize(size, c);
-        _erase_head = 0;
-        _erase_tail = 0;
+        auto old_size = this->size();
+        if (size == old_size) {
+            return;
+        }
+        if (size > old_size) {
+            auto append = size - old_size;
+            if (append > _erase_tail) {
+                _str.resize(append - _erase_tail, c);
+                memset(const_cast<char *>(_str.data()) + _erase_head + old_size, c, _erase_tail);
+                _erase_tail = 0;
+            } else {
+                _erase_tail -= append;
+                memset(const_cast<char *>(_str.data()) + _erase_head + old_size, c, append);
+            }
+        } else {
+            auto erased = old_size - size;
+            _erase_tail += erased;
+            memset(const_cast<char *>(_str.data()) + _erase_head + size, c, erased);
+        }
     }
 
     bool empty() const {
