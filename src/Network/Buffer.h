@@ -469,6 +469,11 @@ public:
         return _str.substr(_erase_head + pos, n);
     }
 
+protected:
+    size_t _erase_head;
+    size_t _erase_tail;
+    std::string _str;
+
 private:
     void moveData() {
         if (_erase_head) {
@@ -477,10 +482,6 @@ private:
         }
     }
 
-private:
-    size_t _erase_head;
-    size_t _erase_tail;
-    std::string _str;
     //对象个数统计  [AUTO-TRANSLATED:3b43e8c2]
     //Object count statistics
     ObjectStatistic<BufferLikeString> _statistic;
