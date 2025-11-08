@@ -116,8 +116,7 @@ FILE *File::create_file(const std::string &file, const std::string &mode) {
         }
         if (_access(dir.data(), 0) == -1) { //access函数是查看是不是存在
             if (mkdir(dir.data(), 0777) == -1) {  //如果不存在就用mkdir函数来创建
-                WarnL << "mkdir " << dir << " failed: " << get_uv_errmsg();
-                return nullptr;
+                TraceL << "mkdir " << dir << " failed: " << get_uv_errmsg();
             }
         }
     }
