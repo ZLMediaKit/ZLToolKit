@@ -1,6 +1,21 @@
-﻿
-cmake_minimum_required(VERSION 3.1.3)
+﻿cmake_minimum_required(VERSION 3.1.3...3.26)
 project(ZLToolKit)
+
+#使能c++11
+set(CMAKE_CXX_STANDARD 11)
+# -fPIC
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+# 打印详情
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+#加载自定义模块
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+option(ENABLE_OPENSSL "enable openssl" ON)
+option(ENABLE_MYSQL "enable mysql" ON)
+option(ENABLE_WEPOLL "Enable wepoll" ON)
+option(ASAN_USE_DELETE "use delele[] or free when asan enabled" OFF)
+option(BUILD_SHARED_LIBS "Build all libraries shared" ON)
 
 include(CheckStructHasMember)
 include(CheckSymbolExists)
@@ -10,14 +25,33 @@ check_struct_has_member("struct mmsghdr" msg_hdr sys/socket.h HAVE_MMSG_HDR)
 check_symbol_exists(sendmmsg sys/socket.h HAVE_SENDMMSG_API)
 check_symbol_exists(recvmmsg sys/socket.h HAVE_RECVMMSG_API)
 
+# 方便修改全局变量
+function(update_cached name value)
+    set("${name}" "${value}" CACHE INTERNAL "*** Internal ***" FORCE)
+endfunction()
+
+function(update_cached_list name)
+    set(_tmp_list "${${name}}")
+    list(APPEND _tmp_list "${ARGN}")
+    list(REMOVE_DUPLICATES _tmp_list)
+    update_cached(${name} "${_tmp_list}")
+endfunction()
+
+update_cached(TK_INC_PATHS "")
+update_cached(TK_LINK_LIBRARIES "")
+update_cached(TK_COMPILE_DEFINITIONS "")
+update_cached(TK_COMPILE_OPTIONS "")
+
 if (HAVE_MMSG_HDR)
-    add_definitions(-DHAVE_MMSG_HDR)
+    update_cached_list(TK_COMPILE_DEFINITIONS HAVE_MMSG_HDR)
 endif ()
+
 if (HAVE_SENDMMSG_API)
-    add_definitions(-DHAVE_SENDMMSG_API)
+    update_cached_list(TK_COMPILE_DEFINITIONS HAVE_SENDMMSG_API)
 endif ()
+
 if (HAVE_RECVMMSG_API)
-    add_definitions(-DHAVE_RECVMMSG_API)
+    update_cached_list(TK_COMPILE_DEFINITIONS HAVE_RECVMMSG_API)
 endif ()
 
 # check the socket buffer size set by the upper cmake project, if it is set, use the setting of the upper cmake project, otherwise set it to 256K
@@ -28,133 +62,85 @@ if (DEFINED SOCKET_DEFAULT_BUF_SIZE)
     else ()
         message(STATUS "Socket default buffer size is set to ${SOCKET_DEFAULT_BUF_SIZE}")
     endif ()
-    add_definitions(-DSOCKET_DEFAULT_BUF_SIZE=${SOCKET_DEFAULT_BUF_SIZE})
+    update_cached_list(TK_COMPILE_DEFINITIONS SOCKET_DEFAULT_BUF_SIZE=${SOCKET_DEFAULT_BUF_SIZE})
 endif ()
-#加载自定义模块
-#Load custom modules
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-#设置库文件路径
-#Set the library file path
-set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
-#设置可执行程序路径
-#Set the executable program path
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
-#设置子目录
-#Set subdirectories
-set(SUB_DIR_LIST "Network" "Poller" "Thread" "Util")
+
+# 收集源码
+file(GLOB SRC_LIST
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*/*/*.cpp)
 
 if (WIN32)
-    list(APPEND SUB_DIR_LIST "win32")
-    #防止Windows.h包含Winsock.h
-    #Prevent Windows.h from including Winsock.h
-    add_definitions(-DWIN32_LEAN_AND_MEAN)
-    if (MSVC)
-        add_compile_options("/utf-8")
-    endif ()
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    if (MSVC)
+        update_cached_list(TK_COMPILE_OPTIONS "/utf-8")
+    endif ()
+    update_cached_list(TK_LINK_LIBRARIES WS2_32 Iphlpapi shlwapi)
+    #防止Windows.h包含Winsock.h
+    update_cached_list(TK_COMPILE_DEFINITIONS WIN32_LEAN_AND_MEAN MP4V2_NO_STDINT_DEFS _CRT_SECURE_NO_WARNINGS _WINSOCK_DEPRECATED_NO_WARNINGS)
 else ()
-    add_compile_options("-Wno-comment")
+    # 非Windows平台自带getopt api
+    list(FILTER SRC_LIST EXCLUDE REGEX "getopt.c$")
+    update_cached_list(TK_COMPILE_OPTIONS "-Wno-comment" "-Wno-deprecated-declarations" "-Wno-predefined-identifier-outside-function")
 endif ()
 
-#安装目录
-#Installation directory
-if (WIN32)
-    set(INSTALL_PATH_LIB $ENV{HOME}/${PROJECT_NAME}/lib)
-    set(INSTALL_PATH_INCLUDE $ENV{HOME}/${PROJECT_NAME}/include)
+if (NOT WIN32 OR NOT ENABLE_WEPOLL)
+    # 移除wepoll
+    list(FILTER SRC_LIST EXCLUDE REGEX "wepoll.c$")
+    list(FILTER SRC_LIST EXCLUDE REGEX "epoll.cpp$")
 else ()
-    set(INSTALL_PATH_LIB lib)
-    set(INSTALL_PATH_INCLUDE include)
+    update_cached_list(TK_COMPILE_DEFINITIONS HAS_EPOLL)
+    update_cached_list(TK_INC_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/win32/)
 endif ()
-
-foreach (SUB_DIR ${SUB_DIR_LIST})
-    #遍历源文件
-    #Traverse source file
-    aux_source_directory(src/${SUB_DIR} SRC_LIST)
-    #安装头文件至系统目录
-    #Install header file to system directory
-    install(DIRECTORY src/${SUB_DIR} DESTINATION ${INSTALL_PATH_INCLUDE} FILES_MATCHING PATTERN "*.h")
-endforeach ()
 
 #非苹果平台移除.mm类型的文件
-#Remove .mm type files from non-apple platforms
 if (NOT APPLE)
-    list(REMOVE_ITEM SRC_LIST "src/Network/Socket_ios.mm")
+    list(FILTER SRC_LIST EXCLUDE REGEX "Socket_ios.mm$")
 endif ()
-
-if (WIN32)
-    set(LINK_LIB_LIST WS2_32 Iphlpapi shlwapi)
-else ()
-    set(LINK_LIB_LIST)
-endif ()
-
-
-set(ENABLE_OPENSSL ON CACHE BOOL "enable openssl")
-set(ENABLE_MYSQL ON CACHE BOOL "enable mysql")
-set(ASAN_USE_DELETE OFF CACHE BOOL "use delele[] or free when asan enabled")
 
 #查找openssl是否安装
-#Find out if openssl is installed
-find_package(OpenSSL QUIET)
-if (OPENSSL_FOUND AND ENABLE_OPENSSL)
-    message(STATUS "找到openssl库:\"${OPENSSL_INCLUDE_DIR}\",ENABLE_OPENSSL宏已打开")
-    include_directories(${OPENSSL_INCLUDE_DIR})
-    add_definitions(-DENABLE_OPENSSL)
-    list(APPEND LINK_LIB_LIST ${OPENSSL_LIBRARIES})
+if (ENABLE_OPENSSL)
+    find_package(OpenSSL)
+    if (OPENSSL_FOUND)
+        update_cached_list(TK_INC_PATHS ${OPENSSL_INCLUDE_DIR})
+        update_cached_list(TK_LINK_LIBRARIES ${OPENSSL_LIBRARIES})
+        update_cached_list(TK_COMPILE_DEFINITIONS ENABLE_OPENSSL)
+    endif ()
 endif ()
 
 #查找mysql是否安装
-#Find out if mysql is installed
-find_package(MYSQL QUIET)
-if (MYSQL_FOUND AND ENABLE_MYSQL)
-    message(STATUS "找到mysqlclient库:\"${MYSQL_INCLUDE_DIR}\",ENABLE_MYSQL宏已打开")
-    include_directories(${MYSQL_INCLUDE_DIR})
-    include_directories(${MYSQL_INCLUDE_DIR}/mysql)
-    add_definitions(-DENABLE_MYSQL)
-    list(APPEND LINK_LIB_LIST ${MYSQL_LIBRARIES})
+if (ENABLE_MYSQL)
+    find_package(MYSQL)
+    if (MYSQL_FOUND)
+        update_cached_list(TK_INC_PATHS ${MYSQL_INCLUDE_DIR})
+        update_cached_list(TK_INC_PATHS ${MYSQL_INCLUDE_DIR}/mysql)
+        update_cached_list(TK_LINK_LIBRARIES ${MYSQL_LIBRARIES})
+        update_cached_list(TK_COMPILE_DEFINITIONS ENABLE_MYSQL)
+    endif ()
 endif ()
 
 #是否使用delete[]替代free，用于解决开启asan后在MacOS上的卡死问题
-#use delele[] or free when asan enabled
 if (ASAN_USE_DELETE)
-    add_definitions(-DASAN_USE_DELETE)
+    update_cached_list(TK_COMPILE_DEFINITIONS ASAN_USE_DELETE)
 endif ()
 
-#打印库文件
-#Print library files
-message(STATUS "将链接依赖库:${LINK_LIB_LIST}")
-#使能c++11
-#Enable c++11
-set(CMAKE_CXX_STANDARD 11)
+# 库依赖
+add_library(${PROJECT_NAME}_deps INTERFACE)
+target_link_libraries(${PROJECT_NAME}_deps INTERFACE ${TK_LINK_LIBRARIES})
 
-if (NOT WIN32)
-    add_compile_options(-Wno-deprecated-declarations)
-    add_compile_options(-Wno-predefined-identifier-outside-function)
-endif ()
-
-#编译动态库
-#Compile dynamic library
-if (NOT IOS AND NOT ANDROID AND NOT WIN32)
-    add_library(${PROJECT_NAME}_shared SHARED ${SRC_LIST})
-    target_include_directories(${PROJECT_NAME}_shared PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    target_link_libraries(${PROJECT_NAME}_shared ${LINK_LIB_LIST})
-    set_target_properties(${PROJECT_NAME}_shared PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
-    install(TARGETS ${PROJECT_NAME}_shared ARCHIVE DESTINATION ${INSTALL_PATH_LIB} LIBRARY DESTINATION ${INSTALL_PATH_LIB})
-endif ()
-
-#编译静态库
-#Compile static library
-add_library(${PROJECT_NAME}_static STATIC ${SRC_LIST})
+#编译库
+add_library(${PROJECT_NAME} ${SRC_LIST})
 #引用头文件路径
-#Reference header file path
-target_include_directories(${PROJECT_NAME}_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set_target_properties(${PROJECT_NAME}_static PROPERTIES OUTPUT_NAME "${PROJECT_NAME}")
-#安装静态库至系统目录
-#Install static library to system directory
-install(TARGETS ${PROJECT_NAME}_static ARCHIVE DESTINATION ${INSTALL_PATH_LIB})
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${TK_INC_PATHS})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${PROJECT_NAME}_deps)
+target_compile_definitions(${PROJECT_NAME} PUBLIC ${TK_COMPILE_DEFINITIONS})
+target_compile_options(${PROJECT_NAME} PUBLIC ${TK_COMPILE_OPTIONS})
+set_target_properties(${PROJECT_NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib
+                                                 ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
-
-#测试程序
-#Test program
-if (NOT IOS)
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    #本工程为root工程，则添加测试程序
     add_subdirectory(tests)
 endif ()
