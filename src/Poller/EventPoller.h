@@ -34,6 +34,16 @@
 #define HAS_KQUEUE
 #endif // __APPLE__
 
+#if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
+#if defined(_WIN32)
+using epoll_fd = void *;
+constexpr epoll_fd INVALID_EVENT_FD = nullptr;
+#else
+using epoll_fd = int;
+constexpr epoll_fd INVALID_EVENT_FD = -1;
+#endif
+#endif
+
 namespace toolkit {
 
 class EventPoller : public TaskExecutor, public AnyStorage, public std::enable_shared_from_this<EventPoller> {
@@ -309,7 +319,7 @@ private:
     // epoll和kqueue相关  [AUTO-TRANSLATED:84d2785e]
     // epoll和kqueue相关
     // epoll and kqueue related
-    int _event_fd = -1;
+    epoll_fd _event_fd = INVALID_EVENT_FD;
     std::unordered_map<int, std::shared_ptr<PollEventCB>> _event_map;
 #else
     // select相关  [AUTO-TRANSLATED:bf3e2edd]

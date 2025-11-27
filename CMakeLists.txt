@@ -89,7 +89,6 @@ endif ()
 if (NOT WIN32 OR NOT ENABLE_WEPOLL)
     # 移除wepoll
     list(FILTER SRC_LIST EXCLUDE REGEX "wepoll.c$")
-    list(FILTER SRC_LIST EXCLUDE REGEX "epoll.cpp$")
 else ()
     update_cached_list(TK_COMPILE_DEFINITIONS HAS_EPOLL)
     update_cached_list(TK_INC_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/win32/)

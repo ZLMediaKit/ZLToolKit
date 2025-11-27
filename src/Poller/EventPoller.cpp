@@ -41,12 +41,18 @@
                                 | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
                                 | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 #define create_event() epoll_create(EPOLL_SIZE)
+#if !defined(_WIN32)
+#define close_event(fd) close(fd)
+#else
+#define close_event(fd) epoll_close(fd)
+#endif
 #endif //HAS_EPOLL
 
 #if defined(HAS_KQUEUE)
 #include <sys/event.h>
 #define KEVENT_SIZE 1024
 #define create_event() kqueue()
+#define close_event(fd) close(fd)
 #endif // HAS_KQUEUE
 
 using namespace std;
@@ -71,11 +77,13 @@ void EventPoller::addEventPipe() {
 EventPoller::EventPoller(std::string name) {
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     _event_fd = create_event();
-    if (_event_fd == -1) {
+    if (_event_fd == INVALID_EVENT_FD) {
         throw runtime_error(StrPrinter << "Create event fd failed: " << get_uv_errmsg());
     }
+#if !defined(_WIN32)
     SockUtil::setCloExec(_event_fd);
-#endif //HAS_EPOLL
+#endif
+#endif
 
     _name = std::move(name);
     _logger = Logger::Instance().shared_from_this();
@@ -100,9 +108,9 @@ EventPoller::~EventPoller() {
     shutdown();
     
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
-    if (_event_fd != -1) {
-        close(_event_fd);
-        _event_fd = -1;
+    if (_event_fd != INVALID_EVENT_FD) {
+        close_event(_event_fd);
+        _event_fd = INVALID_EVENT_FD;
     }
 #endif
 
