@@ -26,8 +26,8 @@ using namespace std;
 namespace toolkit {
 
 template<>
-mINI_basic<string, variant> &mINI_basic<string, variant>::Instance(){
-    static mINI_basic<string, variant> instance;
+mINI_basic<variant> &mINI_basic<variant>::Instance(){
+    static mINI_basic<variant> instance;
     return instance;
 }
 
