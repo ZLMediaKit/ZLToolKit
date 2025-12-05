@@ -642,5 +642,9 @@ void EventPollerPool::enableCpuAffinity(bool enable) {
     s_enable_cpu_affinity = enable;
 }
 
+void EventPollerPool::releasePool() {
+    releaseAllEventPooler();
+}
+
 }  // namespace toolkit
 
