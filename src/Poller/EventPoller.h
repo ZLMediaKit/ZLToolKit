@@ -376,6 +376,8 @@ public:
      */
     static void enableCpuAffinity(bool enable);
 
+    void releasePool();
+
     /**
      * 获取第一个实例
      * @return
