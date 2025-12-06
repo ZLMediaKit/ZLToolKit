@@ -432,7 +432,8 @@ static atomic<uint64_t> s_currentMicrosecond_system(getCurrentMicrosecondOrigin(
 static atomic<uint64_t> s_currentMillisecond_system(getCurrentMicrosecondOrigin() / 1000);
 
 static inline bool initMillisecondThread() {
-    static std::thread s_thread([]() {
+    auto running = std::make_shared<bool>(true);
+    auto lam = [running]() {
         // 确该保线程退出前日志打印可用
         auto logger = Logger::Instance().shared_from_this();
         setThreadName("stamp thread");
@@ -440,7 +441,7 @@ static inline bool initMillisecondThread() {
         uint64_t last = getCurrentMicrosecondOrigin();
         uint64_t now;
         uint64_t microsecond = 0;
-        while (true) {
+        while (*running) {
             now = getCurrentMicrosecondOrigin();
             //记录系统时间戳，可回退  [AUTO-TRANSLATED:495a0114]
             //Record system timestamp, can be rolled back
@@ -464,9 +465,11 @@ static inline bool initMillisecondThread() {
             //Sleep for 0.5 ms
             usleep(500);
         }
-    });
-    static onceToken s_token([]() {
-        s_thread.detach();
+    };
+    static std::shared_ptr<std::thread> s_thread(new std::thread(lam), [running](std::thread *t) {
+        *running = false;
+        t->join();
+        delete t;
     });
     return true;
 }
