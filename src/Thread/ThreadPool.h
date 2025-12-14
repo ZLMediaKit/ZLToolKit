@@ -32,8 +32,8 @@ public:
     ThreadPool(int num = 1, Priority priority = PRIORITY_HIGHEST, bool auto_run = true, bool set_affinity = true,
                const std::string &pool_name = "thread pool") {
         _thread_num = num;
-        _on_setup = [pool_name, priority, set_affinity](int index) {
-            std::string name = pool_name + ' ' + std::to_string(index);
+        _on_setup = [pool_name, priority, set_affinity, num](int index) {
+            std::string name = num > 1 ? pool_name + ' ' + std::to_string(index) : pool_name;
             setPriority(priority);
             setThreadName(name.data());
             if (set_affinity) {
