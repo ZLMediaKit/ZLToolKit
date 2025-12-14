@@ -78,12 +78,16 @@ public:
         return ret;
     }
 
-    void async2(std::function<void(size_t index)> task, bool may_sync = true) {
+    void async2(std::function<void(size_t index)> task, bool may_sync = true, bool first = false) {
         if (may_sync && _thread_group.is_this_thread_in()) {
             task(0);
             return;
         }
-        _queue.push_task(std::move(task));
+        if (first) {
+            _queue.push_task_first(std::move(task));
+        } else {
+            _queue.push_task(std::move(task));
+        }
     }
 
     size_t size() {
