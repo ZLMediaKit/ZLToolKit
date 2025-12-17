@@ -412,7 +412,7 @@ public:
      * 从另外一个Socket克隆
      * 目的是一个socket可以被多个poller对象监听，提高性能或实现Socket归属线程的迁移
      * @param other 原始的socket对象
-     * @return 是否成功
+     * @return 是否成功, 析构后添加poller事件监听
      * Clone from another Socket
      * The purpose is to allow a socket to be listened to by multiple poller objects, improving performance or implementing socket migration between threads
      * @param other Original socket object
@@ -420,7 +420,7 @@ public:
      
      * [AUTO-TRANSLATED:b3669f71]
      */
-    bool cloneSocket(const Socket &other);
+    std::shared_ptr<void> cloneSocket(const Socket &other);
 
     /**
      * 切换poller线程，注意只能在onAccept之前调用

@@ -967,18 +967,27 @@ const EventPoller::Ptr &Socket::getPoller() const {
     return _poller;
 }
 
-bool Socket::cloneSocket(const Socket &other) {
+std::shared_ptr<void> Socket::cloneSocket(const Socket &other) {
     closeSock();
     SockNum::Ptr sock;
     {
         LOCK_GUARD(other._mtx_sock_fd);
         if (!other._sock_fd) {
             WarnL << "sockfd of src socket is null";
-            return false;
+            return nullptr;
         }
         sock = other._sock_fd->sockNum();
     }
-    return fromSock_l(sock);
+    setSock(sock);
+    std::weak_ptr<Socket> weak_self = shared_from_this();
+    // 0x01无实际意义，仅代表成功
+    return std::shared_ptr<void>(reinterpret_cast<void *>(0x01), [weak_self, sock](void *) {
+        if (auto strong_self = weak_self.lock()) {
+            if (!strong_self->attachEvent(sock)) {
+                WarnL << "attachEvent failed: " << sock->rawFd();
+            }
+        }
+    });
 }
 
 bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len, bool soft_bind) {
