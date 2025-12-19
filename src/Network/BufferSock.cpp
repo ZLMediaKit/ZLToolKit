@@ -614,7 +614,6 @@ public:
         , _batch_size(batch_size) {
         _buffers.resize(_batch_size);
         _addresses.resize(_batch_size);
-        _wsabufs.resize(_batch_size);
     }
 
     ssize_t recvFromSocket(int fd, ssize_t &count) override {
@@ -632,7 +631,7 @@ public:
             socklen_t len = sizeof(_addresses[i]);
 
             flags = 0;
-            int ret = WSARecvFrom(fd, &_wsabufs[i], 1, &bytes, &flags, (struct sockaddr *)&_addresses[i], &len, NULL, NULL);
+            int ret = recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
 
             if (ret == 0) {
                 nread = bytes;
@@ -675,7 +674,6 @@ private:
         auto buf = BufferRaw::create();
         buf->setCapacity(_size);
         _buffers[index] = std::move(buf);
-        _wsabufs[index] = WSABUF { static_cast<ULONG>(_size), _buffers[index]->data() };
     }
 
     size_t checkIndex(size_t index) {
@@ -688,7 +686,6 @@ private:
 
     std::vector<Buffer::Ptr> _buffers;
     std::vector<struct sockaddr_storage> _addresses;
-    SocketBufVec _wsabufs;
 };
 
 #endif
