@@ -618,7 +618,6 @@ public:
     }
 
     ssize_t recvFromSocket(int fd, ssize_t &count) override {
-        DWORD bytes = 0, flags = 0;
         int nread = 0;
         count = 0;
         for (size_t i = 0; i < _batch_size; ++i) {
@@ -629,17 +628,11 @@ public:
 
         for (size_t i = 0; i < _batch_size; ++i) {
             socklen_t len = sizeof(_addresses[i]);
-
-            flags = 0;
-            int ret = recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
+            nread = recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
            
-            if (ret == 0) {
-                nread = bytes;
-                // 安全处理字符串结尾
-                if (_size > static_cast<size_t>(nread)) {
-                    _buffers[i]->data()[nread] = '\0';
-                    std::static_pointer_cast<BufferRaw>(_buffers[i])->setSize(nread);
-                }
+            if (nread > 0) {
+                _buffers[i]->data()[nread] = '\0';
+                std::static_pointer_cast<BufferRaw>(_buffers[i])->setSize(nread);
                 count++;
             } else {
                 int error = get_uv_error(true);
