@@ -341,7 +341,7 @@ inline void EventPoller::onPipeEvent(bool flush) {
 }
 
 SocketRecvBuffer::Ptr EventPoller::getSharedBuffer(bool is_udp) {
-#if !defined(__linux) && !defined(__linux__) !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(__linux) && !defined(__linux__) && !defined(_WIN32) && !defined(__APPLE__)
     // 非Linux平台下，tcp和udp共享recvfrom方案，使用同一个buffer  [AUTO-TRANSLATED:2d2ee7bf]
     //On non-Linux platforms, tcp and udp share the recvfrom scheme, using the same buffer
     is_udp = 0;
