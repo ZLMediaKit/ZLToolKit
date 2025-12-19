@@ -615,7 +615,6 @@ public:
         _buffers.resize(_batch_size);
         _addresses.resize(_batch_size);
         _wsabufs.resize(_batch_size);
-        _ready_count = 0;
     }
 
     ssize_t recvFromSocket(int fd, ssize_t &count) override {
@@ -623,14 +622,12 @@ public:
         int nread = 0;
         count = 0;
 
-        // 确保所有buffer已分配
         for (size_t i = 0; i < _batch_size; ++i) {
             if (!_buffers[i]) {
                 allocBuffer(i);
             }
         }
 
-        // 循环接收，直到缓冲区为空或达到batch_size
         for (size_t i = 0; i < _batch_size; ++i) {
             socklen_t len = sizeof(_addresses[i]);
 
@@ -682,14 +679,12 @@ private:
     }
 
     size_t checkIndex(size_t index) {
-        // 简单边界检查，生产环境应抛异常或断言
         return index < _batch_size ? index : 0;
     }
 
 private:
     size_t _size;
     size_t _batch_size;
-    size_t _ready_count;
 
     std::vector<Buffer::Ptr> _buffers;
     std::vector<struct sockaddr_storage> _addresses;
