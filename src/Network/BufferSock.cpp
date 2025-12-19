@@ -128,11 +128,10 @@ using SocketBuf = WSABUF;
 #else
 using SocketBuf = iovec;
 #endif
+using SocketBufVec = std::vector<SocketBuf>;
 
 class BufferSendMsg final : public BufferList, public BufferCallBack {
 public:
-    using SocketBufVec = std::vector<SocketBuf>;
-
     BufferSendMsg(List<std::pair<Buffer::Ptr, bool> > list, SendResult cb);
     ~BufferSendMsg() override = default;
 
@@ -607,6 +606,98 @@ private:
     struct sockaddr_storage _address;
 };
 
+#if (_WIN32)
+class SocketWSARecvFromBuffers final : public SocketRecvBuffer {
+public:
+    explicit SocketWSARecvFromBuffers(size_t size, size_t batch_size = 32)
+        : _size(size)
+        , _batch_size(batch_size) {
+        _buffers.resize(_batch_size);
+        _addresses.resize(_batch_size);
+        _wsabufs.resize(_batch_size);
+        _ready_count = 0;
+    }
+
+    ssize_t recvFromSocket(int fd, ssize_t &count) override {
+        DWORD bytes = 0, flags = 0;
+        int nread = 0;
+        count = 0;
+
+        // 确保所有buffer已分配
+        for (size_t i = 0; i < _batch_size; ++i) {
+            if (!_buffers[i]) {
+                allocBuffer(i);
+            }
+        }
+
+        // 循环接收，直到缓冲区为空或达到batch_size
+        for (size_t i = 0; i < _batch_size; ++i) {
+            socklen_t len = sizeof(_addresses[i]);
+
+            flags = 0;
+            int ret = WSARecvFrom(fd, &_wsabufs[i], 1, &bytes, &flags, (struct sockaddr *)&_addresses[i], &len, NULL, NULL);
+
+            if (ret == 0) {
+                nread = bytes;
+                // 安全处理字符串结尾
+                if (_size > static_cast<size_t>(nread)) {
+                    _buffers[i]->data()[nread] = '\0';
+                    std::static_pointer_cast<BufferRaw>(_buffers[i])->setSize(nread);
+                }
+                count++;
+            } else {
+                int error = WSAGetLastError();
+                if (error == WSAEWOULDBLOCK) {
+                    // 缓冲区已空，非阻塞模式下正常退出
+                    break;
+                } else if (error == WSAECONNRESET) {
+                    // === Windows UDP 特有坑点优化 ===
+                    // 如果之前的 sendto 失败（例如对方端口不可达），
+                    // Windows 会在下一次 recvfrom 时返回 WSAECONNRESET (ICMP Port Unreachable)。
+                    // 对于 UDP 服务器，这不应该被视为致命错误，应该忽略并继续接收。
+                    // 某些逻辑可能需要重置 socket 状态，或者简单地重试
+                    // 这里选择重试，就像什么都没发生一样
+                    continue;
+                } else if (error != WSAEINTR) {
+                    // 其他错误记录日志
+                    break;
+                }
+                // WSAEINTR继续重试
+            }
+        }
+
+        return count > 0 ? count : -1;
+    }
+
+    Buffer::Ptr &getBuffer(size_t index) override { return _buffers[checkIndex(index)]; }
+
+    struct sockaddr_storage &getAddress(size_t index) override { return _addresses[checkIndex(index)]; }
+
+private:
+    void allocBuffer(size_t index) {
+        auto buf = BufferRaw::create();
+        buf->setCapacity(_size);
+        _buffers[index] = std::move(buf);
+        _wsabufs[index] = WSABUF { static_cast<ULONG>(_size), _buffers[index]->data() };
+    }
+
+    size_t checkIndex(size_t index) {
+        // 简单边界检查，生产环境应抛异常或断言
+        return index < _batch_size ? index : 0;
+    }
+
+private:
+    size_t _size;
+    size_t _batch_size;
+    size_t _ready_count;
+
+    std::vector<Buffer::Ptr> _buffers;
+    std::vector<struct sockaddr_storage> _addresses;
+    SocketBufVec _wsabufs;
+};
+
+#endif
+
 static constexpr auto kPacketCount = 32;
 static constexpr auto kBufferCapacity = 4 * 1024u;
 
@@ -616,6 +707,12 @@ SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
         return std::make_shared<SocketRecvmmsgBuffer>(kPacketCount, kBufferCapacity);
     }
 #endif
+#if (_WIN32)
+    if (is_udp) {
+        return std::make_shared<SocketWSARecvFromBuffers>(kPacketCount * kBufferCapacity);
+    }
+#endif
+
     return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
 }
 
