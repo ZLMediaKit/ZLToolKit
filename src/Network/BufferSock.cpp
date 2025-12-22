@@ -620,58 +620,67 @@ public:
     ssize_t recvFromSocket(int fd, ssize_t &count) override {
         int nread = 0;
         count = 0;
+        int retry_count = 0;
+        static const int MAX_RETRIES = 5;
+
         for (size_t i = 0; i < _batch_size; ++i) {
             if (!_buffers[i]) {
                 allocBuffer(i);
             }
         }
 
+
         for (size_t i = 0; i < _batch_size; ++i) {
             socklen_t len = sizeof(_addresses[i]);
-            nread = recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
-           
+            nread = ::recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
+
             if (nread > 0) {
                 _buffers[i]->data()[nread] = '\0';
                 std::static_pointer_cast<BufferRaw>(_buffers[i])->setSize(nread);
                 count++;
+                // 成功后必须重置重试计数器，否则下一个包出错时计数器是脏的
+                retry_count = 0;
             } else {
                 int error = get_uv_error(true);
-
-// 1. 处理非阻塞模式下的 "无数据" (EAGAIN/EWOULDBLOCK)
+             
+                // 场景 A: 非阻塞模式下无数据 (EAGAIN / EWOULDBLOCK)
 #if defined(_WIN32)
                 bool is_would_block = (error == WSAEWOULDBLOCK);
 #else
                 bool is_would_block = (error == EAGAIN || error == EWOULDBLOCK);
 #endif
-
                 if (is_would_block) {
-                    break; // 数据读完了，正常退出循环
+                    break; // 正常结束，收工回家
                 }
 
-// 2. 处理中断 (EINTR)
+                // 需要重试的错误 (EINTR / Windows UDP Reset)
+                bool need_retry = false;
+
 #if defined(_WIN32)
-                bool is_intr = (error == WSAEINTR);
+                // Windows: 中断 或 端口不可达(ICMP)
+                if (error == WSAEINTR || error == WSAECONNRESET) {
+                    need_retry = true;
+                }
 #else
-                bool is_intr = (error == EINTR);
-#endif
-
-                if (is_intr) {
-                    i--; 
-                    continue;
-                }
-
-#if defined(_WIN32)
-                if (error == WSAECONNRESET) {
-                    // 处理 Windows 特有的 "ICMP Port Unreachable" 问题
-                    // 如果之前的 sendto 失败（例如对方端口不可达），
-                    // Windows 会在下一次 recvfrom 时返回 WSAECONNRESET (ICMP Port Unreachable)。
-                    // 对于 UDP 服务器，这不应该被视为致命错误，应该忽略并继续接收。
-                    // 某些逻辑可能需要重置 socket 状态，或者简单地重试
-                    i--; 
-                    continue;
+                // macOS: 仅中断
+                if (error == EINTR) {
+                    need_retry = true;
                 }
 #endif
 
+                if (need_retry) {
+                    if (retry_count < MAX_RETRIES) {
+                        retry_count++;
+                        i--; // 【关键】后退一步，尝试重新填充当前的 buffer[i]
+                        continue;
+                    } else {
+                        // 重试次数过多，为了防止死循环或长时间阻塞线程，
+                        // 我们必须【停止整个接收过程】，而不是跳过这个 Buffer。
+                        // 因为跳过会导致 buffer 数组中间出现空洞，造成数据错乱。
+                        TraceL << "Socket recv error too many retries, error =" + error;
+                        break;
+                    }
+                }
                 break;
             }
         }
