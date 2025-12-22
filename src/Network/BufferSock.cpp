@@ -567,57 +567,16 @@ private:
 };
 #endif
 
-class SocketRecvFromBuffer : public SocketRecvBuffer {
+class SocketRecvFromBuffer final : public SocketRecvBuffer {
 public:
-    SocketRecvFromBuffer(size_t size): _size(size) {}
-    
-    ssize_t recvFromSocket(int fd, ssize_t &count) override {
-        ssize_t nread;
-        socklen_t len = sizeof(_address);
-        if (!_buffer) {
-            allocBuffer();
-        }
-
-        do {
-            nread = recvfrom(fd, _buffer->data(), _buffer->getCapacity() - 1, 0, (struct sockaddr *)&_address, &len);
-        } while (-1 == nread && UV_EINTR == get_uv_error(true));
-
-        if (nread > 0) {
-            count = 1;
-            _buffer->data()[nread] = '\0';
-            std::static_pointer_cast<BufferRaw>(_buffer)->setSize(nread);
-        }
-        return nread;
-    }
-
-    Buffer::Ptr &getBuffer(size_t index) override { return _buffer; }
-
-    struct sockaddr_storage &getAddress(size_t index) override { return _address; }
-
-private:
-    void allocBuffer() {
-        auto buf = BufferRaw::create();
-        buf->setCapacity(_size);
-        _buffer = std::move(buf);
-    }
-
-private:
-    size_t _size;
-    Buffer::Ptr _buffer;
-    struct sockaddr_storage _address;
-};
-
-#if (_WIN32) || defined(__APPLE__)
-class SocketWinAppleRecvFromBuffers final : public SocketRecvBuffer {
-public:
-    explicit SocketWinAppleRecvFromBuffers(size_t size, size_t batch_size = 32)
+    explicit SocketRecvFromBuffer(size_t size, size_t batch_size = 32)
         : _size(size)
         , _batch_size(batch_size) {
         _buffers.resize(_batch_size);
         _addresses.resize(_batch_size);
     }
 
-    ssize_t recvFromSocket(int fd, ssize_t &count) override {
+     ssize_t recvFromSocket(int fd, ssize_t &count) override {
         int nread = 0;
         count = 0;
         int retry_count = 0;
@@ -629,7 +588,6 @@ public:
             }
         }
 
-
         for (size_t i = 0; i < _batch_size; ++i) {
             socklen_t len = sizeof(_addresses[i]);
             nread = ::recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
@@ -638,32 +596,23 @@ public:
                 _buffers[i]->data()[nread] = '\0';
                 std::static_pointer_cast<BufferRaw>(_buffers[i])->setSize(nread);
                 count++;
-                // 成功后必须重置重试计数器，否则下一个包出错时计数器是脏的
                 retry_count = 0;
             } else {
                 int error = get_uv_error(true);
-             
-                // 场景 A: 非阻塞模式下无数据 (EAGAIN / EWOULDBLOCK)
-#if defined(_WIN32)
-                bool is_would_block = (error == WSAEWOULDBLOCK);
-#else
-                bool is_would_block = (error == EAGAIN || error == EWOULDBLOCK);
-#endif
-                if (is_would_block) {
-                    break; // 正常结束，收工回家
+
+                if (error == UV_EAGAIN) {
+                    break;
                 }
 
-                // 需要重试的错误 (EINTR / Windows UDP Reset)
                 bool need_retry = false;
-
-#if defined(_WIN32)
-                // Windows: 中断 或 端口不可达(ICMP)
-                if (error == WSAEINTR || error == WSAECONNRESET) {
+                if (error == UV_EINTR) {
                     need_retry = true;
                 }
-#else
-                // macOS: 仅中断
-                if (error == EINTR) {
+
+                
+#if defined(_WIN32)
+                // 处理 Windows UDP 的特殊 Reset 错误 (ICMP不可达)
+                if (error == UV_ECONNRESET) {
                     need_retry = true;
                 }
 #endif
@@ -671,20 +620,20 @@ public:
                 if (need_retry) {
                     if (retry_count < MAX_RETRIES) {
                         retry_count++;
-                        i--; // 【关键】后退一步，尝试重新填充当前的 buffer[i]
+                        i--; // 原地重试
                         continue;
                     } else {
-                        // 重试次数过多，为了防止死循环或长时间阻塞线程，
-                        // 我们必须【停止整个接收过程】，而不是跳过这个 Buffer。
-                        // 因为跳过会导致 buffer 数组中间出现空洞，造成数据错乱。
-                        TraceL << "Socket recv error too many retries, error =" + error;
+                        TraceL << "Socket recv error too many retries, error = " << error;
+                        // 重试耗尽，必须 break，防止死循环和数据空洞
                         break;
                     }
                 }
+
+                // 如果不是 EAGAIN 也不是需要重试的错误，说明 socket 出大问题了，必须停止
                 break;
             }
-        }
-
+        } //end for _batch_size
+        
         return count > 0 ? count : -1;
     }
 
@@ -699,7 +648,7 @@ private:
         _buffers[index] = std::move(buf);
     }
 
-    size_t checkIndex(size_t index) {
+    size_t checkIndex(size_t index) const {
         return index < _batch_size ? index : 0;
     }
 
@@ -710,7 +659,6 @@ private:
     std::vector<Buffer::Ptr> _buffers;
     std::vector<struct sockaddr_storage> _addresses;
 };
-#endif
 
 static constexpr auto kPacketCount = 32;
 static constexpr auto kBufferCapacity = 4 * 1024u;
@@ -721,14 +669,12 @@ SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
         return std::make_shared<SocketRecvmmsgBuffer>(kPacketCount, kBufferCapacity);
     }
 #endif
-#if (_WIN32) || defined(__APPLE__)
-    if (is_udp) {
-        return std::make_shared<SocketWinAppleRecvFromBuffers>(kPacketCount * kBufferCapacity);
-    }
-#endif
 
-    // tcp
-    return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
+    if (is_udp) {
+        return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
+    }
+
+    return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity, 1);
 }
 
 } //toolkit
