@@ -577,10 +577,10 @@ public:
     }
 
      ssize_t recvFromSocket(int fd, ssize_t &count) override {
-        int nread = 0;
-        count = 0;
-        int retry_count = 0;
+        ssize_t totalread = 0;
+        int nread = 0, retry_count = 0;
         static const int MAX_RETRIES = 5;
+        count = 0;
 
         for (size_t i = 0; i < _batch_size; ++i) {
             if (!_buffers[i]) {
@@ -591,12 +591,12 @@ public:
         for (size_t i = 0; i < _batch_size; ++i) {
             socklen_t len = sizeof(_addresses[i]);
             nread = ::recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
-
             if (nread > 0) {
                 _buffers[i]->data()[nread] = '\0';
                 std::static_pointer_cast<BufferRaw>(_buffers[i])->setSize(nread);
                 count++;
                 retry_count = 0;
+                totalread += nread;
             } else {
                 int error = get_uv_error(true);
 
@@ -612,6 +612,7 @@ public:
                 
 #if defined(_WIN32)
                 // 处理 Windows UDP 的特殊 Reset 错误 (ICMP不可达)
+                // 或者通过创建udp时候设置 WSAIoctl 的 SIO_UDP_CONNRESET 调用禁用此行为
                 if (error == UV_ECONNRESET) {
                     need_retry = true;
                 }
@@ -634,7 +635,7 @@ public:
             }
         } //end for _batch_size
         
-        return count > 0 ? count : -1;
+        return totalread >= 0 ? totalread : -1;
     }
 
     Buffer::Ptr &getBuffer(size_t index) override { return _buffers[checkIndex(index)]; }
@@ -670,11 +671,7 @@ SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
     }
 #endif
 
-    if (is_udp) {
-        return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
-    }
-
-    return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity, 1);
+    return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity, is_udp ? 32 : 1);
 }
 
 } //toolkit
