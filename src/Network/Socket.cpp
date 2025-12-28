@@ -327,11 +327,12 @@ ssize_t Socket::onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &bu
             return ret;
         }
 
-        ret += nread;
         if (_enable_speed) {
             // 更新接收速率  [AUTO-TRANSLATED:1e24774c]
-            //Update receive rate
-            _recv_speed += nread;
+            // Update receive rate
+            for (ssize_t i = 0; i < count; ++i) {
+                _recv_speed += buffer->getBuffer(i)->size();
+            }
         }
 
         auto &buf = buffer->getBuffer(0);
