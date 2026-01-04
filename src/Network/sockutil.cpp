@@ -23,6 +23,11 @@
 #include <ifaddrs.h>
 #include <netinet/tcp.h>
 #endif
+
+#if defined(_WIN32)
+#include <mstcpip.h> 
+#endif
+
 using namespace std;
 
 namespace toolkit {
@@ -816,6 +821,15 @@ int SockUtil::bindUdpSock(const uint16_t port, const char *local_ip, bool enable
         WarnL << "Create socket failed: " << get_uv_errmsg(true);
         return -1;
     }
+
+#if defined(_WIN32)
+// 解决 Windows UDP 接收 ECONNRESET 错误 (WSAConnReset)
+    auto SIO_UDP_CONNRESET = _WSAIOW(IOC_VENDOR, 12);
+    BOOL bEnalbeConnRestError = FALSE;
+    DWORD dwBytesReturned = 0;
+    auto ret = WSAIoctl(fd, SIO_UDP_CONNRESET, &bEnalbeConnRestError, sizeof(bEnalbeConnRestError), NULL, 0, &dwBytesReturned, NULL, NULL);
+#endif
+
     if (enable_reuse) {
         setReuseable(fd);
     }

@@ -578,8 +578,7 @@ public:
 
     ssize_t recvFromSocket(int fd, ssize_t &count) override {
         ssize_t totalread = 0;
-        int nread = 0, retry_count = 0;
-        static const int MAX_RETRIES = 5;
+        int nread = 0;
         count = 0;
 
         for (size_t i = 0; i < _batch_size; ++i) {
@@ -588,53 +587,32 @@ public:
             }
 
             socklen_t len = sizeof(_addresses[i]);
-            nread = ::recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
+
+            do {
+                nread = ::recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
+            } while (nread < 0 && get_uv_error(true) == UV_EINTR);
 
             if (nread > 0) {
                 _buffers[i]->data()[nread] = '\0';
                 std::static_pointer_cast<BufferRaw>(_buffers[i])->setSize(nread);
                 count++;
-                retry_count = 0;
                 totalread += nread;
             } else if (nread == 0) {
-                 break;
+                break;
             } else {
-                // nread < 0
                 int error = get_uv_error(true);
 
                 if (error == UV_EAGAIN) {
-                    break;
+                    break; 
                 }
 
-                bool need_retry = false;
-                if (error == UV_EINTR) {
-                    need_retry = true;
-                }
 
-#if defined(_WIN32)
-                // 处理 Windows UDP 的特殊 Reset 错误 (ICMP不可达)
-                // 或者通过创建udp时候设置 WSAIoctl 的 SIO_UDP_CONNRESET 调用禁用此行为
-                if (error == UV_ECONNRESET) {
-                    need_retry = true;
-                }
-#endif
-
-                if (need_retry) {
-                    if (retry_count < MAX_RETRIES) {
-                        retry_count++;
-                        i--; // 原地重试
-                        continue;
-                    } else {
-                        TraceL << "Socket recv error too many retries, error = " << error;
-                        break;
-                    }
-                }
-
-                break;
+                TraceL << "Socket recv error: " << error;
+                break; 
             }
         }
 
-        return totalread > 0 ? totalread : -1;
+        return count > 0 ? totalread : -1;
     }
     Buffer::Ptr &getBuffer(size_t index) override { return _buffers[index]; }
 
