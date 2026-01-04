@@ -635,7 +635,7 @@ public:
             }
         } //end for _batch_size
         
-        return totalread >= 0 ? totalread : -1;
+        return totalread > 0 ? totalread : -1;
     }
 
     Buffer::Ptr &getBuffer(size_t index) override { return _buffers[checkIndex(index)]; }
