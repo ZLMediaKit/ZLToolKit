@@ -590,7 +590,7 @@ public:
 
             do {
                 nread = ::recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
-            } while (nread < 0 && get_uv_error(true) == UV_EINTR);
+            } while (-1 == nread && UV_EINTR == get_uv_error(true));
 
             if (nread > 0) {
                 _buffers[i]->data()[nread] = '\0';
