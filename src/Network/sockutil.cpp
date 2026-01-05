@@ -823,11 +823,18 @@ int SockUtil::bindUdpSock(const uint16_t port, const char *local_ip, bool enable
     }
 
 #if defined(_WIN32)
-// 解决 Windows UDP 接收 ECONNRESET 错误 (WSAConnReset)
-    auto SIO_UDP_CONNRESET = _WSAIOW(IOC_VENDOR, 12);
-    BOOL bEnalbeConnRestError = FALSE;
+    // 解决 Windows UDP 接收 ECONNRESET 错误 (WSAConnReset)
+    // 此行为通常发生在之前发出的包被对端拒绝(ICMP Port Unreachable)时
+#ifndef SIO_UDP_CONNRESET
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
+#endif
+
+    BOOL bNewBehavior = FALSE; // FALSE = 禁用此错误报告行为
     DWORD dwBytesReturned = 0;
-    auto ret = WSAIoctl(fd, SIO_UDP_CONNRESET, &bEnalbeConnRestError, sizeof(bEnalbeConnRestError), NULL, 0, &dwBytesReturned, NULL, NULL);
+    if (::WSAIoctl(fd, SIO_UDP_CONNRESET, &bNewBehavior, sizeof(bNewBehavior), NULL, 0, &dwBytesReturned, NULL, NULL) == SOCKET_ERROR) {
+        // 通常不会失败，除非 socket 无效或系统过旧。记录一下警告即可，不阻断流程。
+        WarnL << "WSAIoctl(SIO_UDP_CONNRESET) failed: " << get_uv_errmsg(true);
+    }
 #endif
 
     if (enable_reuse) {
