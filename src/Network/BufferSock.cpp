@@ -580,6 +580,7 @@ public:
         ssize_t totalread = 0;
         int nread = 0;
         count = 0;
+        int error = 0;
 
         for (size_t i = 0; i < _batch_size; ++i) {
             if (!_buffers[i]) {
@@ -589,8 +590,8 @@ public:
             socklen_t len = sizeof(_addresses[i]);
 
             do {
-                nread = ::recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
-            } while (-1 == nread && UV_EINTR == get_uv_error(true));
+                nread = recvfrom(fd, _buffers[i]->data(), _buffers[i]->getCapacity() - 1, 0, (struct sockaddr *)&_addresses[i], &len);
+            } while (-1 == nread && (error = get_uv_error(true)) == UV_EINTR);
 
             if (nread > 0) {
                 _buffers[i]->data()[nread] = '\0';
@@ -599,13 +600,10 @@ public:
                 totalread += nread;
             } else if (nread == 0) {
                 break;
-            } else {
-                int error = get_uv_error(true);
-
+            } else {               
                 if (error == UV_EAGAIN) {
                     break; 
                 }
-
 
                 TraceL << "Socket recv error: " << error;
                 break; 
@@ -614,6 +612,7 @@ public:
 
         return count > 0 ? totalread : -1;
     }
+
     Buffer::Ptr &getBuffer(size_t index) override { return _buffers[index]; }
 
     struct sockaddr_storage &getAddress(size_t index) override { return _addresses[index]; }
