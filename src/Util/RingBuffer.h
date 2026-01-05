@@ -179,7 +179,7 @@ public:
         if (++_size > _max_size) {
             // GOP缓存溢出  [AUTO-TRANSLATED:1cd0ddc4]
             //GOP cache overflow
-            while (_data_cache.size() > 1) {
+            while ((_size > _max_size) && (_data_cache.size() > 1)) {
                 //先尝试清除老的GOP缓存  [AUTO-TRANSLATED:a01422a1]
                 //Try to clear the old GOP cache first
                 popFrontGop();
