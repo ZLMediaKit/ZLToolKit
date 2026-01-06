@@ -610,7 +610,7 @@ public:
             }
         }
 
-        return count > 0 ? totalread : -1;
+        return count > 0 ? totalread : nread;
     }
 
     Buffer::Ptr &getBuffer(size_t index) override { return _buffers[index]; }
