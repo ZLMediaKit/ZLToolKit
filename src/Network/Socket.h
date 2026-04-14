@@ -46,6 +46,10 @@ namespace toolkit {
 //默认的socket flags:不触发SIGPIPE,非阻塞发送  [AUTO-TRANSLATED:fefc4946]
 //Default socket flags: do not trigger SIGPIPE, non-blocking send
 #define SOCKET_DEFAULT_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
+// Backward compatibility alias for the legacy misspelled macro name.
+#ifndef SOCKET_DEFAULE_FLAGS
+#define SOCKET_DEFAULE_FLAGS SOCKET_DEFAULT_FLAGS
+#endif
     
 //发送超时时间，如果在规定时间内一直没有发送数据成功，那么将触发onErr事件  [AUTO-TRANSLATED:9c5d8d87]
 //Send timeout time, if no data is sent successfully within the specified time, the onErr event will be triggered
