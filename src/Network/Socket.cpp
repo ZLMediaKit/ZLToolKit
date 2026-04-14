@@ -276,14 +276,18 @@ bool Socket::attachEvent(const SockNum::Ptr &sock) {
 
     // tcp客户端或udp  [AUTO-TRANSLATED:00c16e7f]
     //TCP client or UDP
-    auto read_buffer = _poller->getSharedBuffer(sock->type() == SockNum::Sock_UDP);
-    auto result = _poller->addEvent(sock->rawFd(), EventPoller::Event_Read | EventPoller::Event_Error | EventPoller::Event_Write, [weak_self, sock, read_buffer](int event) {
+    auto result = _poller->addEvent(sock->rawFd(), EventPoller::Event_Read | EventPoller::Event_Error | EventPoller::Event_Write, [weak_self, sock](int event) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
         }
 
         if (event & EventPoller::Event_Read) {
+            // Some transports install a socket-specific recv buffer during
+            // session setup after attachEvent() has already been registered, so
+            // the read path must resolve the current buffer here instead of
+            // capturing the poller's shared buffer in the lambda.
+            auto read_buffer = strong_self->getReadBuffer(sock->type() == SockNum::Sock_UDP);
             strong_self->onRead(sock, read_buffer);
         }
         if (event & EventPoller::Event_Write) {
@@ -321,7 +325,9 @@ ssize_t Socket::onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &bu
                 if (sock->type() == SockNum::Sock_TCP) {
                     emitErr(toSockException(err));
                 } else {
-                    WarnL << "Recv err on udp socket[" << sock->rawFd() << "]: " << uv_strerror(err);
+                    if (!(err == UV_ECONNREFUSED && _ignore_udp_conn_refused.load(std::memory_order_acquire))) {
+                        WarnL << "Recv err on udp socket[" << sock->rawFd() << "]: " << uv_strerror(err);
+                    }
                 }
             }
             return ret;
@@ -1019,6 +1025,25 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len, b
 
 void Socket::setSendFlags(int flags) {
     _sock_flags = flags;
+}
+
+void Socket::setReadBuffer(const SocketRecvBuffer::Ptr &buffer) {
+    _read_buffer = buffer;
+    _has_custom_read_buffer.store(static_cast<bool>(_read_buffer), std::memory_order_release);
+}
+
+void Socket::setIgnoreUdpConnRefused(bool ignore) {
+    _ignore_udp_conn_refused.store(ignore, std::memory_order_release);
+}
+
+SocketRecvBuffer::Ptr Socket::getReadBuffer(bool is_udp) {
+    // Most sockets keep using the poller's shared recv buffer. Custom buffers
+    // are installed during socket setup, so the hot path only needs a cheap
+    // flag check here.
+    if (!_has_custom_read_buffer.load(std::memory_order_acquire)) {
+        return _poller->getSharedBuffer(is_udp);
+    }
+    return _read_buffer;
 }
 
 ///////////////SockSender///////////////////

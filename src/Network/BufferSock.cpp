@@ -611,12 +611,16 @@ static constexpr auto kPacketCount = 32;
 static constexpr auto kBufferCapacity = 4 * 1024u;
 
 SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
+    return create(is_udp, kPacketCount, kBufferCapacity);
+}
+
+SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp, size_t packet_count, size_t buffer_capacity) {
 #if defined(__linux) || defined(__linux__)
     if (is_udp) {
-        return std::make_shared<SocketRecvmmsgBuffer>(kPacketCount, kBufferCapacity);
+        return std::make_shared<SocketRecvmmsgBuffer>(packet_count, buffer_capacity);
     }
 #endif
-    return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
+    return std::make_shared<SocketRecvFromBuffer>(packet_count * buffer_capacity);
 }
 
 } //toolkit
