@@ -9,6 +9,7 @@
  */
 
 #include <assert.h>
+#include <limits>
 #include "BufferSock.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
@@ -622,7 +623,7 @@ SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp, size_t packet_count,
     auto use_default = false;
     if (packet_count < 1 || buffer_capacity < 2) {
         use_default = true;
-    } else if (packet_count > SIZE_MAX / buffer_capacity) {
+    } else if (packet_count > std::numeric_limits<size_t>::max() / buffer_capacity) {
         use_default = true;
     } else if (packet_count * buffer_capacity > kMaxTotalBufferBytes) {
         use_default = true;
