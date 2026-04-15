@@ -859,6 +859,7 @@ private:
     // This must be configured before the socket fd is created or any IO
     // callbacks are attached.
     SocketRecvBuffer::Ptr _read_buffer;
+    bool _udp_recv_buffer_frozen = false;
     std::atomic<bool> _ignore_udp_conn_refused{false};
 
     // 链接缓存地址,防止tcp reset 导致无法获取对端的地址  [AUTO-TRANSLATED:f8847463]
