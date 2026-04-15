@@ -620,7 +620,9 @@ SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp, size_t packet_count,
     buffer_capacity = buffer_capacity ? buffer_capacity : kBufferCapacity;
 
     auto use_default = false;
-    if (packet_count > SIZE_MAX / buffer_capacity) {
+    if (packet_count < 1 || buffer_capacity < 2) {
+        use_default = true;
+    } else if (packet_count > SIZE_MAX / buffer_capacity) {
         use_default = true;
     } else if (packet_count * buffer_capacity > kMaxTotalBufferBytes) {
         use_default = true;

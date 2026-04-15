@@ -1032,7 +1032,6 @@ bool Socket::setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer) {
     // requirement here is "before fd creation", not "already on poller
     // thread". The customization itself is only honored for UDP sockets.
     LOCK_GUARD(_mtx_sock_fd);
-    assert(!_sock_fd);
     if (_sock_fd) {
         WarnL << "setUdpRecvBuffer must be called before the socket fd is created";
         return false;

@@ -662,6 +662,17 @@ public:
      * Replace the UDP recv buffer before the socket fd is created/attached.
      * This is intended for setup-time customization of special UDP transports
      * and must not be used as a runtime reconfiguration hook.
+     *
+     * IMPORTANT: custom SocketRecvBuffer implementations must remain
+     * compatible with the batched UDP receive path used by Socket::onRead().
+     * For the active receive batch, both &buffer->getBuffer(0) and
+     * &buffer->getAddress(0) are treated as pointers to contiguous arrays
+     * that can be indexed up to count - 1, and the referenced storage must
+     * remain valid for the duration of the receive operation.
+     *
+     * Passing a SocketRecvBuffer that does not satisfy this layout/lifetime
+     * contract is unsupported and may lead to undefined behavior.
+     *
      * @return Whether the configuration was accepted.
      */
     bool setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer);
