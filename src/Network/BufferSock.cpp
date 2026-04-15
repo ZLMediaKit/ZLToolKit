@@ -615,6 +615,8 @@ SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
 }
 
 SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp, size_t packet_count, size_t buffer_capacity) {
+    packet_count = packet_count ? packet_count : kPacketCount;
+    buffer_capacity = buffer_capacity ? buffer_capacity : kBufferCapacity;
 #if defined(__linux) || defined(__linux__)
     if (is_udp) {
         return std::make_shared<SocketRecvmmsgBuffer>(packet_count, buffer_capacity);

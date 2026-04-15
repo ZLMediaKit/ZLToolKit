@@ -655,14 +655,21 @@ public:
      */
     void setSendFlags(int flags = SOCKET_DEFAULT_FLAGS);
 
-    // Install a transport-specific recv buffer before the socket starts
-    // receiving. This is intended for setup-time tuning, not runtime
-    // reconfiguration after IO callbacks are active.
-    void setReadBuffer(const SocketRecvBuffer::Ptr &buffer);
+    // Install a UDP-specific recv buffer before the socket starts receiving.
+    // This is intended for setup-time tuning, not runtime reconfiguration
+    // after IO callbacks are active.
+    /**
+     * Replace the UDP recv buffer before the socket fd is created/attached.
+     * This is intended for setup-time customization of special UDP transports
+     * and must not be used as a runtime reconfiguration hook.
+     */
+    void setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer);
 
     // Suppress the UDP ECONNREFUSED read warning on sockets that intentionally
     // communicate with transient peers, such as QUIC sessions that may receive
-    // a late ICMP port-unreachable after the peer has already closed.
+    // a late ICMP port-unreachable after the peer has already closed. This is
+    // a narrow transport-specific knob and should not be enabled casually by
+    // ordinary upper-layer business code.
     void setIgnoreUdpConnRefused(bool ignore);
 
     /**
@@ -748,8 +755,6 @@ private:
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
     bool fromSock_l(SockNum::Ptr sock);
-    SocketRecvBuffer::Ptr getReadBuffer(bool is_udp);
-
 private:
     // send socket时的flag  [AUTO-TRANSLATED:e364a1bf]
     //Flag for sending socket
@@ -839,9 +844,8 @@ private:
     ObjectStatistic<Socket> _statistic;
 
     // Optional per-socket recv path used by a small number of UDP transports.
-    // This is configured during socket setup so the default read path does not
-    // pay extra locking cost.
-    std::atomic<bool> _has_custom_read_buffer{false};
+    // This must be configured before the socket fd is created or any IO
+    // callbacks are attached.
     SocketRecvBuffer::Ptr _read_buffer;
     std::atomic<bool> _ignore_udp_conn_refused{false};
 
