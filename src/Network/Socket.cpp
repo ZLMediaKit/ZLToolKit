@@ -1026,13 +1026,18 @@ void Socket::setSendFlags(int flags) {
     _sock_flags = flags;
 }
 
-void Socket::setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer) {
+bool Socket::setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer) {
     // This hook is setup-time only. UdpServer creation callbacks may run
     // before the owner poller starts processing the fd, so the hard
     // requirement here is "before fd creation", not "already on poller
     // thread". The customization itself is only honored for UDP sockets.
     assert(!_sock_fd);
+    if (_sock_fd) {
+        WarnL << "setUdpRecvBuffer must be called before the socket fd is created";
+        return false;
+    }
     _read_buffer = buffer;
+    return true;
 }
 
 void Socket::setIgnoreUdpConnRefused(bool ignore) {

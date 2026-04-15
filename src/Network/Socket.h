@@ -662,8 +662,9 @@ public:
      * Replace the UDP recv buffer before the socket fd is created/attached.
      * This is intended for setup-time customization of special UDP transports
      * and must not be used as a runtime reconfiguration hook.
+     * @return Whether the configuration was accepted.
      */
-    void setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer);
+    bool setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer);
 
     // Suppress the UDP ECONNREFUSED read warning on sockets that intentionally
     // communicate with transient peers, such as QUIC sessions that may receive
