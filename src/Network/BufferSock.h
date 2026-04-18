@@ -81,6 +81,7 @@ public:
     virtual struct sockaddr_storage &getAddress(size_t index) = 0;
 
     static Ptr create(bool is_udp);
+    static Ptr create(bool is_udp, size_t packet_count, size_t buffer_capacity);
 };
 
 }

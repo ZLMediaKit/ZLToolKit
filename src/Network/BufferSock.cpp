@@ -9,6 +9,7 @@
  */
 
 #include <assert.h>
+#include <limits>
 #include "BufferSock.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
@@ -609,14 +610,37 @@ private:
 
 static constexpr auto kPacketCount = 32;
 static constexpr auto kBufferCapacity = 4 * 1024u;
+static constexpr auto kMaxTotalBufferBytes = 64 * 1024u * 1024u;
 
 SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp) {
+    return create(is_udp, kPacketCount, kBufferCapacity);
+}
+
+SocketRecvBuffer::Ptr SocketRecvBuffer::create(bool is_udp, size_t packet_count, size_t buffer_capacity) {
+    packet_count = packet_count ? packet_count : kPacketCount;
+    buffer_capacity = buffer_capacity ? buffer_capacity : kBufferCapacity;
+
+    auto use_default = false;
+    if (packet_count < 1 || buffer_capacity < 2) {
+        use_default = true;
+    } else if (packet_count > (std::numeric_limits<size_t>::max)() / buffer_capacity) {
+        use_default = true;
+    } else if (packet_count * buffer_capacity > kMaxTotalBufferBytes) {
+        use_default = true;
+    }
+
+    if (use_default) {
+        WarnL << "Invalid recv buffer config, fallback to defaults: packet_count="
+              << packet_count << ", buffer_capacity=" << buffer_capacity;
+        packet_count = kPacketCount;
+        buffer_capacity = kBufferCapacity;
+    }
 #if defined(__linux) || defined(__linux__)
     if (is_udp) {
-        return std::make_shared<SocketRecvmmsgBuffer>(kPacketCount, kBufferCapacity);
+        return std::make_shared<SocketRecvmmsgBuffer>(packet_count, buffer_capacity);
     }
 #endif
-    return std::make_shared<SocketRecvFromBuffer>(kPacketCount * kBufferCapacity);
+    return std::make_shared<SocketRecvFromBuffer>(packet_count * buffer_capacity);
 }
 
 } //toolkit

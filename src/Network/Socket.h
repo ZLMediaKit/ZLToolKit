@@ -45,7 +45,11 @@ namespace toolkit {
 
 //默认的socket flags:不触发SIGPIPE,非阻塞发送  [AUTO-TRANSLATED:fefc4946]
 //Default socket flags: do not trigger SIGPIPE, non-blocking send
-#define SOCKET_DEFAULE_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
+#define SOCKET_DEFAULT_FLAGS (FLAG_NOSIGNAL | FLAG_DONTWAIT )
+// Backward compatibility alias for the legacy misspelled macro name.
+#ifndef SOCKET_DEFAULE_FLAGS
+#define SOCKET_DEFAULE_FLAGS SOCKET_DEFAULT_FLAGS
+#endif
     
 //发送超时时间，如果在规定时间内一直没有发送数据成功，那么将触发onErr事件  [AUTO-TRANSLATED:9c5d8d87]
 //Send timeout time, if no data is sent successfully within the specified time, the onErr event will be triggered
@@ -649,7 +653,36 @@ public:
      
      * [AUTO-TRANSLATED:2b11445c]
      */
-    void setSendFlags(int flags = SOCKET_DEFAULE_FLAGS);
+    void setSendFlags(int flags = SOCKET_DEFAULT_FLAGS);
+
+    // Install a UDP-specific recv buffer before the socket starts receiving.
+    // This is intended for setup-time tuning, not runtime reconfiguration
+    // after IO callbacks are active.
+    /**
+     * Replace the UDP recv buffer before the socket fd is created/attached.
+     * This is intended for setup-time customization of special UDP transports
+     * and must not be used as a runtime reconfiguration hook.
+     *
+     * IMPORTANT: custom SocketRecvBuffer implementations must remain
+     * compatible with the batched UDP receive path used by Socket::onRead().
+     * For the active receive batch, both &buffer->getBuffer(0) and
+     * &buffer->getAddress(0) are treated as pointers to contiguous arrays
+     * that can be indexed up to count - 1, and the referenced storage must
+     * remain valid for the duration of the receive operation.
+     *
+     * Passing a SocketRecvBuffer that does not satisfy this layout/lifetime
+     * contract is unsupported and may lead to undefined behavior.
+     *
+     * @return Whether the configuration was accepted.
+     */
+    bool setUdpRecvBuffer(const SocketRecvBuffer::Ptr &buffer);
+
+    // Suppress the UDP ECONNREFUSED read warning on sockets that intentionally
+    // communicate with transient peers, such as QUIC sessions that may receive
+    // a late ICMP port-unreachable after the peer has already closed. This is
+    // a narrow transport-specific knob and should not be enabled casually by
+    // ordinary upper-layer business code.
+    void setIgnoreUdpConnRefused(bool ignore);
 
     /**
      * 关闭套接字
@@ -734,11 +767,10 @@ private:
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
     bool fromSock_l(SockNum::Ptr sock);
-
 private:
     // send socket时的flag  [AUTO-TRANSLATED:e364a1bf]
     //Flag for sending socket
-    int _sock_flags = SOCKET_DEFAULE_FLAGS;
+    int _sock_flags = SOCKET_DEFAULT_FLAGS;
     // 最大发送缓存，单位毫秒，距上次发送缓存清空时间不能超过该参数  [AUTO-TRANSLATED:3bd6dba3]
     //Maximum send buffer, in milliseconds, the time since the last send buffer was cleared cannot exceed this parameter
     uint32_t _max_send_buffer_ms = SEND_TIME_OUT_SEC * 1000;
@@ -822,6 +854,13 @@ private:
     // 对象个数统计  [AUTO-TRANSLATED:f4a012d0]
     //Object count statistics
     ObjectStatistic<Socket> _statistic;
+
+    // Optional per-socket recv path used by a small number of UDP transports.
+    // This must be configured before the socket fd is created or any IO
+    // callbacks are attached.
+    SocketRecvBuffer::Ptr _read_buffer;
+    bool _udp_recv_buffer_frozen = false;
+    std::atomic<bool> _ignore_udp_conn_refused{false};
 
     // 链接缓存地址,防止tcp reset 导致无法获取对端的地址  [AUTO-TRANSLATED:f8847463]
     //Connection cache address, to prevent TCP reset from causing the inability to obtain the peer's address
