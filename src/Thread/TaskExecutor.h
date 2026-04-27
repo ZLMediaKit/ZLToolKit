@@ -296,6 +296,8 @@ public:
      */
     size_t getExecutorSize() const override;
 
+    void releaseAllEventPooler();
+
 protected:
     size_t addPoller(const std::string &name, size_t size, int priority, bool register_thread, bool enable_cpu_affinity = true);
 
