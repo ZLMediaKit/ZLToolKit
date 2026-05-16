@@ -816,7 +816,7 @@ private:
     // 跨线程访问_sock_fd时需要上锁  [AUTO-TRANSLATED:dc63f6c4]
     //Need to lock when accessing _sock_fd across threads
     mutable MutexWrapper<std::recursive_mutex> _mtx_sock_fd;
-
+    std::atomic<int> _event_reentrancy { 0 };
     // socket异常事件(比如说断开)  [AUTO-TRANSLATED:96c028e8]
     //Socket exception event (such as disconnection)
     onErrCB _on_err;
