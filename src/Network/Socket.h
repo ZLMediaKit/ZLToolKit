@@ -819,7 +819,7 @@ private:
     //Need to lock when accessing _sock_fd across threads
     mutable MutexWrapper<std::recursive_mutex> _mtx_sock_fd;
     
-    std::atomic<bool> _in_event_callback { false };
+    std::atomic<int> _in_event_callback { 0 };
     std::atomic<bool> _async_flush_scheduled { false };
     std::atomic<bool> _pending_flush_error { false };
 
@@ -873,16 +873,17 @@ private:
     struct sockaddr_storage _local_addr;
     struct sockaddr_storage _peer_addr;
 
-public:
+private:
     class EventGuard {
+    private:
         Socket *_socket;
 
     public:
         explicit EventGuard(Socket *sock)
             : _socket(sock) {
-            _socket->_in_event_callback.store(true, std::memory_order_relaxed);
+            _socket->_in_event_callback.fetch_add(1, std::memory_order_relaxed);
         }
-        ~EventGuard() { _socket->_in_event_callback.store(false, std::memory_order_relaxed); }
+        ~EventGuard() { _socket->_in_event_callback.fetch_sub(1, std::memory_order_relaxed); }
         EventGuard(const EventGuard &) = delete;
         EventGuard &operator=(const EventGuard &) = delete;
     };

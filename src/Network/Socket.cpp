@@ -438,7 +438,7 @@ ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
 
     if (try_flush) {
         // 如果在事件回调中，延迟 flush 避免死锁
-        if (_in_event_callback.load(std::memory_order_relaxed)) {
+        if (_in_event_callback.load(std::memory_order_relaxed) > 0) {
             if (!_async_flush_scheduled.exchange(true, std::memory_order_relaxed)) {
                 weak_ptr<Socket> weak_self = shared_from_this();
                 _poller->async([weak_self]() {
@@ -498,7 +498,7 @@ void Socket::onFlushed() {
 void Socket::closeSock(bool close_fd) {
     _pending_flush_error.store(false, std::memory_order_relaxed);
     _async_flush_scheduled.store(false, std::memory_order_relaxed);
-    _in_event_callback.store(false, std::memory_order_relaxed);
+    _in_event_callback.store(0, std::memory_order_relaxed);
     _sendable = true;
     _enable_recv = true;
     _enable_speed = false;
