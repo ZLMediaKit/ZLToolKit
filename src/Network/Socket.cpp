@@ -521,7 +521,6 @@ void Socket::closeSock(bool close_fd) {
             _udp_recv_buffer_frozen = false;
             _pending_flush_error.store(false, std::memory_order_relaxed);
             _async_flush_scheduled.store(false, std::memory_order_relaxed);
-            _in_event_callback.store(0, std::memory_order_relaxed);
         } else if (_sock_fd) {
             _sock_fd->delEvent();
         }
