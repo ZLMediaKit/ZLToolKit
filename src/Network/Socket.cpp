@@ -25,6 +25,8 @@ namespace toolkit {
 
 StatisticImp(Socket)
 
+static thread_local Socket *tl_event_socket = nullptr;
+
 static SockException toSockException(int error) {
     switch (error) {
         case 0:
@@ -78,6 +80,18 @@ Socket::Socket(EventPoller::Ptr poller, bool enable_mutex)
 
 Socket::~Socket() {
     closeSock();
+}
+
+Socket::EventGuard::EventGuard(Socket *sock)
+    : _socket(sock)
+    , _prev(tl_event_socket) {
+    tl_event_socket = sock;
+    _socket->_in_event_callback.fetch_add(1, std::memory_order_relaxed);
+}
+
+Socket::EventGuard::~EventGuard() {
+    _socket->_in_event_callback.fetch_sub(1, std::memory_order_relaxed);
+    tl_event_socket = _prev;
 }
 
 void Socket::setOnRead(onReadCB cb) {
@@ -438,7 +452,7 @@ ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
 
     if (try_flush) {
         // 如果在事件回调中，延迟 flush 避免死锁
-        if (_in_event_callback.load(std::memory_order_relaxed) > 0) {
+        if ((tl_event_socket == this) && (_in_event_callback.load(std::memory_order_relaxed) > 0)) {
             if (!_async_flush_scheduled.exchange(true, std::memory_order_relaxed)) {
                 weak_ptr<Socket> weak_self = shared_from_this();
                 _poller->async([weak_self]() {

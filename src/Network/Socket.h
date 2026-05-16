@@ -877,13 +877,11 @@ private:
     class EventGuard {
     private:
         Socket *_socket;
+        Socket *_prev;
 
     public:
-        explicit EventGuard(Socket *sock)
-            : _socket(sock) {
-            _socket->_in_event_callback.fetch_add(1, std::memory_order_relaxed);
-        }
-        ~EventGuard() { _socket->_in_event_callback.fetch_sub(1, std::memory_order_relaxed); }
+        explicit EventGuard(Socket *sock);
+        ~EventGuard();
         EventGuard(const EventGuard &) = delete;
         EventGuard &operator=(const EventGuard &) = delete;
     };
