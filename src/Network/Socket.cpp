@@ -25,20 +25,6 @@ namespace toolkit {
 
 StatisticImp(Socket)
 
-// RAII guard for _event_reentrancy
- class EventReentrancyGuard {
-    std::atomic<int> &_counter;
-
-public:
-    explicit EventReentrancyGuard(std::atomic<int> &c)
-        : _counter(c) {
-        _counter.fetch_add(1, std::memory_order_relaxed);
-    }
-    ~EventReentrancyGuard() { _counter.fetch_sub(1, std::memory_order_relaxed); }
-    EventReentrancyGuard(const EventReentrancyGuard &) = delete;
-    EventReentrancyGuard &operator=(const EventReentrancyGuard &) = delete;
-};
-
 static SockException toSockException(int error) {
     switch (error) {
         case 0:
@@ -366,7 +352,7 @@ ssize_t Socket::onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &bu
         try {
             // 此处捕获异常，目的是防止数据未读尽，epoll边沿触发失效的问题  [AUTO-TRANSLATED:2f3f813b]
             //Catch exception here, the purpose is to prevent data from not being read completely, and the epoll edge trigger fails
-            EventReentrancyGuard guard(_event_reentrancy);
+            EventGuard guard(this);
             LOCK_GUARD(_mtx_event);
             _on_multi_read(&buf, &addr, count);
         } catch (std::exception &ex) {
@@ -387,7 +373,7 @@ bool Socket::emitErr(const SockException &err) noexcept {
         if (!strong_self) {
             return;
         }
-        EventReentrancyGuard guard(strong_self->_event_reentrancy);
+        EventGuard guard(strong_self.get());
         LOCK_GUARD(strong_self->_mtx_event);
         try {
             strong_self->_on_err(err);
@@ -441,17 +427,9 @@ ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
         return 0;
     }
 
-    // 如果当前 Socket 实例正在事件回调中，延迟发送
-    if (_event_reentrancy.load(std::memory_order_relaxed) > 0) {
-        weak_ptr<Socket> weak_self = shared_from_this();
-        _poller->async([weak_self, buf, is_buf_sock, try_flush]() mutable {
-            auto self = weak_self.lock();
-            if (self) {
-                self->send_l(std::move(buf), is_buf_sock, try_flush);
-            }
-        });
-        return size;
-    }
+   if (_pending_flush_error.exchange(false, std::memory_order_relaxed)) {
+        return -1;
+   }
 
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
@@ -459,6 +437,20 @@ ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
     }
 
     if (try_flush) {
+        // 如果在事件回调中，延迟 flush 避免死锁
+        if (_in_event_callback.load(std::memory_order_relaxed)) {
+            if (!_async_flush_scheduled.exchange(true, std::memory_order_relaxed)) {
+                weak_ptr<Socket> weak_self = shared_from_this();
+                _poller->async([weak_self]() {
+                    auto self = weak_self.lock();
+                    if (self) {
+                        self->flushPendingAsync();
+                    }
+                });
+            }
+            return size;
+        }
+        
         if (flushAll()) {
             return -1;
         }
@@ -605,6 +597,15 @@ bool Socket::fromSock_l(SockNum::Ptr sock) {
     return true;
 }
 
+void Socket::flushPendingAsync() {
+    _async_flush_scheduled.store(false, std::memory_order_relaxed);
+ 
+    if (flushAll()) {        
+        _pending_flush_error.store(true, std::memory_order_relaxed);
+        emitErr(SockException(Err_other, "flush failed in async"));
+    }
+}
+
 void Socket::moveTo(EventPoller::Ptr poller) {
     LOCK_GUARD(_mtx_sock_fd);
     if (poller) {
@@ -716,6 +717,7 @@ int Socket::onAccept(const SockNum::Ptr &sock, int event) noexcept {
             });
 
             try {
+                EventGuard guard(this);
                 // 此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题  [AUTO-TRANSLATED:523d496d]
                 //Catch exceptions here to prevent the problem of socket not being accepted and epoll edge triggering failure
                 LOCK_GUARD(_mtx_event);
