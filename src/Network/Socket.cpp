@@ -496,9 +496,6 @@ void Socket::onFlushed() {
 }
 
 void Socket::closeSock(bool close_fd) {
-    _pending_flush_error.store(false, std::memory_order_relaxed);
-    _async_flush_scheduled.store(false, std::memory_order_relaxed);
-    _in_event_callback.store(0, std::memory_order_relaxed);
     _sendable = true;
     _enable_recv = true;
     _enable_speed = false;
@@ -522,6 +519,9 @@ void Socket::closeSock(bool close_fd) {
             _err_emit = false;
             _sock_fd = nullptr;
             _udp_recv_buffer_frozen = false;
+            _pending_flush_error.store(false, std::memory_order_relaxed);
+            _async_flush_scheduled.store(false, std::memory_order_relaxed);
+            _in_event_callback.store(0, std::memory_order_relaxed);
         } else if (_sock_fd) {
             _sock_fd->delEvent();
         }
