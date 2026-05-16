@@ -427,9 +427,9 @@ ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
         return 0;
     }
 
-   if (_pending_flush_error.exchange(false, std::memory_order_relaxed)) {
+    if (_pending_flush_error.load(std::memory_order_relaxed)) {
         return -1;
-   }
+    }
 
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
