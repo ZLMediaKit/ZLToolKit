@@ -717,7 +717,6 @@ int Socket::onAccept(const SockNum::Ptr &sock, int event) noexcept {
             });
 
             try {
-                EventGuard guard(this);
                 // 此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题  [AUTO-TRANSLATED:523d496d]
                 //Catch exceptions here to prevent the problem of socket not being accepted and epoll edge triggering failure
                 LOCK_GUARD(_mtx_event);
