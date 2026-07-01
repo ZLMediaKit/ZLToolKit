@@ -91,9 +91,23 @@ EventPoller::EventPoller(std::string name) {
 }
 
 void EventPoller::shutdown() {
+#if defined(HAS_EPOLL) && defined(_WIN32)
+    // Windows 平台使用 wepoll，其 epoll_wait 底层基于 IOCP；
+    // 通过写入 pipe 唤醒的方式不一定能可靠地让 epoll_wait 返回，
+    // 直接关闭 epoll 句柄可以强制 epoll_wait 立即出错返回，
+    // 从而避免 join 轮询线程时卡死。
+    // On Windows, wepoll's epoll_wait is backed by IOCP;
+    // closing the epoll handle forces epoll_wait to return immediately,
+    // preventing the shutdown thread from hanging on join().
+    if (_event_fd != INVALID_EVENT_FD) {
+        close_event(_event_fd);
+        _event_fd = INVALID_EVENT_FD;
+    }
+#else
     async_l([]() {
         throw ExitException();
     }, false, true);
+#endif
 
     if (_loop_thread) {
         //防止作为子进程时崩溃  [AUTO-TRANSLATED:68727e34]
@@ -106,7 +120,7 @@ void EventPoller::shutdown() {
 
 EventPoller::~EventPoller() {
     shutdown();
-    
+
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     if (_event_fd != INVALID_EVENT_FD) {
         close_event(_event_fd);
@@ -387,7 +401,15 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
             if (ret <= 0) {
                 // 超时或被打断  [AUTO-TRANSLATED:7005fded]
                 // Timed out or interrupted
+#if defined(_WIN32)
+                // Windows 平台使用 wepoll，当 epoll 句柄被关闭后 epoll_wait 会返回错误，
+                // 此时应退出事件循环，避免 join 时卡死。
+                // On Windows with wepoll, epoll_wait returns an error after the epoll
+                // handle is closed, so we should exit the loop to avoid hanging on join.
+                break;
+#else
                 continue;
+#endif
             }
 
             _event_cache_expired.clear();
