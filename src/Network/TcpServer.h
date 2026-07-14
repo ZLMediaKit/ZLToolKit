@@ -73,7 +73,7 @@ public:
             session->setOnCreateSocket(server->_on_create_socket);
             return std::make_shared<SessionHelper>(server, std::move(session), cls_name);
         };
-        start_l(port, host, backlog);
+        start_l(demangle(typeid(SessionType).name()), port, host, backlog);
     }
 
     /**
@@ -112,7 +112,7 @@ protected:
 private:
     void onManagerSession();
     Socket::Ptr createSocket(const EventPoller::Ptr &poller);
-    void start_l(uint16_t port, const std::string &host, uint32_t backlog);
+    void start_l(const std::string &type, uint16_t port, const std::string &host, uint32_t backlog);
     Ptr getServer(const EventPoller *) const;
     void setupEvent();
 

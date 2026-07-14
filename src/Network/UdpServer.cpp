@@ -71,7 +71,7 @@ UdpServer::~UdpServer() {
     }
 }
 
-void UdpServer::start_l(uint16_t port, const std::string &host) {
+void UdpServer::start_l(const std::string &type, uint16_t port, const std::string &host) {
     setupEvent();
     //主server才创建session map，其他cloned server共享之  [AUTO-TRANSLATED:113cf4fd]
     //Only the main server creates a session map, other cloned servers share it
@@ -125,7 +125,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
         pr.second->_socket->bindUdpSock(_socket->get_local_port(), _socket->get_local_ip());
 #endif
     }
-    InfoL << "UDP server bind to [" << host << "]: " << port;
+    InfoL << "UDP server[" << type << "] bind to [" << host << "]: " << port;
 }
 
 UdpServer::Ptr UdpServer::onCreatServer(const EventPoller::Ptr &poller) {

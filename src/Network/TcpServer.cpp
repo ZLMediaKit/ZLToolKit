@@ -214,7 +214,7 @@ Session::Ptr TcpServer::onAcceptConnection(const Socket::Ptr &sock) {
     return session;
 }
 
-void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog) {
+void TcpServer::start_l(const std::string &type, uint16_t port, const std::string &host, uint32_t backlog) {
     setupEvent();
 
     //新建一个定时器定时管理这些tcp会话  [AUTO-TRANSLATED:ef859bd7]
@@ -257,7 +257,7 @@ void TcpServer::start_l(uint16_t port, const std::string &host, uint32_t backlog
         pr.second->_socket->cloneSocket(*_socket);
     }
 
-    InfoL << "TCP server listening on [" << host << "]: " << port;
+    InfoL << "TCP server[" << type << "] listening on [" << host << "]: " << port;
 }
 
 void TcpServer::onManagerSession() {

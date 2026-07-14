@@ -78,7 +78,7 @@ public:
             });
             return std::make_shared<SessionHelper>(server, std::move(session), cls_name);
         };
-        start_l(port, host);
+        start_l(demangle(typeid(SessionType).name()), port, host);
     }
 
     /**
@@ -121,7 +121,7 @@ private:
      
      * [AUTO-TRANSLATED:1c46778d]
      */
-    void start_l(uint16_t port, const std::string &host = "::");
+    void start_l(const std::string &type, uint16_t port, const std::string &host = "::");
 
     /**
      * @brief 定时管理 Session, UDP 会话需要根据需要处理超时
