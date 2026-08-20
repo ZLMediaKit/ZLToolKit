@@ -73,12 +73,20 @@ public:
 
     ~_RingReader() = default;
 
-    void setReadCB(std::function<void(const T &)> cb) {
+    void setReadCB2(std::function<void(const T &, bool)> cb) {
         if (!cb) {
-            _read_cb = [](const T &) {};
+            _read_cb = [](const T &, bool) {};
         } else {
             _read_cb = std::move(cb);
             flushGop();
+        }
+    }
+
+    void setReadCB(std::function<void(const T &)> cb) {
+        if (cb) {
+            setReadCB2([cb](const T &data, bool) { cb(data); });
+        } else {
+            setReadCB2(nullptr);
         }
     }
 
@@ -110,7 +118,7 @@ public:
     }
 
 private:
-    void onRead(const T &data, bool /*is_key*/) { _read_cb(data); }
+    void onRead(const T &data, bool is_key) { _read_cb(data, is_key); }
     void onMessage(const Any &data) { _msg_cb(data); }
     void onDetach() const { _detach_cb(); }
     Any getInfo() { return _info_cb(); }
@@ -119,7 +127,7 @@ private:
     size_t _max_gop_size;
     std::shared_ptr<_RingStorage<T>> _storage;
     std::function<void(void)> _detach_cb;
-    std::function<void(const T &)> _read_cb;
+    std::function<void(const T &, bool)> _read_cb;
     std::function<Any()> _info_cb;
     std::function<void(const Any &data)> _msg_cb;
 };
