@@ -385,7 +385,7 @@ void UdpServer::setOnCreateSocket(onCreateSocket cb) {
         };
     }
     for (auto &pr : _cloned_server) {
-        pr.second->setOnCreateSocket(cb);
+        pr.second->setOnCreateSocket(_on_create_socket);
     }
 }
 
