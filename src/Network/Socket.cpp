@@ -1013,7 +1013,8 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len, b
     if (_sock_fd->type() != SockNum::Sock_UDP) {
         return false;
     }
-    addr_len = addr_len ? addr_len : SockUtil::get_sock_len(dst_addr);
+    // 强制覆盖addr_len，否则connect时可能报非常参数错误
+    addr_len = SockUtil::get_sock_len(dst_addr);
     if (soft_bind) {
         // 软绑定，只保存地址  [AUTO-TRANSLATED:e74e9b53]
         //Soft bind, only save the address
@@ -1024,7 +1025,7 @@ bool Socket::bindPeerAddr(const struct sockaddr *dst_addr, socklen_t addr_len, b
         //After hard binding, cancel soft binding to prevent performance loss of memcpy target address
         _udp_send_dst = nullptr;
         if (-1 == ::connect(_sock_fd->rawFd(), dst_addr, addr_len)) {
-            WarnL << "Connect socket to peer address failed: " << SockUtil::inet_ntoa(dst_addr);
+            WarnL << "Connect socket to peer address failed: " << SockUtil::inet_ntoa(dst_addr) << ", err: " << get_uv_errmsg();
             return false;
         }
         memcpy(&_peer_addr, dst_addr, addr_len);
