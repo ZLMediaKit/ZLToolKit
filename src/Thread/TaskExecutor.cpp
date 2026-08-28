@@ -227,6 +227,10 @@ size_t TaskExecutorGetterImp::getExecutorSize() const {
     return _threads.size();
 }
 
+void TaskExecutorGetterImp::releaseAllEventPooler() {
+    _threads.clear();
+}
+
 size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread, bool enable_cpu_affinity) {
     auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;
