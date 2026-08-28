@@ -25,6 +25,8 @@ namespace toolkit {
 
 StatisticImp(Socket)
 
+static thread_local Socket *tl_event_socket = nullptr;
+
 static SockException toSockException(int error) {
     switch (error) {
         case 0:
@@ -78,6 +80,18 @@ Socket::Socket(EventPoller::Ptr poller, bool enable_mutex)
 
 Socket::~Socket() {
     closeSock();
+}
+
+Socket::EventGuard::EventGuard(Socket *sock)
+    : _socket(sock)
+    , _prev(tl_event_socket) {
+    tl_event_socket = sock;
+    _socket->_in_event_callback.fetch_add(1, std::memory_order_relaxed);
+}
+
+Socket::EventGuard::~EventGuard() {
+    _socket->_in_event_callback.fetch_sub(1, std::memory_order_relaxed);
+    tl_event_socket = _prev;
 }
 
 void Socket::setOnRead(onReadCB cb) {
@@ -352,6 +366,7 @@ ssize_t Socket::onRead(const SockNum::Ptr &sock, const SocketRecvBuffer::Ptr &bu
         try {
             // 此处捕获异常，目的是防止数据未读尽，epoll边沿触发失效的问题  [AUTO-TRANSLATED:2f3f813b]
             //Catch exception here, the purpose is to prevent data from not being read completely, and the epoll edge trigger fails
+            EventGuard guard(this);
             LOCK_GUARD(_mtx_event);
             _on_multi_read(&buf, &addr, count);
         } catch (std::exception &ex) {
@@ -372,6 +387,7 @@ bool Socket::emitErr(const SockException &err) noexcept {
         if (!strong_self) {
             return;
         }
+        EventGuard guard(strong_self.get());
         LOCK_GUARD(strong_self->_mtx_event);
         try {
             strong_self->_on_err(err);
@@ -425,12 +441,30 @@ ssize_t Socket::send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush) {
         return 0;
     }
 
+    if (_pending_flush_error.load(std::memory_order_relaxed)) {
+        return -1;
+    }
+
     {
         LOCK_GUARD(_mtx_send_buf_waiting);
         _send_buf_waiting.emplace_back(std::move(buf), is_buf_sock);
     }
 
     if (try_flush) {
+        // 如果在事件回调中，延迟 flush 避免死锁
+        if ((tl_event_socket == this) && (_in_event_callback.load(std::memory_order_relaxed) > 0)) {
+            if (!_async_flush_scheduled.exchange(true, std::memory_order_relaxed)) {
+                weak_ptr<Socket> weak_self = shared_from_this();
+                _poller->async([weak_self]() {
+                    auto self = weak_self.lock();
+                    if (self) {
+                        self->flushPendingAsync();
+                    }
+                });
+            }
+            return size;
+        }
+        
         if (flushAll()) {
             return -1;
         }
@@ -499,6 +533,8 @@ void Socket::closeSock(bool close_fd) {
             _err_emit = false;
             _sock_fd = nullptr;
             _udp_recv_buffer_frozen = false;
+            _pending_flush_error.store(false, std::memory_order_relaxed);
+            _async_flush_scheduled.store(false, std::memory_order_relaxed);
         } else if (_sock_fd) {
             _sock_fd->delEvent();
         }
@@ -577,6 +613,15 @@ bool Socket::fromSock_l(SockNum::Ptr sock) {
     return true;
 }
 
+void Socket::flushPendingAsync() {
+    _async_flush_scheduled.store(false, std::memory_order_relaxed);
+ 
+    if (flushAll()) {        
+        _pending_flush_error.store(true, std::memory_order_relaxed);
+        emitErr(SockException(Err_other, "flush failed in async"));
+    }
+}
+
 void Socket::moveTo(EventPoller::Ptr poller) {
     LOCK_GUARD(_mtx_sock_fd);
     if (poller) {
@@ -647,6 +692,7 @@ int Socket::onAccept(const SockNum::Ptr &sock, int event) noexcept {
 
             Socket::Ptr peer_sock;
             try {
+                EventGuard guard(this);
                 // 此处捕获异常，目的是防止socket未accept尽，epoll边沿触发失效的问题  [AUTO-TRANSLATED:523d496d]
                 //Catch exceptions here to prevent the problem of epoll edge trigger failure when the socket is not fully accepted
                 LOCK_GUARD(_mtx_event);
