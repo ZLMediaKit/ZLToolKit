@@ -9,6 +9,20 @@ aux_source_directory(. TEST_SRC_LIST)
 #programs fail to link (test_ringBuffer in this directory for instance)
 find_package(Threads REQUIRED)
 
+#Windows上先定位MySQL的运行时dll，下面每个测试程序都要用到
+#Locate the MySQL runtime dll on Windows first, every test program below needs it
+if(WIN32 AND MYSQL_FOUND)
+    get_filename_component(MYSQL_LIB_DIR "${MYSQL_LIBRARIES}" DIRECTORY)
+    find_file(MYSQL_RUNTIME_DLL
+              NAMES libmysql.dll
+              HINTS "${MYSQL_LIB_DIR}" "${MYSQL_LIB_DIR}/../bin" "${MYSQL_LIB_DIR}/../lib"
+              NO_DEFAULT_PATH)
+    if(NOT MYSQL_RUNTIME_DLL)
+        message(WARNING "未找到libmysql.dll，Windows上的测试程序可能无法启动"
+                        " (libmysql.dll not found, the test programs may fail to start on Windows)")
+    endif()
+endif()
+
 #门禁用例白名单：只收录不依赖网络、命令行参数与外部服务，能自行结束并以退出码表明结果的程序。
 #本目录其余多为服务型或压测程序(运行后不会自行退出)，全量注册会让ctest一直挂起，故用白名单。
 #Gating test whitelist: only programs that need no network, no command-line argument and no
@@ -79,6 +93,19 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
             add_custom_command(TARGET ${TESTER} POST_BUILD
                                COMMAND ${CMAKE_COMMAND} -E copy_if_different
                                        $<TARGET_FILE:${PROJECT_NAME}> $<TARGET_FILE_DIR:${TESTER}>)
+        endif()
+
+        #MySQL是以导入库(.lib)的绝对路径链接进来的，并非imported target，
+        #TARGET_RUNTIME_DLLS无从得知对应的dll，需要自行找出并复制；
+        #否则Windows上构建出来的程序会因缺少libmysql.dll而根本无法启动
+        #MySQL is linked through the absolute path of its import library rather than as an
+        #imported target, so TARGET_RUNTIME_DLLS cannot know about the matching dll and it has
+        #to be located and copied here; otherwise the binaries built on Windows fail to start
+        #at all for the lack of libmysql.dll
+        if(MYSQL_FOUND AND MYSQL_RUNTIME_DLL)
+            add_custom_command(TARGET ${TESTER} POST_BUILD
+                               COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                       ${MYSQL_RUNTIME_DLL} $<TARGET_FILE_DIR:${TESTER}>)
         endif()
     endif()
 
