@@ -29,6 +29,21 @@ jobs:
           cmakeAppendedArgs: ''
           cmakeBuildType: 'RelWithDebInfo'
 
+      - name: 诊断门禁运行环境(临时,定位后移除)
+        working-directory: '${{github.workspace}}/build'
+        run: |
+          Write-Host "=== 构建根目录下的 dll ==="
+          Get-ChildItem -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }
+          Write-Host "=== bin 目录内容 ==="
+          Get-ChildItem bin -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }
+          Write-Host "=== 直接运行 test_variant.exe ==="
+          & .\bin\test_variant.exe
+          Write-Host "exit code = $LASTEXITCODE"
+          Write-Host "=== 依赖分析 ==="
+          $dumpbin = Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($dumpbin) { & $dumpbin.FullName /dependents bin\test_variant.exe } else { Write-Host "dumpbin 未找到" }
+        continue-on-error: true
+
       - name: 执行门禁用例
         working-directory: '${{github.workspace}}/build'
         # 门禁用例见 tests/CMakeLists.txt 的 GATING_TESTS，失败则中断流水线。
