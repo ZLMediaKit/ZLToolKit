@@ -44,30 +44,30 @@ endif()
 #Note: the criterion is being able to run unattended, not staying away from sockets: test_ringBuffer
 #uses EventPoller, whose PipeWrap is implemented on top of a 127.0.0.1 TCP connection on Windows
 #anyway, so the latter criterion would make little sense.
+#test_ringBuffer与test_udpSocketBufferConfig在Windows上会卡在进程退出阶段：流水线
+#实测中test_udpSocketBufferConfig的断言已全部通过并打印出"regression passed"，进程
+#却始终不退出，最终被120秒超时判为失败；test_ringBuffer同样停在事件回调之后。两者
+#都使用了EventPollerPool，可见是ZLToolKit在Windows上事件轮询线程于进程退出时未能
+#结束所致。该问题不是本次改动引入的，但也不应为了让流水线变绿而把用例从白名单里
+#摘掉——那等于把门禁刚暴露出来的问题重新藏起来。故此处照常收录，Windows流水线会
+#因此保持失败，直至该问题被单独修复。
+#test_ringBuffer and test_udpSocketBufferConfig hang while the process exits on Windows: the
+#pipeline shows test_udpSocketBufferConfig passing every assertion and printing
+#"regression passed", yet the process never exits and is failed by the 120 second timeout;
+#test_ringBuffer likewise stops after its event callbacks. Both use EventPollerPool, so the
+#cause is that the event polling threads of ZLToolKit fail to finish while the process exits
+#on Windows. The problem predates this change, but dropping the cases from the whitelist to
+#turn the pipeline green would put back into hiding exactly what the gate just surfaced, so
+#they stay listed and the Windows pipeline stays red until it is fixed separately.
 set(GATING_TESTS
     test_creator
     test_ini
     test_logger
     test_resourcePool
+    test_ringBuffer
     test_threadPool
+    test_udpSocketBufferConfig
     test_variant)
-
-#下面两个用例依赖EventPollerPool，在Windows上会卡在进程退出阶段：流水线实测中
-#test_udpSocketBufferConfig的断言已全部通过并打印出"regression passed"，进程却
-#始终不退出，最终被120秒超时判为失败；test_ringBuffer同样停在事件回调之后。
-#这是ZLToolKit在Windows上的既有问题(事件轮询线程在进程退出时未能结束)，与门禁
-#本身无关，待单独排查修复后再并入Windows的白名单。
-#The two cases below rely on EventPollerPool and hang while the process exits on Windows:
-#the pipeline shows test_udpSocketBufferConfig passing every assertion and printing
-#"regression passed", yet the process never exits and is failed by the 120 second timeout;
-#test_ringBuffer likewise stops after its event callbacks. This is a pre-existing problem of
-#ZLToolKit on Windows (the event polling threads fail to finish while the process exits),
-#unrelated to the gate itself; they will join the Windows whitelist once it is fixed.
-if(NOT WIN32)
-    list(APPEND GATING_TESTS
-         test_ringBuffer
-         test_udpSocketBufferConfig)
-endif()
 
 foreach(TEST_SRC ${TEST_SRC_LIST})
     STRING(REGEX REPLACE "^\\./|\\.c[a-zA-Z0-9_]*$" "" TESTER ${TEST_SRC})
