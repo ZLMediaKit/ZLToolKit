@@ -391,29 +391,86 @@ int vasprintf(char **strp, const char *fmt, va_list ap) {
 
 #endif //WIN32
 
-static long s_gmtoff = 0; //时间差
-static onceToken s_token([]() {
+//时间差，已包含夏令时修正
+//Time difference, daylight saving time correction included
+static atomic<long> s_gmtoff { 0 };
+//上次校准时间差的时间点
+//The moment the time difference was calibrated last time
+static atomic<time_t> s_gmtoff_time { 0 };
+//时间差的校准间隔(秒)，夏令时切换后最迟在该时间之后生效
+//Calibration interval of the time difference in seconds, an upper bound on how
+//long a daylight saving time switch takes to be picked up
+static constexpr time_t s_gmtoff_refresh_interval = 60;
+
+//查询当前时间差；其依赖的系统接口需要加锁且不是fork安全的，所以调用频次必须受控
+//Query the current time difference; the system interfaces it relies on take a lock
+//and are not fork() friendly, so it must not be called at a high rate
+static long queryGMTOff() {
 #ifdef _WIN32
     TIME_ZONE_INFORMATION tzinfo;
     DWORD dwStandardDaylight;
     long bias;
     dwStandardDaylight = GetTimeZoneInformation(&tzinfo);
     bias = tzinfo.Bias;
+    //夏令时期间需要叠加夏令时偏移
+    //The daylight saving bias must be added while it is in effect
     if (dwStandardDaylight == TIME_ZONE_ID_STANDARD) {
         bias += tzinfo.StandardBias;
     }
     if (dwStandardDaylight == TIME_ZONE_ID_DAYLIGHT) {
         bias += tzinfo.DaylightBias;
     }
-    s_gmtoff = -bias * 60; //时间差(分钟)
+    return -bias * 60; //时间差(分钟)
 #else
-    local_time_init();
-    s_gmtoff = getLocalTime(time(nullptr)).tm_gmtoff;
+    //先刷新夏令时状态，确保时间差与getLocalTime()使用的偏移一致
+    //Refresh the daylight saving state first, so that the time difference agrees
+    //with the offset used by getLocalTime()
+    local_time_refresh();
+    return get_local_gmtoff();
 #endif // _WIN32
+}
+
+//夏令时会在程序运行期间切换，所以时间差需要定期校准
+//校准会走到localtime，glibc内部会加锁，于是留下一个极小的窗口：每60秒约1微秒，
+//若fork()恰好落在该窗口内，子进程会继承一把永远不会被释放的锁，之后子进程再取本地
+//时间(例如打印日志)就会永久阻塞。此处不用pthread_atfork()兜底，因为那是进程级的全局
+//钩子，基础库不宜代使用者注册；有此需求的程序请自行在fork()前后保护
+//The daylight saving time switches while the program is running, hence the time
+//difference has to be calibrated periodically. The calibration ends up in localtime(),
+//which takes a lock inside glibc, leaving a tiny window of about one microsecond every
+//60 seconds: should fork() fall into that window, the child process would inherit a
+//lock that is never released, and any later attempt to get the local time (printing a
+//log for instance) would block forever. No pthread_atfork() guard is installed here
+//because that hook is process wide and a base library should not register one on behalf
+//of its users; programs that need it should guard their own fork() calls
+static void refreshGMTOff() {
+    auto now = ::time(nullptr);
+    auto last = s_gmtoff_time.load(memory_order_relaxed);
+    //系统时间可以回退，所以前后相差超过校准间隔都需要重新校准
+    //The system time can be rolled back, so a gap in either direction that exceeds
+    //the interval triggers a calibration
+    if (now - last < s_gmtoff_refresh_interval && last - now < s_gmtoff_refresh_interval) {
+        return;
+    }
+    if (!s_gmtoff_time.compare_exchange_strong(last, now)) {
+        //其他线程正在校准
+        //Another thread is calibrating
+        return;
+    }
+    s_gmtoff.store(queryGMTOff(), memory_order_relaxed);
+}
+
+static onceToken s_token([]() {
+#ifndef _WIN32
+    local_time_init();
+#endif // _WIN32
+    s_gmtoff.store(queryGMTOff(), memory_order_relaxed);
+    s_gmtoff_time.store(::time(nullptr), memory_order_relaxed);
 });
 
 long getGMTOff() {
-    return s_gmtoff;
+    refreshGMTOff();
+    return s_gmtoff.load(memory_order_relaxed);
 }
 
 static inline uint64_t getCurrentMicrosecondOrigin() {
@@ -514,6 +571,10 @@ struct tm getLocalTime(time_t sec) {
 #ifdef _WIN32
     localtime_s(&tm, &sec);
 #else
+    //校准夏令时状态，否则夏令时切换后本地时间会一直相差1小时
+    //Calibrate the daylight saving state, otherwise the local time would stay one
+    //hour off after a daylight saving time switch
+    refreshGMTOff();
     no_locks_localtime(&tm, sec);
 #endif //_WIN32
     return tm;
