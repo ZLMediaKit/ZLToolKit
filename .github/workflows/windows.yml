@@ -28,3 +28,16 @@ jobs:
           buildDirectory: '${{github.workspace}}/build'
           cmakeAppendedArgs: ''
           cmakeBuildType: 'RelWithDebInfo'
+
+      - name: 执行门禁用例
+        working-directory: '${{github.workspace}}/build'
+        # 门禁用例见 tests/CMakeLists.txt 的 GATING_TESTS，失败则中断流水线。
+        # --no-tests=error 不可省略：一个用例都没注册时 ctest 默认返回成功，门禁会悄悄失效。
+        # 当前生成器为单配置，-C 实际不起作用，保留是为了将来换成多配置生成器时仍然正确，
+        # 其取值需与上面的 cmakeBuildType 保持一致
+        # Gating cases are listed in GATING_TESTS in tests/CMakeLists.txt, a failure breaks the
+        # pipeline. --no-tests=error is required: with no test registered ctest succeeds by default
+        # and the gate would silently stop guarding anything. The generator in use is single-config
+        # so -C has no effect today; it is kept so that switching to a multi-config generator keeps
+        # working, and its value has to match the cmakeBuildType above
+        run: ctest -C RelWithDebInfo --output-on-failure --no-tests=error
