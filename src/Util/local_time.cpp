@@ -31,10 +31,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <atomic>
 #include <ctime>
 #ifndef _WIN32
 #include <sys/time.h>
 #endif
+
+#include "local_time.h"
 
 /* This is a safe version of localtime() which contains no locks and is
  * fork() friendly. Even the _r version of localtime() cannot be used safely
@@ -57,11 +60,20 @@
  * designed to work with what time(NULL) may return, and to support Redis
  * logging of the dates, it's not really a complete implementation. */
 namespace toolkit {
-static int _daylight_active;
-static long _current_timezone;
+/* 两者都由local_time_refresh()更新、被任意线程读取，故使用原子变量
+ * Both are updated by local_time_refresh() and read by any thread, hence atomic. */
+static std::atomic<int> _daylight_active { 0 };
+static std::atomic<long> _current_timezone { 0 };
 
 int get_daylight_active() {
-    return _daylight_active;
+    return _daylight_active.load(std::memory_order_relaxed);
+}
+
+long get_local_gmtoff() {
+    /* 夏令时期间本地时间比标准时间快1小时，偏移量也必须体现这1小时
+     * Daylight saving time puts the local time one hour ahead of standard time,
+     * so it must be reflected by the offset as well. */
+    return -_current_timezone.load(std::memory_order_relaxed) + 3600 * get_daylight_active();
 }
 
 static int is_leap_year(time_t year) {
@@ -80,17 +92,24 @@ void no_locks_localtime(struct tm *tmp, time_t t) {
     const time_t secs_hour = 3600;
     const time_t secs_day = 3600 * 24;
 
-    t -= _current_timezone; /* Adjust for timezone. */
-    t += 3600 * get_daylight_active(); /* Adjust for daylight time. */
+    /* 偏移量只取一次快照，避免并发的local_time_refresh()导致
+     * 换算出的时刻与tm_gmtoff互相矛盾
+     * Take a single snapshot of the offset, so that a concurrent
+     * local_time_refresh() cannot make the broken down time and tm_gmtoff
+     * disagree with each other. */
+    int daylight_active = get_daylight_active();
+    long gmtoff = -_current_timezone.load(std::memory_order_relaxed) + 3600 * daylight_active;
+
+    t += gmtoff; /* Adjust for timezone and daylight time. */
     time_t days = t / secs_day; /* Days passed since epoch. */
     time_t seconds = t % secs_day; /* Remaining seconds. */
 
-    tmp->tm_isdst = get_daylight_active();
+    tmp->tm_isdst = daylight_active;
     tmp->tm_hour = seconds / secs_hour;
     tmp->tm_min = (seconds % secs_hour) / secs_min;
     tmp->tm_sec = (seconds % secs_hour) % secs_min;
 #ifndef _WIN32
-    tmp->tm_gmtoff = -_current_timezone;
+    tmp->tm_gmtoff = gmtoff;
 #endif
     /* 1/1/1970 was a Thursday, that is, day 4 from the POV of the tm structure
      * where sunday = 0, so to calculate the day of the week we have to add 4
@@ -167,8 +186,22 @@ void local_time_init() {
     gettimeofday(&tv, &tz);
     _current_timezone = tz.tz_minuteswest * 60L;
 #endif
+    local_time_refresh();
+}
+
+void local_time_refresh() {
+    /* 夏令时可能在进程运行期间切换，故该标志必须定期刷新，
+     * 否则本地时间会一直相差1小时，直到进程重启
+     * The daylight saving time may switch while the process is running, so this
+     * flag must be refreshed periodically, otherwise the local time would stay
+     * one hour off until the process is restarted. */
     time_t t = time(NULL);
-    struct tm *aux = localtime(&t);
-    _daylight_active = aux->tm_isdst;
+    struct tm aux;
+#ifdef _WIN32
+    localtime_s(&aux, &t);
+#else
+    localtime_r(&t, &aux);
+#endif
+    _daylight_active.store(aux.tm_isdst > 0 ? 1 : 0, std::memory_order_relaxed);
 }
 } // namespace toolkit
