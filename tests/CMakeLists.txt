@@ -47,6 +47,27 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
     target_link_libraries(${TESTER} PRIVATE ${PROJECT_NAME} Threads::Threads)
     set_target_properties(${TESTER} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
+    if(WIN32 AND BUILD_SHARED_LIBS)
+        #Windows没有RPATH机制，动态库又属于RUNTIME产物、不受本工程已设置的
+        #LIBRARY_OUTPUT_DIRECTORY约束，于是dll与测试程序分处两地，运行时必然
+        #以0xc0000135(找不到dll)失败。此处把dll复制到测试程序旁边，而不是去改动
+        #库自身的产物位置：把本工程作为子项目引入的工程(如ZLMediaKit)往往用
+        #EXECUTABLE_OUTPUT_PATH等全局变量统一收拢产物，而目标属性的优先级高于这些
+        #全局变量，一旦在本工程内设置RUNTIME_OUTPUT_DIRECTORY，反而会把dll从上层
+        #工程的产物目录里拽走，导致上层的可执行文件找不到它
+        #Windows has no RPATH and a shared library is a RUNTIME artifact, so it is not covered
+        #by the LIBRARY_OUTPUT_DIRECTORY this project already sets; the dll and the test
+        #executable therefore end up in different directories and every test fails with
+        #0xc0000135 (dll not found). The dll is copied next to the test executable instead of
+        #relocating the library itself: projects embedding this one (ZLMediaKit for instance)
+        #tend to collect every artifact through globals such as EXECUTABLE_OUTPUT_PATH, and
+        #since target properties win over those globals, setting RUNTIME_OUTPUT_DIRECTORY here
+        #would drag the dll out of the embedding project's output directory and break it
+        add_custom_command(TARGET ${TESTER} POST_BUILD
+                           COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                   $<TARGET_FILE:${PROJECT_NAME}> $<TARGET_FILE_DIR:${TESTER}>)
+    endif()
+
     #此处不用if(... IN_LIST ...)，那需要CMP0057策略(CMake 3.3起)，而本工程声明的最低版本是
     #3.1.3；版本范围语法又要CMake 3.12才被识别，老版本会退化为3.1.3从而导致配置报错
     #if(... IN_LIST ...) is not used here: it needs the CMP0057 policy (CMake 3.3 and later)
@@ -59,32 +80,6 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
         #A single case finishes within seconds; time out instead of stalling the whole pipeline
         set_tests_properties(${TESTER} PROPERTIES TIMEOUT 120)
 
-        if(WIN32 AND BUILD_SHARED_LIBS)
-            #Windows没有RPATH机制，动态库又属于RUNTIME产物、不受本工程已设置的
-            #LIBRARY_OUTPUT_DIRECTORY约束，测试程序因此可能与dll分处两地而加载失败。
-            #此处只为测试进程补充查找路径，不去改动库自身的产物位置：把本工程作为子项目
-            #引入的工程(如ZLMediaKit)往往用EXECUTABLE_OUTPUT_PATH等全局变量统一收拢产物，
-            #而目标属性的优先级高于这些全局变量，一旦在此设置RUNTIME_OUTPUT_DIRECTORY，
-            #反而会把dll从上层工程的产物目录里拽走，导致上层的可执行文件找不到它
-            #Windows has no RPATH and a shared library is a RUNTIME artifact, so it is not
-            #covered by the LIBRARY_OUTPUT_DIRECTORY this project already sets, and the test
-            #executable may end up in a different directory than the dll. Only the environment
-            #of the test process is extended here, the output location of the library itself is
-            #deliberately left alone: projects embedding this one (ZLMediaKit for instance) tend
-            #to collect every artifact through globals such as EXECUTABLE_OUTPUT_PATH, and since
-            #target properties win over those globals, setting RUNTIME_OUTPUT_DIRECTORY here
-            #would drag the dll out of the embedding project's output directory and break it
-            if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.22)
-                set_tests_properties(${TESTER} PROPERTIES
-                                     ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:${PROJECT_NAME}>")
-            else()
-                #更老的CMake没有ENVIRONMENT_MODIFICATION，只能把配置时的PATH一并写死
-                #Older CMake has no ENVIRONMENT_MODIFICATION, the PATH seen at configure time
-                #has to be baked in instead
-                set_tests_properties(${TESTER} PROPERTIES
-                                     ENVIRONMENT "PATH=$<TARGET_FILE_DIR:${PROJECT_NAME}>\;$ENV{PATH}")
-            endif()
-        endif()
     endif()
 endforeach()
 
