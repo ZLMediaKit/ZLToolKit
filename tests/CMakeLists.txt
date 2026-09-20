@@ -63,9 +63,23 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
         #tend to collect every artifact through globals such as EXECUTABLE_OUTPUT_PATH, and
         #since target properties win over those globals, setting RUNTIME_OUTPUT_DIRECTORY here
         #would drag the dll out of the embedding project's output directory and break it
-        add_custom_command(TARGET ${TESTER} POST_BUILD
-                           COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                                   $<TARGET_FILE:${PROJECT_NAME}> $<TARGET_FILE_DIR:${TESTER}>)
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
+            #TARGET_RUNTIME_DLLS会沿依赖链收集该测试程序运行时需要的全部dll，
+            #只复制本工程的dll并不够：它自身依赖的第三方dll同样要在旁边
+            #TARGET_RUNTIME_DLLS walks the dependency chain and collects every dll the test
+            #needs at run time; copying only this project's dll is not enough, the third party
+            #dlls it depends on have to sit next to it as well
+            add_custom_command(TARGET ${TESTER} POST_BUILD
+                               COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                       $<TARGET_RUNTIME_DLLS:${TESTER}> $<TARGET_FILE_DIR:${TESTER}>
+                               COMMAND_EXPAND_LISTS)
+        else()
+            #更老的CMake没有TARGET_RUNTIME_DLLS，只能复制本工程的dll
+            #Older CMake has no TARGET_RUNTIME_DLLS, only this project's dll can be copied
+            add_custom_command(TARGET ${TESTER} POST_BUILD
+                               COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                       $<TARGET_FILE:${PROJECT_NAME}> $<TARGET_FILE_DIR:${TESTER}>)
+        endif()
     endif()
 
     #此处不用if(... IN_LIST ...)，那需要CMP0057策略(CMake 3.3起)，而本工程声明的最低版本是

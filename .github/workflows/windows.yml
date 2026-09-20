@@ -41,7 +41,12 @@ jobs:
           Write-Host "exit code = $LASTEXITCODE"
           Write-Host "=== 依赖分析 ==="
           $dumpbin = Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($dumpbin) { & $dumpbin.FullName /dependents bin\test_variant.exe } else { Write-Host "dumpbin 未找到" }
+          if ($dumpbin) {
+            Write-Host "--- test_variant.exe 的依赖 ---"
+            & $dumpbin.FullName /dependents bin\test_variant.exe
+            Write-Host "--- ZLToolKit.dll 的依赖 ---"
+            & $dumpbin.FullName /dependents bin\ZLToolKit.dll
+          } else { Write-Host "dumpbin 未找到" }
         continue-on-error: true
 
       - name: 执行门禁用例
