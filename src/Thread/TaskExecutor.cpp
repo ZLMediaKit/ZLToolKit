@@ -227,6 +227,32 @@ size_t TaskExecutorGetterImp::getExecutorSize() const {
     return _threads.size();
 }
 
+TaskExecutorGetterImp::~TaskExecutorGetterImp() {
+    for (auto &th : _threads) {
+        auto poller = static_pointer_cast<EventPoller>(th);
+        //停掉轮询线程后,立即在本线程执行掉它队列里剩余的任务,再释放引用。否则这些任务
+        //(例如Socket析构)会在轮询线程上执行,并在那里释放掉poller的最后一个引用,对象于是
+        //死在自己的线程里,任务返回到runLoop的循环条件时便读到了已释放的内存。
+        //逐个处理而不是先把所有轮询线程一次停掉:处理到第i个时其后的轮询线程仍在运行,
+        //第i个的残留任务若要投递给它们,依旧会在对方的轮询线程上异步执行。本库的调用方
+        //(如ZLMediaKit)大量依赖"某对象只在其所属轮询线程上被访问"来省掉加锁,一次性停掉
+        //全部线程会使这类任务退化为在本线程同步执行,从而打破该约定
+        //Stop the polling thread, run whatever is left in its queue on this thread, and only then
+        //release the reference. Otherwise those tasks (the destruction of a Socket for instance)
+        //run on the polling thread and drop the last reference to the poller there, so the object
+        //dies on its own thread and the task returns into a loop condition of runLoop that reads
+        //freed memory.
+        //They are handled one by one rather than stopping every polling thread up front: while the
+        //i-th is handled the later ones are still running, so a leftover task of the i-th that has
+        //to be posted to them still runs asynchronously on their own polling thread. Users of this
+        //library (ZLMediaKit for one) widely rely on "this object is only touched on its own
+        //polling thread" to avoid locking, and stopping every thread at once would degrade such
+        //tasks into running synchronously here, breaking that assumption
+        poller->shutdownAndFlush();
+        th = nullptr;
+    }
+}
+
 size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int priority, bool register_thread, bool enable_cpu_affinity) {
     auto cpus = thread::hardware_concurrency();
     size = size > 0 ? size : cpus;

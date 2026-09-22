@@ -259,7 +259,7 @@ public:
 class TaskExecutorGetterImp : public TaskExecutorGetter {
 public:
     TaskExecutorGetterImp() = default;
-    ~TaskExecutorGetterImp() = default;
+    ~TaskExecutorGetterImp() override;
 
     /**
      * 根据线程负载情况，获取最空闲的任务执行器

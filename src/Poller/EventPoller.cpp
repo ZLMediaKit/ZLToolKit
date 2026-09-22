@@ -104,9 +104,7 @@ void EventPoller::shutdown() {
     }
 }
 
-EventPoller::~EventPoller() {
-    shutdown();
-    
+void EventPoller::closeEventFd() {
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     if (_event_fd != INVALID_EVENT_FD) {
         bool can_close = true;
@@ -128,6 +126,31 @@ EventPoller::~EventPoller() {
         _event_fd = INVALID_EVENT_FD;
     }
 #endif
+}
+
+void EventPoller::shutdownAndFlush() {
+    shutdown();
+    //必须先处理掉句柄再执行残留任务:这些任务里常有delEvent(例如Socket析构),句柄若仍有效
+    //就会真的调进epoll_ctl。Windows上该调用要取wepoll句柄树的锁,而进程退出时持锁的轮询
+    //线程已被系统杀死,于是永久阻塞
+    //The handle has to be dealt with before the leftover tasks run: those tasks often call
+    //delEvent (the destruction of a Socket for instance) and would really reach epoll_ctl while
+    //the handle is still valid. On Windows that call takes the lock of the wepoll handle tree,
+    //whose holder has already been killed by the system while the process exits, so it blocks
+    //forever
+    closeEventFd();
+    //轮询线程已停，队列里剩下的任务改在调用者线程上执行。这些任务(例如Socket析构)往往持有
+    //本对象的引用，若留给轮询线程执行，本对象就会死在自己的线程里
+    //The polling thread has stopped, so whatever is left in the queue runs on the caller thread.
+    //Such tasks (the destruction of a Socket for instance) usually hold a reference to this
+    //object, and letting the polling thread run them would make the object die on its own thread
+    onPipeEvent(true);
+}
+
+EventPoller::~EventPoller() {
+    shutdown();
+    
+    closeEventFd();
 
     //退出前清理管道中的数据  [AUTO-TRANSLATED:60e26f9a]
     //Clean up pipe data before exiting

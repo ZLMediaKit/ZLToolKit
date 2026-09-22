@@ -253,6 +253,18 @@ private:
     void shutdown();
 
     /**
+     * 结束事件轮询，并在调用者线程上执行掉队列中剩余的任务
+     * End event polling and run whatever is left in the task queue on the caller thread
+     */
+    void shutdownAndFlush();
+
+    /**
+     * 关闭(或在无法安全关闭时放弃)epoll/kqueue句柄，可重复调用
+     * Close the epoll/kqueue handle, or give it up when it cannot be closed safely; idempotent
+     */
+    void closeEventFd();
+
+    /**
      * 刷新延时任务
      * Refresh delayed tasks
      * [AUTO-TRANSLATED:88104b90]
