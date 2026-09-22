@@ -41,6 +41,10 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       shell: bash
-      # Execute tests defined by the CMake configuration.  
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C $BUILD_TYPE
+      # 执行门禁用例(见 tests/CMakeLists.txt 的 GATING_TESTS)，失败则中断流水线。
+      # --no-tests=error 不可省略：一个用例都没注册时 ctest 默认返回成功，
+      # 门禁会悄悄退回本次改动之前那种形同虚设的状态
+      # Run the gating cases (see GATING_TESTS in tests/CMakeLists.txt); a failure breaks the
+      # pipeline. --no-tests=error is required: with no test registered ctest succeeds by
+      # default, which would silently bring the gate back to the sham it was before this change
+      run: ctest -C $BUILD_TYPE --output-on-failure --no-tests=error

@@ -140,6 +140,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJ
                                                  ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    #本工程为root工程，则添加测试程序
+    #本工程为root工程，则添加测试程序，并启用ctest以便执行门禁用例
+    #This project is the root project, add the test programs and enable ctest so that
+    #the gating cases can be run
+    enable_testing()
     add_subdirectory(tests)
 endif ()
