@@ -109,13 +109,36 @@ EventPoller::~EventPoller() {
     
 #if defined(HAS_EPOLL) || defined(HAS_KQUEUE)
     if (_event_fd != INVALID_EVENT_FD) {
-        close_event(_event_fd);
+        bool can_close = true;
+#if defined(_WIN32)
+        //轮询线程没能正常走出循环时就不关句柄:进程退出时Windows会先杀掉其余线程,被杀的线程
+        //在wepoll的epoll_wait里持有的引用永远不会释放,epoll_close于是死等(wepoll.c:1413)。
+        //注意该条件不止进程退出一种成因——运行期间管道写失败同样会落到这里,那就是真泄漏了,
+        //只是进程退出是目前唯一观察到的情形
+        //Do not close the handle when the polling thread failed to leave its loop: while a process
+        //exits Windows kills the other threads first, and the reference such a thread holds inside
+        //the epoll_wait of wepoll is never released, so epoll_close waits forever (wepoll.c:1413).
+        //Note this covers more than process exit: a failing pipe write at run time lands here too
+        //and the handle then really leaks; process exit is merely the only case observed so far
+        can_close = _exit_flag;
+#endif
+        if (can_close) {
+            close_event(_event_fd);
+        }
         _event_fd = INVALID_EVENT_FD;
     }
 #endif
 
     //退出前清理管道中的数据  [AUTO-TRANSLATED:60e26f9a]
     //Clean up pipe data before exiting
+    //已知残留风险,仅限Windows:该平台在进程退出时强行终止其余线程,被终止的轮询线程若恰好
+    //持有下面onPipeEvent要取的_mtx_task,此处将永久阻塞。其余平台不强杀线程,且上面的
+    //shutdown()已join过轮询线程(即线程系正常退出、不可能持锁),因此不存在该风险
+    //Known residual risk, Windows only: that platform kills the other threads while a process
+    //exits, and if the killed polling thread happened to hold the _mtx_task that onPipeEvent
+    //takes below, this blocks forever. The other platforms do not kill threads, and shutdown()
+    //above has already joined the polling thread (so it exited normally and cannot hold the
+    //lock), hence the risk does not exist there
     onPipeEvent(true);
     InfoL << getThreadName();
 }
