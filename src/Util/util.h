@@ -319,17 +319,19 @@ const char *strcasestr(const char *big, const char *little);
 #endif //WIN32
 
 /**
- * 获取时间差, 返回值单位为秒
- * 注意: 内部每60秒会校准一次夏令时状态, 校准时会调用localtime并由glibc加锁;
- * 若程序在多线程状态下fork(), 且子进程继续取本地时间(例如打印日志),
- * 则存在极小概率继承到一把不会被释放的锁而永久阻塞, 这类程序需自行用pthread_atfork()保护
- * Get time difference, return value in seconds
- * Note: the daylight saving state is recalibrated once every 60 seconds, and the
- * calibration calls localtime(), which takes a lock inside glibc; should the program
- * fork() from a multi-threaded context and the child process keep getting the local
- * time (printing logs for instance), there is a tiny chance for it to inherit a lock
- * that is never released and block forever, such programs should guard it themselves
- * with pthread_atfork()
+ * 获取时间差, 返回值单位为秒, 已包含夏令时修正
+ * 注意: 本函数不加锁、不调用libc。时区在[启动前一年, 启动后二十年]内的全部切换点在静态
+ * 初始化阶段一次性算成只读表, 之后只查表; 运行期修改时区或升级时区数据库的程序需要重启,
+ * 早于表起点的时刻按首段换算, 晚于终点的按末段; 早于本库静态初始化的调用(其它编译单元的
+ * 全局对象构造期间)得到的是UTC占位值0
+ * Get time difference, return value in seconds, daylight saving time included
+ * Note: this function takes no lock and does not call into libc. Every switch of the
+ * timezone within [one year before start up, twenty years after] is computed once into a
+ * read-only table during static initialization and only that table is consulted afterwards;
+ * a program that changes its timezone or updates the timezone database at run time needs a
+ * restart, a moment before the table is converted with its first segment and one beyond it
+ * with the last; a call made before the static initialization of this library (while global
+ * objects of other translation units are being constructed) gets the UTC placeholder 0
  
  * [AUTO-TRANSLATED:43d2403a]
  */
@@ -369,14 +371,17 @@ std::string getTimeStr(const char *fmt,time_t time = 0);
 
 /**
  * 根据unix时间戳获取本地时间
- * 注意1: 夏令时状态是全局的, 按"当前时刻"取得, 查询非当前季节的时间戳会相差1小时
- * 注意2: 与getGMTOff()共用同一套校准机制, fork()相关的限制同样适用
+ * 注意1: 每条时间戳按它自身所处的时段取偏移, 其它季节的时间戳同样正确; 早于启动前一年的
+ *        时间戳按表的首段换算, 见getGMTOff()的说明
+ * 注意2: 不加锁、不调用libc, 可在任何线程、包括fork()出的子进程中调用
  * @param sec unix时间戳
  * @return tm结构体
  * Get local time based on Unix timestamp
- * Note 1: the daylight saving state is global and reflects the current moment, so a
- * timestamp belonging to another season is off by one hour
- * Note 2: it shares the calibration with getGMTOff(), the same fork() caveat applies
+ * Note 1: every timestamp takes the offset of the period it belongs to, so a timestamp of
+ *         another season is correct as well; one earlier than a year before start up is
+ *         converted with the first segment of the table, see getGMTOff()
+ * Note 2: takes no lock and does not call into libc, safe from any thread and from a
+ *         fork()ed child process
  * @param sec Unix timestamp
  * @return tm structure
  
