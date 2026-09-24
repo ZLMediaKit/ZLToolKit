@@ -59,6 +59,10 @@ using namespace std;
 
 namespace toolkit {
 
+//退出阶段取空任务列队的最大轮数,见onPipeEvent
+//Upper bound on the rounds spent draining the task queue on exit, see onPipeEvent
+static constexpr auto kMaxDrainRounds = 64;
+
 EventPoller &EventPoller::Instance() {
     return *(EventPollerPool::Instance().getFirstPoller());
 }
@@ -322,36 +326,47 @@ bool EventPoller::isCurrentThread() {
     return !_loop_thread || _loop_thread->get_id() == this_thread::get_id();
 }
 
-inline void EventPoller::onPipeEvent(bool flush) {
+inline void EventPoller::onPipeEvent() {
     char buf[1024];
     int err = 0;
-    if (!flush) {
-       for (;;) {
-         if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
-             // 读到管道数据,继续读,直到读空为止  [AUTO-TRANSLATED:47bd325c]
-             //Read data from the pipe, continue reading until it's empty
-             continue;
-         }
-         if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
-             // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道  [AUTO-TRANSLATED:5f7a013d]
-             //Received eof or non-EAGAIN (no more data) error, indicating that the pipe is invalid, reopen the pipe
-             ErrorL << "Invalid pipe fd of event poller, reopen it";
-             delEvent(_pipe.readFD());
-             _pipe.reOpen();
-             addEventPipe();
-         }
-         break;
-      }
+    for (;;) {
+        if ((err = _pipe.read(buf, sizeof(buf))) > 0) {
+            // 读到管道数据,继续读,直到读空为止  [AUTO-TRANSLATED:47bd325c]
+            //Read data from the pipe, continue reading until it's empty
+            continue;
+        }
+        if (err == 0 || get_uv_error(true) != UV_EAGAIN) {
+            // 收到eof或非EAGAIN(无更多数据)错误,说明管道无效了,重新打开管道  [AUTO-TRANSLATED:5f7a013d]
+            //Received eof or non-EAGAIN (no more data) error, indicating that the pipe is invalid, reopen the pipe
+            ErrorL << "Invalid pipe fd of event poller, reopen it";
+            delEvent(_pipe.readFD());
+            _pipe.reOpen();
+            addEventPipe();
+        }
+        break;
     }
 
-    //收到退出信号后要把任务列队彻底取空:这些任务(例如Socket析构)往往持有本对象的引用,
+    //收到退出信号后要把任务列队取空:这些任务(例如Socket析构)往往持有本对象的引用,
     //若留到轮询线程退出之后,就只能由析构方在另一个线程上执行,而调用方普遍假定它们只在
-    //本对象的轮询线程上运行。任务执行中还可能投递新任务,故需反复取到空为止
+    //本对象的轮询线程上运行。任务执行中还可能投递新任务,故需反复取,但必须设上界:
+    //若有任务在执行时再投递自己,没有上界的话这里永远收敛不了,进程也就退不出去。
+    //正常的退出场景中投递链条只有几层深,远达不到上界;达到即视为异常,放弃剩余任务并告警
     //Drain the task queue once the exit signal arrives: those tasks (the destruction of a Socket
     //for instance) usually hold a reference to this object, and leaving them until after the
     //polling thread is gone would force whoever destroys it to run them on another thread, while
     //callers widely assume they only ever run on this object's polling thread. A task may post
-    //further tasks, hence the repetition until the queue comes back empty
+    //further tasks, hence the repetition, but it has to be bounded: a task that reposts itself
+    //would otherwise keep this from ever converging and the process could never exit. A normal
+    //exit only chains a few levels deep, nowhere near the bound; reaching it is treated as
+    //abnormal, the rest is dropped and a warning is logged
+    //另有一个已知边界情形:_threads中靠前的poller先被shutdown,其后isCurrentThread()恒为真,
+    //靠后poller的残留任务若向它投递,会直接在来源poller的线程上执行。修改前这些残留任务
+    //根本不会被执行,故不算退化,此处未处理
+    //One known corner remains: pollers earlier in _threads are shut down first and their
+    //isCurrentThread() is true from then on, so a leftover task of a later poller posting to one
+    //of them runs right on the posting poller's thread. Before this change such leftover tasks
+    //never ran at all, so it is not a regression and is left as is
+    int rounds = 0;
     for (;;) {
         decltype(_list_task) _list_swap;
         {
@@ -375,6 +390,18 @@ inline void EventPoller::onPipeEvent(bool flush) {
         if (!_exit_flag) {
             //未收到退出信号时只处理本批，与原有行为一致
             //Without the exit signal only this batch is handled, as before
+            break;
+        }
+        if (++rounds >= kMaxDrainRounds) {
+            size_t left;
+            {
+                lock_guard<mutex> lck(_mtx_task);
+                left = _list_task.size();
+            }
+            if (left != 0) {
+                WarnL << "Task queue still not empty after " << rounds << " drain rounds on exit, "
+                      << left << " task(s) dropped, a task may keep reposting itself";
+            }
             break;
         }
     }

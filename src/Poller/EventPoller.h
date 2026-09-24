@@ -226,7 +226,7 @@ private:
      * Internal pipe event, used to wake up the polling thread
      * [AUTO-TRANSLATED:022754b9]
      */
-    void onPipeEvent(bool flush = false);
+    void onPipeEvent();
 
     /**
      * 切换线程并执行任务
