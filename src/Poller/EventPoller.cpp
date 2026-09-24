@@ -128,41 +128,16 @@ void EventPoller::closeEventFd() {
 #endif
 }
 
-void EventPoller::shutdownAndFlush() {
-    shutdown();
-    //必须先处理掉句柄再执行残留任务:这些任务里常有delEvent(例如Socket析构),句柄若仍有效
-    //就会真的调进epoll_ctl。Windows上该调用要取wepoll句柄树的锁,而进程退出时持锁的轮询
-    //线程已被系统杀死,于是永久阻塞
-    //The handle has to be dealt with before the leftover tasks run: those tasks often call
-    //delEvent (the destruction of a Socket for instance) and would really reach epoll_ctl while
-    //the handle is still valid. On Windows that call takes the lock of the wepoll handle tree,
-    //whose holder has already been killed by the system while the process exits, so it blocks
-    //forever
-    closeEventFd();
-    //轮询线程已停，队列里剩下的任务改在调用者线程上执行。这些任务(例如Socket析构)往往持有
-    //本对象的引用，若留给轮询线程执行，本对象就会死在自己的线程里
-    //The polling thread has stopped, so whatever is left in the queue runs on the caller thread.
-    //Such tasks (the destruction of a Socket for instance) usually hold a reference to this
-    //object, and letting the polling thread run them would make the object die on its own thread
-    onPipeEvent(true);
-}
-
 EventPoller::~EventPoller() {
     shutdown();
     
     closeEventFd();
 
-    //退出前清理管道中的数据  [AUTO-TRANSLATED:60e26f9a]
-    //Clean up pipe data before exiting
-    //已知残留风险,仅限Windows:该平台在进程退出时强行终止其余线程,被终止的轮询线程若恰好
-    //持有下面onPipeEvent要取的_mtx_task,此处将永久阻塞。其余平台不强杀线程,且上面的
-    //shutdown()已join过轮询线程(即线程系正常退出、不可能持锁),因此不存在该风险
-    //Known residual risk, Windows only: that platform kills the other threads while a process
-    //exits, and if the killed polling thread happened to hold the _mtx_task that onPipeEvent
-    //takes below, this blocks forever. The other platforms do not kill threads, and shutdown()
-    //above has already joined the polling thread (so it exited normally and cannot hold the
-    //lock), hence the risk does not exist there
-    onPipeEvent(true);
+    //此处不再执行任务列队:轮询线程收到退出信号后已在onPipeEvent中将其取空。若放在这里执行,
+    //任务就会落到析构所在的线程上,而调用方普遍假定它们只在本对象的轮询线程上运行
+    //The task queue is not drained here: the polling thread already emptied it in onPipeEvent
+    //upon receiving the exit signal. Doing it here would run those tasks on whichever thread
+    //destroys this object, while callers assume they only ever run on its polling thread
     InfoL << getThreadName();
 }
 
@@ -369,21 +344,40 @@ inline void EventPoller::onPipeEvent(bool flush) {
       }
     }
 
-    decltype(_list_task) _list_swap;
-    {
-        lock_guard<mutex> lck(_mtx_task);
-        _list_swap.swap(_list_task);
-    }
-
-    _list_swap.for_each([&](const Task::Ptr &task) {
-        try {
-            (*task)();
-        } catch (ExitException &) {
-            _exit_flag = true;
-        } catch (std::exception &ex) {
-            ErrorL << "Exception occurred when do async task: " << ex.what();
+    //收到退出信号后要把任务列队彻底取空:这些任务(例如Socket析构)往往持有本对象的引用,
+    //若留到轮询线程退出之后,就只能由析构方在另一个线程上执行,而调用方普遍假定它们只在
+    //本对象的轮询线程上运行。任务执行中还可能投递新任务,故需反复取到空为止
+    //Drain the task queue once the exit signal arrives: those tasks (the destruction of a Socket
+    //for instance) usually hold a reference to this object, and leaving them until after the
+    //polling thread is gone would force whoever destroys it to run them on another thread, while
+    //callers widely assume they only ever run on this object's polling thread. A task may post
+    //further tasks, hence the repetition until the queue comes back empty
+    for (;;) {
+        decltype(_list_task) _list_swap;
+        {
+            lock_guard<mutex> lck(_mtx_task);
+            _list_swap.swap(_list_task);
         }
-    });
+        if (_list_swap.empty()) {
+            break;
+        }
+
+        _list_swap.for_each([&](const Task::Ptr &task) {
+            try {
+                (*task)();
+            } catch (ExitException &) {
+                _exit_flag = true;
+            } catch (std::exception &ex) {
+                ErrorL << "Exception occurred when do async task: " << ex.what();
+            }
+        });
+
+        if (!_exit_flag) {
+            //未收到退出信号时只处理本批，与原有行为一致
+            //Without the exit signal only this batch is handled, as before
+            break;
+        }
+    }
 }
 
 SocketRecvBuffer::Ptr EventPoller::getSharedBuffer(bool is_udp) {
