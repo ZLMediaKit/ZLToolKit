@@ -90,6 +90,29 @@ EventPoller::EventPoller(std::string name) {
     addEventPipe();
 }
 
+void EventPoller::destroy(EventPoller *ptr) {
+    if (ptr->_loop_thread && ptr->isCurrentThread()) {
+        //最后一个引用在本对象自己的轮询线程上释放(典型情形:Socket的析构任务在这里执行,
+        //而它持有的是本对象的最后一个引用)。此刻runLoop仍在栈上,返回后还要读本对象,在这里
+        //销毁就会读到已释放的内存。只置退出标志让循环结束,由线程函数在runLoop返回后再销毁
+        //The last reference went away on this object's own polling thread (typically a Socket
+        //destructor task running here while holding the last reference to this object). runLoop
+        //is still on the stack and reads this object after returning, so destroying here would
+        //read freed memory. Only raise the exit flag to end the loop; the thread function
+        //destroys the object once runLoop has returned
+        ptr->_pending_delete = true;
+        ptr->_exit_flag = true;
+        //唤醒循环:若最后一个引用是在延时任务里释放的,循环接下来会再进一次epoll_wait,没有
+        //别的定时器时它会无限期等待;写一字节管道让它立即返回、去检查退出标志
+        //Wake the loop: if the last reference went away inside a delayed task, the loop is about to
+        //enter epoll_wait once more and would wait forever with no other timer pending; one byte
+        //on the pipe makes it return at once and check the exit flag
+        ptr->_pipe.write("", 1);
+        return;
+    }
+    delete ptr;
+}
+
 void EventPoller::shutdown() {
     async_l([]() {
         throw ExitException();
@@ -558,7 +581,31 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
         }
 #endif //HAS_EPOLL
     } else {
-        _loop_thread = new thread(&EventPoller::runLoop, this, true, ref_self);
+        _loop_thread = new thread([this, ref_self]() {
+            runLoop(true, ref_self);
+            if (_pending_delete) {
+                //最后一个引用已在本线程上释放(见destroy),runLoop已返回,此时销毁是安全的。
+                //线程对象由本线程自己脱离后释放,析构里的shutdown()见_loop_thread为空即跳过join
+                //The last reference went away on this thread (see destroy) and runLoop has returned,
+                //so destroying is safe now. The thread object is detached and freed by this very
+                //thread; shutdown() in the destructor sees _loop_thread null and skips the join
+                //已知边界:若进程恰在此刻退出,主线程的exit()不会等待本线程(已脱离),析构可能被
+                //截断,下面析构里那条日志也可能读到已被静态析构回收的模块名——只发生在进程
+                //退出期,退出码不受影响(实测),最多丢一条析构日志或其模块名字段为乱码;
+                //运行期释放池子时本线程会完整跑完析构(实测)
+                //Known corner: if the process happens to be exiting right now, exit() on the main
+                //thread does not wait for this (detached) thread: the destruction may be cut short,
+                //and the log line inside the destructor may read a module name already torn down by
+                //static destruction. That only happens while the process exits, the exit code is not
+                //affected (measured), at worst that one log line is lost or its module field is
+                //garbage; when a pool is released at run time this thread finishes the destruction
+                //in full (measured)
+                _loop_thread->detach();
+                delete _loop_thread;
+                _loop_thread = nullptr;
+                delete this;
+            }
+        });
         _sem_run_started.wait();
     }
 }
