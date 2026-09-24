@@ -70,8 +70,10 @@ static struct tm libcLocalTime(time_t sec) {
 static time_t daysLater(time_t t, long days) {
     const long long day = 24 * 3600;
     long long v = (long long)t + days * day;
-    long long max = (long long)std::numeric_limits<time_t>::max() - day;
-    return (time_t)(v < max ? v : max);
+    //写成(max)()是为了躲开windows.h里的max宏，与BufferSock.cpp的写法一致
+    //(max)() dodges the max macro of windows.h, same as in BufferSock.cpp
+    long long limit = (long long)(std::numeric_limits<time_t>::max)() - day;
+    return (time_t)(v < limit ? v : limit);
 }
 
 //逐字段比较本库与libc对时刻sec的换算结果
