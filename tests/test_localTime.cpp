@@ -27,16 +27,19 @@ using namespace toolkit;
 //本用例覆盖时区偏移的正确性，判定标准统一为"与libc的localtime结果完全一致"——
 //这比写死期望值更强，也不必随时区数据库的更新而维护。
 //时区一律使用POSIX TZ字符串而非IANA名称，因为Windows的_tzset只认前者；而且它只认
-//"三字母名[+|-]hh[:mm]三字母名"这一种写法，规则部分被忽略(按美国规则、固定一小时)，所以下面的
-//名字一律三个字母，好让Windows至少把偏移解析出来。半小时夏令时、负夏令时这些规则在Windows上
-//测不到，那里只剩"本库与CRT一致"这一层。
+//"三字母名[+|-]hh[:mm]三字母名"这一种写法，规则部分被忽略(按美国规则；夏令时宽度取CRT的
+//_dstbias，通常一小时，系统时区没有夏令时的机器上是零)，所以下面的名字一律三个字母，好让Windows
+//至少把偏移解析出来。半小时夏令时、负夏令时这些规则在Windows上测不到，那里只剩"本库与CRT一致"
+//这一层。
 //This case covers the correctness of the timezone offset. The criterion is always
 //"identical to what libc's localtime returns", which is a stronger check than hardcoded
 //expectations and needs no maintenance when the timezone database is updated.
 //Timezones are given as POSIX TZ strings rather than IANA names, because the _tzset of
 //Windows only understands the former; and it only understands the form
-//"three-letter name[+|-]hh[:mm]three-letter name", ignoring the rule part (US rules, a fixed
-//hour), so every name below has three letters so that Windows at least parses the offset.
+//"three-letter name[+|-]hh[:mm]three-letter name", ignoring the rule part (US rules; the width
+//of daylight saving time is the _dstbias of the CRT, usually an hour, zero on a machine whose
+//system timezone has none), so every name below has three letters so that Windows at least
+//parses the offset.
 //Half hour and negative daylight saving rules cannot be exercised there, only "this library
 //agrees with the CRT" remains on Windows.
 static void useTimezone(const char *tz) {
