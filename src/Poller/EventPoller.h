@@ -280,7 +280,9 @@ private:
     // 标记loop线程是否退出  [AUTO-TRANSLATED:98250f84]
     // 标记loop线程是否退出
     // Mark the loop thread as exited
-    bool _exit_flag;
+    // 初值为true:循环尚未开始时即处于"已退出"状态
+    // Initially true: before the loop starts it already is in the exited state
+    bool _exit_flag = true;
     // 统计监听了多少个fd
     size_t _fd_count = 0;
     // 线程名  [AUTO-TRANSLATED:f1d62d9f]
