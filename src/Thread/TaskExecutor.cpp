@@ -233,7 +233,7 @@ size_t TaskExecutorGetterImp::addPoller(const string &name, size_t size, int pri
     for (size_t i = 0; i < size; ++i) {
         auto full_name = name + " " + to_string(i);
         auto cpu_index = i % cpus;
-        EventPoller::Ptr poller(new EventPoller(full_name));
+        EventPoller::Ptr poller(new EventPoller(full_name), EventPoller::destroy);
         poller->runLoop(false, register_thread);
         poller->async([cpu_index, full_name, priority, enable_cpu_affinity]() {
             // 设置线程优先级  [AUTO-TRANSLATED:2966f860]
