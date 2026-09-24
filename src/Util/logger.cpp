@@ -496,6 +496,27 @@ static time_t getLogFileTime(const string &full_path) {
     if (!strptime(name, "%Y-%m-%d", &tm)) {
         return 0;
     }
+    //此处刻意保持tm_isdst为0(即按标准时解释该日期)，不要改成-1：
+    //getDay()一律用"当前时刻"的偏移去换算天序，只要这里取的偏移不大于当前偏移，天序就正确。
+    //标准时通常是该时区最小的偏移，满足该条件；而-1会取这一天真实的历史偏移，夏令时期间写的
+    //日志在冬天被清理时，偏移反而比当前大一小时，天序倒退一天，日志会被提前一天删除。
+    //例外是以夏季时间为标准时、冬季反过来记为负夏令时的时区(时区数据库默认格式下的Europe/Dublin、
+    //Africa/Casablanca；用rearguard格式编译的发行版把它们表示成正夏令时，不受影响)：那里标准时
+    //反而是较大的偏移，冬季清理时所有文件的天序都倒退一天，日志会提前一天删除。该问题在本次修改
+    //之前就存在，此处不处理。
+    //Keep tm_isdst at zero on purpose, that is, read the date as standard time; do not change it
+    //to -1: getDay() always converts using the offset of the current moment, so the day number is
+    //right as long as the offset used here is not greater than the current one. Standard time is
+    //normally the smallest offset of a timezone and satisfies that, whereas -1 picks the real
+    //historical offset of that day, which for logs written during the daylight saving period is
+    //one hour larger than the current offset when they are cleaned up in winter; the day number
+    //then goes back by one and the logs get deleted a day early.
+    //The exception are timezones whose standard time is the summer one, with winter recorded as
+    //a negative daylight saving time instead (Europe/Dublin and Africa/Casablanca in the default
+    //format of the timezone database; distributions compiling the rearguard format express them
+    //as a positive daylight saving time and are unaffected): there standard time is the larger
+    //offset, the day number of every file goes back by one during a winter cleanup and the logs
+    //get deleted a day early. That predates this change and is left alone here.
     //此函数会把本地时间转换成GMT时间戳
     return mktime(&tm);
 }
@@ -544,10 +565,18 @@ void FileChannel::write(const Logger &logger, const LogContextPtr &ctx) {
     //这条日志所在第几天
     auto day = getDay(second);
     if ((int64_t) day != _last_day) {
-        if (_last_day != -1) {
+        if (_last_day != -1 && (int64_t) day > _last_day) {
             //重置日志index
             _index = 0;
         }
+        //日期倒退(时钟被回拨，或夏令时在本地零点结束的时区)时不重置index：切片编号只在日期前进时
+        //归零，回退到的那一天从当前编号继续，通常是一个新文件；若该编号的切片已存在则追加，与日期
+        //前进时打开当天00号切片的做法相同
+        //The index is not reset when the date goes backwards (the clock is set back, or daylight
+        //saving time ends at local midnight in that timezone): the slice number only restarts at
+        //zero when the date moves forward, the day gone back to continues from the current number,
+        //usually a new file; if a slice with that number already exists it is appended to, just
+        //like slice 00 of the day is when the date moves forward
         //这条日志是新的一天，记录这一天
         _last_day = day;
         //获取日志当天对应的文件，每天可能有多个日志切片文件
