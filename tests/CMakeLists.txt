@@ -55,6 +55,7 @@ endif()
 set(GATING_TESTS
     test_creator
     test_ini
+    test_localTime
     test_logger
     test_pollerDeferredDelete
     test_resourcePool
