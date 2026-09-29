@@ -767,6 +767,8 @@ private:
     ssize_t send_l(Buffer::Ptr buf, bool is_buf_sock, bool try_flush = true);
     void connect_l(const std::string &url, uint16_t port, const onErrCB &con_cb_in, float timeout_sec, const std::string &local_ip, uint16_t local_port);
     bool fromSock_l(SockNum::Ptr sock);
+    void flushPendingAsync();
+
 private:
     // send socket时的flag  [AUTO-TRANSLATED:e364a1bf]
     //Flag for sending socket
@@ -816,6 +818,10 @@ private:
     // 跨线程访问_sock_fd时需要上锁  [AUTO-TRANSLATED:dc63f6c4]
     //Need to lock when accessing _sock_fd across threads
     mutable MutexWrapper<std::recursive_mutex> _mtx_sock_fd;
+    
+    std::atomic<int> _in_event_callback { 0 };
+    std::atomic<bool> _async_flush_scheduled { false };
+    std::atomic<bool> _pending_flush_error { false };
 
     // socket异常事件(比如说断开)  [AUTO-TRANSLATED:96c028e8]
     //Socket exception event (such as disconnection)
@@ -866,6 +872,19 @@ private:
     //Connection cache address, to prevent TCP reset from causing the inability to obtain the peer's address
     struct sockaddr_storage _local_addr;
     struct sockaddr_storage _peer_addr;
+
+private:
+    class EventGuard {
+    private:
+        Socket *_socket;
+        Socket *_prev;
+
+    public:
+        explicit EventGuard(Socket *sock);
+        ~EventGuard();
+        EventGuard(const EventGuard &) = delete;
+        EventGuard &operator=(const EventGuard &) = delete;
+    };
 };
 
 class SockSender {
