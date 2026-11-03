@@ -51,7 +51,7 @@ PipeWrap::PipeWrap() {
 void PipeWrap::reOpen() {
     clearFD();
 #if defined(_WIN32)
-#if defined(PIPE_HAS_AF_UNIX)
+#if defined(PIPE_HAS_AF_UNIX) && defined(HAS_EPOLL)
     bool unix_mode = reOpenUnix();
     if (!unix_mode) {
         // AF_UNIX不可用(低于Win10 1803或运行时创建失败)，降级为回环TCP模拟
