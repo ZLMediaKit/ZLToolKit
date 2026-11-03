@@ -13,13 +13,6 @@
 
 #include <string>
 
-// 编译期探测是否支持AF_UNIX(需要Windows SDK 10.0.17134+)
-#if defined(_WIN32) && defined(__has_include)
-#if __has_include(<afunix.h>)
-#define PIPE_HAS_AF_UNIX 1
-#endif
-#endif
-
 namespace toolkit {
 
 class PipeWrap {
@@ -43,10 +36,6 @@ private:
 
 private:
     int _pipe_fd[2] = { -1, -1 };
-#if defined(_WIN32)
-    // AF_UNIX socket文件路径，close后兜底删除文件，防止残留
-    std::string _unix_path;
-#endif // defined(_WIN32)
 };
 
 } /* namespace toolkit */

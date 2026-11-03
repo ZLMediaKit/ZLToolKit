@@ -14,15 +14,154 @@
 #include "Poller/EventPoller.h"
 #include "Poller/Pipe.h"
 #include "Util/util.h"
+#if defined(_WIN32)
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <vector>
+#endif
 using namespace std;
 using namespace toolkit;
+
+#if defined(_WIN32)
+namespace {
+
+constexpr size_t kProducerCount = 4;
+constexpr size_t kTasksPerProducer = 25000;
+constexpr size_t kTaskCount = kProducerCount * kTasksPerProducer;
+
+struct WakeupTestState {
+    mutex mtx;
+    condition_variable cv;
+    bool gate_entered = false;
+    bool gate_released = false;
+    bool barrier_reached = false;
+    bool producer_failed = false;
+    atomic<size_t> submitted{0};
+    atomic<size_t> executed{0};
+    atomic<size_t> posting_done{0};
+    atomic<size_t> producers_returned{0};
+    atomic<long long> max_async_us{0};
+    // Only the poller thread updates this vector; the main thread reads it
+    // after the barrier callback has published completion under mtx.
+    vector<unsigned int> seen = vector<unsigned int>(kTaskCount, 0);
+};
+
+int testPollerWakeup() {
+    EventPollerPool::setPoolSize(1);
+    EventPollerPool::enableCpuAffinity(false);
+    auto poller = EventPollerPool::Instance().getFirstPoller();
+    auto state = make_shared<WakeupTestState>();
+
+    // Stop the consumer temporarily so producers can fill the wakeup socket.
+    poller->async([state]() {
+        unique_lock<mutex> lock(state->mtx);
+        state->gate_entered = true;
+        state->cv.notify_all();
+        state->cv.wait_for(lock, chrono::seconds(5), [&]() { return state->gate_released; });
+    }, false);
+    {
+        unique_lock<mutex> lock(state->mtx);
+        if (!state->cv.wait_for(lock, chrono::seconds(10), [&]() { return state->gate_entered; })) {
+            ErrorL << "Poller did not start the gate task";
+            std::_Exit(1);
+        }
+    }
+
+    vector<thread> producers;
+    producers.reserve(kProducerCount);
+    try {
+        for (size_t producer = 0; producer < kProducerCount; ++producer) {
+            producers.emplace_back([poller, state, producer]() {
+                try {
+                    for (size_t i = 0; i < kTasksPerProducer; ++i) {
+                        const size_t id = producer * kTasksPerProducer + i;
+                        const auto start = chrono::steady_clock::now();
+                        poller->async([state, id]() {
+                            ++state->seen[id];
+                            ++state->executed;
+                        }, false);
+                        const auto elapsed = chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - start).count();
+                        auto maximum = state->max_async_us.load();
+                        while (maximum < elapsed && !state->max_async_us.compare_exchange_weak(maximum, elapsed)) {}
+                        ++state->submitted;
+                    }
+                    // This barrier is enqueued only after every producer has
+                    // finished posting, and therefore follows every test task.
+                    if (++state->posting_done == kProducerCount) {
+                        poller->async([state]() {
+                            lock_guard<mutex> lock(state->mtx);
+                            state->barrier_reached = true;
+                            state->cv.notify_all();
+                        }, false);
+                    }
+                } catch (...) {
+                    lock_guard<mutex> lock(state->mtx);
+                    state->producer_failed = true;
+                    state->cv.notify_all();
+                }
+                {
+                    lock_guard<mutex> lock(state->mtx);
+                    ++state->producers_returned;
+                    state->cv.notify_all();
+                }
+            });
+        }
+    } catch (...) {
+        ErrorL << "Could not start producer threads";
+        std::_Exit(1);
+    }
+
+    this_thread::sleep_for(chrono::milliseconds(500));
+    size_t submitted_while_paused;
+    {
+        lock_guard<mutex> lock(state->mtx);
+        submitted_while_paused = state->submitted.load();
+        state->gate_released = true;
+        state->cv.notify_all();
+    }
+
+    {
+        unique_lock<mutex> lock(state->mtx);
+        const bool finished = state->cv.wait_for(lock, chrono::seconds(60), [&]() {
+            return state->producer_failed ||
+                (state->barrier_reached && state->producers_returned.load() == kProducerCount);
+        });
+        if (!finished || state->producer_failed) {
+            ErrorL << "Poller wakeup test failed or timed out: submitted=" << state->submitted.load()
+                   << ", executed=" << state->executed.load() << ", producers returned=" << state->producers_returned.load();
+            // A producer could be stuck in async(); joining it or destroying
+            // the poller would otherwise hang the test indefinitely.
+            std::_Exit(1);
+        }
+    }
+    for (auto &producer : producers) {
+        producer.join();
+    }
+    size_t missing = 0;
+    size_t duplicated = 0;
+    for (auto count : state->seen) {
+        missing += count == 0;
+        duplicated += count > 1;
+    }
+    InfoL << "Poller wakeup: submitted=" << state->submitted.load() << ", executed=" << state->executed.load()
+          << ", submitted while paused=" << submitted_while_paused
+          << ", max async latency=" << state->max_async_us.load() << " us"
+          << ", missing=" << missing << ", duplicated=" << duplicated;
+    return state->submitted.load() == kTaskCount && state->executed.load() == kTaskCount && !missing && !duplicated ? 0 : 1;
+}
+
+} // namespace
+#endif
 
 int main() {
     //设置日志  [AUTO-TRANSLATED:50372045]
     // Set up logging
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
 #if defined(_WIN32)
-    ErrorL << "该测试程序不能再windows下运行，因为我不会windows下的多进程编程，但是管道模块是可以在windows下正常工作的。" << endl;
+    return testPollerWakeup();
 #else
     //获取父进程的PID  [AUTO-TRANSLATED:0a35f39a]
     // Get the parent process's PID
