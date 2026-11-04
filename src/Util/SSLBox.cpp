@@ -157,7 +157,7 @@ bool SSL_Initor::setContext(const string &vhost, const shared_ptr<SSL_CTX> &ctx,
     if (!ctx) {
         return false;
     }
-    setupCtx(ctx.get());
+    setupCtx(ctx.get(), server_mode);
 #if defined(ENABLE_OPENSSL)
     if (vhost.empty()) {
         _ctx_empty[server_mode] = ctx;
@@ -187,12 +187,34 @@ bool SSL_Initor::setContext(const string &vhost, const shared_ptr<SSL_CTX> &ctx,
 #endif //defined(ENABLE_OPENSSL)
 }
 
-void SSL_Initor::setupCtx(SSL_CTX *ctx) {
+void SSL_Initor::setupCtx(SSL_CTX *ctx, bool server_mode) {
 #if defined(ENABLE_OPENSSL)
     //加载默认信任证书  [AUTO-TRANSLATED:4d98f092]
     //Load default trusted certificate
     SSLUtil::loadDefaultCAs(ctx);
-    SSL_CTX_set_cipher_list(ctx, "ALL:!ADH:!LOW:!EXP:!MD5:!3DES:!DES:!IDEA:!RC4:!SEED-SHA:@STRENGTH");
+    if (server_mode) {
+        //服务端仅启用支持前向保密(ECDHE)的加密套件，禁用RSA密钥交换，避免历史流量被解密
+        //The server only enables forward secrecy (ECDHE) cipher suites, disabling RSA key exchange
+        static const char *kServerCiphers =
+                "ECDHE-ECDSA-AES128-GCM-SHA256:"
+                "ECDHE-RSA-AES128-GCM-SHA256:"
+                "ECDHE-ECDSA-AES256-GCM-SHA384:"
+                "ECDHE-RSA-AES256-GCM-SHA384:"
+                "ECDHE-ECDSA-CHACHA20-POLY1305:"
+                "ECDHE-RSA-CHACHA20-POLY1305";
+        if (SSL_CTX_set_cipher_list(ctx, kServerCiphers) != 1) {
+            WarnL << "SSL_CTX_set_cipher_list failed: " << SSLUtil::getLastError();
+        }
+    } else {
+        //客户端保留较宽松的加密套件，以兼容仅支持RSA密钥交换的旧服务端
+        //The client keeps a more permissive cipher list to be compatible with legacy servers
+        SSL_CTX_set_cipher_list(ctx, "ALL:!ADH:!LOW:!EXP:!MD5:!3DES:!DES:!IDEA:!RC4:!SEED-SHA:@STRENGTH");
+    }
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    //强制最低TLS 1.2版本
+    //Force the minimum TLS version to 1.2
+    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+#endif
     SSL_CTX_set_verify_depth(ctx, 9);
     SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
     SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);

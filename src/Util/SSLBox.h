@@ -149,12 +149,14 @@ private:
     /**
      * 设置SSL_CTX的默认配置
      * @param ctx 对象指针
+     * @param server_mode 是否为服务器模式
      * Set the default configuration for SSL_CTX
      * @param ctx Object pointer
+     * @param server_mode Whether it is in server mode
      
      * [AUTO-TRANSLATED:1b3438d0]
      */
-    static void setupCtx(SSL_CTX *ctx);
+    static void setupCtx(SSL_CTX *ctx, bool server_mode);
 
     std::shared_ptr<SSL_CTX> getSSLCtx_l(const std::string &vhost, bool server_mode);
 
