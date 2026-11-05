@@ -13,8 +13,10 @@
 #include "Util/logger.h"
 #include "Poller/EventPoller.h"
 #include "Poller/Pipe.h"
+#include "Poller/PipeWrap.h"
 #include "Util/util.h"
 #if defined(_WIN32)
+#include <windows.h>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -31,6 +33,49 @@ namespace {
 constexpr size_t kProducerCount = 4;
 constexpr size_t kTasksPerProducer = 25000;
 constexpr size_t kTaskCount = kProducerCount * kTasksPerProducer;
+
+bool noPipeSocketFiles() {
+    wchar_t temp[MAX_PATH];
+    auto length = GetTempPathW(MAX_PATH, temp);
+    if (!length || length >= MAX_PATH) {
+        ErrorL << "Could not get temporary directory: " << GetLastError();
+        return false;
+    }
+    wstring pattern(temp, length);
+    if (pattern.back() != L'\\' && pattern.back() != L'/') {
+        pattern += L'\\';
+    }
+    pattern += L"zltk_pipe_" + to_wstring(GetCurrentProcessId()) + L"_*.sock";
+    WIN32_FIND_DATAW data;
+    auto search = FindFirstFileW(pattern.c_str(), &data);
+    if (search != INVALID_HANDLE_VALUE) {
+        FindClose(search);
+        ErrorL << "PipeWrap left a socket file in the temporary directory";
+        return false;
+    }
+    auto error = GetLastError();
+    if (error != ERROR_FILE_NOT_FOUND) {
+        ErrorL << "Could not check for socket files: " << error;
+        return false;
+    }
+    return true;
+}
+
+bool testPipePathCleanup() {
+    if (!noPipeSocketFiles()) {
+        return false;
+    }
+    for (int i = 0; i < 3; ++i) {
+        {
+            PipeWrap pipe;
+            pipe.reOpen();
+        }
+        if (!noPipeSocketFiles()) {
+            return false;
+        }
+    }
+    return true;
+}
 
 struct WakeupTestState {
     mutex mtx;
@@ -161,6 +206,9 @@ int main() {
     // Set up logging
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
 #if defined(_WIN32)
+    if (!testPipePathCleanup()) {
+        return 1;
+    }
     return testPollerWakeup();
 #else
     //获取父进程的PID  [AUTO-TRANSLATED:0a35f39a]

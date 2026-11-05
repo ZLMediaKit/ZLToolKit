@@ -17,6 +17,7 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#include <mutex>
 // Windows select 要求同一次调用中的 socket 来自相同 provider，
 // 因此 AF_UNIX 管道仅用于 wepoll，select 后端使用回环 TCP。
 #if defined(HAS_EPOLL) && defined(__has_include)
@@ -57,14 +58,18 @@ void PipeWrap::reOpen() {
         // AF_UNIX不可用(低于Win10 1803或运行时创建失败)，降级为回环TCP模拟
         reOpenTcp();
     }
-    InfoL << "PipeWrap created, mode: " << (unix_mode ? "AF_UNIX" : "loopback TCP (fallback)");
+    const char *pipe_mode = unix_mode ? "AF_UNIX" : "loopback TCP (fallback)";
 #elif !defined(HAS_EPOLL)
     reOpenTcp();
-    InfoL << "PipeWrap created, mode: loopback TCP (AF_UNIX requires wepoll)";
+    const char *pipe_mode = "loopback TCP (AF_UNIX requires wepoll)";
 #else
     reOpenTcp();
-    InfoL << "PipeWrap created, mode: loopback TCP (AF_UNIX SDK header unavailable)";
+    const char *pipe_mode = "loopback TCP (AF_UNIX SDK header unavailable)";
 #endif
+    static std::once_flag log_pipe_mode_once;
+    std::call_once(log_pipe_mode_once, [pipe_mode]() {
+        InfoL << "PipeWrap created, mode: " << pipe_mode;
+    });
 #else
     if (pipe(_pipe_fd) == -1) {
         throw runtime_error(StrPrinter << "Create posix pipe failed: " << get_uv_errmsg());
@@ -120,58 +125,60 @@ static std::wstring makeUnixPipePath() {
 bool PipeWrap::reOpenUnix() {
     auto wsPath = makeUnixPipePath();
     if (wsPath.empty()) {
+        WarnL << "Failed to generate AF_UNIX socket path, fallback to loopback TCP";
         return false;
     }
 
     sockaddr_un addr {};
     addr.sun_family = AF_UNIX;
-    // sun_path 使用 UTF-8，转换失败或路径过长时回退到 TCP。
     if (WideCharToMultiByte(CP_UTF8, 0, wsPath.c_str(), -1,
                             addr.sun_path, static_cast<int>(sizeof(addr.sun_path)),
                             nullptr, nullptr) == 0) {
+        WarnL << "WideCharToMultiByte failed: " << GetLastError() << ", fallback to loopback TCP";
         return false;
     }
     int listener_fd = -1;
     bool bound = false;
     bool success = false;
     onceToken cleanup(nullptr, [&]() {
+        closeFD(listener_fd);
         if (!success) {
             clearFD();
         }
-        closeFD(listener_fd);
         // 仅删除本次成功绑定的路径，不能删除其他进程的文件。
-        if (bound) {
-            DeleteFileW(wsPath.c_str());
+        if (bound && !DeleteFileW(wsPath.c_str())) {
+            auto error = GetLastError();
+            WarnL << "Delete AF_UNIX socket file " << addr.sun_path <<  " failed: " << error;
         }
     });
 
     listener_fd = (int)socket(AF_UNIX, SOCK_STREAM, 0);
-    if (listener_fd == -1) {
+    if (listener_fd == SOCKET_ERROR) {
         DebugL << "AF_UNIX socket() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
 
     if (::bind(listener_fd, (sockaddr *)&addr, sizeof(addr)) == -1) {
-        DebugL << "AF_UNIX bind failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
+        DebugL << "AF_UNIX bind() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
     bound = true;
-    if (listen(listener_fd, 1) == -1) {
-        DebugL << "AF_UNIX listen failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
+    if (listen(listener_fd, 1) == SOCKET_ERROR) {
+        DebugL << "AF_UNIX listen() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
     _pipe_fd[1] = (int)socket(AF_UNIX, SOCK_STREAM, 0);
-    if (_pipe_fd[1] == -1) {
-        DebugL << "AF_UNIX client socket failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
+    if (_pipe_fd[1] == SOCKET_ERROR) {
+        DebugL << "AF_UNIX client socket() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
-    if (connect(_pipe_fd[1], (sockaddr *)&addr, sizeof(addr)) == -1) {
-        DebugL << "AF_UNIX connect failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
+    if (connect(_pipe_fd[1], (sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        DebugL << "AF_UNIX connect() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
     _pipe_fd[0] = (int)accept(listener_fd, nullptr, nullptr);
-    if (_pipe_fd[0] == -1) {
-        DebugL << "AF_UNIX accept failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
+    if (_pipe_fd[0] == SOCKET_ERROR) {
+        DebugL << "AF_UNIX accept() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
 
