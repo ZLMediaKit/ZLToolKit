@@ -52,7 +52,7 @@ PipeWrap::PipeWrap() {
 void PipeWrap::reOpen() {
     clearFD();
 #if defined(_WIN32)
-#if defined(PIPE_HAS_AF_UNIX) && defined(HAS_EPOLL)
+#if defined(PIPE_HAS_AF_UNIX)
     bool unix_mode = reOpenUnix();
     if (!unix_mode) {
         // AF_UNIX不可用(低于Win10 1803或运行时创建失败)，降级为回环TCP模拟
@@ -153,7 +153,7 @@ bool PipeWrap::reOpenUnix() {
     });
 
     listener_fd = (int)socket(AF_UNIX, SOCK_STREAM, 0);
-    if (listener_fd == SOCKET_ERROR) {
+    if (listener_fd == -1) {
         DebugL << "AF_UNIX socket() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
@@ -163,21 +163,21 @@ bool PipeWrap::reOpenUnix() {
         return false;
     }
     bound = true;
-    if (listen(listener_fd, 1) == SOCKET_ERROR) {
+    if (listen(listener_fd, 1) == -1) {
         DebugL << "AF_UNIX listen() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
     _pipe_fd[1] = (int)socket(AF_UNIX, SOCK_STREAM, 0);
-    if (_pipe_fd[1] == SOCKET_ERROR) {
+    if (_pipe_fd[1] == -1) {
         DebugL << "AF_UNIX client socket() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
-    if (connect(_pipe_fd[1], (sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
+    if (connect(_pipe_fd[1], (sockaddr *)&addr, sizeof(addr)) == -1) {
         DebugL << "AF_UNIX connect() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
     _pipe_fd[0] = (int)accept(listener_fd, nullptr, nullptr);
-    if (_pipe_fd[0] == SOCKET_ERROR) {
+    if (_pipe_fd[0] == -1) {
         DebugL << "AF_UNIX accept() failed: " << get_uv_errmsg(true) << ", fallback to loopback TCP";
         return false;
     }
