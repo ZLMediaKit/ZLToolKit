@@ -23,9 +23,9 @@ if(WIN32 AND MYSQL_FOUND)
     endif()
 endif()
 
-#门禁用例白名单：只收录不依赖网络、命令行参数与外部服务，能自行结束并以退出码表明结果的程序。
+#门禁用例白名单：只收录不依赖命令行参数与外部服务，能自行结束并以退出码表明结果的程序。
 #本目录其余多为服务型或压测程序(运行后不会自行退出)，全量注册会让ctest一直挂起，故用白名单。
-#Gating test whitelist: only programs that need no network, no command-line argument and no
+#Gating test whitelist: only programs that need no command-line argument and no
 #external service, and that finish on their own and report the outcome through the exit code.
 #Most of the others here are long-running services or benchmarks that never exit by themselves,
 #so registering everything would hang ctest; hence a whitelist.
@@ -40,10 +40,10 @@ endif()
 #on std::cin and would spin until the timeout when unattended; test_shell needs a peer to connect
 #to; the rest are long-running services.
 #注：收录标准是"能无人值守跑完"，而不是"不碰套接字"——test_ringBuffer用到EventPoller，
-#其PipeWrap在Windows上本就是以127.0.0.1的TCP实现的，按后者衡量并无意义。
+#其PipeWrap在Windows上可使用AF_UNIX，不可用时则使用回环TCP，按后者tcp的衡量并无意义。
 #Note: the criterion is being able to run unattended, not staying away from sockets: test_ringBuffer
-#uses EventPoller, whose PipeWrap is implemented on top of a 127.0.0.1 TCP connection on Windows
-#anyway, so the latter criterion would make little sense.
+#uses EventPoller, whose PipeWrap can use AF_UNIX on Windows and otherwise falls back to loopback
+#TCP, so the latter criterion would make little sense.
 #test_ringBuffer与test_udpSocketBufferConfig依赖EventPollerPool，此前在Windows上会卡在
 #进程退出阶段(断言全过、结果已打印，进程却不退出，最终被120秒超时判为失败)，因而只在
 #非Windows平台收录；该死锁已修复(见EventPoller析构中对wepoll句柄的处理)，现一并收录。
@@ -63,6 +63,12 @@ set(GATING_TESTS
     test_threadPool
     test_udpSocketBufferConfig
     test_variant)
+
+#test_pipe的非Windows分支等待SIGINT，不能无人值守运行。
+#The non-Windows branch of test_pipe waits for SIGINT and cannot run unattended.
+if(WIN32)
+    list(APPEND GATING_TESTS test_pipe)
+endif()
 
 foreach(TEST_SRC ${TEST_SRC_LIST})
     STRING(REGEX REPLACE "^\\./|\\.c[a-zA-Z0-9_]*$" "" TESTER ${TEST_SRC})

@@ -11,6 +11,8 @@
 #ifndef PipeWarp_h
 #define PipeWarp_h
 
+#include <string>
+
 namespace toolkit {
 
 class PipeWrap {
@@ -25,6 +27,12 @@ public:
 
 private:
     void clearFD();
+#if defined(_WIN32)
+    // AF_UNIX模拟管道，成功返回true；系统不支持时返回false
+    bool reOpenUnix();
+    // 回环TCP模拟管道，作为AF_UNIX不可用时的降级方案
+    void reOpenTcp();
+#endif // defined(_WIN32)
 
 private:
     int _pipe_fd[2] = { -1, -1 };
