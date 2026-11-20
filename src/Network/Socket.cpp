@@ -68,7 +68,6 @@ Socket::Socket(EventPoller::Ptr poller, bool enable_mutex)
     , _mtx_event(enable_mutex)
     , _mtx_send_buf_waiting(enable_mutex)
     , _mtx_send_buf_sending(enable_mutex) {
-    _fd_reservation = _poller->reserveFd();
     memset(&_peer_addr, 0, sizeof _peer_addr);
     setOnRead(nullptr);
     setOnErr(nullptr);
@@ -583,6 +582,11 @@ bool Socket::fromSock_l(SockNum::Ptr sock) {
     return true;
 }
 
+void Socket::reserveFd() {
+    LOCK_GUARD(_mtx_sock_fd);
+    _fd_reservation = _poller->reserveFd();
+}
+
 void Socket::moveTo(EventPoller::Ptr poller) {
     LOCK_GUARD(_mtx_sock_fd);
     if (poller) {
@@ -673,6 +677,9 @@ int Socket::onAccept(const SockNum::Ptr &sock, int event) noexcept {
                 //This is the default construction behavior, which means the child Socket shares the parent Socket's poll thread and closes the mutex lock
                 peer_sock = Socket::createSocket(_poller, false);
             }
+            // fd派发到peer_sock所属poller, attach被推迟到onAccept回调之后, 先预约名额以便负载均衡
+            // The fd is dispatched to peer_sock's poller with attach deferred until after onAccept; reserve a slot for load balancing
+            peer_sock->reserveFd();
 
             auto sock = std::make_shared<SockNum>(fd, SockNum::Sock_TCP);
             // 设置好fd,以备在onAccept事件中可以正常访问该fd  [AUTO-TRANSLATED:e3e3c225]

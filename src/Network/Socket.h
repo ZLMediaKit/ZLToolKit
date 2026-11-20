@@ -427,6 +427,15 @@ public:
     std::shared_ptr<void> cloneSocket(const Socket &other);
 
     /**
+     * 在本Socket所属poller上预约一个fd名额(用于EventPollerPool::getPoller负载均衡)
+     * 仅在fd已确定派发到本Socket、但attach到事件循环被推迟时调用；attach时或Socket析构时自动释放
+     * Reserve an fd slot on this Socket's poller (used by EventPollerPool::getPoller for load balancing).
+     * Call only when an fd has been dispatched to this Socket but attaching is deferred;
+     * released automatically on attach or when the Socket is destroyed.
+     */
+    void reserveFd();
+
+    /**
      * 切换poller线程，注意只能在onAccept之前调用
      * @param poller 新线程
      */
@@ -813,8 +822,8 @@ private:
     // 本socket绑定的poller线程，事件触发于此线程  [AUTO-TRANSLATED:6f782513]
     //The poller thread bound to this socket, events are triggered in this thread
     EventPoller::Ptr _poller;
-    // 在poller上预约的fd名额，fd添加到事件循环后释放，用于poller负载均衡
-    // fd slot reserved on the poller for load balancing; released once the fd is attached
+    // 在poller上预约的fd名额(见reserveFd)，fd添加到事件循环后释放，用于poller负载均衡
+    // fd slot reserved on the poller (see reserveFd) for load balancing; released once the fd is attached
     std::shared_ptr<void> _fd_reservation;
     // 跨线程访问_sock_fd时需要上锁  [AUTO-TRANSLATED:dc63f6c4]
     //Need to lock when accessing _sock_fd across threads
