@@ -1,10 +1,12 @@
 #include <csignal>
 #include <iostream>
 #include <vector>
+#if defined(__linux__) || defined(__linux)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#endif
 #include "Util/logger.h"
 #include "Network/TcpServer.h"
 #include "Network/Session.h"
@@ -24,8 +26,8 @@ int main(int argc, char *argv[]) {
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
     Logger::Instance().setLevel(LWarn);
-    int threads = argc > 1 ? atoi(argv[1]) : 4;
-    int conns = argc > 2 ? atoi(argv[2]) : 2000;
+    int threads = argc > 1 ? atoi(argv[1]) : std::thread::hardware_concurrency();
+    int conns = argc > 2 ? atoi(argv[2]) : 4000;
     EventPollerPool::setPoolSize(threads);
 
     TcpServer::Ptr server(new TcpServer());
@@ -50,7 +52,9 @@ int main(int argc, char *argv[]) {
     EventPollerPool::Instance().for_each([&](const TaskExecutor::Ptr &ex) {
         auto p = static_pointer_cast<EventPoller>(ex);
         auto n = p->fdCount();
-        total += n; maxv = max(maxv, n); minv = min(minv, n);
+        total += n;
+        maxv = max(maxv, n);
+        minv = min(minv, n);
         cout << p->getThreadName() << ": fd=" << n << " pending=" << p->pendingFdCount() << endl;
     });
     cout << "connected=" << fds.size() << " total_fd=" << total << " max=" << maxv << " min=" << minv << endl;

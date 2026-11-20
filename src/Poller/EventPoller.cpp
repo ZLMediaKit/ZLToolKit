@@ -702,9 +702,7 @@ EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread) {
     }
 
     auto size = _threads.size();
-    if (size == 0) {
-        return nullptr;
-    }
+
     // 以fd数作为负载指标: 即时且确定, 避免ThreadLoadCounter滞后导致突发连接集中到同一线程
     // 起始位置轮转, fd数相同时实现round-robin
     // Use fd count as the load metric: immediate and deterministic, avoiding bursts piling onto one

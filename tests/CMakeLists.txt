@@ -57,7 +57,8 @@ set(GATING_TESTS
     test_ini
     test_localTime
     test_logger
-    test_pollerDeferredDelete
+    test_pollerBalance
+    test_pollerDeferredDelete    
     test_resourcePool
     test_ringBuffer
     test_threadPool
