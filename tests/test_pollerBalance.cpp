@@ -31,14 +31,14 @@ int main(int argc, char *argv[]) {
     EventPollerPool::setPoolSize(threads);
 
     TcpServer::Ptr server(new TcpServer());
-    server->start<EchoSession>(9011);
+    server->start<EchoSession>(0, "127.0.0.1");
 
     vector<int> fds;
     for (int i = 0; i < conns; ++i) {
         int fd = socket(AF_INET, SOCK_STREAM, 0);
         sockaddr_in addr {};
         addr.sin_family = AF_INET;
-        addr.sin_port = htons(9011);
+        addr.sin_port = htons(server->getPort());
         addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         if (connect(fd, (sockaddr *)&addr, sizeof(addr)) == 0) {
             fds.push_back(fd);
