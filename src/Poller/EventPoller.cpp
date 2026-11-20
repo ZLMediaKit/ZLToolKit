@@ -310,7 +310,15 @@ int EventPoller::modifyEvent(int fd, int event, PollCompleteCB cb) {
 }
 
 size_t EventPoller::fdCount() const {
-    return _fd_count;
+    return _fd_count.load(std::memory_order_relaxed);
+}
+
+size_t EventPoller::pendingFdCount() const {
+    return _pending_fd_count.load(std::memory_order_relaxed);
+}
+
+void EventPoller::addPendingFd() {
+    _pending_fd_count.fetch_add(1, std::memory_order_relaxed);
 }
 
 Task::Ptr EventPoller::async(TaskIn task, bool may_sync) {
@@ -374,6 +382,9 @@ inline void EventPoller::onPipeEvent(bool flush) {
         lock_guard<mutex> lck(_mtx_task);
         _list_swap.swap(_list_task);
     }
+    // 在此之前分配到本poller的fd，其attach任务已在_list_swap中，马上会被执行并计入_fd_count
+    // fds dispatched to this poller before this point have their attach task in _list_swap and will be counted in _fd_count shortly
+    _pending_fd_count.store(0, std::memory_order_relaxed);
 
     _list_swap.for_each([&](const Task::Ptr &task) {
         try {
@@ -689,7 +700,28 @@ EventPoller::Ptr EventPollerPool::getPoller(bool prefer_current_thread) {
     if (prefer_current_thread && _prefer_current_thread && poller) {
         return poller;
     }
-    return static_pointer_cast<EventPoller>(getExecutor());
+
+    auto size = _threads.size();
+    if (size == 0) {
+        return nullptr;
+    }
+    // 以fd数作为负载指标: 即时且确定, 避免ThreadLoadCounter滞后导致突发连接集中到同一线程
+    // 起始位置轮转, fd数相同时实现round-robin
+    // Use fd count as the load metric: immediate and deterministic, avoiding bursts piling onto one
+    // thread due to the lagging ThreadLoadCounter. Rotate the start position so ties are round-robin.
+    auto start = _poller_pos.fetch_add(1, std::memory_order_relaxed) % size;
+    EventPoller *min_poller = nullptr;
+    size_t min_fd = 0;
+    for (size_t i = 0; i < size; ++i) {
+        auto th = static_cast<EventPoller *>(_threads[(start + i) % size].get());
+        auto fd = th->fdCount() + th->pendingFdCount();
+        if (!min_poller || fd < min_fd) {
+            min_poller = th;
+            min_fd = fd;
+        }
+    }
+    min_poller->addPendingFd();
+    return static_pointer_cast<EventPoller>(min_poller->shared_from_this());
 }
 
 void EventPollerPool::preferCurrentThread(bool flag) {
