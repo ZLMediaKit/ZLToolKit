@@ -813,6 +813,9 @@ private:
     // 本socket绑定的poller线程，事件触发于此线程  [AUTO-TRANSLATED:6f782513]
     //The poller thread bound to this socket, events are triggered in this thread
     EventPoller::Ptr _poller;
+    // 在poller上预约的fd名额，fd添加到事件循环后释放，用于poller负载均衡
+    // fd slot reserved on the poller for load balancing; released once the fd is attached
+    std::shared_ptr<void> _fd_reservation;
     // 跨线程访问_sock_fd时需要上锁  [AUTO-TRANSLATED:dc63f6c4]
     //Need to lock when accessing _sock_fd across threads
     mutable MutexWrapper<std::recursive_mutex> _mtx_sock_fd;

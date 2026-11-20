@@ -12,6 +12,7 @@
 #include "sockutil.h"
 #include "Socket.h"
 #include "Util/util.h"
+#include "Util/onceToken.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
 #include "Thread/semaphore.h"
@@ -67,6 +68,7 @@ Socket::Socket(EventPoller::Ptr poller, bool enable_mutex)
     , _mtx_event(enable_mutex)
     , _mtx_send_buf_waiting(enable_mutex)
     , _mtx_send_buf_sending(enable_mutex) {
+    _fd_reservation = _poller->reserveFd();
     memset(&_peer_addr, 0, sizeof _peer_addr);
     setOnRead(nullptr);
     setOnErr(nullptr);
@@ -262,6 +264,10 @@ void Socket::onConnected(const SockNum::Ptr &sock, const onErrCB &cb) {
 }
 
 bool Socket::attachEvent(const SockNum::Ptr &sock) {
+    // fd即将计入poller的fdCount，预约使命完成(失败时也释放, 由调用方决定是否重试)
+    // The fd is about to be counted in the poller's fdCount; the reservation is done
+    // (released on failure too, retry is up to the caller)
+    onceToken token(nullptr, [this]() { _fd_reservation = nullptr; });
     weak_ptr<Socket> weak_self = shared_from_this();
     if (sock->type() == SockNum::Sock_TCP_Server) {
         // tcp服务器  [AUTO-TRANSLATED:f4b9757f]
@@ -581,6 +587,9 @@ void Socket::moveTo(EventPoller::Ptr poller) {
     LOCK_GUARD(_mtx_sock_fd);
     if (poller) {
         _poller = std::move(poller);
+        if (_fd_reservation) {
+            _fd_reservation = _poller->reserveFd();
+        }
     }
     if (_sock_fd) {
         _sock_fd = std::make_shared<SockFD>(_sock_fd->sockNum(), _poller);

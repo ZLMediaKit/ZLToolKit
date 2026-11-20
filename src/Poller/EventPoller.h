@@ -124,16 +124,18 @@ public:
     size_t fdCount() const;
 
     /**
-     * 返回已分配给本poller、但尚未添加到事件循环的fd数量(用于负载均衡预估)
-     * Returns the number of fds dispatched to this poller but not yet attached (for load-balance estimation)
+     * 返回已预约但尚未添加到事件循环的fd数量(用于负载均衡预估)
+     * Returns the number of fds reserved but not yet attached (for load-balance estimation)
      */
     size_t pendingFdCount() const;
 
     /**
-     * 标记有一个fd即将添加到本poller，由EventPollerPool::getPoller调用
-     * Marks that an fd is about to be attached to this poller; called by EventPollerPool::getPoller
+     * 预约一个即将添加到本poller的fd，返回值析构时自动释放预约
+     * 调用方应持有返回值直到fd添加到事件循环或被放弃
+     * Reserves a slot for an fd about to be attached to this poller; the reservation is
+     * released when the returned object is destroyed. Hold it until the fd is attached or abandoned.
      */
-    void addPendingFd();
+    std::shared_ptr<void> reserveFd();
 
     /**
      * 异步执行任务
@@ -306,7 +308,7 @@ private:
     bool _exit_flag = true;
     // 统计监听了多少个fd
     std::atomic<size_t> _fd_count { 0 };
-    // 已分配但尚未attach的fd数, 在onPipeEvent执行完异步任务后清零
+    // 已预约但尚未attach的fd数, 由reserveFd()返回对象的生命周期维护
     std::atomic<size_t> _pending_fd_count { 0 };
     // 线程名  [AUTO-TRANSLATED:f1d62d9f]
     // 线程名
@@ -415,11 +417,11 @@ public:
     EventPoller::Ptr getFirstPoller();
 
     /**
-     * 获取轻负载的实例，以监听的fd数(含已分配未attach的fd)最少为准，fd数相同时轮询
+     * 获取轻负载的实例，以监听的fd数(含已预约未attach的fd)最少为准，fd数相同时轮询
      * 如果优先返回当前线程，那么会返回当前线程
      * 返回当前线程的目的是为了提高线程安全性
      * @param prefer_current_thread 是否优先获取当前线程
-     * Get a lightly loaded instance, measured by fd count (including dispatched-but-not-yet-attached fds);
+     * Get a lightly loaded instance, measured by fd count (including reserved-but-not-yet-attached fds);
      * ties are broken round-robin
      * If prioritizing the current thread, it will return the current thread
      * The purpose of returning the current thread is to improve thread safety
