@@ -1,4 +1,4 @@
-#include <csignal>
+﻿#include <csignal>
 #include <iostream>
 #include <vector>
 #if defined(__linux__) || defined(__linux)
