@@ -12,6 +12,7 @@
 #include "sockutil.h"
 #include "Socket.h"
 #include "Util/util.h"
+#include "Util/onceToken.h"
 #include "Util/logger.h"
 #include "Util/uv_errno.h"
 #include "Thread/semaphore.h"
@@ -262,6 +263,10 @@ void Socket::onConnected(const SockNum::Ptr &sock, const onErrCB &cb) {
 }
 
 bool Socket::attachEvent(const SockNum::Ptr &sock) {
+    // fd即将计入poller的fdCount，预约使命完成(失败时也释放, 由调用方决定是否重试)
+    // The fd is about to be counted in the poller's fdCount; the reservation is done
+    // (released on failure too, retry is up to the caller)
+    onceToken token(nullptr, [this]() { _fd_reservation = nullptr; });
     weak_ptr<Socket> weak_self = shared_from_this();
     if (sock->type() == SockNum::Sock_TCP_Server) {
         // tcp服务器  [AUTO-TRANSLATED:f4b9757f]
@@ -577,10 +582,18 @@ bool Socket::fromSock_l(SockNum::Ptr sock) {
     return true;
 }
 
+void Socket::reserveFd() {
+    LOCK_GUARD(_mtx_sock_fd);
+    _fd_reservation = _poller->reserveFd();
+}
+
 void Socket::moveTo(EventPoller::Ptr poller) {
     LOCK_GUARD(_mtx_sock_fd);
     if (poller) {
         _poller = std::move(poller);
+        if (_fd_reservation) {
+            _fd_reservation = _poller->reserveFd();
+        }
     }
     if (_sock_fd) {
         _sock_fd = std::make_shared<SockFD>(_sock_fd->sockNum(), _poller);
@@ -664,6 +677,9 @@ int Socket::onAccept(const SockNum::Ptr &sock, int event) noexcept {
                 //This is the default construction behavior, which means the child Socket shares the parent Socket's poll thread and closes the mutex lock
                 peer_sock = Socket::createSocket(_poller, false);
             }
+            // fd派发到peer_sock所属poller, attach被推迟到onAccept回调之后, 先预约名额以便负载均衡
+            // The fd is dispatched to peer_sock's poller with attach deferred until after onAccept; reserve a slot for load balancing
+            peer_sock->reserveFd();
 
             auto sock = std::make_shared<SockNum>(fd, SockNum::Sock_TCP);
             // 设置好fd,以备在onAccept事件中可以正常访问该fd  [AUTO-TRANSLATED:e3e3c225]

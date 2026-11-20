@@ -261,6 +261,9 @@ SessionHelper::Ptr UdpServer::createSession(const PeerIdType &id, Buffer::Ptr &b
         //Socket creation failed, the data received by this onRead event is discarded
         return nullptr;
     }
+    // socket的bind/attach在其poller线程异步执行, 先预约名额以便负载均衡
+    // bind/attach runs asynchronously on the socket's poller; reserve a slot for load balancing
+    socket->reserveFd();
 
     auto addr_str = string((char *) addr, addr_len);
     std::weak_ptr<UdpServer> weak_self = std::static_pointer_cast<UdpServer>(shared_from_this());
